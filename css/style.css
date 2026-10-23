@@ -95,7 +95,77 @@ dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .resultat h1.echec { color: var(--danger); }
 .resultat .message { font-size: 17px; margin: 0 0 18px; }
 
+.doux { color: var(--doux); }
+.titre-ligne { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.voyage { border-top: 1px solid var(--bord); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.voyage h3 { margin: 0; font-size: 15px; }
+.voyage p { margin: 0; font-size: 13px; }
+
+/* Navigation de l'orbiteur */
+#ecran-nav { position: fixed; inset: 0; }
+#nav { display: block; width: 100vw; height: 100vh; cursor: grab; }
+#hud-nav { position: absolute; inset: 0; pointer-events: none; font-size: 13px; }
+#hud-nav > * { pointer-events: auto; }
+#hud-nav button { padding: 6px 10px; font-size: 13px; }
+#hud-nav button.choisi { border-color: var(--accent); background: #2a1810; }
+.barre-haut {
+  position: absolute; top: 8px; left: 8px; right: 8px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  background: rgba(10, 14, 26, 0.85); border: 1px solid var(--bord); border-radius: 10px; padding: 6px 10px;
+}
+.barre-haut .date { font-weight: 700; min-width: 210px; }
+.barre-haut .groupe { display: inline-flex; gap: 4px; align-items: center; }
+#nav-warp { min-width: 190px; text-align: center; font-variant-numeric: tabular-nums; }
+.panneau {
+  position: absolute; top: 64px; width: 290px; max-height: calc(100vh - 110px); overflow-y: auto;
+  background: rgba(10, 14, 26, 0.85); border: 1px solid var(--bord); border-radius: 10px; padding: 10px 12px;
+}
+.panneau.gauche { left: 8px; }
+.panneau.droite { right: 8px; }
+.panneau h3 { margin: 8px 0 6px; font-size: 14px; }
+.panneau dl { font-size: 12.5px; }
+.panneau .doux { font-size: 12px; }
+.orientations { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.manette { margin: 8px 0; }
+.barre-gaz { height: 8px; background: rgba(255,255,255,0.15); border-radius: 4px; overflow: hidden; margin-top: 4px; }
+.barre-gaz div { height: 100%; background: var(--accent); }
+.plan { margin: 0 0 8px; padding-left: 18px; font-size: 12.5px; }
+.plan li { margin-bottom: 4px; color: var(--doux); }
+.plan li.actuelle { color: var(--texte); font-weight: 600; }
+.actions-nav { display: flex; flex-direction: column; gap: 6px; }
+.sondes { padding-left: 16px; margin: 0; font-size: 12px; }
+.aide-nav { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,0.6); font-size: 12px; white-space: nowrap; pointer-events: none !important; }
+
+/* Infobulle */
+.infobulle {
+  position: fixed; z-index: 30; pointer-events: none; display: flex; flex-direction: column; gap: 2px;
+  background: rgba(10, 14, 26, 0.95); border: 1px solid var(--bord); border-radius: 8px; padding: 8px 10px; font-size: 13px; max-width: 260px;
+}
+.infobulle b { font-size: 14px; }
+.infobulle .doux { font-size: 11px; }
+
+/* Fiches et encyclopédie */
+.modale { position: fixed; inset: 0; z-index: 20; background: rgba(0,0,0,0.55); display: flex; justify-content: center; align-items: flex-start; padding: 4vh 16px; overflow-y: auto; }
+.fenetre { width: min(980px, 100%); background: var(--panneau); border: 1px solid var(--bord); border-radius: 14px; padding: 18px; }
+.entete { display: flex; gap: 14px; align-items: center; }
+.entete h2 { margin: 0; }
+.entete p { margin: 4px 0 0; color: var(--doux); font-size: 13px; }
+.entete .fermer { margin-left: auto; }
+.disque-fiche { width: 48px; height: 48px; border-radius: 50%; flex: none; box-shadow: inset -8px -6px 12px rgba(0,0,0,0.45); }
+.fenetre .barre { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0; }
+.fenetre input[type=search] { flex: 1 1 220px; font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--bord); background: #0b1020; color: var(--texte); }
+.sections { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.sections section, .arbre section { background: rgba(255,255,255,0.03); border: 1px solid var(--bord); border-radius: 10px; padding: 10px 12px; }
+.sections h3, .arbre h3 { margin: 0 0 8px; font-size: 14px; }
+.arbre { display: flex; flex-direction: column; gap: 10px; }
+.liste-lunes { display: flex; flex-wrap: wrap; gap: 6px; }
+.lien-astre { padding: 4px 8px; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px; }
+.lien-astre small { color: var(--doux); }
+.pastille { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.journal { font-size: 13px; padding-left: 18px; max-height: 70vh; overflow-y: auto; }
+.journal li { margin-bottom: 6px; }
+
 @media (max-width: 760px) {
+  .panneau { width: calc(50vw - 16px); }
   .hangar { grid-template-columns: 1fr; }
   .resume { position: static; }
   .fiche { grid-template-columns: 1fr; }

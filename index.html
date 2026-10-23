@@ -10,23 +10,35 @@
   <!-- 1. Hangar -->
   <section id="ecran-hangar" class="ecran">
     <header>
-      <h1>Hangar</h1>
-      <p>Équipez la fusée. Chaque pièce ajoute du poids : il faudra plus de poussée.</p>
+      <div class="titre-ligne">
+        <h1>Hangar</h1>
+        <button class="ouvrir-encyclo">📖 Tous les astres</button>
+      </div>
+      <p>Équipez l'atterrisseur. Chaque pièce ajoute du poids : il faudra plus de poussée.</p>
     </header>
     <div class="hangar">
       <div id="pieces" class="pieces"></div>
       <aside class="resume">
         <canvas id="apercu" width="220" height="260"></canvas>
         <dl id="resume-fusee"></dl>
-        <button id="vers-carte" class="principal">Choisir la destination →</button>
+        <div class="voyage">
+          <h3>Voyage dans le système solaire</h3>
+          <p class="doux">Pilotez l'orbiteur d'astre en astre, envoyez des sondes, construisez des stations, descendez explorer.</p>
+          <button id="voyage-reprendre" class="principal cache">▶ Reprendre le voyage</button>
+          <button id="voyage-nouveau" class="principal">🛰 Nouveau voyage</button>
+        </div>
+        <button id="vers-carte">Mission directe : choisir la destination →</button>
       </aside>
     </div>
   </section>
 
-  <!-- 2. Carte du système solaire -->
+  <!-- 2. Carte du système solaire (mission directe) -->
   <section id="ecran-carte" class="ecran cache">
     <header>
-      <h1>Système solaire</h1>
+      <div class="titre-ligne">
+        <h1>Mission directe</h1>
+        <button class="ouvrir-encyclo">📖 Tous les astres (lunes, astéroïdes…)</button>
+      </div>
       <p>Choisissez un astre. Les avertissements comparent votre fusée aux conditions sur place.</p>
     </header>
     <div id="systeme" class="systeme"></div>
@@ -37,10 +49,16 @@
     </div>
   </section>
 
-  <!-- 3. Vol -->
+  <!-- 3. Vol et exploration -->
   <canvas id="vol" class="cache"></canvas>
 
-  <!-- 4. Résultat -->
+  <!-- 4. Navigation de l'orbiteur -->
+  <section id="ecran-nav" class="cache">
+    <canvas id="nav"></canvas>
+    <div id="hud-nav"></div>
+  </section>
+
+  <!-- 5. Résultat -->
   <section id="ecran-resultat" class="ecran cache">
     <div class="resultat">
       <h1 id="res-titre"></h1>
@@ -53,11 +71,22 @@
     </div>
   </section>
 
+  <!-- Fiches et infobulle -->
+  <div id="modale" class="modale cache"></div>
+  <div id="infobulle" class="infobulle cache"></div>
+
   <script src="js/astres.js"></script>
   <script src="js/equipements.js"></script>
   <script src="js/physique.js"></script>
+  <script src="js/donnees-jpl.js"></script>
+  <script src="js/catalogue.js"></script>
+  <script src="js/orbites.js"></script>
   <script src="js/vol.js"></script>
+  <script src="js/navigation.js"></script>
+  <script src="js/orbiteur.js"></script>
+  <script src="js/exploration.js"></script>
   <script src="js/ecrans.js"></script>
+  <script src="js/infos.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

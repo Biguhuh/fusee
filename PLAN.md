@@ -18,6 +18,13 @@ Jeu web sans framework (HTML + JS + canvas 2D). On ouvre `index.html`, c'est tou
 - Rayonnement solaire : `1/d²` (d en UA), plus les ceintures de Jupiter pour ses lunes.
 - Moteur : débit `= poussée / (Isp · g0)`.
 
+## Étape 6 : le système solaire complet
+- Données JPL : 460 lunes, astéroïdes, Pluton (`js/donnees-jpl.js`, `js/catalogue.js`).
+- Orbiteur et mécanique orbitale 2D : Kepler (variables universelles), Lambert, sphères d'influence (`js/orbites.js`, `js/navigation.js`, `js/orbiteur.js`).
+- Vitesses orbitale et de libération, mise en orbite au retour (`js/vol.js`).
+- Exploration en vue de côté : spationaute et robot (`js/exploration.js`).
+- Fiches, encyclopédie, infobulles (`js/infos.js`).
+
 ## Causes de fin
 Écrasée, brûlée, pressurisée, à court de carburant, irradiée, ou réussite
 (posé, aller-retour, plongée réussie).

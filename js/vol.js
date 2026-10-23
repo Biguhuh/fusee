@@ -12,16 +12,21 @@ const MARGE_RUPTURE = 0.5;     // au-delà de +50 % des limites d'atterrissage, 
 function tauxDegats(r) { return r > 0 ? Math.min(200, 5 * Math.pow(r / 0.1, 2)) : 0; }
 
 class Vol {
-  constructor(astre, fusee) {
+  // options.voyage : vol lancé depuis l'orbiteur (on doit y revenir, pas de fin « au sol »).
+  // options.carburant : carburant disponible si différent du plein.
+  constructor(astre, fusee, options = {}) {
     this.astre = astre;
     this.f = fusee;
+    this.voyage = !!options.voyage;
+    this.altOrbite = altitudeOrbite(astre);
+    this.decollageDemande = false;
     this.terrain = creerTerrain(astre);
     this.x = 0;
     this.y = astre.depart.alt;
     this.vx = 0;
     this.vy = -astre.depart.vitesse;
     this.angle = 0;
-    this.carburant = fusee.carburant;
+    this.carburant = options.carburant !== undefined ? Math.min(options.carburant, fusee.carburant) : fusee.carburant;
     this.temp = 20;
     this.dose = 0;
     this.pose = false;
@@ -49,6 +54,10 @@ class Vol {
   altSol() { return this.terrain ? this.y - this.sol(this.x) : this.y; }
   pente(x) { return Math.atan2(this.sol(x + 3) - this.sol(x - 3), 6); }
   enDegats() { return this.taux.pression + this.taux.chaleur > 0; }
+  vOrbitale() { return vitesseOrbitale(this.astre, Math.max(0, this.y)); }
+  vLiberation() { return vitesseLiberation(this.astre, Math.max(0, this.y)); }
+  // Gravité ressentie : la vitesse horizontale « courbe » la trajectoire autour de l'astre.
+  gEffective() { return this.c.g - (this.vx * this.vx) / (this.astre.rayonKm * 1000 + this.y); }
 
   step(dt, cmd) {
     if (this.fin) return;
@@ -75,7 +84,8 @@ class Vol {
     const c = conditions(a, this.y);
     this.c = c;
     const ax = F * Math.sin(this.angle) / m;
-    const ay = F * Math.cos(this.angle) / m - c.g;
+    // Gravité moins l'effet centrifuge : à la vitesse orbitale, on tombe autour de l'astre sans s'en rapprocher.
+    const ay = F * Math.cos(this.angle) / m - c.g + (this.vx * this.vx) / (a.rayonKm * 1000 + this.y);
 
     if (this.pose) {
       if (ay <= 0) {
@@ -179,11 +189,19 @@ class Vol {
   objectifs() {
     const a = this.astre;
     if (a.type === 'gazeuse' && this.phase === 'plongee' && this.c.p >= a.cible) this.phase = 'remontee';
-    if (this.phase === 'remontee' && this.y >= altitudeRetour(a)) {
-      this.terminer(a.type === 'gazeuse' ? 'plongee' : 'retour');
-      return;
+    if (a.type === 'gazeuse') {
+      if (this.phase === 'remontee' && this.y >= 0) this.terminer('plongee');
+    } else if (a.type === 'solide') {
+      const v = Math.hypot(this.vx, this.vy);
+      // Libération : plus rien ne nous ramène vers l'astre.
+      if (v >= this.vLiberation() && this.y > this.sol(this.x) + 50) { this.terminer(this.dejaPose ? 'liberation' : 'abandon'); return; }
+      // Orbite : assez haut, assez vite à l'horizontale.
+      if (this.y >= this.altOrbite * 0.95 && Math.abs(this.vx) >= this.vOrbitale() * 0.98 && Math.abs(this.vy) < 0.2 * this.vOrbitale() + 5) {
+        this.terminer(this.dejaPose ? 'orbite' : 'abandon');
+        return;
+      }
     }
-    if (this.phase !== 'remontee' && this.y > a.depart.alt * 1.3 + 1000) this.terminer('abandon');
+    if (this.phase === 'descente' && this.y > a.depart.alt * 1.3 + 1000) this.terminer('abandon');
   }
 
   // ---------- Pilote automatique ----------
@@ -217,12 +235,21 @@ class Vol {
         break;
       }
       case 'au sol':
+        // Posé : le pilote automatique ne redécolle que sur demande (touche T).
+        if (!this.decollageDemande) {
+          this.manette = 0;
+          this.messageAuto = 'posé — T pour décoller';
+          return;
+        }
+        // fallthrough
       case 'remontee': {
-        const reste = altitudeRetour(a) - this.y;
-        // Dans les géantes, monter vite limite les pertes dues à la gravité.
-        vyCible = a.type === 'gazeuse' ? 550 : Math.min(400, 30 + 0.05 * Math.max(0, reste));
-        this.messageAuto = twr < 1 ? 'poussée insuffisante pour monter !' : 'remontée';
-        break;
+        if (a.type === 'gazeuse') {
+          // Dans les géantes, monter vite limite les pertes dues à la gravité.
+          vyCible = 550;
+          this.messageAuto = twr < 1 ? 'poussée insuffisante pour monter !' : 'remontée vers le niveau 1 bar';
+          break;
+        }
+        return this.pilotageMiseEnOrbite(dt, alt, twr);
       }
       case 'plongee': {
         const zone = 1 + (a.cible - 1) * 0.3;
@@ -237,7 +264,8 @@ class Vol {
     }
 
     // Accélération voulue → vecteur poussée.
-    const axV = Math.max(-g, Math.min(g, (vxCible - this.vx) * 0.4));
+    const axMax = Math.max(g, Math.min(2, 0.3 * twr * g));
+    const axV = Math.max(-axMax, Math.min(axMax, (vxCible - this.vx) * 0.4));
     const suivi = (vyCible - this.vy) * 2;
     const ayV = g + (aFrein > 0 ? Math.max(aFrein * 1.25, suivi) : suivi);
     const Fx = m * axV, Fy = Math.max(0, m * ayV);
@@ -250,6 +278,46 @@ class Vol {
     if (Fy <= 0) th = 0;
     if (Math.abs(dA) > 0.4) th *= 0.3;   // pas de pleine poussée tant qu'on est mal orienté
     this.manette = Math.max(0, Math.min(1, th));
+  }
+
+  // Montée vers l'orbite : on grimpe d'abord, puis on bascule vers l'horizontale
+  // pour atteindre la vitesse orbitale à l'altitude d'orbite.
+  pilotageMiseEnOrbite(dt, alt, twr) {
+    const a = this.astre, m = this.masse(), Fmax = this.f.poussee;
+    const vO = vitesseOrbitale(a, this.altOrbite);
+    const sens = this.vx < -1 ? -1 : 1;
+    const gEff0 = Math.max(0.05 * this.c.g, this.gEffective());
+    // Vitesse de montée qui permet d'arriver à l'altitude d'orbite avec une vitesse verticale presque nulle.
+    const ecartAlt = this.altOrbite * 1.02 - this.y;
+    let vyCible = Math.sign(ecartAlt) * Math.min(500, 0.9 * Math.sqrt(2 * gEff0 * Math.abs(ecartAlt))) + 1;
+    let vxCible = sens * vO * 1.01;
+    // Air dense : on monte lentement (sinon le frottement mange le carburant) et on reste vertical.
+    if (this.c.rho > 1e-4) {
+      // Vitesse limite de chute : là où le frottement égale le poids, compromis optimal gravité / frottement.
+      const vMaxAir = Math.sqrt((2 * this.c.g * m) / (this.c.rho * FUSEE_BASE.cx * FUSEE_BASE.surface));
+      vyCible = Math.min(vyCible, Math.max(20, vMaxAir));
+      if (this.c.rho > 0.02) vxCible = sens * Math.min(Math.abs(vxCible), 0.5 * vMaxAir);
+    }
+    if (alt < 60) { vxCible = 0; vyCible = Math.max(vyCible, 15); }
+    const gEff = this.gEffective();
+    let Fy = m * ((vyCible - this.vy) * 0.5 + gEff);
+    let Fx = m * (vxCible - this.vx) * 0.5;
+    // On peut pousser un peu vers le bas pour ne pas dépasser l'altitude d'orbite.
+    Fy = Math.max(-0.5 * Fmax, Fy);
+    if (Math.hypot(Fx, Fy) > Fmax) {
+      // Priorité à la verticale pour ne pas retomber.
+      Fy = Math.sign(Fy) * Math.min(Math.abs(Fy), Fmax);
+      Fx = Math.sign(Fx) * Math.sqrt(Math.max(0, Fmax * Fmax - Fy * Fy));
+    }
+    let angleCible = Math.atan2(Fx, Fy);
+    if (alt < 30) angleCible = Math.max(-0.1, Math.min(0.1, angleCible));
+    const dA = angleCible - this.angle;
+    this.angle += Math.max(-VITESSE_ROTATION * dt, Math.min(VITESSE_ROTATION * dt, dA));
+    let th = Math.hypot(Fx, Fy) / Fmax;
+    if (Math.abs(dA) > 0.4) th *= 0.3;
+    this.manette = Math.max(0, Math.min(1, th));
+    const reste = vO - Math.abs(this.vx);
+    this.messageAuto = twr < 1 ? 'poussée insuffisante pour décoller !' : `mise en orbite : encore ${fmt(Math.max(0, reste))} m/s`;
   }
 
   // Endroit le plus proche où le sol est presque plat sur une vingtaine de mètres.
@@ -268,7 +336,13 @@ class Vol {
   }
 
   // Le joueur termine la mission une fois posé (Entrée) ou l'abandonne (Échap).
-  finirAuSol() { if (this.pose && !this.fin) this.terminer('pose'); }
+  finirAuSol() { if (this.pose && !this.fin && !this.voyage) this.terminer('pose'); }
+  // Décollage volontaire, confié au pilote automatique.
+  demanderDecollage() {
+    if (!this.pose || this.fin) return;
+    this.decollageDemande = true;
+    this.autopilote = true;
+  }
   abandonner() { if (!this.fin) this.terminer(this.pose ? 'pose' : 'abandon'); }
 
   terminer(cause) {
@@ -283,6 +357,9 @@ class Vol {
       temp: this.temp,
       dose: this.dose,
       integrite: this.integrite,
+      altitude: this.y,
+      vitesse: Math.hypot(this.vx, this.vy),
+      dejaPose: !!this.dejaPose,
       degats: { ...this.degats },
       fusee: this.f,
       carburantVideAlt: this.carburantVideAlt,
@@ -297,10 +374,12 @@ class Vol {
     const a = this.astre;
     switch (this.phase) {
       case 'descente': return `Posez-vous en douceur : moins de ${a.vMax} m/s, fusée droite, sol pas trop pentu`;
-      case 'au sol': return `Posé ! Entrée pour terminer, ou redécollez jusqu'à ${fmtAlt(altitudeRetour(a))}`;
+      case 'au sol': return this.voyage
+        ? 'Posé ! E : spationaute · R : robot · T : décoller vers l\'orbiteur'
+        : 'Posé ! Entrée : terminer · E : spationaute · R : robot · T : décoller vers l\'orbite';
       case 'remontee': return a.type === 'gazeuse'
         ? `${fmt(a.cible, 1)} bar atteints ! Remontez jusqu'au niveau 1 bar`
-        : `Remontez en orbite : ${fmtAlt(altitudeRetour(a))}`;
+        : `Mise en orbite : ${fmtAlt(this.altOrbite)} d'altitude et ${fmtV(vitesseOrbitale(a, this.altOrbite))} à l'horizontale`;
       case 'plongee': return `Pas de sol : plongez jusqu'à ${fmt(a.cible, 1)} bar, puis remontez`;
       case 'approche': return 'Approchez le Soleil… si vous pouvez';
     }
@@ -309,8 +388,8 @@ class Vol {
 }
 
 // Altitude à atteindre pour réussir la remontée.
-// Astres solides : l'altitude de départ. Géantes : le niveau 1 bar (sommet des nuages).
-function altitudeRetour(a) { return a.type === 'gazeuse' ? 0 : a.depart.alt; }
+// Astres solides : l'orbite basse. Géantes : le niveau 1 bar (sommet des nuages).
+function altitudeRetour(a) { return a.type === 'gazeuse' ? 0 : altitudeOrbite(a); }
 
 function creerExplosion() {
   const parts = [];
@@ -340,7 +419,36 @@ function fmtP(p) {
   if (p < 100) return fmt(p, 1) + ' bar';
   return fmt(p) + ' bar';
 }
-function fmtV(v) { return Math.abs(v) >= 10000 ? fmt(v / 1000, 1) + ' km/s' : fmt(v, 1) + ' m/s'; }
+function fmtV(v) {
+  const a = Math.abs(v);
+  if (a >= 10000) return fmt(v / 1000, 1) + ' km/s';
+  if (a < 1 && a > 0) return fmt(v * 100, 1) + ' cm/s';
+  return fmt(v, 1) + ' m/s';
+}
+function fmtG(g) { return g < 0.01 ? fmt(g * 1000, 2) + ' mm/s² (' + (g / G0).toExponential(1).replace('.', ',') + ' g)' : fmt(g, 2) + ' m/s² (' + fmt(g / G0, 2) + ' g)'; }
+
+// Durée lisible : secondes, minutes, heures, jours, mois, années.
+function fmtDuree(s) {
+  const signe = s < 0 ? '−' : '';
+  s = Math.abs(s);
+  const MIN = 60, H = 3600, J = 86400, MOIS = 30.436875 * J, AN = 365.25 * J;
+  const deux = (n) => String(Math.floor(n)).padStart(2, '0');
+  if (s < MIN) return signe + fmt(s, s < 10 ? 1 : 0) + ' s';
+  if (s < H) return signe + Math.floor(s / MIN) + ' min ' + deux(s % MIN) + ' s';
+  if (s < J) return signe + Math.floor(s / H) + ' h ' + deux((s % H) / MIN) + ' min';
+  if (s < MOIS) return signe + Math.floor(s / J) + ' j ' + deux((s % J) / H) + ' h';
+  if (s < AN) return signe + Math.floor(s / MOIS) + ' mois ' + Math.floor((s % MOIS) / J) + ' j';
+  const ans = Math.floor(s / AN);
+  return signe + ans + (ans > 1 ? ' ans ' : ' an ') + Math.floor((s % AN) / MOIS) + ' mois';
+}
+
+// Date du calendrier à partir du temps de simulation (s depuis J2000).
+function fmtDate(t, avecHeure = true) {
+  const ms = (t / 86400 + 2451545.0 - 2440587.5) * 86400000;
+  const d = new Date(ms);
+  const date = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+  return avecHeure ? date + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) : date;
+}
 
 // ---------- Rendu ----------
 const ETOILES = Array.from({ length: 160 }, () => ({ x: Math.random(), y: Math.random(), r: Math.random() * 1.4 + 0.3 }));
@@ -398,41 +506,7 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
   const tremble = (vol.enDegats() && !vol.fin ? 2 + Math.min(6, (vol.taux.pression + vol.taux.chaleur) / 5) : 0) + (vol.secousse > 0 ? 8 * vol.secousse : 0);
   if (tremble > 0) ctx.translate((Math.random() - 0.5) * tremble, (Math.random() - 0.5) * tremble);
 
-  // Ciel : noir dans le vide, couleur de l'atmosphère quand l'air s'épaissit.
-  let tCiel = 0;
-  if (a.atm && a.type !== 'etoile') tCiel = Math.min(1, Math.sqrt(c.p / 0.3));
-  let ciel = melanger('#02030a', a.couleurs.ciel, tCiel);
-  if (gaz && vol.y < 0) {
-    const prof = Math.min(1, Math.log(c.p) / Math.log(200));
-    ciel = melanger(a.couleurs.ciel, '#1a0800', prof);
-  }
-  if (a.type === 'etoile') {
-    const lum = Math.min(1, Math.max(0, (c.t - 300) / 4000));
-    ciel = melanger('#02030a', '#ff8a00', lum * 0.8);
-  }
-  ctx.fillStyle = ciel;
-  ctx.fillRect(-10, -10, W + 20, H + 20);
-
-  // Étoiles, de moins en moins visibles quand le ciel s'éclaire.
-  const visEt = 1 - Math.min(1, tCiel * 1.4);
-  if (visEt > 0.02) {
-    ctx.fillStyle = `rgba(255,255,255,${0.85 * visEt})`;
-    for (const e of ETOILES) ctx.fillRect(e.x * W, e.y * H, e.r, e.r);
-  }
-
-  // Planète mère dans le ciel (pour les lunes) et Soleil.
-  if (a.parent && ASTRES_PAR_ID[a.parent]) {
-    const pm = ASTRES_PAR_ID[a.parent];
-    ctx.globalAlpha = 0.9 * Math.max(0.25, visEt);
-    ctx.fillStyle = pm.couleurs.disque;
-    ctx.beginPath(); ctx.arc(W * 0.78, H * 0.18, Math.min(W, H) * 0.09, 0, Math.PI * 2); ctx.fill();
-    ctx.globalAlpha = 1;
-  }
-  if (a.type !== 'etoile') {
-    const rs = Math.max(2, 14 / Math.sqrt(a.distanceUA));
-    ctx.fillStyle = 'rgba(255,240,200,0.9)';
-    ctx.beginPath(); ctx.arc(W * 0.15, H * 0.12, rs, 0, Math.PI * 2); ctx.fill();
-  }
+  dessinerFond(ctx, a, c, W, H, gaz && vol.y < 0);
 
   // Déplacement apparent du décor pendant cette image (pour la poussière et la fumée).
   const ep = Math.max(0.15, Math.min(3, echelle));
@@ -518,6 +592,78 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
   }
 
   dessinerHUD(ctx, vol, W, H, warp);
+}
+
+// Astres visibles dans le ciel, pour l'infobulle au survol : [{ x, y, r, id }].
+let ZONES_CIEL = [];
+
+// Ciel, étoiles, planète mère et Soleil (vues d'atterrissage et d'exploration).
+function dessinerFond(ctx, a, c, W, H, sousLesNuages) {
+  ZONES_CIEL = [];
+  // Ciel : noir dans le vide, couleur de l'atmosphère quand l'air s'épaissit.
+  let tCiel = 0;
+  if (a.atm && a.type !== 'etoile') tCiel = Math.min(1, Math.sqrt(c.p / 0.3));
+  let ciel = melanger('#02030a', a.couleurs.ciel, tCiel);
+  if (sousLesNuages) {
+    const prof = Math.min(1, Math.log(c.p) / Math.log(200));
+    ciel = melanger(a.couleurs.ciel, '#1a0800', prof);
+  }
+  if (a.type === 'etoile') {
+    const lum = Math.min(1, Math.max(0, (c.t - 300) / 4000));
+    ciel = melanger('#02030a', '#ff8a00', lum * 0.8);
+  }
+  ctx.fillStyle = ciel;
+  ctx.fillRect(-10, -10, W + 20, H + 20);
+
+  // Étoiles, de moins en moins visibles quand le ciel s'éclaire.
+  const visEt = 1 - Math.min(1, tCiel * 1.4);
+  if (visEt > 0.02) {
+    ctx.fillStyle = `rgba(255,255,255,${0.85 * visEt})`;
+    for (const e of ETOILES) ctx.fillRect(e.x * W, e.y * H, e.r, e.r);
+  }
+
+  // Planète mère dans le ciel (pour les lunes) : taille apparente réelle, au moins 6 px.
+  if (a.parent && ASTRES_PAR_ID[a.parent] && a.orbite) {
+    const pm = ASTRES_PAR_ID[a.parent];
+    const angle = 2 * Math.atan(pm.rayonKm / a.orbite.a);           // diamètre apparent (rad)
+    const r = Math.max(6, Math.min(Math.min(W, H) * 0.35, (angle / 1.2) * W / 2));
+    ctx.globalAlpha = 0.9 * Math.max(0.25, visEt);
+    ctx.fillStyle = pm.couleurs.disque;
+    ctx.beginPath(); ctx.arc(W * 0.78, H * 0.2, r, 0, Math.PI * 2); ctx.fill();
+    if (pm.id === 'saturne') {
+      ctx.strokeStyle = 'rgba(230,210,160,0.7)'; ctx.lineWidth = Math.max(1, r * 0.15);
+      ctx.beginPath(); ctx.ellipse(W * 0.78, H * 0.2, r * 2.2, r * 0.5, -0.3, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ZONES_CIEL.push({ x: W * 0.78, y: H * 0.2, r: Math.max(r, 10), id: pm.id });
+  }
+  if (a.type !== 'etoile') {
+    const rs = Math.max(2, 14 / Math.sqrt(a.distanceUA));
+    ctx.fillStyle = 'rgba(255,240,200,0.9)';
+    ctx.beginPath(); ctx.arc(W * 0.42, H * 0.13, rs, 0, Math.PI * 2); ctx.fill();
+    ZONES_CIEL.push({ x: W * 0.42, y: H * 0.13, r: Math.max(rs, 10), id: 'soleil' });
+  }
+  // Lunes sœurs visibles (les plus grosses), petits points.
+  if (a.parent) {
+    const soeurs = (ENFANTS[a.parent] || []).filter((s) => s.id !== a.id && s.rayonKm > 200).slice(0, 4);
+    soeurs.forEach((s, i) => {
+      const x = W * (0.45 + 0.1 * i), y = H * (0.08 + 0.05 * (i % 2));
+      ctx.fillStyle = s.couleurs.disque;
+      ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fill();
+      ZONES_CIEL.push({ x, y, r: 9, id: s.id });
+    });
+  }
+  // Planète d'origine vue depuis une planète : la Terre depuis Mars ou Vénus, etc. (petit point bleu).
+  if (!a.parent && a.id !== 'terre' && a.type !== 'etoile') {
+    ctx.fillStyle = '#4f8fe0';
+    ctx.beginPath(); ctx.arc(W * 0.3, H * 0.07, 2, 0, Math.PI * 2); ctx.fill();
+    ZONES_CIEL.push({ x: W * 0.3, y: H * 0.07, r: 9, id: 'terre' });
+  }
+}
+
+function astreDuCielSous(x, y) {
+  for (const z of ZONES_CIEL) if (Math.hypot(z.x - x, z.y - y) < z.r) return z.id;
+  return null;
 }
 
 function dessinerTerrain(ctx, vol, W, H, echelle, fuseeY) {
@@ -754,7 +900,7 @@ function dessinerHUD(ctx, vol, W, H, warp) {
   const x = 14, larg = 250;
   let y = 14;
   ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  ctx.fillRect(8, 8, larg + 12, a.type === 'solide' ? 398 : 380);
+  ctx.fillRect(8, 8, larg + 12, a.type === 'solide' ? 434 : a.type === 'etoile' ? 380 : 416);
   ctx.font = 'bold 15px system-ui, sans-serif';
   ctx.fillStyle = '#fff';
   ctx.fillText(a.nom, x, y + 12);
@@ -798,7 +944,13 @@ function dessinerHUD(ctx, vol, W, H, warp) {
   jauge(ctx, x, y - 4, larg, ft, couleurRisque(ft)); y += 6;
   ligne('Temp. extérieure', fmt(c.t) + ' °C');
 
-  ligne('Gravité locale', fmt(c.g, 2) + ' m/s² (' + fmt(c.g / G0, 2) + ' g)');
+  ligne('Gravité locale', fmtG(c.g));
+  if (a.type !== 'etoile') {
+    const vO = vol.vOrbitale(), vL = vol.vLiberation();
+    const vh = Math.abs(vol.vx);
+    ligne('Vit. orbitale', fmtV(vO) + (vol.phase === 'remontee' && a.type === 'solide' ? ' (' + fmt(Math.min(100, (vh / vO) * 100)) + ' %)' : ''), vh >= vO * 0.98 ? '#66bb6a' : '#fff');
+    ligne('Vit. libération', fmtV(vL), Math.hypot(vol.vx, vol.vy) >= vL ? '#66bb6a' : '#fff');
+  }
   const twr = vol.twr();
   ligne('Poussée/poids', fmt(twr * vol.throttle, 2) + ' (max ' + fmt(twr, 2) + ')', twr < 1 ? '#ef5350' : '#fff');
 
@@ -815,6 +967,19 @@ function dessinerHUD(ctx, vol, W, H, warp) {
     ctx.textAlign = 'center';
     ctx.fillStyle = Math.sin(performance.now() / 150) > 0 ? '#ff1744' : '#ffffff';
     msgs.forEach((m, i) => ctx.fillText(m, W / 2, 70 + i * 24));
+    ctx.textAlign = 'left';
+  }
+
+  // Message de retour d'exploration
+  if (vol.messageExplo && vol.messageExplo.vie > 0) {
+    vol.messageExplo.vie -= 1 / 60;
+    ctx.font = 'bold 15px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    const tw = ctx.measureText(vol.messageExplo.texte).width;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(W / 2 - tw / 2 - 12, H - 80, tw + 24, 28);
+    ctx.fillStyle = '#ffd54f';
+    ctx.fillText(vol.messageExplo.texte, W / 2, H - 60);
     ctx.textAlign = 'left';
   }
 
@@ -863,7 +1028,7 @@ function dessinerHUD(ctx, vol, W, H, warp) {
   ctx.fillText('Temps ×' + warp, W - 14, 28);
   ctx.font = '12px system-ui, sans-serif';
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  ctx.fillText('T+ ' + fmt(vol.t) + ' s', W - 14, 46);
+  ctx.fillText('T+ ' + fmtDuree(vol.t), W - 14, 46);
   if (vol.autopilote) {
     ctx.font = 'bold 14px system-ui, sans-serif';
     ctx.fillStyle = '#66bb6a';

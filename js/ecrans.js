@@ -6,14 +6,24 @@ const $ = (id) => document.getElementById(id);
 // ---------- Sauvegarde (équipement + astres réussis) ----------
 const CLE_SAUVEGARDE = 'fusee-systeme-solaire';
 function charger() {
+  const vide = { equipement: equipementParDefaut(), records: {}, science: {}, masque: false, voyage: null };
   try {
     const s = JSON.parse(localStorage.getItem(CLE_SAUVEGARDE));
-    if (s && s.equipement) return { equipement: { ...equipementParDefaut(), ...s.equipement }, records: s.records || {} };
+    if (s && s.equipement) {
+      return {
+        equipement: { ...equipementParDefaut(), ...s.equipement },
+        records: s.records || {}, science: s.science || {}, masque: !!s.masque, voyage: s.voyage || null,
+      };
+    }
   } catch (e) { /* stockage indisponible */ }
-  return { equipement: equipementParDefaut(), records: {} };
+  return vide;
 }
 function sauver(etat) {
-  try { localStorage.setItem(CLE_SAUVEGARDE, JSON.stringify({ equipement: etat.equipement, records: etat.records })); } catch (e) { /* ignoré */ }
+  try {
+    localStorage.setItem(CLE_SAUVEGARDE, JSON.stringify({
+      equipement: etat.equipement, records: etat.records, science: etat.science, masque: etat.masque, voyage: etat.voyage,
+    }));
+  } catch (e) { /* ignoré */ }
 }
 
 // ---------- Hangar ----------
@@ -29,6 +39,14 @@ function descriptionPiece(cat, o) {
 }
 
 function deltaV(f) { return f.isp * G0 * Math.log(f.masseTotale / f.masseSeche); }
+
+// Estimation du Δv pour repartir du sol jusqu'à l'orbite basse (vitesse orbitale + pertes).
+function besoinRetourOrbite(a) {
+  if (a.type !== 'solide') return 0;
+  const vO = vitesseOrbitale(a, altitudeOrbite(a));
+  const pertes = Math.sqrt(2 * a.g * altitudeOrbite(a)) * 0.5 + (a.atm ? Math.min(2000, 300 * Math.sqrt(a.atm.p0)) : 0);
+  return vO + pertes;
+}
 
 function afficherHangar(etat, auChangement) {
   const conteneur = $('pieces');
@@ -85,12 +103,14 @@ const ORDRE_CARTE = [
   ['saturne', ['titan', 'rhea']],
   ['uranus', ['titania', 'oberon']],
   ['neptune', ['triton']],
+  ['pluton', ['l901']],
+  ['a1', ['a4', 'a2', 'a10']],   // ceinture d'astéroïdes : Cérès, Vesta, Pallas, Hygie
 ];
 
 function tailleDisque(a) { return Math.round(10 + 9 * Math.log(a.rayonKm / 500)); }
 
 function badge(rec) {
-  if (rec === 'retour' || rec === 'plongee') return '★ réussi';
+  if (rec === 'orbite' || rec === 'liberation' || rec === 'plongee' || rec === 'retour') return '★ réussi';
   if (rec === 'pose') return '✓ posé';
   return '';
 }
@@ -102,7 +122,7 @@ function afficherCarte(etat, choisir) {
     const a = ASTRES_PAR_ID[id];
     const b = document.createElement('button');
     b.className = 'astre' + (etat.destination === id ? ' choisi' : '');
-    const d = a.parent ? Math.max(12, tailleDisque(a)) : tailleDisque(a);
+    const d = Math.max(12, tailleDisque(a));
     b.innerHTML = `<span class="disque" style="width:${d}px;height:${d}px;background:${a.couleurs.disque}"></span><span>${a.nom}</span><span class="badge">${badge(etat.records[id])}</span>`;
     b.onclick = () => choisir(id);
     return b;
@@ -156,6 +176,8 @@ function verifications(a, f) {
     ajoute(a.tempSurface > f.tempMax ? 'danger' : a.tempSurface > f.tempMax - 50 ? 'alerte' : 'ok', `Température au sol : ${fmt(a.tempSurface)} °C (bouclier : ${fmt(f.tempMax)} °C sans dégâts${a.tempSurface > f.tempMax ? ', au-delà la coque brûle peu à peu' : ''}).`);
     const besoin = a.depart.vitesse + Math.sqrt(2 * a.g * a.depart.alt) * (a.atm && a.atm.rho0 > 0.5 ? 0.3 : 1);
     ajoute(dv < besoin ? 'danger' : dv < besoin * 1.5 ? 'alerte' : 'ok', `Δv : ${fmt(dv)} m/s (≈ ${fmt(besoin)} m/s pour se poser sans air pour freiner).`);
+    const retour = besoinRetourOrbite(a);
+    ajoute(dv < besoin + retour ? 'alerte' : 'ok', `Retour en orbite : ≈ ${fmt(retour)} m/s de plus (vitesse orbitale ${fmtV(vitesseOrbitale(a, altitudeOrbite(a)))}).${dv < besoin + retour ? ' Pas assez pour repartir : prenez un plus gros réservoir.' : ''}`);
   }
   const rad = conditions(a, 0).rad;
   ajoute(rad > f.protection ? (rad > f.protection * 3 ? 'danger' : 'alerte') : 'ok', `Rayonnement : ${fmt(rad, 1)} (protection ${fmt(f.protection, 1)}).`);
@@ -223,9 +245,11 @@ function texteResultat(r) {
     case 'pose':
       return [`Réussite : posé sur ${a.nom}`, 'succes', `Contact à ${fmt(i ? i.vv : 0, 1)} m/s.` +
         (i && i.degats > 0 ? ` Atterrissage dur : la coque a perdu ${fmt(i.degats)} %.` : '') +
-        ' Pour la réussite totale, redécollez et revenez en orbite.'];
-    case 'retour':
-      return ['Réussite totale : aller-retour', 'succes', `Posé sur ${a.nom} puis revenu à ${fmtAlt(altitudeRetour(a))}.`];
+        ' Pour la réussite totale, redécollez et atteignez la vitesse orbitale.'];
+    case 'orbite':
+      return ['Réussite totale : retour en orbite', 'succes', `Posé sur ${a.nom}, puis mis en orbite à ${fmtAlt(Math.max(0, r.altitude))} et ${fmtV(r.vitesse)} : l'orbiteur vous récupère.`];
+    case 'liberation':
+      return ['Réussite totale : libéré de la gravité', 'succes', `Posé sur ${a.nom}, puis parti à ${fmtV(r.vitesse)}, au-delà de la vitesse de libération : l'orbiteur vous récupère.`];
     case 'plongee':
       return [`Réussite : plongée dans ${a.nom}`, 'succes', `Descente jusqu'à ${fmt(a.cible)} bar puis remontée jusqu'au niveau 1 bar.`];
     case 'abandon':
