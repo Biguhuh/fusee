@@ -210,7 +210,7 @@ function afficherFiche(etat) {
       </dl>
     </div>
     <div>
-      <h2>Votre fusée sur place</h2>
+      <h2>Votre engin sur place</h2>
       <ul class="controle">${verifications(a, f).map((v) => `<li class="${v.niveau}">${v.texte}</li>`).join('')}</ul>
       ${a.type === 'solide' || a.type === 'gazeuse' ? '<button id="adapter" style="margin-top:10px">⚙ Équiper pour se poser et repartir</button><p id="adapter-info" class="doux"></p>' : ''}
     </div>`;
@@ -242,16 +242,16 @@ function texteResultat(r) {
       return ['Écrasée', 'echec', `Contact trop brutal avec le sol de ${a.nom} : ${raisons.join(', ')}. Sans dégâts : ${a.vMax} m/s, ${INCLINAISON_MAX}° d'inclinaison et de pente au maximum.${suite}`];
     }
     case 'carburant':
-      return ['À court de carburant', 'echec', `Réservoir vide à ${fmtAlt(Math.max(0, r.carburantVideAlt || 0))} d'altitude. Sans moteur pour freiner, la fusée s'est écrasée à ${fmt(i.vv, 1)} m/s (maximum ${a.vMax} m/s).`];
+      return ['À court de carburant', 'echec', `Réservoir vide à ${fmtAlt(Math.max(0, r.carburantVideAlt || 0))} d'altitude. Sans moteur pour freiner, le module s'est écrasé à ${fmt(i.vv, 1)} m/s (maximum ${a.vMax} m/s).`];
     case 'bloque':
-      return ['Posé… mais à court de carburant', 'partiel', `La fusée est intacte sur ${a.nom}, mais le réservoir est vide : impossible de redécoller.`];
+      return ['Posé… mais à court de carburant', 'partiel', `Le module est intact sur ${a.nom}, mais le réservoir est vide : impossible de redécoller.`];
     case 'brulee':
       return ['Brûlée', 'echec', a.type === 'etoile'
         ? `La coque a chauffé jusqu'à ${fmt(r.temp)} °C à ${fmtAlt(r.stats.altMin)} de la photosphère, au-delà des ${fmt(f.tempMax)} °C du bouclier, et a fini par fondre. Se poser sur le Soleil est impossible : tout brûle bien avant.`
         : `La coque a chauffé jusqu'à ${fmt(r.temp)} °C, au-delà des ${fmt(f.tempMax)} °C du bouclier, et s'est consumée peu à peu. Extérieur : ${fmt(c.t)} °C.`];
     case 'pressurisee':
       return ['Pressurisée', 'echec', `La pression extérieure est montée jusqu'à ${fmtP(c.p)} pour une coque prévue pour ${fmt(f.pressionMax)} bar : elle s'est déformée puis a cédé.` +
-        (a.type === 'gazeuse' ? (r.carburantRestant <= 0 ? ` Réservoir vide, la fusée a sombré vers le centre de ${a.nom}.` : ` Plus on descend dans ${a.nom}, plus la pression monte.`) : '')];
+        (a.type === 'gazeuse' ? (r.carburantRestant <= 0 ? ` Réservoir vide, la sonde a sombré vers le centre de ${a.nom}.` : ` Plus on descend dans ${a.nom}, plus la pression monte.`) : '')];
     case 'irradiee':
       return ['Irradiée', 'echec', `Le rayonnement (${fmt(c.rad, 1)}, protection ${fmt(f.protection, 1)}) a grillé l'électronique. Il faut un panneau anti-vent solaire plus épais.`];
     case 'pose':
@@ -265,7 +265,7 @@ function texteResultat(r) {
     case 'plongee':
       return [`Réussite : plongée dans ${a.nom}`, 'succes', `Descente jusqu'à ${fmt(a.cible)} bar puis remontée jusqu'au niveau 1 bar.`];
     case 'abandon':
-      return ['Mission abandonnée', 'partiel', `La fusée a quitté ${a.nom} sans terminer la mission.`];
+      return ['Mission abandonnée', 'partiel', `L’engin a quitté ${a.nom} sans terminer la mission.`];
   }
   return [r.cause, 'partiel', ''];
 }

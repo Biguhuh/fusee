@@ -153,10 +153,29 @@ class Vol {
 
     this.dangers(c, v, dt);
     if (this.fin) return;
+    this.prelever();
 
     if (this.terrain && this.y <= this.sol(this.x)) this.contact();
     if (this.fin) return;
     this.objectifs();
+  }
+
+  // Géantes gazeuses : la sonde prélève le gaz automatiquement à chaque palier de pression.
+  prelever() {
+    const a = this.astre;
+    if (a.type !== 'gazeuse' || this.fin) return;
+    this.prelevements = this.prelevements || [];
+    const niveaux = [0.3, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4, 5];
+    const fait = this.prelevements.map((x) => x.niveau);
+    for (const n of niveaux) {
+      if (this.c.p >= n && !fait.includes(n)) {
+        const texte = compositionGaz(a, this.c.p);
+        this.prelevements.push({ niveau: n, p: this.c.p, t: this.c.t, alt: this.y, texte });
+        this.echantillons++;
+        this.tPrelevement = this.t;
+        this.messageExplo = { texte: `Prélèvement n° ${this.prelevements.length} à ${fmtP(this.c.p)}, ${fmt(this.c.t)} °C : ${texte}`, vie: 6 };
+      }
+    }
   }
 
   dangers(c, v, dt) {
@@ -441,7 +460,7 @@ class Vol {
   objectifTexte() {
     const a = this.astre;
     switch (this.phase) {
-      case 'descente': return `Posez-vous en douceur : moins de ${a.vMax} m/s, fusée droite, sol pas trop pentu`;
+      case 'descente': return `Posez-vous en douceur : moins de ${a.vMax} m/s, module droit, sol pas trop pentu`;
       case 'au sol':
         if (this.lancement) {
           if (this.compteARebours > 0) return `${this.f.nomLanceur} : compte à rebours en cours…`;
@@ -453,11 +472,24 @@ class Vol {
       case 'remontee': return a.type === 'gazeuse'
         ? `${fmt(a.cible, 1)} bar atteints ! Remontez jusqu'au niveau 1 bar`
         : `Mise en orbite : ${fmtAlt(this.altOrbite)} d'altitude et ${fmtV(vitesseOrbitale(a, this.altOrbite))} à l'horizontale`;
-      case 'plongee': return `Pas de sol : plongez jusqu'à ${fmt(a.cible, 1)} bar, puis remontez`;
+      case 'plongee': return `Pas de sol : plongez jusqu'à ${fmt(a.cible, 1)} bar (prélèvements automatiques), puis remontez`;
       case 'approche': return 'Approchez le Soleil… si vous pouvez';
     }
     return '';
   }
+}
+
+// Ce que contient le gaz prélevé, selon la géante et la profondeur (pression en bar).
+function compositionGaz(a, p) {
+  if (a.id === 'jupiter' || a.id === 'saturne') {
+    const base = 'hydrogène ~' + (a.id === 'jupiter' ? '90' : '96') + ' %, hélium, traces de méthane';
+    if (p < 0.7) return `${base} ; cristaux de glace d’ammoniac (les nuages blancs)`;
+    if (p < 2.5) return `${base} ; nuages d’hydrosulfure d’ammonium (les bandes brun-orangé)`;
+    return `${base} ; gouttelettes d’eau, nuages d’orage profonds`;
+  }
+  // Uranus et Neptune : le méthane absorbe le rouge, d'où leur couleur bleue.
+  if (p < 1.5) return 'hydrogène, hélium, ~2 % de méthane (il donne la couleur bleue) ; cristaux de méthane';
+  return 'hydrogène, hélium, méthane ; nuages de sulfure d’hydrogène (odeur d’œuf pourri !)';
 }
 
 // Altitude à atteindre pour réussir la remontée.
@@ -644,7 +676,7 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
   }
 
   // Fumée et étincelles, puis fusée ou explosion.
-  const hPx = vol.f.mega ? Math.max(vol.f.hauteur * echelle, 90) : Math.max(HAUTEUR_MODULE * echelle, 44);
+  const hPx = vol.f.mega ? Math.max(vol.f.hauteur * echelle, 90) : Math.max(HAUTEUR_MODULE * echelle, gaz ? 60 : 44);
   if (solide) dessinerBases(ctx, vol, W, echelle, fuseeY);
   // Pas de tir : la tour de lancement, à côté de la fusée.
   if (vol.lancement && solide) {
@@ -975,8 +1007,81 @@ function dessinerModule(ctx, vol, x, y, h) {
   ctx.restore();
 }
 
+// Sonde atmosphérique des géantes : pas de pieds, corps fuselé, ailerons en flèche, bras de prélèvement.
+function dessinerSondeAtmo(ctx, vol, x, y, h) {
+  const degats = vol.degats || { pression: 0, chaleur: 0, impact: 0 };
+  const integrite = vol.integrite === undefined ? 100 : vol.integrite;
+  const pince = 1 - 0.15 * Math.min(1, degats.pression / 100);
+  const brule = Math.min(1, degats.chaleur / 100);
+  const w = h * 0.3 * pince;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(vol.angle);
+  // Trois tuyères et leur flamme
+  if (vol.throttle > 0) {
+    const L = h * (0.2 + 0.5 * vol.throttle) * (0.85 + Math.random() * 0.3);
+    for (const dx of [-0.08, 0, 0.08]) {
+      const gr = ctx.createLinearGradient(0, 0, 0, L);
+      gr.addColorStop(0, '#e1f5fe'); gr.addColorStop(0.35, '#4fc3f7'); gr.addColorStop(1, 'rgba(0,120,255,0)');
+      ctx.fillStyle = gr;
+      ctx.beginPath(); ctx.moveTo(dx * h - h * 0.03, 0); ctx.lineTo(dx * h, L * (dx ? 0.8 : 1)); ctx.lineTo(dx * h + h * 0.03, 0); ctx.fill();
+    }
+  }
+  // Ailerons en flèche
+  ctx.fillStyle = melanger('#455a64', '#3e2723', brule * 0.6);
+  for (const s of [-1, 1]) {
+    ctx.beginPath(); ctx.moveTo(s * w * 0.35, -h * 0.42); ctx.lineTo(s * h * 0.36, -h * 0.02); ctx.lineTo(s * h * 0.3, 0); ctx.lineTo(s * w * 0.4, -h * 0.08); ctx.fill();
+  }
+  // Fuselage en ogive
+  const forme = new Path2D();
+  forme.moveTo(0, -h);
+  forme.bezierCurveTo(w * 0.7, -h * 0.85, w * 0.55, -h * 0.35, w * 0.4, -h * 0.05);
+  forme.lineTo(-w * 0.4, -h * 0.05);
+  forme.bezierCurveTo(-w * 0.55, -h * 0.35, -w * 0.7, -h * 0.85, 0, -h);
+  forme.closePath();
+  const gr = ctx.createLinearGradient(-w / 2, 0, w / 2, 0);
+  gr.addColorStop(0, melanger('#263238', '#3e2723', brule * 0.5)); gr.addColorStop(0.5, melanger('#607d8b', '#4e342e', brule * 0.5)); gr.addColorStop(1, '#263238');
+  ctx.fillStyle = gr;
+  ctx.fill(forme);
+  // Nez en céramique et liserés lumineux
+  ctx.save(); ctx.clip(forme);
+  ctx.fillStyle = '#eceff1'; ctx.fillRect(-w, -h, w * 2, h * 0.12);
+  ctx.strokeStyle = 'rgba(0,229,255,0.85)'; ctx.lineWidth = Math.max(1, h * 0.012);
+  ctx.beginPath(); ctx.moveTo(-w * 0.3, -h * 0.75); ctx.lineTo(-w * 0.18, -h * 0.15); ctx.moveTo(w * 0.3, -h * 0.75); ctx.lineTo(w * 0.18, -h * 0.15); ctx.stroke();
+  ctx.fillStyle = '#ff7043'; ctx.fillRect(-w, -h * 0.55, w * 2, h * 0.015);
+  ctx.restore();
+  // Hublots du compartiment d'analyse
+  ctx.fillStyle = '#80deea';
+  for (const yy of [-0.68, -0.6]) { ctx.beginPath(); ctx.arc(0, yy * h, h * 0.018, 0, Math.PI * 2); ctx.fill(); }
+  // Bras de prélèvement, sorti pendant 2 s après chaque prise
+  if (vol.tPrelevement !== undefined && vol.t - vol.tPrelevement < 2) {
+    ctx.strokeStyle = '#b0bec5'; ctx.lineWidth = Math.max(1.5, h * 0.015);
+    ctx.beginPath(); ctx.moveTo(w * 0.4, -h * 0.45); ctx.lineTo(w * 0.4 + h * 0.18, -h * 0.5); ctx.stroke();
+    ctx.fillStyle = `rgba(0,229,255,${0.5 + 0.5 * Math.sin(performance.now() / 60)})`;
+    ctx.beginPath(); ctx.arc(w * 0.4 + h * 0.2, -h * 0.5, h * 0.03, 0, Math.PI * 2); ctx.fill();
+  }
+  // Fissures, chaleur, alerte (comme les autres engins)
+  const nFiss = Math.round((1 - integrite / 100) * FISSURES.length);
+  if (nFiss > 0) {
+    ctx.save(); ctx.clip(forme);
+    ctx.lineWidth = Math.max(1, h / 60); ctx.strokeStyle = 'rgba(20,20,20,0.85)';
+    for (let i = 0; i < nFiss; i++) {
+      const pts = FISSURES[i];
+      ctx.beginPath(); ctx.moveTo(pts[0][0] * w, pts[0][1] * h);
+      for (let k = 1; k < pts.length; k++) ctx.lineTo(pts[k][0] * w, pts[k][1] * h);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  const chauffe = Math.max(0, Math.min(1, (vol.temp - 100) / Math.max(200, vol.f.tempMax - 100)));
+  if (chauffe > 0.05) { ctx.save(); ctx.clip(forme); ctx.fillStyle = `rgba(255,${Math.round(120 - 80 * chauffe)},0,${0.55 * chauffe})`; ctx.fillRect(-w, -h, w * 2, h); ctx.restore(); }
+  if (vol.enDegats && vol.enDegats() && Math.sin(performance.now() / 70) > 0) { ctx.strokeStyle = '#ff1744'; ctx.lineWidth = 2; ctx.stroke(forme); }
+  ctx.restore();
+}
+
 function dessinerFusee(ctx, vol, x, y, h) {
-  // Les grands lanceurs sont des fusées ; tout ce qui se pose ailleurs est un module léger.
+  // Grands lanceurs : fusées. Géantes gazeuses : sonde atmosphérique. Ailleurs : module d'atterrissage.
+  if (vol.astre && vol.astre.type === 'gazeuse' && !(vol.f && vol.f.mega)) return dessinerSondeAtmo(ctx, vol, x, y, h * 1.3);
   if (!(vol.f && vol.f.mega)) return dessinerModule(ctx, vol, x, y, h);
   const ch = vol.f.choix;
   const degats = vol.degats || { pression: 0, chaleur: 0, impact: 0 };
@@ -1240,6 +1345,7 @@ function dessinerHUD(ctx, vol, W, H, warp) {
   const fr = c.rad / f.protection;
   ligne('Rayonnement', fmt(c.rad, c.rad < 10 ? 1 : 0) + ' / ' + fmt(f.protection, 1), couleurRisque(fr));
   ligne('Dose reçue', fmt(vol.dose) + ' %', couleurRisque(vol.dose / 100));
+  if (a.type === 'gazeuse') ligne('Prélèvements', String((vol.prelevements || []).length), '#4dd0e1');
 
   // Alertes de dégâts
   if (vol.enDegats() && !vol.fin) {
@@ -1299,11 +1405,19 @@ function dessinerHUD(ctx, vol, W, H, warp) {
     vol.messageExplo.vie -= 1 / 60;
     ctx.font = 'bold 15px system-ui, sans-serif';
     ctx.textAlign = 'center';
-    const tw = ctx.measureText(vol.messageExplo.texte).width;
+    // Message trop long : coupé en deux lignes (après « : » ou au milieu).
+    let lignes = [vol.messageExplo.texte];
+    if (ctx.measureText(lignes[0]).width > W - 60) {
+      const t = lignes[0];
+      let i = t.indexOf(' : ');
+      if (i < 0) i = t.lastIndexOf(' ', t.length / 2);
+      lignes = i > 0 ? [t.slice(0, i + (t[i + 1] === ':' ? 2 : 0)), t.slice(i + (t[i + 1] === ':' ? 3 : 1))] : [t];
+    }
+    const tw = Math.min(W - 20, Math.max(...lignes.map((l) => ctx.measureText(l).width)));
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.fillRect(W / 2 - tw / 2 - 12, H - 80, tw + 24, 28);
+    ctx.fillRect(W / 2 - tw / 2 - 12, H - 58 - lignes.length * 22, tw + 24, lignes.length * 22 + 8);
     ctx.fillStyle = '#ffd54f';
-    ctx.fillText(vol.messageExplo.texte, W / 2, H - 60);
+    lignes.forEach((l, k) => ctx.fillText(l, W / 2, H - 56 - (lignes.length - 1 - k) * 22));
     ctx.textAlign = 'left';
   }
 

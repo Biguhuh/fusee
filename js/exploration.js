@@ -136,7 +136,7 @@ class Exploration {
       this.enRover = true;
       p.x = this.rover.x;
       this.dire('À bord du rover : jusqu’à ' + fmtV(this.vMaxRover) + ' et 20 échantillons.');
-    } else this.dire('Approchez-vous du rover (à côté de la fusée) pour monter dedans.');
+    } else this.dire('Approchez-vous du rover (à côté du module) pour monter dedans.');
   }
 
   genererSites() {
@@ -159,6 +159,8 @@ class Exploration {
     s.sites[site.k] = true;
   }
   dire(m) { this.message = m; this.tMessage = 6; }
+  // Pente moyenne sous un véhicule (empattement d'environ 2,4 m).
+  penteSous(x) { return Math.atan2(this.sol(x + 1.2) - this.sol(x - 1.2), 2.4); }
   sol(x) { return this.vol.sol(x); }
 
   step(dt, cmd) {
@@ -175,7 +177,7 @@ class Exploration {
         const s = this.analyse.site;
         this.marquer(s);
         this.donneesEnAttente++;
-        this.dire(`Analyse terminée : ${s.nom}. ${s.texte} (données à transmettre depuis ${this.moduleRobot ? 'le module' : 'la fusée'})`);
+        this.dire(`Analyse terminée : ${s.nom}. ${s.texte} (données à transmettre depuis ${this.moduleRobot ? 'le module robot' : 'le module'})`);
         this.analyse = null;
       }
     }
@@ -312,7 +314,7 @@ class Exploration {
       return;
     }
     if (this.enRover) {
-      if (this.sacRover.length >= 20) return this.dire('Caisse du rover pleine (20) : rentrez à la fusée.');
+      if (this.sacRover.length >= 20) return this.dire('Caisse du rover pleine (20) : rentrez au module.');
       this.sacRover.push(site);
     } else {
       if (this.sac.length >= this.def.capacite) return this.dire('Sac plein (6) : rapportez les échantillons, ou prenez le rover (20).');
@@ -420,7 +422,7 @@ class Exploration {
     // Rover garé
     if (this.rover && !this.enRover) {
       const [rx, ry] = versEcran(this.rover.x, this.sol(this.rover.x));
-      dessinerRover(ctx, rx, ry, echelle, { dir: this.rover.dir, pas: this.rover.pas }, false);
+      dessinerRover(ctx, rx, ry, echelle, { dir: this.rover.dir, pas: this.rover.pas }, false, this.penteSous(this.rover.x));
     }
 
     // Câble de sécurité
@@ -441,9 +443,11 @@ class Exploration {
 
     // Explorateur
     const [sx, sy] = versEcran(p.x, p.y);
-    if (this.enRover) dessinerRover(ctx, sx, sy, echelle, p, true);
+    // Les véhicules suivent la pente (en l'air, ils gardent leur dernière inclinaison).
+    if (p.auSol) this.inclinaison = this.penteSous(p.x);
+    if (this.enRover) dessinerRover(ctx, sx, sy, echelle, p, true, this.inclinaison || 0);
     else if (this.type === 'spationaute') dessinerSpationaute(ctx, sx, sy, echelle, p, this.terre);
-    else dessinerRobot(ctx, sx, sy, echelle, p, this.analyse);
+    else dessinerRobot(ctx, sx, sy, echelle, p, this.analyse, this.inclinaison || 0);
 
     if (this.terre) this.dessinerHudTerre(ctx, W, H);
     else this.dessinerHud(ctx, W, H);
@@ -502,7 +506,7 @@ class Exploration {
     const sc = this.science[a.id] || { echantillons: 0, analyses: 0, sites: {} };
     ligne(this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? `${sc.analyses} envoyées, ${this.donneesEnAttente} en mémoire` : `${this.sac.length} / ${d.capacite}` + (this.rover ? `  rover ${this.sacRover.length} / 20` : ''), this.donneesEnAttente ? '#ffca28' : '#fff');
     ligne('Sites étudiés ici', String(Object.keys(sc.sites || {}).length));
-    ligne('Distance fusée', fmt(Math.abs(this.p.x - this.xFusee)) + ' m');
+    ligne('Distance module', fmt(Math.abs(this.p.x - this.xFusee)) + ' m');
 
     // Site le plus proche non étudié
     const libres = this.sites.filter((s) => !this.dejaFait(s));
@@ -531,7 +535,7 @@ class Exploration {
       ctx.textAlign = 'left';
     }
     ctx.font = '12px system-ui'; ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.textAlign = 'center';
-    ctx.fillText(`←→ / Q D : ${this.type === 'robot' || this.enRover ? 'rouler' : 'marcher'}${this.saut && !this.enRover ? ' · ↑ / Z / Espace : sauter' : ''}${this.rover ? ` · V : ${this.enRover ? 'descendre du' : 'monter dans le'} rover` : ''} · E : ${this.type === 'robot' ? 'analyser' : 'ramasser'} (ou rentrer près de la fusée) · Échap : rappeler`, W / 2, H - 14);
+    ctx.fillText(`←→ / Q D : ${this.type === 'robot' || this.enRover ? 'rouler' : 'marcher'}${this.saut && !this.enRover ? ' · ↑ / Z / Espace : sauter' : ''}${this.rover ? ` · V : ${this.enRover ? 'descendre du' : 'monter dans le'} rover` : ''} · E : ${this.type === 'robot' ? 'analyser' : 'ramasser'} (ou rentrer près du module) · Échap : rappeler`, W / 2, H - 14);
     ctx.textAlign = 'left';
   }
 }
@@ -615,9 +619,12 @@ function dessinerNuages(ctx, W, H, decalage) {
 }
 
 // Rover lunaire (inspiré du rover d'Apollo), avec le spationaute assis s'il est à bord.
-function dessinerRover(ctx, x, y, s, p, aBord) {
+// inclinaison : angle de la pente (rad, positif quand le sol monte vers la droite) ; le véhicule reste parallèle au sol.
+function dessinerRover(ctx, x, y, s, p, aBord, inclinaison = 0) {
   ctx.save();
   ctx.translate(x, y);
+  ctx.rotate(-inclinaison);
+  if (aBord) dessinerSpationaute(ctx, -0.2 * s * (p.dir || 1), -0.8 * s, s * 0.8, { dir: p.dir, pas: 0 });
   ctx.scale(p.dir || 1, 1);
   const rot = (p.pas || 0) * 2.5;
   for (const wx of [-1.1, 1.1]) {
@@ -635,7 +642,6 @@ function dessinerRover(ctx, x, y, s, p, aBord) {
   ctx.beginPath(); ctx.moveTo(1.2 * s, -0.95 * s); ctx.lineTo(1.2 * s, -1.9 * s); ctx.stroke();
   ctx.fillStyle = '#eceff1'; ctx.beginPath(); ctx.arc(1.2 * s, -2 * s, 0.3 * s, Math.PI * 0.9, Math.PI * 2.1); ctx.fill();
   ctx.restore();
-  if (aBord) dessinerSpationaute(ctx, x - 0.2 * s * (p.dir || 1), y - 0.8 * s, s * 0.8, { dir: p.dir, pas: 0 });
 }
 
 function dessinerSpationaute(ctx, x, y, s, p, surTerre) {
@@ -663,10 +669,11 @@ function dessinerSpationaute(ctx, x, y, s, p, surTerre) {
   ctx.restore();
 }
 
-function dessinerRobot(ctx, x, y, s, p, analyse) {
+function dessinerRobot(ctx, x, y, s, p, analyse, inclinaison = 0) {
   const L = 1.6 * s, h = 1.3 * s;
   ctx.save();
   ctx.translate(x, y);
+  ctx.rotate(-inclinaison);
   ctx.scale(p.dir, 1);
   // Roues
   ctx.fillStyle = '#37474f';
