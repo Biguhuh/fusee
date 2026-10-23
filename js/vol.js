@@ -130,7 +130,7 @@ class Vol {
   objectifs() {
     const a = this.astre;
     if (a.type === 'gazeuse' && this.phase === 'plongee' && this.c.p >= a.cible) this.phase = 'remontee';
-    if (this.phase === 'remontee' && this.y >= a.depart.alt) {
+    if (this.phase === 'remontee' && this.y >= altitudeRetour(a)) {
       this.terminer(a.type === 'gazeuse' ? 'plongee' : 'retour');
       return;
     }
@@ -163,16 +163,20 @@ class Vol {
     const a = this.astre;
     switch (this.phase) {
       case 'descente': return `Posez-vous en douceur : moins de ${a.vMax} m/s, fusée droite`;
-      case 'au sol': return `Posé ! Entrée pour terminer, ou redécollez jusqu'à ${fmtAlt(a.depart.alt)}`;
+      case 'au sol': return `Posé ! Entrée pour terminer, ou redécollez jusqu'à ${fmtAlt(altitudeRetour(a))}`;
       case 'remontee': return a.type === 'gazeuse'
-        ? `${a.cible} bar atteints ! Remontez jusqu'à ${fmtAlt(a.depart.alt)}`
-        : `Remontez en orbite : ${fmtAlt(a.depart.alt)}`;
-      case 'plongee': return `Pas de sol : plongez jusqu'à ${a.cible} bar, puis remontez`;
+        ? `${fmt(a.cible, 1)} bar atteints ! Remontez jusqu'au niveau 1 bar`
+        : `Remontez en orbite : ${fmtAlt(altitudeRetour(a))}`;
+      case 'plongee': return `Pas de sol : plongez jusqu'à ${fmt(a.cible, 1)} bar, puis remontez`;
       case 'approche': return 'Approchez le Soleil… si vous pouvez';
     }
     return '';
   }
 }
+
+// Altitude à atteindre pour réussir la remontée.
+// Astres solides : l'altitude de départ. Géantes : le niveau 1 bar (sommet des nuages).
+function altitudeRetour(a) { return a.type === 'gazeuse' ? 0 : a.depart.alt; }
 
 function creerExplosion() {
   const parts = [];
@@ -287,8 +291,33 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
     ctx.stroke();
   }
 
+  // Couches de nuages des géantes, fixées en altitude : elles défilent pendant la plongée.
+  if (gaz) {
+    const pas = 400;
+    const k0 = Math.floor((vol.y - (H - fuseeY) / echelle) / pas), k1 = Math.ceil((vol.y + fuseeY / echelle) / pas);
+    for (let k = k0; k <= k1; k++) {
+      const h = hash(k + 3.7);
+      if (h < 0.35) continue;
+      const sy = fuseeY + (vol.y - k * pas) * echelle;
+      const epais = 8 + h * 40;
+      ctx.fillStyle = k * pas < 0 ? `rgba(60,25,10,${0.15 + 0.2 * h})` : `rgba(255,255,255,${0.08 + 0.15 * h})`;
+      const dec = ((vol.x * echelle * 0.5 + hash(k) * W) % W + W) % W;
+      ctx.fillRect(dec - W, sy - epais / 2, W * 0.7, epais);
+      ctx.fillRect(dec + W * 0.1, sy - epais / 2, W * 0.6, epais);
+    }
+  }
+
   // Sol des astres solides, ou niveau 1 bar des géantes.
-  if (!gaz && solY < H + 10) {
+  const rayonPx = a.rayonKm * 1000 * echelle;
+  if (!gaz && rayonPx < 1e5) {
+    // Vu de loin, l'astre est un disque.
+    const g = ctx.createRadialGradient(W / 2, solY + rayonPx, rayonPx * 0.7, W / 2, solY + rayonPx, rayonPx * 1.08);
+    g.addColorStop(0, a.type === 'etoile' ? '#fff3c0' : a.couleurs.sol);
+    g.addColorStop(0.92, a.type === 'etoile' ? '#ff9800' : a.couleurs.sol);
+    g.addColorStop(1, 'rgba(255,152,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(W / 2, solY + rayonPx, rayonPx * 1.08, 0, Math.PI * 2); ctx.fill();
+  } else if (!gaz && solY < H + 10) {
     if (a.type === 'etoile') {
       const g = ctx.createLinearGradient(0, solY, 0, H);
       g.addColorStop(0, '#fff3c0'); g.addColorStop(1, '#ff9800');
@@ -327,7 +356,7 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
   }
 
   // Fusée ou explosion.
-  const hPx = Math.max(FUSEE_BASE.hauteur * echelle, 38);
+  const hPx = Math.max(FUSEE_BASE.hauteur * echelle, 56);
   if (vol.explosion) {
     dessinerExplosion(ctx, vol.explosion, W / 2, fuseeY - hPx * 0.4, dtReel);
   } else {
@@ -370,7 +399,7 @@ function dessinerFusee(ctx, vol, x, y, h) {
   ctx.beginPath(); ctx.moveTo(w / 2, -h * 0.28); ctx.lineTo(w * 0.95, 0); ctx.lineTo(w / 2, 0); ctx.fill();
 
   // Tuyère (plus large pour les gros moteurs)
-  const tuy = { libellule: 0.45, faucon: 0.6, titan: 0.8, heracles: 1 }[ch.moteur] || 0.6;
+  const tuy = { libellule: 0.45, faucon: 0.6, titan: 0.8, heracles: 1, promethee: 1.2 }[ch.moteur] || 0.6;
   ctx.fillStyle = '#555';
   ctx.beginPath(); ctx.moveTo(-w * 0.25, -h * 0.05); ctx.lineTo(-w * 0.5 * tuy, 0); ctx.lineTo(w * 0.5 * tuy, 0); ctx.lineTo(w * 0.25, -h * 0.05); ctx.fill();
 

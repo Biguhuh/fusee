@@ -1,0 +1,102 @@
+:root {
+  --fond: #070a14;
+  --panneau: #111829;
+  --bord: #24304a;
+  --texte: #e6ebf5;
+  --doux: #8e9ab3;
+  --accent: #ff7043;
+  --ok: #66bb6a;
+  --alerte: #ffca28;
+  --danger: #ef5350;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: radial-gradient(ellipse at top, #121a33, var(--fond) 70%);
+  color: var(--texte);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.cache { display: none !important; }
+.ecran { max-width: 1200px; margin: 0 auto; padding: 24px 16px 40px; }
+header h1 { margin: 0 0 4px; font-size: 28px; }
+header p { margin: 0 0 20px; color: var(--doux); }
+
+button {
+  font: inherit; color: var(--texte); background: var(--panneau);
+  border: 1px solid var(--bord); border-radius: 8px; padding: 10px 16px; cursor: pointer;
+}
+button:hover:not(:disabled) { border-color: var(--doux); }
+button:disabled { opacity: 0.4; cursor: default; }
+button.principal { background: var(--accent); border-color: var(--accent); color: #1a0c06; font-weight: 700; }
+
+/* Hangar */
+.hangar { display: grid; grid-template-columns: 1fr 280px; gap: 20px; align-items: start; }
+.categorie { margin-bottom: 18px; }
+.categorie h2 { font-size: 16px; margin: 0 0 2px; }
+.categorie .aide { color: var(--doux); font-size: 13px; margin: 0 0 8px; }
+.options { display: flex; flex-wrap: wrap; gap: 8px; }
+.option {
+  text-align: left; min-width: 130px; flex: 1 1 130px; max-width: 190px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.option .nom { font-weight: 700; }
+.option .stat { font-size: 13px; }
+.option .masse { font-size: 12px; color: var(--doux); }
+.option.choisi { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; background: #2a1810; }
+.resume {
+  position: sticky; top: 16px; background: var(--panneau); border: 1px solid var(--bord);
+  border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px;
+}
+.resume canvas { align-self: center; background: #05070e; border-radius: 8px; }
+dl { display: grid; grid-template-columns: auto auto; gap: 4px 12px; margin: 0; font-size: 14px; }
+dt { color: var(--doux); }
+dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Carte */
+.systeme {
+  display: flex; align-items: flex-start; gap: 10px; overflow-x: auto;
+  padding: 16px 8px 12px; background: var(--panneau); border: 1px solid var(--bord); border-radius: 12px;
+  position: relative;
+}
+.colonne { display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 76px; }
+.astre {
+  background: none; border: 1px solid transparent; padding: 6px; border-radius: 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 13px;
+}
+.astre.choisi { border-color: var(--accent); background: #2a1810; }
+.astre .disque { border-radius: 50%; box-shadow: inset -6px -4px 10px rgba(0,0,0,0.45); }
+.astre .badge { font-size: 11px; color: var(--ok); min-height: 14px; }
+.lunes { display: flex; flex-direction: column; gap: 4px; align-items: center; border-top: 1px dashed var(--bord); padding-top: 6px; }
+.fiche {
+  margin-top: 16px; background: var(--panneau); border: 1px solid var(--bord); border-radius: 12px; padding: 16px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+}
+.fiche h2 { margin: 0 0 4px; }
+.fiche .vide { color: var(--doux); margin: 0; }
+.fiche .note { color: var(--doux); margin: 0 0 10px; }
+.controle { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.controle li { padding: 6px 10px; border-radius: 6px; background: rgba(255,255,255,0.04); font-size: 14px; }
+.controle li.ok { border-left: 3px solid var(--ok); }
+.controle li.alerte { border-left: 3px solid var(--alerte); }
+.controle li.danger { border-left: 3px solid var(--danger); }
+.actions { display: flex; justify-content: space-between; gap: 12px; margin-top: 16px; }
+
+/* Vol */
+#vol { display: block; position: fixed; inset: 0; width: 100vw; height: 100vh; background: #000; }
+
+/* Résultat */
+.resultat {
+  max-width: 620px; margin: 8vh auto 0; background: var(--panneau); border: 1px solid var(--bord);
+  border-radius: 14px; padding: 28px;
+}
+.resultat h1 { margin: 0 0 10px; font-size: 32px; }
+.resultat h1.succes { color: var(--ok); }
+.resultat h1.partiel { color: var(--alerte); }
+.resultat h1.echec { color: var(--danger); }
+.resultat .message { font-size: 17px; margin: 0 0 18px; }
+
+@media (max-width: 760px) {
+  .hangar { grid-template-columns: 1fr; }
+  .resume { position: static; }
+  .fiche { grid-template-columns: 1fr; }
+}

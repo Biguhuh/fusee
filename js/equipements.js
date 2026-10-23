@@ -4,8 +4,8 @@
 
 const FUSEE_BASE = {
   masse: 2000,      // kg
-  cx: 0.75,         // coefficient de traînée
-  surface: 8,       // m², section frontale
+  cx: 0.5,          // coefficient de traînée
+  surface: 5,       // m², section frontale (≈ 2,5 m de diamètre)
   hauteur: 14,      // m
   pressionMax: 3,   // bar, sans renfort
   tempMax: 150,     // °C, sans bouclier
@@ -17,10 +17,11 @@ const EQUIPEMENTS = {
     titre: 'Moteur',
     aide: 'Poussée en kilonewtons. Il faut plus de poussée que de poids pour monter ou freiner.',
     options: [
-      { id: 'libellule', nom: 'Libellule', poussee: 15000, isp: 300, masse: 150 },
-      { id: 'faucon', nom: 'Faucon', poussee: 60000, isp: 310, masse: 500 },
-      { id: 'titan', nom: 'Titan', poussee: 200000, isp: 320, masse: 1500 },
-      { id: 'heracles', nom: 'Héraclès', poussee: 600000, isp: 330, masse: 4000 },
+      { id: 'libellule', nom: 'Libellule', poussee: 15000, isp: 300, masse: 100 },
+      { id: 'faucon', nom: 'Faucon', poussee: 60000, isp: 310, masse: 300 },
+      { id: 'titan', nom: 'Titan', poussee: 200000, isp: 320, masse: 800 },
+      { id: 'heracles', nom: 'Héraclès', poussee: 600000, isp: 330, masse: 2000 },
+      { id: 'promethee', nom: 'Prométhée', poussee: 1500000, isp: 340, masse: 4500 },
     ],
     defaut: 'faucon',
   },
@@ -55,7 +56,7 @@ const EQUIPEMENTS = {
       { id: 'ceramique', nom: 'Céramique', tempMax: 600, masse: 300 },
       { id: 'ablatif', nom: 'Ablatif', tempMax: 1200, masse: 800 },
       { id: 'carbone', nom: 'Carbone-carbone', tempMax: 2500, masse: 1600 },
-      { id: 'tungstene', nom: 'Tungstène', tempMax: 4000, masse: 3500 },
+      { id: 'tungstene', nom: 'Tungstène', tempMax: 3000, masse: 3500 },
     ],
     defaut: 'aucun',
   },
@@ -67,7 +68,7 @@ const EQUIPEMENTS = {
       { id: 'leger', nom: 'Léger', protection: 8, masse: 100 },
       { id: 'moyen', nom: 'Moyen', protection: 30, masse: 300 },
       { id: 'lourd', nom: 'Lourd', protection: 150, masse: 800 },
-      { id: 'helio', nom: 'Héliosphérique', protection: 1500, masse: 2000 },
+      { id: 'helio', nom: 'Héliosphérique', protection: 50000, masse: 2000 },
     ],
     defaut: 'aucun',
   },

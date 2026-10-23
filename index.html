@@ -3,15 +3,61 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Fusée — prototype Lune</title>
-  <style>html,body{margin:0;height:100%;background:#000;overflow:hidden}canvas{display:block}</style>
+  <title>Fusée — Système solaire</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <canvas id="vol"></canvas>
+  <!-- 1. Hangar -->
+  <section id="ecran-hangar" class="ecran">
+    <header>
+      <h1>Hangar</h1>
+      <p>Équipez la fusée. Chaque pièce ajoute du poids : il faudra plus de poussée.</p>
+    </header>
+    <div class="hangar">
+      <div id="pieces" class="pieces"></div>
+      <aside class="resume">
+        <canvas id="apercu" width="220" height="260"></canvas>
+        <dl id="resume-fusee"></dl>
+        <button id="vers-carte" class="principal">Choisir la destination →</button>
+      </aside>
+    </div>
+  </section>
+
+  <!-- 2. Carte du système solaire -->
+  <section id="ecran-carte" class="ecran cache">
+    <header>
+      <h1>Système solaire</h1>
+      <p>Choisissez un astre. Les avertissements comparent votre fusée aux conditions sur place.</p>
+    </header>
+    <div id="systeme" class="systeme"></div>
+    <div id="fiche" class="fiche"><p class="vide">Cliquez sur un astre.</p></div>
+    <div class="actions">
+      <button id="retour-hangar">← Hangar</button>
+      <button id="lancer" class="principal" disabled>Lancer la mission</button>
+    </div>
+  </section>
+
+  <!-- 3. Vol -->
+  <canvas id="vol" class="cache"></canvas>
+
+  <!-- 4. Résultat -->
+  <section id="ecran-resultat" class="ecran cache">
+    <div class="resultat">
+      <h1 id="res-titre"></h1>
+      <p id="res-message" class="message"></p>
+      <dl id="res-stats"></dl>
+      <div class="actions">
+        <button id="rejouer">Rejouer cette mission</button>
+        <button id="vers-hangar" class="principal">Retour au hangar</button>
+      </div>
+    </div>
+  </section>
+
   <script src="js/astres.js"></script>
   <script src="js/equipements.js"></script>
   <script src="js/physique.js"></script>
   <script src="js/vol.js"></script>
+  <script src="js/ecrans.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>
