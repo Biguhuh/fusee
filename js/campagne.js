@@ -81,19 +81,22 @@ const LANCEURS = {
     nom: 'Hercule', destination: 'la station spatiale (orbite basse, 400 km)',
     description: 'Lanceur lourd à 2 étages. Met 110 t en orbite basse : orbiteur, atterrisseur, kits et ergols.',
     chargeUtile: 110000,
+    // Charge utile (orbiteur + atterrisseur) : hauteur et largeur sous la coiffe, en mètres.
+    charge: { hauteur: 22, largeur: 10 },
     etages: [
-      { nom: '1er étage', masseSeche: 150000, carburant: 2200000, poussee: 40e6, isp: 320, hauteur: 120 },
-      { nom: '2e étage', masseSeche: 40000, carburant: 450000, poussee: 5e6, isp: 440, hauteur: 55 },
+      { nom: '1er étage', masseSeche: 150000, carburant: 2200000, poussee: 40e6, isp: 320, hauteur: 120, largeur: 12, moteurs: 9 },
+      { nom: '2e étage', masseSeche: 40000, carburant: 450000, poussee: 5e6, isp: 440, hauteur: 55, largeur: 12, moteurs: 1 },
     ],
   },
   lune: {
     nom: 'Séléné', destination: 'la Lune (injection translunaire)',
     description: 'Lanceur géant à 3 étages, du gabarit de Saturn V. Le 3e étage atteint l’orbite, puis rallume pour envoyer l’expédition vers la Lune.',
     chargeUtile: 45000,
+    charge: { hauteur: 20, largeur: 6.6, tour: true },
     etages: [
-      { nom: '1er étage', masseSeche: 135000, carburant: 2150000, poussee: 39e6, isp: 330, hauteur: 111 },
-      { nom: '2e étage', masseSeche: 40000, carburant: 480000, poussee: 5.1e6, isp: 430, hauteur: 69 },
-      { nom: '3e étage', masseSeche: 13000, carburant: 107000, poussee: 1e6, isp: 421, hauteur: 34 },
+      { nom: '1er étage', masseSeche: 135000, carburant: 2150000, poussee: 39e6, isp: 330, hauteur: 111, largeur: 10, moteurs: 5, ailerons: true },
+      { nom: '2e étage', masseSeche: 40000, carburant: 480000, poussee: 5.1e6, isp: 430, hauteur: 69, largeur: 10, moteurs: 5 },
+      { nom: '3e étage', masseSeche: 13000, carburant: 107000, poussee: 1e6, isp: 421, hauteur: 34, largeur: 6.6, moteurs: 1 },
     ],
   },
 };
@@ -108,7 +111,7 @@ function caracteristiquesLanceur(l) {
 function megaFusee(type = 'station') {
   const l = LANCEURS[type];
   const f = {
-    mega: true, lanceur: type, nomLanceur: l.nom, etages: l.etages, chargeUtile: l.chargeUtile,
+    mega: true, lanceur: type, nomLanceur: l.nom, etages: l.etages, chargeUtile: l.chargeUtile, charge: l.charge,
     choix: { moteur: 'raptor', reservoir: 'titanesque', coque: 'renforce', bouclier: 'ablatif', panneau: 'aucun' },
     pressionMax: 5, tempMax: 1200, protection: 5, largeurRel: type === 'lune' ? 0.09 : 0.11,
   };

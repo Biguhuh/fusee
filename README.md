@@ -3,12 +3,22 @@
 Jeu web en HTML, JavaScript et canvas 2D, sans framework.
 **Pour jouer : ouvrir `index.html` dans un navigateur.**
 
+## Votre spationaute
+Au premier lancement, on crée son ou sa spationaute (modifiable depuis l'accueil) :
+- **prénom** (facultatif), utilisé dans les messages ;
+- **genre** : femme, homme, non-binaire ou « je préfère ne pas le dire ». Il sert seulement aux accords (attachée, attaché, attaché·e) ; l'apparence se choisit à part ;
+- **carnation** (8 teintes), **coiffure** (courte, longue, bouclée/afro, tresses, rasée, foulard) et couleur des cheveux ;
+- **corps et mobilité** : fauteuil roulant, une jambe ou un bras en moins. Un **exosquelette** motorisé (et une jambe ou un bras robotisés) permet de marcher, sauter et explorer comme tout l'équipage.
+
+Tenue : combinaison de vol bleue de l'ESA sur Terre, scaphandre blanc aux couleurs de l'ESA sur les astres (visage visible derrière la visière).
+
 ## Façons de jouer
 - **Mission directe** (hangar → carte) : on choisit un astre, la fusée arrive au-dessus, on se pose (ou on plonge), puis on repart en orbite. Le bouton « ⚙ Équiper pour se poser et repartir » choisit les pièces qui le permettent.
 - **Campagne** (hangar → « Commencer la campagne ») : tout part de la Terre.
   1. **Centre de lancement** : tout part de la Terre, avec la fusée qui correspond à la destination.
      - **Hercule** (2 étages, 2 950 t, 110 t en orbite basse) → la station spatiale.
      - **Séléné** (3 étages, du gabarit de Saturn V) → la Lune : après la mise en orbite, le 3e étage rallume pour l'injection translunaire (≈ 3,1 km/s), puis le planificateur fait la mise en orbite lunaire.
+     - La fusée est dessinée étage par étage : à chaque séparation l'étage du bas tombe (on voit alors les tuyères de l'étage suivant), puis les deux demi-coiffes s'écartent et découvrent l'orbiteur et son atterrisseur doré. Elle ressemble de plus en plus à ce qui arrive en orbite.
      - Lancement en bonne et due forme : tour de lancement, T pour lancer le compte à rebours, allumage à T−3 (les pinces retiennent la fusée), décollage, Max Q, séparations d'étages, largage de la coiffe, mise en orbite. La chronologie s'affiche pendant le vol et dans le résultat.
   2. **Station spatiale terrestre** : la première chose à construire (🏗). Elle reçoit un cargo de la Terre tous les 30 jours.
   3. **Expédition** : l'orbiteur emporte son atterrisseur. On part vers un astre (pilotage libre, assistant ou planificateur), on se pose, on explore, on remonte.
@@ -84,7 +94,7 @@ Survoler un astre (carte de l'orbiteur, ou ciel pendant l'atterrissage) affiche 
 - `js/astres.js` : 19 astres détaillés (atmosphères, couleurs, relief)
 - `js/donnees-jpl.js` : données JPL générées · `js/catalogue.js` : catalogue complet, orbites, masses
 - `js/physique.js` : conditions locales et relief · `js/orbites.js` : mécanique orbitale (Kepler, Lambert, sphères d'influence)
-- `js/vol.js` : atterrisseur · `js/exploration.js` : spationaute et robot
+- `js/vol.js` : atterrisseur et lanceurs · `js/exploration.js` : spationaute et robot · `js/equipage.js` : profil et dessin du ou de la spationaute
 - `js/navigation.js` : planification des manœuvres · `js/orbiteur.js` : écran de l'orbiteur
 - `js/infos.js` : infobulles, fiches, encyclopédie · `js/ecrans.js`, `js/main.js` : écrans et boucle de jeu
 

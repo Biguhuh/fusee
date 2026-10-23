@@ -624,11 +624,13 @@ const Orbiteur = {
       const e = this.etatStation(st);
       const p = ecran(V.add(etatAbsolu(st.centre, t).r, e.r));
       if (!dansEcran(p)) continue;
-      ctx.fillStyle = st.base ? '#ffca28' : '#ffb74d';
-      ctx.fillRect(p[0] - 4, p[1] - 4, 8, 8);
+      // Taille : lisible de loin, plus détaillée quand on zoome sur son orbite.
+      const taille = Math.max(9, Math.min(22, s * V.norm(e.r) * 0.08));
+      // Poutre perpendiculaire au rayon, comme l'ISS qui garde ses panneaux face au Soleil.
+      dessinerIconeStation(ctx, p[0], p[1], taille, -Math.atan2(e.r[1], e.r[0]), st.terrestre, t);
       ctx.fillStyle = 'rgba(255,220,150,0.9)';
       ctx.font = '11px system-ui, sans-serif';
-      if (s * V.norm(e.r) > 30) ctx.fillText(st.nom, p[0] + 7, p[1] + 12);
+      if (s * V.norm(e.r) > 30) ctx.fillText(st.nom, p[0] + taille + 4, p[1] + taille * 0.6 + 8);
     }
 
     // Sondes
@@ -1021,3 +1023,51 @@ const Orbiteur = {
     this.cam.echelle = Math.max(1e-10, Math.min(5, this.cam.echelle * f));
   },
 };
+
+// Station spatiale vue de dessus : poutre centrale, quatre ailes de panneaux solaires,
+// modules habitables au centre et radiateurs. taille : demi-envergure en pixels.
+function dessinerIconeStation(ctx, x, y, taille, angle, terrestre, t) {
+  const T = taille;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  // Poutre
+  ctx.fillStyle = '#9e9e9e';
+  ctx.fillRect(-T, -T * 0.05, 2 * T, T * 0.1);
+  // Panneaux solaires : deux paires à chaque bout, qui pivotent lentement pour suivre le Soleil.
+  const pivot = 0.75 + 0.25 * Math.cos((t || 0) / 2800);
+  for (const sx of [-0.82, -0.56, 0.56, 0.82]) {
+    for (const sy of [-1, 1]) {
+      const pw = T * 0.2, ph = T * 0.62 * pivot;
+      const x0 = sx * T - pw / 2, y0 = sy > 0 ? T * 0.07 : -T * 0.07 - ph;
+      ctx.fillStyle = '#1e4fa8';
+      ctx.fillRect(x0, y0, pw, ph);
+      ctx.strokeStyle = 'rgba(214,170,60,0.9)'; ctx.lineWidth = Math.max(0.5, T * 0.025);
+      ctx.strokeRect(x0, y0, pw, ph);
+      if (T > 12) {
+        ctx.strokeStyle = 'rgba(140,180,255,0.6)'; ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        for (let q = 1; q < 4; q++) { const yy = y0 + (ph * q) / 4; ctx.moveTo(x0, yy); ctx.lineTo(x0 + pw, yy); }
+        ctx.stroke();
+      }
+    }
+  }
+  // Radiateurs (blancs, perpendiculaires)
+  ctx.fillStyle = '#eceff1';
+  for (const sx of [-0.3, 0.3]) ctx.fillRect(sx * T - T * 0.04, T * 0.06, T * 0.08, T * 0.32);
+  // Modules pressurisés : un axe le long du rayon et un module en travers
+  ctx.fillStyle = '#f5f5f5';
+  ctx.strokeStyle = 'rgba(80,90,100,0.8)'; ctx.lineWidth = Math.max(0.5, T * 0.03);
+  const mod = (cx, cy, w, h) => { ctx.beginPath(); ctx.roundRect(cx - w / 2, cy - h / 2, w, h, Math.min(w, h) * 0.45); ctx.fill(); ctx.stroke(); };
+  mod(0, -T * 0.2, T * 0.16, T * 0.5);
+  mod(0, T * 0.22, T * 0.16, T * 0.42);
+  mod(-T * 0.16, -T * 0.1, T * 0.3, T * 0.13);
+  // Nœud central et feu de position
+  ctx.fillStyle = terrestre ? '#ffca28' : '#ffb74d';
+  ctx.beginPath(); ctx.arc(0, 0, T * 0.1, 0, Math.PI * 2); ctx.fill();
+  if (Math.sin(performance.now() / 400) > 0.6) {
+    ctx.fillStyle = '#ff5252';
+    ctx.beginPath(); ctx.arc(T, 0, Math.max(1, T * 0.05), 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}

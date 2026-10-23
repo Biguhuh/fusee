@@ -37,7 +37,8 @@ class Exploration {
     this.vol = vol;
     this.astre = vol.astre;
     this.type = type;
-    this.def = EXPLORATEURS[type];
+    this.def = { ...EXPLORATEURS[type] };
+    if (type === 'spationaute') this.def.nom = nomSpatio();
     this.science = science;         // { [astreId]: { sites: {k: true}, echantillons } }
     this.xFusee = vol.x;
     const x = vol.x + 2;
@@ -60,7 +61,7 @@ class Exploration {
     this.acc = Math.min(type === 'robot' ? 1 : 4, 0.6 * g + 0.001);
     this.saut = type === 'robot' ? 0 : Math.min(2.2, 0.5 * this.vLib);
     this.cable = type === 'spationaute' && this.vLib < 4.4;
-    if (this.cable) this.dire(`Gravité minuscule (libération à ${fmtV(this.vLib)}) : le spationaute reste attaché par un câble.`);
+    if (this.cable) this.dire(`Gravité minuscule (libération à ${fmtV(this.vLib)}) : ${nomSpatio()} reste attaché${acc()} par un câble.`);
     // Promenade sur Terre : fleurs, fruits et bar, pas de science.
     this.terre = !!options.terre;
     this.campagne = options.provisions || null;
@@ -245,7 +246,7 @@ class Exploration {
         const d = Math.hypot(p.x - this.xFusee, p.y - this.sol(this.xFusee));
         if (d > 30) { p.vx *= -0.3; p.vy = Math.min(p.vy, 0) - 0.05; }
       } else if (Math.hypot(p.vx, p.vy) > this.vLib && p.y - this.sol(p.x) > 20) {
-        this.terminer('perdu', `${this.def.nom} a dépassé la vitesse de libération (${fmtV(this.vLib)}) et s’est perdu dans l’espace.`);
+        this.terminer('perdu', `${this.def.nom} a dépassé la vitesse de libération (${fmtV(this.vLib)}) et s’est perdu${this.type === 'robot' ? '' : acc()} dans l’espace.`);
         return;
       }
       if (p.y <= this.sol(p.x)) {
@@ -267,7 +268,7 @@ class Exploration {
     this.reserve -= dt * (this.type === 'robot' ? effort : 1);
     if (this.moduleRobot && this.presDeLaFusee()) this.reserve = Math.min(this.def.autonomie, this.reserve + dt * 20);
     if (this.reserve <= 0) {
-      return this.terminer('perdu', this.type === 'robot' ? 'Batterie vide : le robot s’est arrêté pour toujours.' : 'Plus d’oxygène : le spationaute n’a pas pu rentrer à temps.');
+      return this.terminer('perdu', this.type === 'robot' ? 'Batterie vide : le robot s’est arrêté pour toujours.' : `Plus d’oxygène : ${nomSpatio()} n’a pas pu rentrer à temps.`);
     }
 
     // Dangers (dégradation progressive, comme la coque de la fusée)
@@ -277,7 +278,7 @@ class Exploration {
     this.integrite -= (tp + tc) * dt;
     if (this.c.rad > this.def.protection) this.dose += (this.c.rad / this.def.protection - 1) * 5 * dt;
     if (this.integrite <= 0) return this.terminer('perdu', tp >= tc ? `La pression (${fmtP(this.c.p)}) a écrasé ${this.type === 'robot' ? 'le robot' : 'la combinaison'}.` : `La chaleur (${fmt(this.c.t)} °C) a eu raison ${this.type === 'robot' ? 'du robot' : 'de la combinaison'}.`);
-    if (this.dose >= 100) return this.terminer('perdu', `Le rayonnement a ${this.type === 'robot' ? 'grillé l’électronique du robot' : 'été mortel pour le spationaute'}.`);
+    if (this.dose >= 100) return this.terminer('perdu', `Le rayonnement a ${this.type === 'robot' ? 'grillé l’électronique du robot' : `été mortel pour ${nomSpatio()}`}.`);
   }
 
   siteProche() {
@@ -647,30 +648,7 @@ function dessinerRover(ctx, x, y, s, p, aBord, inclinaison = 0) {
   ctx.restore();
 }
 
-function dessinerSpationaute(ctx, x, y, s, p, surTerre) {
-  const h = 1.8 * s;
-  const phase = Math.sin(p.pas * 4.5);
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.scale(p.dir, 1);
-  // Jambes
-  ctx.strokeStyle = '#e0e0e0'; ctx.lineWidth = h * 0.11; ctx.lineCap = 'round';
-  const jambe = (sgn) => { ctx.beginPath(); ctx.moveTo(0, -h * 0.45); ctx.lineTo(sgn * phase * h * 0.12, -h * 0.22); ctx.lineTo(sgn * phase * h * 0.16, -h * 0.02); ctx.stroke(); };
-  jambe(1); jambe(-1);
-  // Sac à dos
-  ctx.fillStyle = '#b0bec5'; ctx.fillRect(-h * 0.2, -h * 0.82, h * 0.12, h * 0.34);
-  // Corps
-  ctx.fillStyle = '#f5f5f5'; ctx.fillRect(-h * 0.11, -h * 0.82, h * 0.22, h * 0.4);
-  ctx.fillStyle = '#ef6c00'; ctx.fillRect(-h * 0.11, -h * 0.66, h * 0.22, h * 0.03);
-  // Bras
-  ctx.strokeStyle = '#eeeeee'; ctx.lineWidth = h * 0.08;
-  ctx.beginPath(); ctx.moveTo(0, -h * 0.76); ctx.lineTo(-phase * h * 0.1 + h * 0.05, -h * 0.55); ctx.lineTo(h * 0.08, -h * 0.45); ctx.stroke();
-  // Casque et visière dorée
-  ctx.fillStyle = '#fafafa'; ctx.beginPath(); ctx.arc(0, -h * 0.92, h * 0.12, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#ffb300'; ctx.beginPath(); ctx.ellipse(h * 0.05, -h * 0.92, h * 0.07, h * 0.08, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.beginPath(); ctx.arc(h * 0.07, -h * 0.95, h * 0.02, 0, Math.PI * 2); ctx.fill();
-  ctx.restore();
-}
+// dessinerSpationaute : voir equipage.js (tenue, carnation, exosquelette).
 
 function dessinerRobot(ctx, x, y, s, p, analyse, inclinaison = 0) {
   const L = 1.6 * s, h = 1.3 * s;

@@ -124,8 +124,10 @@ class Vol {
         configurerEtage(f, f.etage + 1);
         this.carburant = f.carburant;
         this.noter(`Séparation : ${f.etages[f.etage - 1].nom} largué à ${fmtAlt(this.y)}, ${f.etages[f.etage].nom} allumé`);
-        // L'étage vide retombe : on le voit s'éloigner.
-        this.etageLargue = { x: this.x, y: this.y, vx: this.vx, vy: this.vy, angle: this.angle, h: f.etages[f.etage - 1].hauteur - f.hauteur, t: 0 };
+        // L'étage vide retombe : on le voit s'éloigner. Le bas de la fusée est maintenant le haut de l'étage largué.
+        const lenLargue = f.etages[f.etage - 1].hauteur - f.hauteur;
+        this.y += lenLargue * Math.cos(this.angle); this.x += lenLargue * Math.sin(this.angle);
+        this.etageLargue = { x: this.x, y: this.y, vx: this.vx, vy: this.vy - 3, angle: this.angle, h: lenLargue, etage: f.etage - 1, t: 0 };
       }
       if (this.carburant === 0 && this.carburantVideAlt === null) this.carburantVideAlt = this.altSol();
     }
@@ -438,6 +440,8 @@ class Vol {
     }
     if (!this.coiffeLarguee && this.y > 110000) {
       this.coiffeLarguee = true;
+      // Les deux demi-coiffes s'écartent : on découvre l'orbiteur et son atterrisseur.
+      if (this.f.charge) this.coiffeDebris = { x: this.x, y: this.y, vx: this.vx, vy: this.vy, angle: this.angle, t: 0 };
       this.noter('Largage de la coiffe : l’atmosphère est trop ténue pour la charge utile');
     }
   }
@@ -704,11 +708,33 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
     const h = dtReel * warp;
     e.t += h; e.vy -= c.g * h; e.x += e.vx * h; e.y += e.vy * h; e.angle += 0.05 * h;
     const sx = W / 2 + (e.x - vol.x) * echelle, sy = fuseeY + (vol.y - e.y) * echelle;
-    if (e.t < 120 && sx > -100 && sx < W + 100 && sy > -100 && sy < H + 100) {
-      const hh = Math.max(14, e.h * echelle), ww = Math.max(4, hh * 0.22);
+    if (e.t < 120 && sx > -300 && sx < W + 300 && sy > -300 && sy < H + 300) {
+      const kk = hPx / vol.f.hauteur, hh = e.h * kk;
+      const et = vol.f.etages[e.etage];
       ctx.save(); ctx.translate(sx, sy); ctx.rotate(e.angle);
-      ctx.fillStyle = '#eceff1'; ctx.fillRect(-ww / 2, 0, ww, hh);
-      ctx.fillStyle = '#212121'; ctx.fillRect(-ww / 2, hh * 0.8, ww / 2, hh * 0.1);
+      // L'étage vide est juste sous la fusée : on le dessine vers le bas depuis son sommet.
+      if (et) dessinerEtage(ctx, et, e.etage, hh, hh, kk, null, 0, vol.f.nomLanceur, false);
+      ctx.restore();
+    }
+  }
+  // Demi-coiffes qui s'écartent et retombent
+  if (vol.coiffeDebris && dtReel > 0) {
+    const e = vol.coiffeDebris, ch = vol.f.charge;
+    const h = dtReel * warp;
+    e.t += h; e.vy -= c.g * h; e.x += e.vx * h; e.y += e.vy * h;
+    const kk = hPx / vol.f.hauteur;
+    const sx = W / 2 + (e.x - vol.x) * echelle, sy = fuseeY + (vol.y - e.y) * echelle;
+    if (e.t < 60) {
+      const hc = ch.hauteur * kk, wc = ch.largeur * kk, ecart = Math.min(e.t, 20) * 1.5 * kk;
+      ctx.save(); ctx.translate(sx, sy); ctx.rotate(e.angle); ctx.translate(0, -(vol.f.hauteur - ch.hauteur) * kk);
+      for (const sg of [-1, 1]) {
+        ctx.save(); ctx.translate(sg * ecart, 0); ctx.rotate(sg * Math.min(1.2, e.t * 0.25));
+        ctx.fillStyle = '#f5f5f5';
+        ctx.beginPath(); ctx.moveTo(0, -hc * 0.12); ctx.lineTo(sg * wc / 2, -hc * 0.12); ctx.lineTo(sg * wc / 2, -hc * 0.55);
+        ctx.bezierCurveTo(sg * wc / 2, -hc * 0.8, sg * wc * 0.12, -hc, 0, -hc); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = 'rgba(60,60,60,0.5)'; ctx.lineWidth = 1; ctx.stroke();
+        ctx.restore();
+      }
       ctx.restore();
     }
   }
@@ -1133,119 +1159,195 @@ function dessinerFusee(ctx, vol, x, y, h) {
   // Grands lanceurs : fusées. Géantes gazeuses : sonde atmosphérique. Ailleurs : module d'atterrissage.
   if (vol.astre && vol.astre.type === 'gazeuse' && !(vol.f && vol.f.mega)) return dessinerSondeAtmo(ctx, vol, x, y, h * 1.3);
   if (!(vol.f && vol.f.mega)) return dessinerModule(ctx, vol, x, y, h);
-  const ch = vol.f.choix;
+  return dessinerLanceur(ctx, vol, x, y, h);
+}
+
+// ---------- Grands lanceurs ----------
+// La fusée est dessinée étage par étage, de bas en haut, avec la charge utile au sommet.
+// À chaque séparation l'étage du bas disparaît ; après le largage de la coiffe on voit
+// l'orbiteur et son atterrisseur : la fusée ressemble de plus en plus à ce qui part en orbite.
+function dessinerLanceur(ctx, vol, x, y, h) {
+  const f = vol.f;
+  const k = h / f.hauteur;                       // pixels par mètre
   const degats = vol.degats || { pression: 0, chaleur: 0, impact: 0 };
-  const integrite = vol.integrite === undefined ? 100 : vol.integrite;
-  // La pression écrase la coque : le corps se pince.
-  const pince = 1 - 0.18 * Math.min(1, degats.pression / 100);
-  const w = h * (vol.f.largeurRel || 0.26);
-  const wc = w * pince;
+  const brule = Math.min(1, degats.chaleur / 100);
+  const bas = f.etages[f.etage];
   ctx.save();
   ctx.translate(x, y);
-  ctx.rotate(vol.angle);
+  ctx.rotate(vol.angle || 0);
 
-  // Flamme
+  // Flamme : aussi large que les moteurs allumés.
   if (vol.throttle > 0) {
-    const L = h * (0.25 + 0.6 * vol.throttle) * (0.85 + Math.random() * 0.3);
-    const lg = w * (0.2 + 0.18 * vol.throttle);
+    const lg = bas.largeur * k * (bas.moteurs > 1 ? 0.42 : 0.2) * (0.8 + 0.3 * vol.throttle);
+    const L = Math.max(lg * 3, bas.largeur * k * (2.5 + 4 * vol.throttle)) * (0.85 + Math.random() * 0.3);
     const gr = ctx.createLinearGradient(0, 0, 0, L);
-    gr.addColorStop(0, '#fff6c0'); gr.addColorStop(0.4, '#ffab40'); gr.addColorStop(1, 'rgba(255,60,0,0)');
+    gr.addColorStop(0, '#fff6c0'); gr.addColorStop(0.35, '#ffab40'); gr.addColorStop(1, 'rgba(255,60,0,0)');
     ctx.fillStyle = gr;
-    ctx.beginPath(); ctx.moveTo(-lg, 0); ctx.lineTo(0, L); ctx.lineTo(lg, 0); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-lg, 0); ctx.quadraticCurveTo(-lg * 1.3, L * 0.4, 0, L); ctx.quadraticCurveTo(lg * 1.3, L * 0.4, lg, 0); ctx.fill();
   }
 
-  // Panneaux anti-vent solaire
-  if (ch.panneau !== 'aucun') {
-    const taille = { leger: 0.5, moyen: 0.75, lourd: 1, helio: 1.3 }[ch.panneau] || 0.5;
-    ctx.fillStyle = '#2f6fd6';
-    ctx.strokeStyle = '#9ec3ff';
-    ctx.lineWidth = 1;
-    const pw = w * taille, ph = h * 0.22;
-    ctx.fillRect(-wc / 2 - pw, -h * 0.62, pw, ph); ctx.strokeRect(-wc / 2 - pw, -h * 0.62, pw, ph);
-    ctx.fillRect(wc / 2, -h * 0.62, pw, ph); ctx.strokeRect(wc / 2, -h * 0.62, pw, ph);
+  let yb = 0;
+  for (let i = f.etage; i < f.etages.length; i++) {
+    const e = f.etages[i];
+    const dessus = i + 1 < f.etages.length ? f.etages[i + 1].hauteur : f.charge.hauteur;
+    const len = (e.hauteur - dessus) * k;
+    const dessous = i > f.etage ? f.etages[i - 1].largeur * k : null;
+    dessinerEtage(ctx, e, i, yb, len, k, dessous, brule, f.nomLanceur, vol.throttle > 0 && i === f.etage);
+    yb -= len;
   }
+  const wHaut = f.etages[f.etages.length - 1].largeur * k;
+  if (!vol.coiffeLarguee) dessinerCoiffe(ctx, yb, f.charge.hauteur * k, f.charge.largeur * k, wHaut, f.charge.tour);
+  else dessinerChargeUtile(ctx, yb, f.charge.hauteur * k, f.charge.largeur * k, wHaut);
 
-  // Ailerons et pieds
-  ctx.fillStyle = '#c62828';
-  ctx.beginPath(); ctx.moveTo(-wc / 2, -h * 0.28); ctx.lineTo(-w * 0.95, 0); ctx.lineTo(-wc / 2, 0); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(wc / 2, -h * 0.28); ctx.lineTo(w * 0.95, 0); ctx.lineTo(wc / 2, 0); ctx.fill();
-
-  // Tuyère (plus large pour les gros moteurs)
-  const tuy = { libellule: 0.45, faucon: 0.6, titan: 0.8, heracles: 1, promethee: 1.2, raptor: 1.1 }[ch.moteur] || 0.6;
-  ctx.fillStyle = '#555';
-  ctx.beginPath(); ctx.moveTo(-w * 0.25, -h * 0.05); ctx.lineTo(-w * 0.5 * tuy, 0); ctx.lineTo(w * 0.5 * tuy, 0); ctx.lineTo(w * 0.25, -h * 0.05); ctx.fill();
-
-  // Corps (pincé au milieu sous la pression)
-  const yh = -h * 0.8, yb = -h * 0.05;
-  const forme = new Path2D();
-  forme.moveTo(-w / 2, yb);
-  forme.quadraticCurveTo(-w / 2 + (w - wc) * 1.5, (yh + yb) / 2, -w / 2, yh);
-  forme.lineTo(w / 2, yh);
-  forme.quadraticCurveTo(w / 2 - (w - wc) * 1.5, (yh + yb) / 2, w / 2, yb);
-  forme.closePath();
-  const lanceur = vol.f && vol.f.mega && vol.f.etages;
-  // La chaleur noircit la peinture.
-  const brule = Math.min(1, degats.chaleur / 100);
-  ctx.fillStyle = melanger('#eceff1', '#3e2723', brule * 0.8);
-  ctx.fill(forme);
-  if (ch.coque !== 'aucun') {
-    const epc = { leger: 1, renforce: 2, lourd: 3, abyssal: 4 }[ch.coque] || 1;
-    ctx.strokeStyle = '#607d8b';
-    ctx.lineWidth = epc;
-    ctx.stroke(forme);
-    ctx.save(); ctx.clip(forme);
-    ctx.beginPath();
-    for (let i = 1; i <= epc; i++) { const yy = yh + (h * 0.75 * i) / (epc + 1); ctx.moveTo(-w / 2, yy); ctx.lineTo(w / 2, yy); }
-    ctx.stroke();
-    ctx.restore();
-  }
-  if (lanceur) {
-    ctx.save(); ctx.clip(forme);
-    dessinerBandesLanceur(ctx, vol.f, w, h);
-    ctx.restore();
-  }
-  // Hublot
-  ctx.fillStyle = integrite < 30 ? '#90a4ae' : '#4fc3f7';
-  if (!lanceur) { ctx.beginPath(); ctx.arc(0, -h * 0.6, wc * 0.22, 0, Math.PI * 2); ctx.fill(); }
-
-  // Coiffe (couleur du bouclier thermique)
-  const coul = { aucun: '#c62828', ceramique: '#e0e0e0', ablatif: '#6d4c41', carbone: '#212121', tungstene: '#90a4ae' }[ch.bouclier] || '#c62828';
-  ctx.fillStyle = melanger(coul.length === 7 ? coul : '#c62828', '#1b0f0a', brule * 0.6);
-  ctx.beginPath(); ctx.moveTo(-w / 2, yh); ctx.quadraticCurveTo(0, -h * 1.1, w / 2, yh); ctx.fill();
-  if (ch.bouclier !== 'aucun') { ctx.fillRect(-w / 2, -h * 0.07, w, h * 0.03); }
-
-  // Fissures : de plus en plus nombreuses quand l'intégrité baisse.
-  const nFiss = Math.round((1 - integrite / 100) * FISSURES.length);
-  if (nFiss > 0) {
-    ctx.save(); ctx.clip(forme);
-    ctx.lineWidth = Math.max(1, h / 60);
-    for (let i = 0; i < nFiss; i++) {
-      const pts = FISSURES[i];
-      ctx.strokeStyle = vol.taux && vol.taux.chaleur > 0 ? 'rgba(255,120,0,0.9)' : 'rgba(30,30,30,0.85)';
-      ctx.beginPath();
-      ctx.moveTo(pts[0][0] * w, pts[0][1] * h);
-      for (let k = 1; k < pts.length; k++) ctx.lineTo(pts[k][0] * w, pts[k][1] * h);
-      ctx.stroke();
-    }
-    ctx.restore();
-  }
-
-  // Rougeoiement quand la coque chauffe
-  const chauffe = Math.max(0, Math.min(1, (vol.temp - 100) / Math.max(200, vol.f.tempMax - 100)));
+  // Rougeoiement quand la coque chauffe, contour rouge pendant les dégâts.
+  const wMax = f.etages[f.etage].largeur * k;
+  const chauffe = Math.max(0, Math.min(1, ((vol.temp || 20) - 100) / Math.max(200, f.tempMax - 100)));
   if (chauffe > 0.05) {
-    ctx.save(); ctx.clip(forme);
-    ctx.fillStyle = `rgba(255,${Math.round(120 - 80 * chauffe)},0,${0.55 * chauffe})`;
-    ctx.fillRect(-w / 2, yh, w, h * 0.75);
-    ctx.restore();
+    ctx.fillStyle = `rgba(255,${Math.round(120 - 80 * chauffe)},0,${0.45 * chauffe})`;
+    ctx.fillRect(-wMax / 2, -h, wMax, h);
   }
-
-  // Contour qui clignote en rouge pendant les dégâts.
   if (vol.enDegats && vol.enDegats() && Math.sin(performance.now() / 70) > 0) {
-    ctx.strokeStyle = '#ff1744';
-    ctx.lineWidth = 2;
-    ctx.stroke(forme);
+    ctx.strokeStyle = '#ff1744'; ctx.lineWidth = 2;
+    ctx.strokeRect(-wMax / 2, -h, wMax, h);
   }
   ctx.restore();
+}
+
+// Un étage, de yb (bas) à yb - len (haut). enBas : c'est l'étage qui pousse, ses tuyères sont visibles.
+// largeurDessous : largeur de l'étage inférieur (inter-étage conique s'il est plus large).
+function dessinerEtage(ctx, e, i, yb, len, k, largeurDessous, brule, nomLanceur, allume) {
+  const w = e.largeur * k;
+  const enBas = largeurDessous === null;
+  const blanc = melanger('#eceff1', '#3e2723', brule * 0.8);
+  let y0 = yb;   // bas du cylindre
+  if (enBas) {
+    // Tuyères : on en voit au plus trois de profil.
+    const nz = Math.min(len * 0.18, w * 0.45);
+    const vis = Math.min(3, e.moteurs);
+    const pas = w / vis;
+    for (let j = 0; j < vis; j++) {
+      const cx = -w / 2 + pas * (j + 0.5);
+      const bh = pas * 0.28, bb = pas * 0.42;
+      ctx.fillStyle = '#37474f';
+      ctx.beginPath(); ctx.moveTo(cx - bh, yb - nz); ctx.lineTo(cx - bb, yb); ctx.lineTo(cx + bb, yb); ctx.lineTo(cx + bh, yb - nz); ctx.fill();
+      if (allume) { ctx.fillStyle = 'rgba(255,171,64,0.8)'; ctx.fillRect(cx - bb * 0.8, yb - nz * 0.15, bb * 1.6, nz * 0.15); }
+    }
+    // Jupe de poussée
+    ctx.fillStyle = '#263238';
+    ctx.fillRect(-w / 2, yb - nz - Math.max(1, len * 0.03), w, Math.max(1, len * 0.03));
+    y0 = yb - nz - Math.max(1, len * 0.03);
+  } else {
+    // Inter-étage : cache les tuyères tant que l'étage du dessous est là.
+    const hi = Math.min(len * 0.22, w * 0.5);
+    ctx.fillStyle = melanger('#cfd8dc', '#3e2723', brule * 0.8);
+    ctx.beginPath(); ctx.moveTo(-largeurDessous / 2, yb); ctx.lineTo(-w / 2, yb - hi); ctx.lineTo(w / 2, yb - hi); ctx.lineTo(largeurDessous / 2, yb); ctx.fill();
+    ctx.fillStyle = '#263238'; ctx.fillRect(-largeurDessous / 2, yb - Math.max(1, hi * 0.12), largeurDessous, Math.max(1, hi * 0.12));
+    y0 = yb - hi;
+  }
+  const yh = yb - len;
+  ctx.fillStyle = blanc;
+  ctx.fillRect(-w / 2, yh, w, y0 - yh);
+  ctx.strokeStyle = 'rgba(70,90,100,0.6)'; ctx.lineWidth = 1;
+  ctx.strokeRect(-w / 2, yh, w, y0 - yh);
+  // Ombre de volume
+  const gr = ctx.createLinearGradient(-w / 2, 0, w / 2, 0);
+  gr.addColorStop(0, 'rgba(0,0,0,0.18)'); gr.addColorStop(0.35, 'rgba(255,255,255,0.08)'); gr.addColorStop(1, 'rgba(0,0,0,0.28)');
+  ctx.fillStyle = gr; ctx.fillRect(-w / 2, yh, w, y0 - yh);
+  ctx.fillStyle = '#212121';
+  const hl = y0 - yh;
+  if (i === 0) {
+    // Damier noir et blanc (aide à suivre le roulis), comme sur Saturn V.
+    for (let q = 0; q < 4; q++) ctx.fillRect(q % 2 ? 0 : -w / 2, y0 - hl * (0.1 + 0.07 * Math.floor(q / 2)), w / 2, hl * 0.07);
+    ctx.fillRect(-w / 2, yh, w, Math.max(1, hl * 0.05));
+    // Nom du lanceur à la verticale
+    if (w > 14) {
+      ctx.save(); ctx.translate(0, yh + hl * 0.55); ctx.rotate(-Math.PI / 2);
+      ctx.fillStyle = '#c62828'; ctx.font = `bold ${Math.round(w * 0.42)}px system-ui, sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(nomLanceur.toUpperCase(), 0, 0);
+      ctx.restore();
+    }
+    if (e.ailerons) {
+      ctx.fillStyle = melanger('#b0bec5', '#3e2723', brule * 0.8);
+      for (const sg of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(sg * w / 2, y0 - hl * 0.16); ctx.lineTo(sg * w * 0.85, yb - hl * 0.01);
+        ctx.lineTo(sg * w * 0.85, yb + hl * 0.02); ctx.lineTo(sg * w / 2, yb); ctx.fill();
+      }
+    }
+  } else {
+    // Étages supérieurs : bande noire et rectangles de repérage
+    ctx.fillRect(-w / 2, yh + hl * 0.08, w, Math.max(1, hl * 0.06));
+    ctx.fillRect(-w / 2, y0 - hl * 0.2, w * 0.25, hl * 0.12);
+    ctx.fillRect(w * 0.25, y0 - hl * 0.2, w * 0.25, hl * 0.12);
+  }
+}
+
+// Coiffe en ogive au-dessus de la charge utile (avec tour de sauvetage pour Séléné).
+function dessinerCoiffe(ctx, yb, hc, wc, wHaut, tour) {
+  const ya = yb - hc * 0.12, yc = yb - hc * 0.55, yt = yb - hc;
+  ctx.fillStyle = '#e0e0e0';
+  ctx.beginPath(); ctx.moveTo(-wHaut / 2, yb); ctx.lineTo(-wc / 2, ya); ctx.lineTo(wc / 2, ya); ctx.lineTo(wHaut / 2, yb); ctx.fill();
+  const forme = new Path2D();
+  forme.moveTo(-wc / 2, ya); forme.lineTo(-wc / 2, yc);
+  forme.bezierCurveTo(-wc / 2, yc - (yc - yt) * 0.6, -wc * 0.12, yt, 0, yt);
+  forme.bezierCurveTo(wc * 0.12, yt, wc / 2, yc - (yc - yt) * 0.6, wc / 2, yc);
+  forme.lineTo(wc / 2, ya); forme.closePath();
+  ctx.fillStyle = '#f5f5f5'; ctx.fill(forme);
+  const gr = ctx.createLinearGradient(-wc / 2, 0, wc / 2, 0);
+  gr.addColorStop(0, 'rgba(0,0,0,0.15)'); gr.addColorStop(0.4, 'rgba(255,255,255,0.1)'); gr.addColorStop(1, 'rgba(0,0,0,0.25)');
+  ctx.fillStyle = gr; ctx.fill(forme);
+  // Joint des deux demi-coiffes
+  ctx.strokeStyle = 'rgba(60,60,60,0.6)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, ya); ctx.lineTo(0, yt); ctx.stroke();
+  if (tour) {
+    ctx.strokeStyle = '#c62828'; ctx.lineWidth = Math.max(1, wc * 0.05);
+    ctx.beginPath(); ctx.moveTo(-wc * 0.12, yt + hc * 0.02); ctx.lineTo(0, yt - hc * 0.35); ctx.lineTo(wc * 0.12, yt + hc * 0.02); ctx.stroke();
+    ctx.fillStyle = '#c62828'; ctx.fillRect(-wc * 0.06, yt - hc * 0.5, wc * 0.12, hc * 0.16);
+  }
+}
+
+// Charge utile à nu : l'atterrisseur (en bas, feuilles dorées, pieds repliés) et l'orbiteur au-dessus.
+function dessinerChargeUtile(ctx, yb, hc, wc, wHaut) {
+  // Adaptateur
+  ctx.fillStyle = '#455a64';
+  ctx.beginPath(); ctx.moveTo(-wHaut / 2, yb); ctx.lineTo(-wc * 0.42, yb - hc * 0.06); ctx.lineTo(wc * 0.42, yb - hc * 0.06); ctx.lineTo(wHaut / 2, yb); ctx.fill();
+  // Atterrisseur : étage de descente doré
+  const wl = wc * 0.8, y1 = yb - hc * 0.06, y2 = yb - hc * 0.3;
+  ctx.fillStyle = '#d4a017';
+  ctx.beginPath();
+  ctx.moveTo(-wl * 0.5, y1); ctx.lineTo(-wl * 0.5, y2 + (y1 - y2) * 0.25); ctx.lineTo(-wl * 0.35, y2);
+  ctx.lineTo(wl * 0.35, y2); ctx.lineTo(wl * 0.5, y2 + (y1 - y2) * 0.25); ctx.lineTo(wl * 0.5, y1); ctx.fill();
+  ctx.strokeStyle = 'rgba(120,80,0,0.7)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(-wl * 0.15, y1); ctx.lineTo(-wl * 0.15, y2); ctx.moveTo(wl * 0.15, y1); ctx.lineTo(wl * 0.15, y2); ctx.stroke();
+  // Pieds repliés le long du flanc
+  ctx.strokeStyle = '#90a4ae'; ctx.lineWidth = Math.max(1, wc * 0.04);
+  ctx.beginPath(); ctx.moveTo(-wl * 0.52, y2 + (y1 - y2) * 0.2); ctx.lineTo(-wl * 0.56, y1 + hc * 0.01); ctx.moveTo(wl * 0.52, y2 + (y1 - y2) * 0.2); ctx.lineTo(wl * 0.56, y1 + hc * 0.01); ctx.stroke();
+  // Cabine de remontée
+  const y3 = yb - hc * 0.46;
+  ctx.fillStyle = '#b0bec5';
+  ctx.beginPath(); ctx.moveTo(-wl * 0.38, y2); ctx.lineTo(-wl * 0.3, y3); ctx.lineTo(wl * 0.25, y3); ctx.lineTo(wl * 0.38, y2 - (y2 - y3) * 0.3); ctx.lineTo(wl * 0.38, y2); ctx.fill();
+  ctx.fillStyle = '#263238';
+  ctx.beginPath(); ctx.moveTo(wl * 0.1, y3 + (y2 - y3) * 0.2); ctx.lineTo(wl * 0.24, y3 + (y2 - y3) * 0.2); ctx.lineTo(wl * 0.3, y3 + (y2 - y3) * 0.5); ctx.lineTo(wl * 0.1, y3 + (y2 - y3) * 0.5); ctx.fill();
+  // Orbiteur : tuyère, module de service, panneaux solaires repliés, nez d'amarrage
+  const wo = wc * 0.62, y4 = yb - hc * 0.54, y5 = yb - hc * 0.86, yt = yb - hc;
+  ctx.fillStyle = '#546e7a';
+  ctx.beginPath(); ctx.moveTo(-wo * 0.32, y3); ctx.lineTo(-wo * 0.14, y4); ctx.lineTo(wo * 0.14, y4); ctx.lineTo(wo * 0.32, y3); ctx.fill();
+  ctx.fillStyle = '#eceff1'; ctx.fillRect(-wo / 2, y5, wo, y4 - y5);
+  const gr = ctx.createLinearGradient(-wo / 2, 0, wo / 2, 0);
+  gr.addColorStop(0, 'rgba(0,0,0,0.15)'); gr.addColorStop(0.4, 'rgba(255,255,255,0.1)'); gr.addColorStop(1, 'rgba(0,0,0,0.25)');
+  ctx.fillStyle = gr; ctx.fillRect(-wo / 2, y5, wo, y4 - y5);
+  ctx.fillStyle = '#2f6fd6';
+  ctx.fillRect(-wo / 2 - wc * 0.1, y5 + (y4 - y5) * 0.1, wc * 0.1, (y4 - y5) * 0.8);
+  ctx.fillRect(wo / 2, y5 + (y4 - y5) * 0.1, wc * 0.1, (y4 - y5) * 0.8);
+  ctx.strokeStyle = 'rgba(160,200,255,0.8)'; ctx.lineWidth = 0.6;
+  ctx.beginPath();
+  for (let q = 1; q < 5; q++) { const yy = y5 + (y4 - y5) * (0.1 + 0.16 * q); ctx.moveTo(-wo / 2 - wc * 0.1, yy); ctx.lineTo(-wo / 2, yy); ctx.moveTo(wo / 2, yy); ctx.lineTo(wo / 2 + wc * 0.1, yy); }
+  ctx.stroke();
+  ctx.fillStyle = '#212121'; ctx.fillRect(-wo / 2, y5 + (y4 - y5) * 0.45, wo, Math.max(1, (y4 - y5) * 0.06));
+  ctx.fillStyle = '#90a4ae';
+  ctx.beginPath(); ctx.moveTo(-wo / 2, y5); ctx.lineTo(-wo * 0.18, yt + hc * 0.02); ctx.lineTo(wo * 0.18, yt + hc * 0.02); ctx.lineTo(wo / 2, y5); ctx.fill();
+  ctx.fillStyle = '#607d8b'; ctx.fillRect(-wo * 0.14, yt, wo * 0.28, hc * 0.025);
 }
 
 // Tour de lancement en treillis, avec ses bras d'accès.
@@ -1269,20 +1371,6 @@ function dessinerTour(ctx, x, yBase, s, hauteurFusee) {
   ctx.fillStyle = '#546e7a';
   ctx.fillRect(x - 24 * s, yBase - 3 * s, 36 * s, 3 * s);
   ctx.restore();
-}
-
-// Bandes noires et séparations d'étages des grands lanceurs.
-function dessinerBandesLanceur(ctx, f, w, h) {
-  const reste = f.etages.slice(f.etage);
-  ctx.fillStyle = '#212121';
-  // Motif noir et blanc en bas du premier étage restant (aide à suivre le roulis)
-  for (let i = 0; i < 4; i++) ctx.fillRect(i % 2 ? 0 : -w / 2, -h * (0.08 + 0.05 * Math.floor(i / 2)), w / 2, h * 0.05);
-  // Séparations entre étages
-  for (let k = 1; k < reste.length; k++) {
-    const y = -h * (reste[k].hauteur / reste[0].hauteur) * 0.75 - h * 0.05;
-    ctx.fillRect(-w / 2, y, w, Math.max(1.5, h * 0.012));
-    ctx.fillRect(-w / 2, y + h * 0.02, w * 0.25, h * 0.04);
-  }
 }
 
 // Bases au sol : dômes habitables, panneaux solaires et usine à ergols.

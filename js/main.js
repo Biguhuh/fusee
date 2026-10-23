@@ -51,6 +51,7 @@ function montrer(ecran) {
   $('ecran-resultat').classList.toggle('cache', ecran !== 'resultat');
   canvas.classList.toggle('cache', ecran !== 'vol' && ecran !== 'explo');
   $('ecran-nav').classList.toggle('cache', ecran !== 'nav');
+  $('ecran-spatio').classList.toggle('cache', ecran !== 'spatio');
   Infos.infobulle(0, 0, null);
   window.scrollTo(0, 0);
 }
@@ -81,6 +82,7 @@ function allerAccueil() {
     const nPrinc = PRINCIPAUX.filter((id) => vus.includes(id)).length;
     $('progres-accueil').innerHTML = `Progression : <b>${vus.length} astre${vus.length > 1 ? 's' : ''} visité${vus.length > 1 ? 's' : ''}</b> sur ${astresAVisiter().length} (dont ${nPrinc} des ${PRINCIPAUX.length} principaux). ` + resumeCampagne(v);
   } else $('progres-accueil').innerHTML = '';
+  $('spatio-resume').textContent = resumeSpatio();
   montrer('accueil');
   animerAccueil();
 }
@@ -446,6 +448,7 @@ $('accueil-reprendre').onclick = allerNavigation;
 $('accueil-visite').onclick = allerCarte;
 $('accueil-hangar').onclick = allerHangar;
 $('accueil-promenade').onclick = promenadeSurTerre;
+$('accueil-spatio').onclick = () => afficherCreationSpatio(allerAccueil);
 document.querySelectorAll('.vers-accueil').forEach((b) => { b.onclick = allerAccueil; });
 document.querySelectorAll('.ouvrir-encyclo').forEach((b) => { b.onclick = () => Infos.ouvrirEncyclopedie(); });
 
@@ -662,5 +665,6 @@ function boucle(t) {
   requestAnimationFrame(boucle);
 }
 
-allerAccueil();
+// Premier lancement : on choisit d'abord son ou sa spationaute.
+if (SPATIO.choisi) allerAccueil(); else afficherCreationSpatio(allerAccueil);
 requestAnimationFrame(boucle);

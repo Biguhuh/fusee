@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Fusée — Système solaire</title>
-  <link rel="stylesheet" href="css/style.css?v=11">
+  <link rel="stylesheet" href="css/style.css?v=12">
 </head>
 <body>
   <!-- 0. Accueil -->
@@ -16,6 +16,8 @@
         <p>Décollez de la Terre, posez-vous sur n'importe quel astre du système solaire, explorez-le et rentrez à la maison. Avec la vraie gravité, les vraies atmosphères et les vraies orbites.</p>
       </div>
     </div>
+
+    <p class="equipage-accueil"><span id="spatio-resume"></span> <button id="accueil-spatio">✏ Modifier</button></p>
 
     <h2>Choisissez votre façon de jouer</h2>
     <div class="modes">
@@ -172,23 +174,39 @@
     </div>
   </section>
 
+  <!-- Création du ou de la spationaute -->
+  <section id="ecran-spatio" class="ecran cache">
+    <div class="spatio">
+      <header>
+        <h2>Votre spationaute</h2>
+        <p>Avant de partir, présentez la personne qui va marcher sur les astres. Tout l’équipage porte la combinaison de l’Agence spatiale européenne (ESA).</p>
+      </header>
+      <div class="spatio-corps">
+        <div class="formulaire"></div>
+        <div class="apercu"><canvas id="apercu-spatio"></canvas></div>
+      </div>
+      <div class="boutons"><button class="valider principal">✓ C’est parti</button></div>
+    </div>
+  </section>
+
   <!-- Fiches et infobulle -->
   <div id="modale" class="modale cache"></div>
   <div id="infobulle" class="infobulle cache"></div>
 
-  <script src="js/astres.js?v=11"></script>
-  <script src="js/equipements.js?v=11"></script>
-  <script src="js/physique.js?v=11"></script>
-  <script src="js/donnees-jpl.js?v=11"></script>
-  <script src="js/catalogue.js?v=11"></script>
-  <script src="js/orbites.js?v=11"></script>
-  <script src="js/vol.js?v=11"></script>
-  <script src="js/navigation.js?v=11"></script>
-  <script src="js/orbiteur.js?v=11"></script>
-  <script src="js/exploration.js?v=11"></script>
-  <script src="js/campagne.js?v=11"></script>
-  <script src="js/ecrans.js?v=11"></script>
-  <script src="js/infos.js?v=11"></script>
-  <script src="js/main.js?v=11"></script>
+  <script src="js/astres.js?v=12"></script>
+  <script src="js/equipements.js?v=12"></script>
+  <script src="js/physique.js?v=12"></script>
+  <script src="js/donnees-jpl.js?v=12"></script>
+  <script src="js/catalogue.js?v=12"></script>
+  <script src="js/orbites.js?v=12"></script>
+  <script src="js/vol.js?v=12"></script>
+  <script src="js/navigation.js?v=12"></script>
+  <script src="js/orbiteur.js?v=12"></script>
+  <script src="js/exploration.js?v=12"></script>
+  <script src="js/equipage.js?v=12"></script>
+  <script src="js/campagne.js?v=12"></script>
+  <script src="js/ecrans.js?v=12"></script>
+  <script src="js/infos.js?v=12"></script>
+  <script src="js/main.js?v=12"></script>
 </body>
 </html>
