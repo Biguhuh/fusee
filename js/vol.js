@@ -21,14 +21,16 @@ class Vol {
     this.altOrbite = altitudeOrbite(astre);
     this.decollageDemande = false;
     this.terrain = creerTerrain(astre);
-    this.x = 0;
-    this.y = astre.depart.alt;
+    this.bases = options.bases || [];
+    // Zone repérée par une sonde : on descend juste au-dessus.
+    this.site = options.site || null;
+    this.x = this.site ? (this.site.xDescente !== undefined ? this.site.xDescente : this.site.x) : 0;
+    this.y = astre.depart.alt + (this.terrain ? this.sol(this.x) : 0);
     this.vx = 0;
     this.vy = -astre.depart.vitesse;
     this.angle = 0;
     this.carburant = options.carburant !== undefined ? Math.min(options.carburant, fusee.carburant) : fusee.carburant;
     this.lancement = !!options.lancement;
-    this.bases = options.bases || [];
     this.echantillons = 0;
     this.depuisSol = !!options.depuisSol;
     this.temp = 20;
@@ -51,7 +53,7 @@ class Vol {
     this.fx = [];              // particules (fumée, étincelles), en coordonnées écran
     // Départ du sol (méga-fusée sur son pas de tir, ou robot largué).
     if (this.depuisSol) {
-      this.y = this.sol(0) + 0.01;
+      this.y = this.sol(this.x) + 0.01;
       this.vy = 0;
       this.pose = true;
       this.phase = 'au sol';
@@ -62,7 +64,19 @@ class Vol {
 
   masse() { return this.f.masseSeche + this.carburant; }
   twr() { return this.f.poussee / (this.masse() * this.c.g); }
-  sol(x) { return this.terrain ? this.terrain(x) : 0; }
+  // Sol, terrassé à plat sous les bases (raccord en douceur entre 110 et 140 m du centre).
+  sol(x) {
+    if (!this.terrain) return 0;
+    let h = this.terrain(x);
+    for (const b of this.bases) {
+      const d = Math.abs(x - b.x);
+      if (d < 140) {
+        const w = d < 110 ? 1 : 1 - (d - 110) / 30;
+        h += (this.terrain(b.x) - h) * w;
+      }
+    }
+    return h;
+  }
   altSol() { return this.terrain ? this.y - this.sol(this.x) : this.y; }
   pente(x) { return Math.atan2(this.sol(x + 3) - this.sol(x - 3), 6); }
   enDegats() { return this.taux.pression + this.taux.chaleur > 0; }
@@ -1273,31 +1287,76 @@ function dessinerBandesLanceur(ctx, f, w, h) {
 
 // Bases au sol : dômes habitables, panneaux solaires et usine à ergols.
 function dessinerBases(ctx, vol, W, echelle, fuseeY) {
+  const ecranY = (wx) => fuseeY + (vol.y - vol.sol(wx)) * echelle;
   for (const b of vol.bases) {
     const sx = W / 2 + (b.x - vol.x) * echelle;
-    if (sx < -400 || sx > W + 400) continue;
-    const sy = fuseeY + (vol.y - vol.sol(b.x)) * echelle;
-    dessinerBase(ctx, sx, sy, Math.max(echelle, 0.4));
+    if (sx < -2000 || sx > W + 2000) continue;
+    dessinerBase(ctx, sx, (dx) => ecranY(b.x + dx), Math.max(echelle, 0.4), b.niveau || 1, productionBase(vol.astre) > 0);
   }
+  // Zone repérée par une sonde, pas encore construite : un fanion vert.
+  if (vol.site && !vol.bases.some((b) => Math.abs(b.x - vol.site.x) < 500)) dessinerFanion(ctx, W / 2 + (vol.site.x - vol.x) * echelle, ecranY(vol.site.x), Math.max(echelle, 0.4));
 }
-function dessinerBase(ctx, x, y, s) {
-  ctx.save();
-  ctx.translate(x, y);
-  // Panneaux solaires
-  ctx.fillStyle = '#2f6fd6';
-  for (let i = 0; i < 3; i++) { ctx.fillRect((-38 + i * 7) * s, -9 * s, 5 * s, 6 * s); ctx.fillRect((-38 + i * 7) * s, -3 * s, 0.6 * s, 3 * s); }
-  // Dômes
-  ctx.fillStyle = '#eceff1';
-  ctx.beginPath(); ctx.arc(-10 * s, 0, 8 * s, Math.PI, 0); ctx.fill();
-  ctx.beginPath(); ctx.arc(6 * s, 0, 6 * s, Math.PI, 0); ctx.fill();
-  ctx.fillStyle = '#4fc3f7';
-  ctx.fillRect(-12 * s, -4 * s, 4 * s, 2 * s);
-  // Usine à ergols et réservoir
-  ctx.fillStyle = '#b0bec5'; ctx.fillRect(15 * s, -10 * s, 8 * s, 10 * s);
-  ctx.fillStyle = '#ffb74d'; ctx.beginPath(); ctx.arc(28 * s, -4 * s, 4 * s, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#cfd8dc'; ctx.font = `${Math.max(10, 3 * s)}px system-ui, sans-serif`;
-  ctx.fillText('Base', -14 * s, -12 * s);
-  ctx.restore();
+
+function dessinerFanion(ctx, x, y, s) {
+  ctx.strokeStyle = '#eceff1'; ctx.lineWidth = Math.max(1.5, 0.2 * s);
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - 6 * s); ctx.stroke();
+  ctx.fillStyle = '#66bb6a';
+  ctx.beginPath(); ctx.moveTo(x, y - 6 * s); ctx.lineTo(x + 3.5 * s, y - 5 * s); ctx.lineTo(x, y - 4 * s); ctx.fill();
+  ctx.fillStyle = '#c8e6c9'; ctx.font = `${Math.min(15, Math.max(11, 1.6 * s))}px system-ui, sans-serif`; ctx.textAlign = 'center';
+  ctx.fillText('Zone de base repérée par la sonde', x, y - 7 * s);
+  ctx.textAlign = 'left';
+}
+
+// Base au sol : chaque élément est posé sur le terrain à son propre endroit, sur une dalle.
+// sol(dx) donne l'ordonnée écran du sol à dx mètres du centre de la base. Elle grandit avec son niveau.
+function dessinerBase(ctx, x, sol, s, niveau = 1, usine = true) {
+  const element = (dx, largeur, dessin) => {
+    // L'élément repose sur le point le plus haut du sol sous lui ; une dalle descend jusqu'au sol partout ailleurs.
+    const yg = sol(dx - largeur / 2), yd = sol(dx + largeur / 2), ym = sol(dx);
+    const haut = Math.min(yg, yd, ym) - 0.3 * s;
+    const xg = x + (dx - largeur / 2) * s, xd = x + (dx + largeur / 2) * s;
+    ctx.fillStyle = '#78909c';
+    ctx.beginPath(); ctx.moveTo(xg, haut); ctx.lineTo(xd, haut); ctx.lineTo(xd, yd + 0.5 * s); ctx.lineTo(x + dx * s, ym + 0.5 * s); ctx.lineTo(xg, yg + 0.5 * s); ctx.closePath(); ctx.fill();
+    ctx.save(); ctx.translate(x + dx * s, haut); dessin(); ctx.restore();
+  };
+  // Aire d'atterrissage
+  element(-58, 16, () => { ctx.fillStyle = '#90a4ae'; ctx.fillRect(-8 * s, -0.6 * s, 16 * s, 0.6 * s); ctx.strokeStyle = '#ffca28'; ctx.lineWidth = Math.max(1, 0.3 * s); ctx.strokeRect(-6 * s, -0.5 * s, 12 * s, 0.3 * s); });
+  // Panneaux solaires : plus nombreux à chaque niveau
+  const nPanneaux = 3 + 2 * (niveau - 1);
+  for (let i = 0; i < nPanneaux; i++) {
+    element(-44 + i * 7 - (niveau - 1) * 10, 5, () => {
+      ctx.fillStyle = '#90a4ae'; ctx.fillRect(-0.3 * s, -3 * s, 0.6 * s, 3 * s);
+      ctx.fillStyle = '#2f6fd6'; ctx.fillRect(-2.5 * s, -8 * s, 5 * s, 5 * s);
+      ctx.strokeStyle = '#9ec3ff'; ctx.lineWidth = 1; ctx.strokeRect(-2.5 * s, -8 * s, 5 * s, 5 * s);
+    });
+  }
+  // Dômes habitables, reliés par des couloirs
+  const nDomes = 1 + niveau;
+  for (let i = 0; i < nDomes; i++) {
+    const r = i === 0 ? 8 : 6;
+    element(-10 + i * 15, r * 2, () => {
+      ctx.fillStyle = '#eceff1'; ctx.beginPath(); ctx.arc(0, 0, r * s, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = '#4fc3f7'; ctx.fillRect(-r * 0.3 * s, -r * 0.5 * s, r * 0.5 * s, r * 0.25 * s);
+      if (i > 0) { ctx.fillStyle = '#cfd8dc'; ctx.fillRect(-(15 - r) * s, -2 * s, (15 - 2 * r + 2) * s, 2 * s); }
+    });
+  }
+  const xu = -10 + nDomes * 15 + 4;
+  // Usine à ergols et son réservoir sphérique (s'il y a une ressource à exploiter)
+  if (usine) {
+    element(xu, 8, () => { ctx.fillStyle = '#b0bec5'; ctx.fillRect(-4 * s, -10 * s, 8 * s, 10 * s); ctx.fillStyle = '#607d8b'; ctx.fillRect(-1 * s, -13 * s, 2 * s, 3 * s); });
+    element(xu + 10, 8, () => { ctx.fillStyle = '#ffb74d'; ctx.beginPath(); ctx.arc(0, -4.5 * s, 4 * s, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#78909c'; ctx.fillRect(-3 * s, -0.8 * s, 6 * s, 0.8 * s); });
+  }
+  // Mine de matériaux (niveau 2 et plus) : chevalement et tas de minerai
+  if (niveau >= 2) {
+    element(xu + 22, 10, () => {
+      ctx.strokeStyle = '#8d6e63'; ctx.lineWidth = Math.max(1.5, 0.4 * s);
+      ctx.beginPath(); ctx.moveTo(-4 * s, 0); ctx.lineTo(0, -12 * s); ctx.lineTo(4 * s, 0); ctx.moveTo(-2 * s, -6 * s); ctx.lineTo(2 * s, -6 * s); ctx.stroke();
+      ctx.fillStyle = '#5d4037'; ctx.beginPath(); ctx.arc(0, -12 * s, 1.2 * s, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#6d4c41'; ctx.beginPath(); ctx.moveTo(4 * s, 0); ctx.lineTo(7 * s, -3 * s); ctx.lineTo(10 * s, 0); ctx.fill();
+    });
+  }
+  ctx.fillStyle = '#cfd8dc'; ctx.font = `${Math.min(16, Math.max(11, 2.5 * s))}px system-ui, sans-serif`;
+  ctx.fillText(`Base — niveau ${niveau}`, x - 14 * s, sol(-10) - 18 * s);
 }
 
 function dessinerExplosion(ctx, ex, x, y, dt) {

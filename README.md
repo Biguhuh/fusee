@@ -13,8 +13,15 @@ Jeu web en HTML, JavaScript et canvas 2D, sans framework.
   2. **Station spatiale terrestre** : la première chose à construire (🏗). Elle reçoit un cargo de la Terre tous les 30 jours.
   3. **Expédition** : l'orbiteur emporte son atterrisseur. On part vers un astre (pilotage libre, assistant ou planificateur), on se pose, on explore, on remonte.
   4. **Retour** : cible Terre, puis « 🏠 Rentrer sur Terre » : la capsule rapporte les échantillons. Une nouvelle méga-fusée relance l'expédition suivante (elle s'amarre à la station terrestre).
-  5. **Stations** autour des autres astres : ravitaillées par des cargos venus de la Terre (plus elles sont loin, plus les cargos sont espacés). S'y amarrer prend ce qu'elles ont en stock.
-  6. **Bases au sol** (touche B une fois posé, s'il y a une station en orbite) : elles exploitent les ressources locales (glace de la Lune, CO₂ et glace de Mars, méthane de Titan…) pour produire des ergols. Elles en gardent 20 t pour faire le plein des atterrisseurs posés à côté et montent le surplus à la station. Ce qui manque vient de la Terre.
+  5. **Stations** autour des autres astres : un petit ravitaillement courant arrive régulièrement de la Terre. S'y amarrer prend ce qu'elles ont en stock.
+  6. **Repérage par sonde** : une sonde en orbite d'un astre repère une zone pour une base (pente douce, à moins de quelques km du point de descente) et les ressources réelles sur place (glace d'eau, méthane, CO₂…). La descente vise ensuite cette zone (fanion vert).
+  7. **Bases au sol** (touche B une fois posé près de la zone repérée, avec une station en orbite) : la construction terrasse le sol à plat. Sans repérage, le jeu refuse : « relief trop accidenté — envoyez une sonde ». La base produit des ergols à partir de la ressource locale, en garde 20 t pour les atterrisseurs et monte le surplus à la station.
+  8. **Ravitos** (📦 dans l'orbiteur) : on choisit le départ (la Terre, ou une station qui fournit le contenu de son stock), la destination et le contenu :
+     - *Kit d'expédition* : de quoi repartir plus loin (carburant, ergols, atterrisseurs, sondes, kits, robots) ;
+     - *Extension de base* : la base grandit (niveau 1 à 5) ; dès le niveau 2, une mine produit des matériaux ;
+     - *Ergols*, *Matériaux*.
+     Le cargo vole sur sa propre trajectoire réaliste (visible sur la carte) et livre au stock de la station.
+  9. **Atelier** des stations : fabrique sondes, robots, atterrisseurs, kits de base, kits de station et extensions avec les matériaux. On avance ainsi d'orbite en orbite, avec des bases locales et des ravitos venus de la Terre ou d'autres bases, jusqu'au fond du système solaire.
 - **Promenade sur Terre** (hangar) : cueillir fleurs et fruits pour la prochaine expédition, boire une bière au Bar de l'Espace.
 
 ## Atterrisseur adapté : pour se poser, il faut pouvoir repartir

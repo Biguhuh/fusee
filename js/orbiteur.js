@@ -261,9 +261,37 @@ const Orbiteur = {
     this.log(`Sonde lancée vers ${c.nom}.`);
   },
 
+  // Ravito : un cargo part de la Terre (ou d'une station) vers une station, sur sa propre trajectoire.
+  // contenu : { cle: quantité } ; origineId : 'terre' ou l'id d'une station (qui fournit le contenu).
+  lancerCargo(origineId, destId, contenu, nom) {
+    const v = this.v;
+    const dest = v.stations.find((s) => s.id === destId);
+    if (!dest) return this.log('Station de destination introuvable.');
+    let depart;
+    if (origineId === 'terre') {
+      const st = v.stations.find((s) => s.terrestre);
+      if (st) depart = this.etatStation(st);
+      else { const r0 = ASTRES_PAR_ID.terre.rayonKm + 400; depart = { centre: 'terre', r: [0, -r0], v: [Math.sqrt(ASTRES_PAR_ID.terre.gm / r0), 0] }; }
+    } else {
+      const st = v.stations.find((s) => s.id === origineId);
+      if (!st) return this.log('Station de départ introuvable.');
+      for (const [cle, q] of Object.entries(contenu)) if ((st.stock[cle] || 0) < q) return this.log(`${st.nom} n’a pas assez de ${NOMS_STOCK[cle]} pour ce cargo.`);
+      for (const [cle, q] of Object.entries(contenu)) st.stock[cle] -= q;
+      depart = this.etatStation(st);
+    }
+    v.cargos = v.cargos || [];
+    const origine = origineId === 'terre' ? 'la Terre' : v.stations.find((s) => s.id === origineId).nom;
+    v.cargos.push({
+      id: 'c' + Date.now(), nom: `${nom} → ${dest.nom}`, type: 'cargo', cible: dest.centre, dest: destId, contenu,
+      centre: depart.centre, r: depart.r.slice(), v: depart.v.slice(), transfert: null, etat: 'vol', tLancement: v.t,
+    });
+    this.log(`Cargo « ${nom} » lancé depuis ${origine} vers ${dest.nom} : ${decrireContenu(contenu)}.`);
+  },
+
   mettreAJourSondes(dt) {
     const v = this.v;
-    for (const s of v.sondesEnVol) {
+    v.cargos = v.cargos || [];
+    for (const s of [...v.sondesEnVol, ...v.cargos]) {
       if (s.etat !== 'vol') {
         // Sonde arrivée : elle reste en orbite autour de sa cible (orbite fermée, propagation directe).
         if (s.tSonde === undefined) s.tSonde = v.t;
@@ -278,8 +306,9 @@ const Orbiteur = {
         const e = s.etape;
         if (e.type === 'fini') {
           s.etat = 'arrivee';
+          if (s.type === 'cargo') { this.livrerRavito(s); break; }
           v.visites[s.cible] = { ...(v.visites[s.cible] || {}), sonde: s.tSonde };
-          this.log(`${s.nom} est en orbite : données de ${ASTRES_PAR_ID[s.cible].nom} reçues.`);
+          this.reperer(s);
           break;
         }
         if (e.type === 'impossible') { s.etat = 'perdue'; this.log(`${s.nom} : aucune trajectoire possible.`); break; }
@@ -303,6 +332,32 @@ const Orbiteur = {
       }
     }
     v.sondesEnVol = v.sondesEnVol.filter((s) => s.etat !== 'perdue' || v.t - s.tLancement < 0);
+    v.cargos = v.cargos.filter((s) => s.etat === 'vol');
+  },
+
+  // Cargo arrivé : son contenu rejoint le stock de la station.
+  livrerRavito(c) {
+    const st = this.v.stations.find((s) => s.id === c.dest);
+    if (!st) return this.log(`${c.nom} : station introuvable, cargo perdu.`);
+    ajouterAuStock(st, c.contenu);
+    this.log(`Cargo arrivé à ${st.nom} après ${fmtDuree(this.v.t - c.tLancement)} : ${decrireContenu(c.contenu)}.`);
+  },
+
+  // Sonde en orbite : elle cartographie l'astre, repère une zone plate pour une base et ce qu'on peut y extraire.
+  reperer(s) {
+    const v = this.v, a = ASTRES_PAR_ID[s.cible];
+    v.sites = v.sites || {};
+    let texte = `${s.nom} est en orbite : données de ${a.nom} reçues.`;
+    if (a.type === 'solide' && a.id !== 'terre') {
+      const x = chercherZonePlate(a);
+      const [ressource, prod] = ressourceLocale(a);
+      if (x !== null) {
+        v.sites[a.id] = { x, ressource, prod, t: v.t };
+        texte += ` Zone plate pour une base repérée à ${fmtAlt(Math.abs(x))} du point de descente habituel.` +
+          (prod ? ` Ressource détectée : ${ressource}.` : ' Aucune ressource exploitable détectée : tout viendra de la Terre.');
+      } else texte += ' Aucune zone assez plate pour une base.';
+    }
+    this.log(texte);
   },
 
   // ---------- Stations ----------
@@ -322,7 +377,7 @@ const Orbiteur = {
     const st = {
       id: 's' + Date.now(), nom: terrestre ? 'Station spatiale terrestre' : `Station ${c.nom}${n ? ' ' + (n + 1) : ''}`,
       centre: c.id, r: v.orb.r.slice(), v: v.orb.v.slice(), t0: v.t, terrestre,
-      stock: { carburant: 0, ergols: 0, sondes: 0, kits: 0, kitsBase: 0, robots: 0, atterrisseurs: 0 },
+      stock: STOCK_VIDE(),
       prochainCargo: v.t + intervalleCargo(c.id),
     };
     v.stations.push(st);
@@ -333,21 +388,33 @@ const Orbiteur = {
   mettreAJourLogistique() {
     const v = this.v;
     for (const s of v.stations) {
-      if (!s.stock) s.stock = { carburant: 0, ergols: 0, sondes: 0, kits: 0, kitsBase: 0, robots: 0, atterrisseurs: 0 };
+      s.stock = { ...STOCK_VIDE(), ...(s.stock || {}) };
       if (!s.prochainCargo) s.prochainCargo = v.t + intervalleCargo(s.centre);
       let n = 0;
       while (v.t >= s.prochainCargo && n++ < 50) {
         livrerCargo(s);
         s.prochainCargo += intervalleCargo(s.centre);
-        if (n === 1) this.log(`Cargo venu de la Terre arrivé à ${s.nom}.`);
+        if (n === 1) this.log(`Ravitaillement courant arrivé à ${s.nom}.`);
       }
     }
     for (const b of v.bases) {
       const dt = v.t - (b.tMaj || v.t);
       b.tMaj = v.t;
       if (dt <= 0) continue;
-      const prod = productionBase(ASTRES_PAR_ID[b.astre]) * (dt / JOUR);
+      const a = ASTRES_PAR_ID[b.astre];
+      b.niveau = b.niveau || 1;
       const st = v.stations.find((s) => s.centre === b.astre);
+      // Les extensions livrées à la station descendent agrandir la base (niveau 5 au plus).
+      if (st && st.stock.extensions > 0 && b.niveau < 5) {
+        st.stock.extensions--;
+        b.niveau++;
+        this.log(`Base ${a.nom} agrandie : niveau ${b.niveau}${b.niveau === 2 ? ' — la mine de matériaux démarre' : ''}.`);
+      }
+      // Ergols (ressource locale) et matériaux (mine), proportionnels au niveau de la base.
+      const prod = productionBase(a) * b.niveau * (dt / JOUR);
+      const mat = productionMateriaux(a, b.niveau) * (dt / JOUR);
+      if (st && mat > 0) st.stock.materiaux = Math.min(CAPACITES_STATION.materiaux, st.stock.materiaux + mat);
+      b.materiauxTotal = (b.materiauxTotal || 0) + mat;
       // La base garde d'abord 20 t pour les atterrisseurs ; sa navette monte le surplus à la station.
       b.stock = (b.stock || 0) + prod;
       const surplus = b.stock - 20000;
@@ -358,6 +425,61 @@ const Orbiteur = {
       }
       b.produitTotal = (b.produitTotal || 0) + prod;
     }
+  },
+
+  // Fenêtre « Envoyer un ravito » : départ, destination, contenu.
+  ouvrirRavito() {
+    const v = this.v;
+    const m = $('modale');
+    const options = (liste) => liste.map(([val, txt]) => `<option value="${val}">${txt}</option>`).join('');
+    const origines = [['terre', 'La Terre (lanceur cargo)'], ...v.stations.map((s) => [s.id, s.nom])];
+    const dests = v.stations.map((s) => [s.id, `${s.nom} (${ASTRES_PAR_ID[s.centre].nom})`]);
+    m.innerHTML = `
+      <div class="fenetre">
+        <header class="entete"><div><h2>📦 Envoyer un ravito</h2><p>Le cargo part sur sa propre trajectoire et livre son contenu au stock de la station de destination. Depuis une station, il emporte ce qu’elle a en stock.</p></div><button class="fermer">✕</button></header>
+        <div class="sections">
+          <section><h3>Départ</h3><select id="rav-origine">${options(origines)}</select>
+            <h3 style="margin-top:12px">Destination</h3><select id="rav-dest">${options(dests)}</select></section>
+          <section><h3>Contenu</h3>${Object.entries(CONTENUS_CARGO).map(([k, c], i) => `<label class="choix-ravito"><input type="radio" name="rav-contenu" value="${k}" ${i === 0 ? 'checked' : ''}> <b>${c.nom}</b><br><span class="doux">${c.description}<br>${decrireContenu(c.contenu)}</span></label>`).join('')}</section>
+        </div>
+        <p id="rav-info" class="doux"></p>
+        <div class="actions"><span></span><button id="rav-lancer" class="principal">🚀 Lancer le cargo</button></div>
+      </div>`;
+    m.classList.remove('cache');
+    m.querySelector('.fermer').onclick = () => Infos.fermer();
+    const info = () => {
+      const o = $('rav-origine').value, d = $('rav-dest').value;
+      const c = CONTENUS_CARGO[m.querySelector('input[name=rav-contenu]:checked').value].contenu;
+      let t = '';
+      if (o === d) t = 'Choisissez une destination différente du départ.';
+      else if (o !== 'terre') {
+        const st = v.stations.find((s) => s.id === o);
+        const manque = Object.entries(c).filter(([k, q]) => (st.stock[k] || 0) < q).map(([k]) => NOMS_STOCK[k]);
+        if (manque.length) t = `${st.nom} n’a pas assez de : ${manque.join(', ')}.`;
+      }
+      $('rav-info').textContent = t;
+      $('rav-lancer').disabled = !!t;
+    };
+    m.querySelectorAll('select, input').forEach((e) => { e.onchange = info; });
+    info();
+    $('rav-lancer').onclick = () => {
+      const k = m.querySelector('input[name=rav-contenu]:checked').value;
+      this.lancerCargo($('rav-origine').value, $('rav-dest').value, { ...CONTENUS_CARGO[k].contenu }, CONTENUS_CARGO[k].nom);
+      Infos.fermer();
+      this.majHud(true);
+    };
+  },
+
+  // Atelier d'une station : fabrique un élément avec les matériaux du stock.
+  fabriquer(stationId, cle) {
+    const st = this.v.stations.find((s) => s.id === stationId);
+    const r = RECETTES[cle];
+    if (!st || !r) return;
+    if (st.stock.materiaux < r.materiaux) return this.log(`${st.nom} : pas assez de matériaux pour un(e) ${r.nom.toLowerCase()} (${fmtStock('materiaux', r.materiaux)} nécessaires).`);
+    if ((st.stock[cle] || 0) >= CAPACITES_STATION[cle]) return this.log(`${st.nom} : stock de ${NOMS_STOCK[cle]} plein.`);
+    st.stock.materiaux -= r.materiaux;
+    st.stock[cle] = (st.stock[cle] || 0) + 1;
+    this.log(`Atelier de ${st.nom} : ${r.nom.toLowerCase()} fabriqué(e) avec ${fmtStock('materiaux', r.materiaux)} de matériaux.`);
   },
 
   amarrer() {
@@ -516,6 +638,15 @@ const Orbiteur = {
       ctx.fillStyle = sd.etat === 'arrivee' ? '#80deea' : '#4dd0e1';
       ctx.beginPath(); ctx.moveTo(p[0], p[1] - 5); ctx.lineTo(p[0] + 4, p[1] + 4); ctx.lineTo(p[0] - 4, p[1] + 4); ctx.fill();
       if (sd.etat === 'vol') { ctx.font = '10px system-ui, sans-serif'; ctx.fillText(sd.nom, p[0] + 6, p[1] + 3); }
+    }
+
+    // Ravitos en route
+    for (const cg of v.cargos || []) {
+      const p = ecran(this.absolu(cg));
+      if (!dansEcran(p)) continue;
+      ctx.fillStyle = '#ff9800';
+      ctx.beginPath(); ctx.moveTo(p[0], p[1] - 5); ctx.lineTo(p[0] + 5, p[1]); ctx.lineTo(p[0], p[1] + 5); ctx.lineTo(p[0] - 5, p[1]); ctx.fill();
+      ctx.fillStyle = 'rgba(255,183,77,0.9)'; ctx.font = '10px system-ui, sans-serif'; ctx.fillText('📦 ' + cg.nom, p[0] + 7, p[1] + 3);
     }
 
     // Trajectoire prévue de l'orbiteur
@@ -819,19 +950,42 @@ const Orbiteur = {
       if (c.type === 'solide' && v.robots > 0) d += `<button id="nav-robot">🤖 Larguer un robot (aller simple)</button>`;
     }
     const st = this.stationIci();
-    if (st) {
-      d += `<button id="nav-amarrer">⚓ S’amarrer à ${st.nom}</button>`;
-      const k = st.stock;
-      d += `<p class="doux">Stock de ${st.nom} : ${fmt(k.carburant / 1000)} t carburant, ${fmt(k.ergols / 1000)} t ergols, ${k.sondes} sondes, ${k.atterrisseurs} atterrisseurs, ${k.robots} robots, ${k.kitsBase} kits de base${st.terrestre ? `, ${k.kits} kits de station` : ''}. Prochain cargo de la Terre dans ${fmtDuree(st.prochainCargo - v.t)}.</p>`;
-    }
+    if (st) d += `<button id="nav-amarrer">⚓ S’amarrer à ${st.nom}</button>`;
     if (v.kits > 0 && fermee && c.type !== 'etoile') d += `<button id="nav-station" ${!st && c.id === 'terre' ? 'class="principal"' : ''}>🏗 Construire une station ici</button>`;
-    if (v.cible && v.sondes > 0) d += `<button id="nav-sonde">🛰 Sonde vers ${ASTRES_PAR_ID[v.cible].nom}</button>`;
+    if (v.cible && v.sondes > 0) d += `<button id="nav-sonde">🛰 Sonde vers ${ASTRES_PAR_ID[v.cible].nom} (repérage)</button>`;
+    if (v.stations.length) d += `<button id="nav-ravito">📦 Envoyer un ravito</button>`;
     d += `<button id="nav-journal">📜 Journal</button></div>`;
+    // Site repéré pour une base sur l'astre courant
+    const site = (v.sites || {})[c.id];
+    if (c.type === 'solide' && c.id !== 'terre') {
+      d += site
+        ? `<p class="doux">🟢 Zone de base repérée${site.prod ? ` — ${site.ressource}` : ' — pas de ressource locale'}. La descente la vise.</p>`
+        : `<p class="doux">Aucune zone de base repérée sur ${c.nom} : envoyez une sonde.</p>`;
+    }
+    // Station de l'astre courant : stock, prochain ravitaillement courant, atelier
+    if (st) {
+      const k = st.stock;
+      d += `<h3>${st.nom}</h3><dl>` + Object.keys(NOMS_STOCK).map((cle) => `<dt>${NOMS_STOCK[cle]}</dt><dd>${fmtStock(cle, k[cle] || 0)}</dd>`).join('') + '</dl>';
+      d += `<p class="doux">Ravitaillement courant de la Terre dans ${fmtDuree(st.prochainCargo - v.t)}.</p>`;
+      d += `<p class="doux"><b>Atelier</b> (avec les matériaux du stock) :</p><div class="orientations">` +
+        Object.entries(RECETTES).map(([cle, r]) => `<button data-fab="${cle}" ${k.materiaux < r.materiaux ? 'disabled' : ''}>${r.nom} · ${fmtStock('materiaux', r.materiaux)}</button>`).join('') + '</div>';
+    }
     const bases = v.bases.filter((b) => ancetres(b.astre).includes(c.id) || b.astre === c.id);
-    if (bases.length) d += '<h3>Bases</h3><ul class="sondes">' + bases.map((b) => { const a = ASTRES_PAR_ID[b.astre]; const [res, p] = ressourceLocale(a); return `<li>Base ${a.nom} — ${p ? `${res}, ${fmt(p / 1000, 1)} t/jour, ${fmt((b.stock || 0) / 1000, 1)} t en réserve` : 'pas de ressource locale'}</li>`; }).join('') + '</ul>';
+    if (bases.length) {
+      d += '<h3>Bases</h3><ul class="sondes">' + bases.map((b) => {
+        const a = ASTRES_PAR_ID[b.astre]; const [res, p] = ressourceLocale(a); const n = b.niveau || 1;
+        const mat = productionMateriaux(a, n);
+        return `<li>Base ${a.nom}, niveau ${n} — ${p ? `${res} : ${fmt((p * n) / 1000, 1)} t/jour` : 'pas de ressource locale'}${mat ? `, matériaux ${fmt(mat / 1000, 1)} t/jour` : ''} ; ${fmt((b.stock || 0) / 1000, 1)} t au sol</li>`;
+      }).join('') + '</ul>';
+    }
+    const cargos = v.cargos || [];
+    if (cargos.length) d += '<h3>Ravitos en route</h3><ul class="sondes">' + cargos.map((s) => `<li>${s.nom} (parti il y a ${fmtDuree(v.t - s.tLancement)})</li>`).join('') + '</ul>';
     const sondes = v.sondesEnVol;
     if (sondes.length) d += '<h3>Sondes</h3><ul class="sondes">' + sondes.map((s) => `<li>${s.nom} — ${s.etat === 'vol' ? 'en route' : 'en orbite'}</li>`).join('') + '</ul>';
     $('nav-actions').innerHTML = d;
+    $('nav-actions').querySelectorAll('[data-fab]').forEach((b) => { b.onclick = () => { this.fabriquer(st.id, b.dataset.fab); this.majHud(true); }; });
+    const bRavito = $('nav-ravito');
+    if (bRavito) bRavito.onclick = () => this.ouvrirRavito();
     const bind = (id, f) => { const b = $(id); if (b) b.onclick = f; };
     bind('nav-avancer', () => { this.avance = !this.avance; this.majHud(true); });
     bind('nav-executer', () => { this.executerEtape(); this.majHud(true); });

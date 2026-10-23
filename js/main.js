@@ -13,11 +13,13 @@ function migrerVoyage(v) {
   const m = { ...neuf, ...v };
   for (const cle of ['visites', 'echantillonsABord', 'echantillonsRapportes']) m[cle] = m[cle] || {};
   m.provisions = { fleurs: 0, fruits: 0, ...(v.provisions || {}) };
-  m.bases = m.bases || [];
+  m.bases = (m.bases || []).map((b) => ({ niveau: 1, ...b }));
+  m.sites = m.sites || {};
+  m.cargos = m.cargos || [];
   m.stations = (m.stations || []).map((s) => ({
     ...s,
     terrestre: s.terrestre || !!s.base,
-    stock: s.stock || { carburant: 0, ergols: 0, sondes: 0, kits: 0, kitsBase: 0, robots: 0, atterrisseurs: 0 },
+    stock: { ...STOCK_VIDE(), ...(s.stock || {}) },
     prochainCargo: s.prochainCargo || m.t + intervalleCargo(s.centre),
   }));
   if (m.orb) {
@@ -262,7 +264,13 @@ function descendre(id) {
   if (v.ergolsAtt < c.fusee.carburant) return Orbiteur.log(`Pas assez d’ergols pour l’atterrisseur (${fmt(v.ergolsAtt / 1000, 1)} t sur ${fmt(c.fusee.carburant / 1000, 1)} t) : ravitaillez à une station.`);
   v.ergolsAtt -= c.fusee.carburant;
   etat.destination = id;
-  lancer({ voyage: true, fusee: c.fusee, bases: basesSur(id) });
+  lancer({ voyage: true, fusee: c.fusee, bases: basesSur(id), site: siteDescente(id) });
+}
+
+// Zone repérée par une sonde : la descente vise un peu à côté (l'aire d'atterrissage de la base).
+function siteDescente(id) {
+  const s = etat.voyage && (etat.voyage.sites || {})[id];
+  return s ? { ...s, xDescente: s.x - 90 } : null;
 }
 
 // Robot largué en aller simple (là où un atterrisseur ne pourrait pas repartir, comme sur Vénus).
@@ -271,7 +279,7 @@ function larguerRobot(id) {
   if (v.robots <= 0) return Orbiteur.log('Plus de robot à bord.');
   v.robots--;
   etat.destination = id;
-  etat.vol = new Vol(a, assemblerFusee(equipementParDefaut()), { voyage: true, depuisSol: true, bases: basesSur(id) });
+  etat.vol = new Vol(a, assemblerFusee(equipementParDefaut()), { voyage: true, depuisSol: true, bases: basesSur(id), site: siteDescente(id) });
   etat.vol.robotSeul = true;
   etat.enVoyage = true;
   etat.explo = new Exploration(etat.vol, 'robot', etat.science);
@@ -286,11 +294,15 @@ function construireBase() {
   if (!vol || !vol.pose || !etat.enVoyage) return;
   const a = vol.astre;
   if (!v.stations.some((s) => s.centre === a.id)) return (vol.messageExplo = { texte: `Il faut d’abord une station en orbite de ${a.nom} pour ravitailler la base.`, vie: 6 });
-  if (v.kitsBase <= 0) return (vol.messageExplo = { texte: 'Plus de kit de base à bord (les cargos en apportent aux stations).', vie: 6 });
+  if (v.kitsBase <= 0) return (vol.messageExplo = { texte: 'Plus de kit de base à bord (un ravito « Kit d’expédition » ou l’atelier d’une station en fournit).', vie: 6 });
   if (v.bases.some((b) => b.astre === a.id && Math.abs(b.x - vol.x) < 2000)) return (vol.messageExplo = { texte: 'Il y a déjà une base ici.', vie: 5 });
+  // Une base a besoin d'un terrain plat, repéré par une sonde.
+  const site = (v.sites || {})[a.id];
+  if (!site) return (vol.messageExplo = { texte: `Impossible de construire une base ici : le relief est trop accidenté. Conseil : remontez en orbite et envoyez une sonde vers ${a.nom}, elle repérera une zone compatible.`, vie: 10 });
+  if (Math.abs(site.x - vol.x) > 400) return (vol.messageExplo = { texte: `La zone plate repérée par la sonde est à ${fmtAlt(Math.abs(site.x - vol.x))} : posez-vous plus près (la descente vise désormais cette zone).`, vie: 10 });
   v.kitsBase--;
   const [ressource, prod] = ressourceLocale(a);
-  const b = { id: 'b' + Date.now(), astre: a.id, x: vol.x + 60, t0: v.t, tMaj: v.t, stock: 0 };
+  const b = { id: 'b' + Date.now(), astre: a.id, x: site.x, t0: v.t, tMaj: v.t, stock: 0, niveau: 1 };
   v.bases.push(b);
   vol.bases.push(b);
   Orbiteur.log(`Base construite sur ${a.nom}.` + (prod ? ` Elle exploite : ${ressource} (${fmt(prod / 1000, 1)} t d’ergols par jour).` : ' Pas de ressource exploitable ici : tout viendra de la Terre.'));

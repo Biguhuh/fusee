@@ -390,8 +390,13 @@ class Exploration {
 
     // Bases au sol
     for (const b of this.vol.bases || []) {
-      const [bx, by] = versEcran(b.x, this.sol(b.x));
-      if (bx > -1500 && bx < W + 1500) dessinerBase(ctx, bx, by, echelle);
+      const [bx] = versEcran(b.x, this.sol(b.x));
+      if (bx > -4000 && bx < W + 4000) dessinerBase(ctx, bx, (dx) => versEcran(b.x + dx, this.sol(b.x + dx))[1], echelle, b.niveau || 1, productionBase(this.astre) > 0);
+    }
+    // Zone de base repérée par une sonde
+    if (this.vol.site && !(this.vol.bases || []).some((b) => Math.abs(b.x - this.vol.site.x) < 500)) {
+      const [fx2, fy2] = versEcran(this.vol.site.x, this.sol(this.vol.site.x));
+      if (fx2 > -200 && fx2 < W + 200) dessinerFanion(ctx, fx2, fy2, echelle);
     }
 
     // Promenade sur Terre : fleurs, arbres fruitiers, bar

@@ -126,10 +126,44 @@ function configurerEtage(f, i) {
   f.masseTotale = f.masseSeche + f.carburant;
 }
 
-// ---------- Ravitaillement depuis la Terre ----------
-const CAPACITES_STATION = { carburant: 120000, ergols: 120000, sondes: 6, kits: 3, kitsBase: 2, robots: 3, atterrisseurs: 3 };
+// ---------- Stocks des stations ----------
+const CAPACITES_STATION = {
+  carburant: 200000, ergols: 200000, materiaux: 150000, sondes: 10, kits: 4, kitsBase: 3, robots: 4, atterrisseurs: 4, extensions: 4,
+};
+const STOCK_VIDE = () => ({ carburant: 0, ergols: 0, materiaux: 0, sondes: 0, kits: 0, kitsBase: 0, robots: 0, atterrisseurs: 0, extensions: 0 });
+const NOMS_STOCK = {
+  carburant: 'carburant', ergols: 'ergols', materiaux: 'matériaux', sondes: 'sondes', kits: 'kits de station',
+  kitsBase: 'kits de base', robots: 'robots', atterrisseurs: 'atterrisseurs', extensions: 'extensions de base',
+};
+function fmtStock(cle, q) { return ['carburant', 'ergols', 'materiaux'].includes(cle) ? `${fmt(q / 1000, q < 10000 ? 1 : 0)} t` : fmt(q); }
+function decrireContenu(c) { return Object.entries(c).filter(([, q]) => q > 0).map(([k, q]) => `${fmtStock(k, q)} ${NOMS_STOCK[k]}`).join(', '); }
 
-// Un cargo part régulièrement de la Terre ; plus la station est loin, plus le trajet est long.
+// Ravitos lancés par le joueur : contenus types (capacité d'un cargo lourd).
+const CONTENUS_CARGO = {
+  expedition: {
+    nom: 'Kit d’expédition', description: 'De quoi repartir plus loin : carburant de l’orbiteur, ergols et atterrisseurs, sondes, kits de station et de base, robots.',
+    contenu: { carburant: 60000, ergols: 60000, atterrisseurs: 2, sondes: 4, kits: 2, kitsBase: 1, robots: 2 },
+  },
+  extension: {
+    nom: 'Extension de base', description: 'Agrandit la base de l’astre : plus de production, puis une mine de matériaux (à partir du niveau 2).',
+    contenu: { extensions: 1, materiaux: 15000 },
+  },
+  ergols: { nom: 'Ergols', description: 'Carburant pour l’orbiteur et ergols pour les atterrisseurs.', contenu: { carburant: 60000, ergols: 60000 } },
+  materiaux: { nom: 'Matériaux', description: 'Pour l’atelier de la station : sondes, robots, atterrisseurs, kits.', contenu: { materiaux: 40000, kitsBase: 1 } },
+};
+
+// Atelier d'une station : ce qu'on fabrique avec les matériaux (et les ergols) du stock.
+const RECETTES = {
+  sondes: { nom: 'Sonde', materiaux: 2000 },
+  robots: { nom: 'Robot', materiaux: 3000 },
+  atterrisseurs: { nom: 'Atterrisseur', materiaux: 8000 },
+  kitsBase: { nom: 'Kit de base', materiaux: 15000 },
+  kits: { nom: 'Kit de station', materiaux: 20000 },
+  extensions: { nom: 'Extension de base', materiaux: 12000 },
+};
+
+// ---------- Ravitaillement courant depuis la Terre ----------
+// Petit cargo automatique et régulier ; plus la station est loin, plus le trajet est long.
 function intervalleCargo(centreId) {
   if (centreId === 'terre') return 30 * JOUR;
   const chaine = ancetres(centreId);
@@ -140,16 +174,14 @@ function intervalleCargo(centreId) {
   return Math.max(120 * JOUR, tof);
 }
 
-function livrerCargo(s) {
+function ajouterAuStock(s, contenu) {
   const k = s.stock;
-  const ajout = (cle, q) => { k[cle] = Math.min(CAPACITES_STATION[cle], (k[cle] || 0) + q); };
-  ajout('carburant', 40000);
-  ajout('ergols', 40000);
-  ajout('sondes', 2);
-  ajout('kitsBase', 1);
-  ajout('robots', 1);
-  ajout('atterrisseurs', 1);
-  if (s.terrestre) ajout('kits', 1);   // les kits de station ne partent que de la station terrestre
+  for (const [cle, q] of Object.entries(contenu)) k[cle] = Math.min(CAPACITES_STATION[cle] || Infinity, (k[cle] || 0) + q);
+}
+
+// Ravitaillement courant : de quoi vivre et refaire un peu les pleins. Le reste, ce sont les ravitos lancés par le joueur.
+function livrerCargo(s) {
+  ajouterAuStock(s, s.terrestre ? { carburant: 30000, ergols: 30000, sondes: 1, kits: 1 } : { carburant: 15000, ergols: 15000, sondes: 1 });
 }
 
 // ---------- Bases au sol et ressources locales ----------
@@ -174,6 +206,30 @@ function ressourceLocale(a) {
   return [null, 0];
 }
 function productionBase(a) { return ressourceLocale(a)[1]; }
+
+// Matériaux tirés du sol (métaux du régolithe, silicates…) : seulement avec une base agrandie (niveau 2 et plus).
+function productionMateriaux(a, niveau) { return a.type === 'solide' && niveau >= 2 ? 500 * (niveau - 1) : 0; } // kg par jour
+
+// Zone pour une base : un tronçon de 120 m en pente douce (moins de 8°, moins de 6 m de dénivelé),
+// le plus près possible du point de descente. La construction terrasse ensuite le terrain.
+function chercherZonePlate(a) {
+  const h = creerTerrain(a);
+  if (!h) return null;
+  const plat = (x) => {
+    let min = Infinity, max = -Infinity;
+    for (let d = -60; d <= 60; d += 10) {
+      const y = h(x + d);
+      min = Math.min(min, y); max = Math.max(max, y);
+      if (Math.abs(Math.atan2(h(x + d + 5) - h(x + d - 5), 10)) > 8 * Math.PI / 180) return false;
+    }
+    return max - min < 6;
+  };
+  for (let r = 0; r <= 60000; r += 25) {
+    if (plat(r)) return r;
+    if (r && plat(-r)) return -r;
+  }
+  return null;
+}
 
 // Vol d'essai complet au pilote automatique : descente, atterrissage, remontée.
 function simulerAllerRetour(a, fusee) {
