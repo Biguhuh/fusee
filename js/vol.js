@@ -105,6 +105,11 @@ class Vol {
       } else return;
     }
     if (this.lancement && this.tDecollage && !this.pose) this.suivreLancement();
+    if (this.phase === 'ballon') {
+      this.stepBallon(dt);
+      if (!this.fin) this.objectifs();
+      return;
+    }
 
     if (this.autopilote) this.pilotage(dt);
     else {
@@ -420,6 +425,43 @@ class Vol {
     if (this.compteARebours > 0) return;
     this.decollageDemande = true;
     this.autopilote = true;
+    // Vénus : on ne décolle pas du sol, on gonfle le ballon.
+    if (this.f.aerostat && !this.ascension) {
+      this.pose = false;
+      this.phase = 'ballon';
+      this.manette = 0;
+      this.xModule = this.x;   // le module blindé reste au sol
+      this.messageExplo = { texte: `Gonflage du ballon : montée lente vers ${fmtAlt(this.f.aerostat.alt)}, au-dessus de la fournaise. Accélérez le temps (+).`, vie: 9 };
+    }
+  }
+
+  // Montée en ballon (Vénus) : pas de moteur, la poussée d'Archimède fait monter à vitesse constante.
+  // Arrivé dans les nuages, le lanceur d'ascension se détache du module et s'allume.
+  stepBallon(dt) {
+    const c = conditions(this.astre, this.y);
+    this.c = c;
+    const cible = this.f.aerostat.vitesse;
+    this.vy += (cible - this.vy) * Math.min(1, dt / 20);
+    this.vx *= Math.max(0, 1 - dt / 30);
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+    this.angle *= Math.max(0, 1 - dt / 5);
+    this.throttle = 0;
+    this.messageAuto = `ballon : ${fmtAlt(this.y - this.sol(this.x))} sur ${fmtAlt(this.f.aerostat.alt)}`;
+    this.dangers(c, Math.hypot(this.vx, this.vy), dt);
+    if (this.fin) return;
+    if (this.y - this.sol(this.x) >= this.f.aerostat.alt) {
+      const alt = this.y;
+      this.fModule = this.f;
+      this.f = fuseeAscension();
+      this.carburant = this.f.carburant;
+      this.ascension = true;
+      this.coiffeLarguee = true;
+      this.phase = 'remontee';
+      this.angle = 0;
+      this.vy = 0;
+      this.noter(`Ballon à ${fmtAlt(alt)} (${fmtP(c.p)}, ${fmt(c.t)} °C) : largage, allumage du lanceur ${this.f.nomLanceur}`);
+    }
   }
 
   // Chronologie du lancement (affichée à l'écran et dans le résultat).
@@ -696,6 +738,14 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
   // Fumée et étincelles, puis fusée ou explosion.
   const hPx = vol.f.mega ? Math.max(vol.f.hauteur * echelle, 90) : Math.max(HAUTEUR_MODULE * echelle, gaz ? 60 : 44);
   if (solide) dessinerBases(ctx, vol, W, echelle, fuseeY);
+  // Vénus : le module blindé reste au sol après le départ du ballon.
+  if (solide && vol.xModule !== undefined) {
+    const sx = W / 2 + (vol.xModule - vol.x) * echelle, sy = fuseeY + (vol.y - vol.sol(vol.xModule)) * echelle;
+    if (sx > -100 && sx < W + 100 && sy > -100 && sy < H + 100) {
+      dessinerModule(ctx, { f: vol.fModule || vol.f, astre: vol.astre, angle: vol.pente(vol.xModule), throttle: 0, temp: vol.temp, integrite: 100, pose: true, t: vol.t,
+        degats: { pression: 0, chaleur: 0, impact: 0 }, taux: { pression: 0, chaleur: 0 }, enDegats: () => false }, sx, sy, Math.max(4, HAUTEUR_MODULE * echelle));
+    }
+  }
   // Pas de tir : la tour de lancement, à côté de la fusée.
   if (vol.lancement && solide) {
     const xt = 9;
@@ -1158,6 +1208,7 @@ function dessinerSondeAtmo(ctx, vol, x, y, h) {
 function dessinerFusee(ctx, vol, x, y, h) {
   // Grands lanceurs : fusées. Géantes gazeuses : sonde atmosphérique. Ailleurs : module d'atterrissage.
   if (vol.astre && vol.astre.type === 'gazeuse' && !(vol.f && vol.f.mega)) return dessinerSondeAtmo(ctx, vol, x, y, h * 1.3);
+  if (vol.phase === 'ballon') return dessinerBallon(ctx, vol, x, y, h / HAUTEUR_MODULE);
   if (!(vol.f && vol.f.mega)) return dessinerModule(ctx, vol, x, y, h);
   return dessinerLanceur(ctx, vol, x, y, h);
 }
@@ -1197,6 +1248,7 @@ function dessinerLanceur(ctx, vol, x, y, h) {
   }
   const wHaut = f.etages[f.etages.length - 1].largeur * k;
   if (!vol.coiffeLarguee) dessinerCoiffe(ctx, yb, f.charge.hauteur * k, f.charge.largeur * k, wHaut, f.charge.tour);
+  else if (f.charge.capsule) dessinerCapsule(ctx, yb, f.charge.hauteur * k, f.charge.largeur * k);
   else dessinerChargeUtile(ctx, yb, f.charge.hauteur * k, f.charge.largeur * k, wHaut);
 
   // Rougeoiement quand la coque chauffe, contour rouge pendant les dégâts.
@@ -1305,6 +1357,34 @@ function dessinerCoiffe(ctx, yb, hc, wc, wHaut, tour) {
     ctx.beginPath(); ctx.moveTo(-wc * 0.12, yt + hc * 0.02); ctx.lineTo(0, yt - hc * 0.35); ctx.lineTo(wc * 0.12, yt + hc * 0.02); ctx.stroke();
     ctx.fillStyle = '#c62828'; ctx.fillRect(-wc * 0.06, yt - hc * 0.5, wc * 0.12, hc * 0.16);
   }
+}
+
+// Capsule conique d'équipage (lanceur d'ascension de Vénus).
+function dessinerCapsule(ctx, yb, hc, wc) {
+  ctx.fillStyle = '#cfd8dc';
+  ctx.beginPath(); ctx.moveTo(-wc / 2, yb); ctx.lineTo(-wc * 0.18, yb - hc * 0.85); ctx.lineTo(wc * 0.18, yb - hc * 0.85); ctx.lineTo(wc / 2, yb); ctx.fill();
+  ctx.fillStyle = '#6d4c41'; ctx.fillRect(-wc / 2, yb - hc * 0.08, wc, hc * 0.08);   // bouclier thermique
+  ctx.fillStyle = '#263238'; ctx.beginPath(); ctx.arc(wc * 0.12, yb - hc * 0.45, Math.max(1, wc * 0.08), 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#90a4ae'; ctx.fillRect(-wc * 0.1, yb - hc, wc * 0.2, hc * 0.15);
+}
+
+// Ballon de remontée (Vénus) : enveloppe blanche, suspentes, et le lanceur d'ascension accroché dessous.
+function dessinerBallon(ctx, vol, x, y, k) {
+  const fa = dessinerBallon.lanceur || (dessinerBallon.lanceur = fuseeAscension());
+  const hL = fa.hauteur * k;
+  const R = 9 * k, yc = y - hL - 6 * k - R;
+  ctx.save();
+  ctx.translate(x, 0);
+  ctx.strokeStyle = 'rgba(220,220,220,0.8)'; ctx.lineWidth = Math.max(1, k * 0.15);
+  ctx.beginPath();
+  for (const dx of [-0.8, 0, 0.8]) { ctx.moveTo(dx * R * 0.8, yc + R * 0.6); ctx.lineTo(0, y - hL); }
+  ctx.stroke();
+  const g = ctx.createRadialGradient(-R * 0.3, yc - R * 0.3, R * 0.1, 0, yc, R);
+  g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#c9c2b0');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.ellipse(0, yc, R, R * 1.1, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  dessinerLanceur(ctx, { f: fa, angle: vol.angle, throttle: 0, temp: vol.temp, coiffeLarguee: true }, x, y, hL);
 }
 
 // Charge utile à nu : l'atterrisseur (en bas, feuilles dorées, pieds repliés) et l'orbiteur au-dessus.

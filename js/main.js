@@ -135,7 +135,8 @@ function choisirDestination(id) { etat.destination = id; afficherCarte(etat, cho
 function lancer(options = {}) {
   const astre = ASTRES_PAR_ID[etat.destination];
   if (!astre) return;
-  etat.vol = new Vol(astre, options.fusee || assemblerFusee(etat.equipement), options);
+  // Vénus : toute fusée emporte le ballon et le lanceur d'ascension pour pouvoir repartir.
+  etat.vol = new Vol(astre, options.fusee || equiperAerostat(assemblerFusee(etat.equipement), astre), options);
   etat.enVoyage = !!options.voyage;
   etat.warp = 1;
   etat.pause = false;
@@ -207,11 +208,11 @@ function lancerVisite() {
     const c = concevoirAtterrisseur(a);
     b.textContent = 'Lancer la mission';
     b.disabled = false;
-    etat.fuseeVisite = c.ok ? c.choix : null;
-    lancer(c.ok ? { fusee: assemblerFusee(c.choix) } : {});
+    etat.fuseeVisite = c.ok ? c : null;
+    lancer(c.ok ? { fusee: fuseeDeConception(c, a) } : {});
   }, 30);
 }
-function rejouerVisite() { lancer(etat.fuseeVisite ? { fusee: assemblerFusee(etat.fuseeVisite) } : {}); }
+function rejouerVisite() { lancer(etat.fuseeVisite ? { fusee: fuseeDeConception(etat.fuseeVisite, ASTRES_PAR_ID[etat.destination]) } : {}); }
 
 // ---------- Campagne : lancement, descente, robot, retour ----------
 function lancerMegaFusee(type = etat.typeLanceur || 'station') {

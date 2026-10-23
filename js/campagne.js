@@ -16,8 +16,54 @@ function besoinAtterrisseur(a) {
   return Infinity;
 }
 
+// ---------- Vénus : remontée en ballon ----------
+// Repartir du sol de Vénus demanderait ≈ 12,6 km/s : impossible. On reprend un concept étudié par la NASA :
+// le module blindé se pose ; pour repartir, un ballon emporte un petit lanceur à deux étages jusqu'à
+// la couche de nuages (54 km : 0,7 bar, ≈ 30 °C), d'où il s'allume vers l'orbite. Le module reste au sol.
+const AEROSTAT = { venus: { alt: 54000, vitesse: 6 } };
+const LANCEUR_ASCENSION = {
+  nom: 'Aphrodite', chargeUtile: 1500,                 // capsule d'équipage et échantillons
+  charge: { hauteur: 3, largeur: 2.2, capsule: true },
+  etages: [
+    { nom: '1er étage', masseSeche: 3000, carburant: 30000, poussee: 0.9e6, isp: 330, hauteur: 17, largeur: 2.6, moteurs: 3 },
+    { nom: '2e étage', masseSeche: 900, carburant: 7000, poussee: 0.12e6, isp: 380, hauteur: 8, largeur: 2.2, moteurs: 1 },
+  ],
+};
+const MASSE_BALLON = 2500;   // enveloppe et hélium
+function masseAscension() {
+  const l = LANCEUR_ASCENSION;
+  return l.chargeUtile + MASSE_BALLON + l.etages.reduce((s, e) => s + e.masseSeche + e.carburant, 0);
+}
+// Le module de descente emporte le ballon et le lanceur d'ascension (masse en plus, pas de carburant en plus).
+function equiperAerostat(f, a) {
+  if (!AEROSTAT[a.id] || f.aerostat) return f;
+  const m = masseAscension();
+  return { ...f, aerostat: { ...AEROSTAT[a.id] }, masseSeche: f.masseSeche + m, masseTotale: f.masseTotale + m };
+}
+function fuseeAscension() {
+  const l = LANCEUR_ASCENSION;
+  const f = {
+    mega: true, ascension: true, lanceur: 'ascension', nomLanceur: l.nom, etages: l.etages, chargeUtile: l.chargeUtile, charge: l.charge,
+    choix: { moteur: 'raptor', reservoir: 'moyen', coque: 'leger', bouclier: 'ceramique', panneau: 'aucun' },
+    pressionMax: 3, tempMax: 400, protection: 2,
+  };
+  configurerEtage(f, 0);
+  return f;
+}
+function deltaVAscension() {
+  const f = fuseeAscension();
+  let dv = 0;
+  for (let i = 0; i < f.etages.length; i++) { configurerEtage(f, i); dv += deltaV(f); }
+  return dv;
+}
+// Fusée correspondant à une conception (avec le ballon si besoin).
+function fuseeDeConception(c, a) {
+  const f = assemblerFusee(c.choix);
+  return c.aerostat ? equiperAerostat(f, a) : f;
+}
+
 // Résultats gardés en mémoire, et d'une partie à l'autre (les vols d'essai prennent un peu de temps).
-const VERSION_CONCEPTION = 'v1';
+const VERSION_CONCEPTION = 'v2';
 const cacheConception = {};
 function concevoirAtterrisseur(a) {
   if (cacheConception[a.id]) return cacheConception[a.id];
@@ -25,14 +71,14 @@ function concevoirAtterrisseur(a) {
   try {
     const s = JSON.parse(localStorage.getItem(cle));
     if (s) {
-      const res = s.ok ? { ...s, fusee: assemblerFusee(s.choix) } : s;
+      const res = s.ok ? { ...s, fusee: fuseeDeConception(s, a) } : s;
       cacheConception[a.id] = res;
       return res;
     }
   } catch (e) { /* stockage indisponible */ }
   const res = calculerConception(a);
   cacheConception[a.id] = res;
-  try { localStorage.setItem(cle, JSON.stringify({ ok: res.ok, raison: res.raison, besoin: res.besoin, choix: res.choix, dv: res.dv, twr: res.twr })); } catch (e) { /* ignoré */ }
+  try { localStorage.setItem(cle, JSON.stringify({ ok: res.ok, raison: res.raison, besoin: res.besoin, choix: res.choix, dv: res.dv, twr: res.twr, aerostat: res.aerostat })); } catch (e) { /* ignoré */ }
   return res;
 }
 
@@ -50,6 +96,23 @@ function calculerConception(a) {
   if (!coque) return { ok: false, raison: `Aucune coque ne résiste à ${fmtP(pMax)}.` };
   if (!bouclier) return { ok: false, raison: `Aucun bouclier ne résiste à ${fmt(tMax)} °C.` };
   if (!panneau) return { ok: false, raison: 'Aucun panneau ne protège d’un tel rayonnement.' };
+  if (AEROSTAT[a.id]) {
+    // Vénus : il suffit de freiner la descente (l'air épais aide) ; la remontée est confiée au ballon et au lanceur.
+    const candidats = [];
+    for (const m of EQUIPEMENTS.moteur.options) {
+      for (const r of EQUIPEMENTS.reservoir.options) {
+        const choix = { moteur: m.id, reservoir: r.id, coque: coque.id, bouclier: bouclier.id, panneau: panneau.id };
+        const f = equiperAerostat(assemblerFusee(choix), a);
+        const twr = f.poussee / (f.masseTotale * a.g);
+        if (twr >= 1.3) candidats.push({ choix, fusee: f, dv: deltaV(f), twr });
+      }
+    }
+    candidats.sort((x, y) => x.fusee.masseTotale - y.fusee.masseTotale);
+    for (const c of candidats.slice(0, 14)) {
+      if (simulerAllerRetour(a, c.fusee)) return { ok: true, aerostat: true, besoin: besoinDescente(a) * 1.2, ...c };
+    }
+    return { ok: false, raison: `Aucun module ne réussit la descente sur ${a.nom} avec son ballon de remontée.` };
+  }
   const besoin = besoinAtterrisseur(a) * 1.2;
   // Candidats plausibles, du plus léger au plus lourd ; on garde le premier qui réussit
   // vraiment l'aller-retour en simulation (pilote automatique).
@@ -249,5 +312,9 @@ function simulerAllerRetour(a, fusee) {
 function descriptionConception(c) {
   if (!c.ok) return c.raison;
   const p = (cat) => piece(cat, c.choix[cat]).nom;
+  if (c.aerostat) {
+    return `module blindé (moteur ${p('moteur')}, réservoir ${p('reservoir')}, coque ${p('coque')}, bouclier ${p('bouclier')}) qui reste au sol ; ` +
+      `remontée : ballon jusqu’à ${fmtAlt(AEROSTAT.venus.alt)}, puis lanceur ${LANCEUR_ASCENSION.nom} à 2 étages (Δv ${fmtV(deltaVAscension())})`;
+  }
   return `moteur ${p('moteur')}, réservoir ${p('reservoir')}, coque ${p('coque')}, bouclier ${p('bouclier')}, panneau ${p('panneau')} — Δv ${fmtV(c.dv)} pour ${fmtV(c.besoin / 1.2)} nécessaires`;
 }
