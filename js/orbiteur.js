@@ -817,11 +817,22 @@ const Orbiteur = {
         g.addColorStop(0, 'rgba(255,230,150,0.9)'); g.addColorStop(1, 'rgba(255,160,0,0)');
         ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p[0], p[1], rr * 3, 0, 2 * Math.PI); ctx.fill();
       }
-      ctx.fillStyle = a.couleurs.disque;
-      ctx.beginPath(); ctx.arc(p[0], p[1], rr, 0, 2 * Math.PI); ctx.fill();
-      if (a.id === 'saturne' && rr > 3) {
-        ctx.strokeStyle = 'rgba(230,210,160,0.6)'; ctx.lineWidth = Math.max(1, rr * 0.25);
-        ctx.beginPath(); ctx.ellipse(p[0], p[1], rr * 2.2, rr * 0.7, -0.4, 0, 2 * Math.PI); ctx.stroke();
+      if (a.type === 'etoile' || rr < 3.5) {
+        ctx.fillStyle = a.couleurs.disque;
+        ctx.beginPath(); ctx.arc(p[0], p[1], rr, 0, 2 * Math.PI); ctx.fill();
+        if (a.id === 'saturne') dessinerAnneaux(ctx, p[0], p[1], Math.max(rr, 2), 'pole');
+      } else {
+        // Vu du pôle Nord, éclairé par le Soleil ; une lune synchrone montre toujours la même face à sa planète.
+        const pa = etatAbsolu(a.id, t).r;
+        const versSoleil = V.unit(V.mul(pa, -1));
+        let lon0;
+        if (ROTATION_H[a.id] || !a.parent) lon0 = longitudeVue(a, t);
+        else {
+          const pp = etatAbsolu(a.parent, t).r;
+          lon0 = (Math.atan2(pp[0] - pa[0], -(pp[1] - pa[1])) * 180) / Math.PI;
+        }
+        // Le Soleil un peu « au-dessus » (inclinaison de l'axe, comme en été boréal) : le pôle reste éclairé.
+        dessinerGlobe(ctx, a, p[0], p[1], rr, { vue: 'pole', lon0, lumiere: [versSoleil[0], -versSoleil[1], 0.45] });
       }
       // Sphère d'influence de la cible et du centre courant
       if ((a.id === v.cible || a.id === v.orb.centre) && a.soi < Infinity && a.soi * s > rr + 6) {

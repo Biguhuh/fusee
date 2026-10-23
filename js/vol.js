@@ -843,13 +843,11 @@ function dessinerFond(ctx, a, c, W, H, sousLesNuages) {
     const pm = ASTRES_PAR_ID[a.parent];
     const angle = 2 * Math.atan(pm.rayonKm / a.orbite.a);           // diamètre apparent (rad)
     const r = Math.max(6, Math.min(Math.min(W, H) * 0.35, (angle / 1.2) * W / 2));
-    ctx.globalAlpha = 0.9 * Math.max(0.25, visEt);
-    ctx.fillStyle = pm.couleurs.disque;
-    ctx.beginPath(); ctx.arc(W * 0.78, H * 0.2, r, 0, Math.PI * 2); ctx.fill();
-    if (pm.id === 'saturne') {
-      ctx.strokeStyle = 'rgba(230,210,160,0.7)'; ctx.lineWidth = Math.max(1, r * 0.15);
-      ctx.beginPath(); ctx.ellipse(W * 0.78, H * 0.2, r * 2.2, r * 0.5, -0.3, 0, Math.PI * 2); ctx.stroke();
-    }
+    ctx.globalAlpha = 0.95 * Math.max(0.25, visEt);
+    // Vue de l'équateur, éclairée par le Soleil (dessiné plus à gauche dans le ciel), qui tourne sur elle-même.
+    const xs = W * 0.42, ys = H * 0.13, xp = W * 0.78, yp = H * 0.2;
+    const tRot = performance.now() / 1000 * 600;   // rotation accélérée pour qu'on la voie
+    dessinerGlobe(ctx, pm, xp, yp, pm.id === 'saturne' ? r * 0.6 : r, { vue: 'equateur', lon0: longitudeVue(pm, tRot), lumiere: [xs - xp, ys - yp, Math.hypot(xs - xp, ys - yp) * 0.6], inclinaisonAnneaux: 0.28 });
     ctx.globalAlpha = 1;
     ZONES_CIEL.push({ x: W * 0.78, y: H * 0.2, r: Math.max(r, 10), id: pm.id });
   }
@@ -887,11 +885,46 @@ function dessinerTerrain(ctx, vol, W, H, echelle, fuseeY) {
   const ecranY = (wx) => fuseeY + (vol.y - vol.sol(wx)) * echelle;
   const pas = 3;
   const pts = [];
-  for (let sx = -pas; sx <= W + pas; sx += pas) pts.push([sx, ecranY(vol.x + (sx - W / 2) / echelle)]);
+  // Rotondité : chaque point du sol est placé sur la sphère (rayon R + relief), vu depuis la fusée.
+  // Près du sol, c'est le dessin plat habituel ; en altitude, l'horizon se courbe et s'éloigne.
+  const R = a.rayonKm * 1000;
+  const alt = Math.max(0, vol.altSol());
+  const courbe = (W / 2 / echelle) * (W / 2 / echelle) / (2 * R) * echelle > 0.5;   // flèche visible (> 0,5 px) ?
+  if (!courbe) {
+    for (let sx = -pas; sx <= W + pas; sx += pas) pts.push([sx, ecranY(vol.x + (sx - W / 2) / echelle)]);
+  } else {
+    // Au-delà de l'horizon (angle acos(R / (R + h))), le sol est caché par la courbure.
+    const thetaH = Math.acos(Math.min(1, R / (R + alt + 1)));
+    const thetaEcran = Math.asin(Math.min(1, (W / 2 + 40) / echelle / R));
+    const th = Math.min(thetaH, thetaEcran);
+    const n = Math.ceil(W / pas);
+    for (let i = 0; i <= n; i++) {
+      const theta = -th + (2 * th * i) / n;
+      const wx = vol.x + theta * R;
+      const r = R + vol.sol(wx);
+      const sx = W / 2 + r * Math.sin(theta) * echelle;
+      const sy = fuseeY + (vol.y - (r * Math.cos(theta) - R)) * echelle;
+      pts.push([sx, sy]);
+    }
+    // Bords : on ferme vers le bas de l'écran le long du limbe.
+    pts.unshift([pts[0][0], H + 10]);
+    pts.push([pts[pts.length - 1][0], H + 10]);
+  }
 
   // Sol, plus sombre en profondeur.
   const haut = Math.min(...pts.map((p) => p[1]));
   if (haut > H + 10) return;
+  // Halo d'atmosphère au-dessus du limbe, quand on est assez haut pour voir la courbure.
+  if (courbe && a.atm && a.atm.p0 > 0.001) {
+    const ep = Math.max(3, Math.min(60, a.atm.H * 1000 * echelle * 1.5));
+    ctx.save();
+    ctx.lineJoin = 'round';
+    for (const [k, al] of [[1, 0.18], [0.55, 0.28], [0.25, 0.4]]) {
+      ctx.strokeStyle = a.couleurs.ciel; ctx.globalAlpha = al; ctx.lineWidth = ep * k;
+      ctx.beginPath(); pts.forEach(([x, y], i) => { if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.stroke();
+    }
+    ctx.restore();
+  }
   const g = ctx.createLinearGradient(0, haut, 0, H);
   g.addColorStop(0, a.couleurs.sol);
   g.addColorStop(1, assombrir(a.couleurs.sol, 0.45));

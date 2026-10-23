@@ -34,6 +34,20 @@ Tenue : combinaison de vol bleue de l'ESA sur Terre, scaphandre blanc aux couleu
   9. **Atelier** des stations : fabrique sondes, robots, atterrisseurs, kits de base, kits de station et extensions avec les matériaux. On avance ainsi d'orbite en orbite, avec des bases locales et des ravitos venus de la Terre ou d'autres bases, jusqu'au fond du système solaire.
 - **Promenade sur Terre** (hangar) : cueillir fleurs et fruits pour la prochaine expédition, boire une bière au Bar de l'Espace.
 
+## Apparence des astres
+- Chaque astre a sa carte peinte (`js/globes.js`) : continents de la Terre (contours grossiers, déserts, forêts, glaces, nuages), mers de la Lune, Syrtis Major et calottes de Mars, bandes et Grande Tache rouge de Jupiter, hexagone et anneaux de Saturne, Grande Tache sombre de Neptune, volcans d'Io, fractures d'Europe, cœur de Pluton, Japet à deux tons…
+- Sur la carte de l'orbiteur, on voit le système solaire d'au-dessus : les astres sont vus **du pôle Nord**, éclairés par le Soleil, et tournent sur eux-mêmes. Les lunes synchrones montrent toujours la même face à leur planète.
+- Dans le ciel (atterrissage, exploration) : planète vue de l'équateur, éclairée depuis le Soleil.
+- **Rotondité** : en prenant de l'altitude, le sol se courbe (projection exacte sur la sphère, horizon), avec un halo d'atmosphère au bord.
+
+## Vénus : remontée en ballon
+Repartir du sol de Vénus demanderait ≈ 12,6 km/s : aucun atterrisseur n'en est capable. Comme dans les études de la NASA, le module blindé se pose ; pour repartir (T), un **ballon** emporte le petit lanceur **Aphrodite** (2 étages, ≈ 9 km/s) jusqu'à 54 km (0,7 bar, ≈ 30 °C), où il s'allume vers l'orbite. Le module reste au sol.
+
+## Sauvegarde
+- Enregistrée dans le navigateur (localStorage, pas de cookie), toutes les 5 secondes.
+- Accueil : « ⬇ Télécharger la sauvegarde » (fichier .json) et « ⬆ Charger une sauvegarde ». Le fichier chargé est vérifié et nettoyé (jamais exécuté, taille limitée, textes sans balises) ; l'ancienne partie est gardée de côté.
+- Si une erreur survient, le jeu se met en pause et l'affiche, au lieu de se figer.
+
 ## Atterrisseur adapté : pour se poser, il faut pouvoir repartir
 L'atterrisseur de l'expédition est conçu pour chaque astre : le jeu essaie les combinaisons de pièces, de la plus légère à la plus lourde, en **simulant** la descente et la remontée en orbite, et garde la première qui réussit. Là où aucune ne peut repartir (Vénus : 12,6 km/s nécessaires), on ne peut pas se poser avec équipage : on largue un **robot en aller simple**. Sur Terre, on ne se pose pas avec l'atterrisseur : on rentre en capsule.
 
@@ -96,6 +110,7 @@ Survoler un astre (carte de l'orbiteur, ou ciel pendant l'atterrissage) affiche 
 - `js/physique.js` : conditions locales et relief · `js/orbites.js` : mécanique orbitale (Kepler, Lambert, sphères d'influence)
 - `js/vol.js` : atterrisseur et lanceurs · `js/exploration.js` : spationaute et robot · `js/equipage.js` : profil et dessin du ou de la spationaute
 - `js/navigation.js` : planification des manœuvres · `js/orbiteur.js` : écran de l'orbiteur
+- `js/globes.js` : cartes et globes des astres
 - `js/infos.js` : infobulles, fiches, encyclopédie · `js/ecrans.js`, `js/main.js` : écrans et boucle de jeu
 
 ## Simplifications

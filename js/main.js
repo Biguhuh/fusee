@@ -116,8 +116,8 @@ function animerAccueil() {
       c.strokeStyle = 'rgba(140,160,200,0.18)'; c.beginPath(); c.arc(cx, cy, echelle(a.orbite.a), 0, 7); c.stroke();
       const x = cx + d * Math.cos(ang), y = cy - d * Math.sin(ang);
       const r = Math.max(2.5, Math.log(a.rayonKm / 1000 + 1) * 2.4);
-      c.fillStyle = a.couleurs.disque; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
-      if (id === 'saturne') { c.strokeStyle = 'rgba(230,210,160,0.7)'; c.beginPath(); c.ellipse(x, y, r * 2, r * 0.6, -0.4, 0, 7); c.stroke(); }
+      // Vu du pôle, éclairé depuis le Soleil au centre.
+      dessinerGlobe(c, a, x, y, r, { vue: 'pole', lon0: longitudeVue(a, t), lumiere: [cx - x, cy - y, 0.45 * Math.hypot(cx - x, cy - y)] });
     }
     animAccueil = requestAnimationFrame(image);
   };

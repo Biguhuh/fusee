@@ -118,7 +118,8 @@ const Infos = {
     m.innerHTML = `
       <div class="fenetre">
         <header class="entete">
-          <span class="disque-fiche" style="background:${a.couleurs.disque}"></span>
+          <img class="globe-fiche" src="${imageAstre(a, 48)}" alt="">
+
           <div><h2>${a.nom}</h2><p>${this.typeAstre(a)}${a.note ? ' — ' + a.note : ''}</p></div>
           <button class="fermer" title="Fermer">✕</button>
         </header>
