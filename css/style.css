@@ -132,6 +132,8 @@ dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .plan li { margin-bottom: 4px; color: var(--doux); }
 .plan li.actuelle { color: var(--texte); font-weight: 600; }
 .actions-nav { display: flex; flex-direction: column; gap: 6px; }
+.actions-nav p { margin: 0; font-size: 12px; }
+.objectif { background: rgba(255,112,67,0.15); border: 1px solid var(--accent); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; margin-bottom: 6px; }
 .sondes { padding-left: 16px; margin: 0; font-size: 12px; }
 .aide-nav { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,0.6); font-size: 12px; white-space: nowrap; pointer-events: none !important; }
 

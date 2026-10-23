@@ -27,9 +27,19 @@ function montrer(ecran) {
 
 function allerHangar() {
   afficherHangar(etat);
-  $('voyage-reprendre').classList.toggle('cache', !etat.voyage);
+  const v = etat.voyage;
+  $('voyage-reprendre').classList.toggle('cache', !v);
+  $('voyage-reprendre').textContent = v && v.orb ? '▶ Reprendre l’expédition en cours' : '🚀 Lancer une expédition (méga-fusée)';
+  $('voyage-nouveau').textContent = v ? '↺ Nouvelle campagne' : '🛰 Commencer la campagne';
+  $('voyage-etat').innerHTML = v ? resumeCampagne(v) : '';
   $('vers-carte').textContent = 'Mission directe : choisir la destination →';
   montrer('hangar');
+}
+
+function resumeCampagne(v) {
+  const n = Object.values(v.echantillonsRapportes).reduce((s, x) => s + x, 0);
+  return `${fmtDate(v.t, false)} · ${v.stations.length} station${v.stations.length > 1 ? 's' : ''} · ${v.bases.length} base${v.bases.length > 1 ? 's' : ''} · ${n} échantillon${n > 1 ? 's' : ''} rapporté${n > 1 ? 's' : ''} sur Terre` +
+    (v.provisions.fleurs + v.provisions.fruits ? ` · à emporter : ${v.provisions.fleurs} fleurs, ${v.provisions.fruits} fruits` : '');
 }
 function allerCarte() { afficherCarte(etat, choisirDestination); montrer('carte'); }
 function choisirDestination(id) { etat.destination = id; afficherCarte(etat, choisirDestination); }
@@ -37,7 +47,7 @@ function choisirDestination(id) { etat.destination = id; afficherCarte(etat, cho
 function lancer(options = {}) {
   const astre = ASTRES_PAR_ID[etat.destination];
   if (!astre) return;
-  etat.vol = new Vol(astre, assemblerFusee(etat.equipement), options);
+  etat.vol = new Vol(astre, options.fusee || assemblerFusee(etat.equipement), options);
   etat.enVoyage = !!options.voyage;
   etat.warp = 1;
   etat.pause = false;
@@ -50,33 +60,152 @@ function lancer(options = {}) {
 function finVol(r) {
   const rang = { pose: 1, orbite: 2, liberation: 2, plongee: 2 };
   if (rang[r.cause] && (rang[r.cause] > (rang[etat.records[r.astre.id]] || 0))) etat.records[r.astre.id] = r.cause;
-  if (etat.enVoyage) {
-    const v = etat.voyage;
-    const reussi = ['orbite', 'liberation', 'plongee'].includes(r.cause);
+  const v = etat.voyage;
+  const reussi = ['orbite', 'liberation', 'plongee'].includes(r.cause);
+  etat.suiteResultat = etat.enVoyage ? 'nav' : 'hangar';
+  if (etat.vol.lancement) {
+    // Lancement de la méga-fusée depuis la Terre.
     if (reussi) {
-      // L'atterrisseur rejoint l'orbiteur : on refait son plein sur le réservoir de l'orbiteur.
-      const besoin = r.fusee.carburant - r.carburantRestant;
-      const pris = Math.min(besoin, Math.max(0, v.carburant - 1000));
-      v.carburant -= pris;
-      v.carburantAtt = r.carburantRestant + pris;
-      Orbiteur.log(`Atterrisseur récupéré en orbite de ${r.astre.nom}${pris ? ` (plein : ${fmt(pris)} kg pris à l’orbiteur)` : ''}.`);
+      Orbiteur.charger(v);
+      Orbiteur.demarrerExpedition();
+      Orbiteur.camPlacee = false;
+      r.messageLancement = 'La méga-fusée a placé l’expédition en orbite terrestre.' + (v.stations.some((s) => s.terrestre) ? '' : ' Première tâche : construire la station spatiale.');
+      etat.suiteResultat = 'nav';
+    } else {
+      Orbiteur.charger(v);
+      Orbiteur.log('Échec du lancement de la méga-fusée.');
+      etat.suiteResultat = 'hangar';
+    }
+  } else if (etat.enVoyage) {
+    const a = r.astre.id;
+    if (reussi) {
+      // L'atterrisseur rejoint l'orbiteur avec ses échantillons ; ses ergols restants retournent en réserve.
+      v.ergolsAtt += r.carburantRestant;
+      if (etat.vol.echantillons) v.echantillonsABord[a] = (v.echantillonsABord[a] || 0) + etat.vol.echantillons;
+      Orbiteur.log(`Atterrisseur récupéré en orbite de ${r.astre.nom}${etat.vol.echantillons ? ` avec ${etat.vol.echantillons} échantillon(s)` : ''}.`);
     } else {
       v.atterrisseurs = Math.max(0, v.atterrisseurs - 1);
-      v.carburantAtt = null;
-      Orbiteur.log(`Atterrisseur perdu sur ${r.astre.nom}. Il en reste ${v.atterrisseurs}.`);
+      Orbiteur.log(`Atterrisseur perdu sur ${r.astre.nom}${etat.vol.echantillons ? ' avec ses échantillons' : ''}. Il en reste ${v.atterrisseurs}.`);
     }
-    v.visites[r.astre.id] = { ...(v.visites[r.astre.id] || {}), pose: r.dejaPose || r.cause === 'pose' };
+    v.visites[a] = { ...(v.visites[a] || {}), pose: r.dejaPose || r.cause === 'pose' };
   }
   sauver(etat);
   afficherResultat(r);
-  $('vers-hangar').textContent = etat.enVoyage ? 'Retour à l’orbiteur' : 'Retour au hangar';
-  $('rejouer').classList.toggle('cache', etat.enVoyage);
+  $('vers-hangar').textContent = etat.suiteResultat === 'nav' ? 'Aller à l’orbiteur' : 'Retour au hangar';
+  $('rejouer').classList.toggle('cache', etat.enVoyage || etat.vol.lancement);
   montrer('resultat');
+}
+
+// ---------- Campagne : lancement, descente, robot, retour ----------
+function lancerMegaFusee() {
+  etat.destination = 'terre';
+  lancer({ fusee: megaFusee(), lancement: true, depuisSol: true, voyage: false });
+}
+
+function basesSur(id) { return etat.voyage ? etat.voyage.bases.filter((b) => b.astre === id) : []; }
+
+function descendre(id) {
+  const v = etat.voyage, a = ASTRES_PAR_ID[id];
+  const c = concevoirAtterrisseur(a);
+  if (!c.ok) return Orbiteur.log(c.raison);
+  if (v.ergolsAtt < c.fusee.carburant) return Orbiteur.log(`Pas assez d’ergols pour l’atterrisseur (${fmt(v.ergolsAtt / 1000, 1)} t sur ${fmt(c.fusee.carburant / 1000, 1)} t) : ravitaillez à une station.`);
+  v.ergolsAtt -= c.fusee.carburant;
+  etat.destination = id;
+  lancer({ voyage: true, fusee: c.fusee, bases: basesSur(id) });
+}
+
+// Robot largué en aller simple (là où un atterrisseur ne pourrait pas repartir, comme sur Vénus).
+function larguerRobot(id) {
+  const v = etat.voyage, a = ASTRES_PAR_ID[id];
+  if (v.robots <= 0) return Orbiteur.log('Plus de robot à bord.');
+  v.robots--;
+  etat.destination = id;
+  etat.vol = new Vol(a, assemblerFusee(equipementParDefaut()), { voyage: true, depuisSol: true, bases: basesSur(id) });
+  etat.vol.robotSeul = true;
+  etat.enVoyage = true;
+  etat.explo = new Exploration(etat.vol, 'robot', etat.science);
+  Orbiteur.log(`Robot largué sur ${a.nom}.`);
+  touches.clear();
+  redim();
+  montrer('explo');
+}
+
+function construireBase() {
+  const v = etat.voyage, vol = etat.vol;
+  if (!vol || !vol.pose || !etat.enVoyage) return;
+  const a = vol.astre;
+  if (!v.stations.some((s) => s.centre === a.id)) return (vol.messageExplo = { texte: `Il faut d’abord une station en orbite de ${a.nom} pour ravitailler la base.`, vie: 6 });
+  if (v.kitsBase <= 0) return (vol.messageExplo = { texte: 'Plus de kit de base à bord (les cargos en apportent aux stations).', vie: 6 });
+  if (v.bases.some((b) => b.astre === a.id && Math.abs(b.x - vol.x) < 2000)) return (vol.messageExplo = { texte: 'Il y a déjà une base ici.', vie: 5 });
+  v.kitsBase--;
+  const [ressource, prod] = ressourceLocale(a);
+  const b = { id: 'b' + Date.now(), astre: a.id, x: vol.x + 60, t0: v.t, tMaj: v.t, stock: 0 };
+  v.bases.push(b);
+  vol.bases.push(b);
+  Orbiteur.log(`Base construite sur ${a.nom}.` + (prod ? ` Elle exploite : ${ressource} (${fmt(prod / 1000, 1)} t d’ergols par jour).` : ' Pas de ressource exploitable ici : tout viendra de la Terre.'));
+  vol.messageExplo = { texte: `Base construite !${prod ? ` Ressource locale : ${ressource}.` : ' Pas de ressource locale.'}`, vie: 7 };
+  sauver(etat);
+}
+
+// Posé près d'une base : on fait le plein avec ses ergols.
+function pleinALaBase(vol) {
+  if (vol.pleinFait || !vol.pose || !vol.bases.length) return;
+  const b = vol.bases.find((x) => Math.abs(x.x - vol.x) < 300);
+  if (!b) return;
+  vol.pleinFait = true;
+  const q = Math.min(b.stock || 0, vol.f.carburant - vol.carburant);
+  if (q > 0) { b.stock -= q; vol.carburant += q; }
+  vol.messageExplo = { texte: q > 0 ? `Plein fait à la base : ${fmt(q / 1000, 1)} t d’ergols produits sur place.` : 'Base à proximité (pas encore d’ergols en réserve).', vie: 6 };
+}
+
+function rentrerSurTerre() {
+  const res = Orbiteur.rentrerSurTerre();
+  sauver(etat);
+  const h = $('res-titre');
+  h.textContent = 'Retour sur Terre';
+  h.className = 'succes';
+  $('res-message').textContent = res.n
+    ? `La capsule s’est posée en douceur sous ses parachutes. ${res.n} échantillon${res.n > 1 ? 's' : ''} rapporté${res.n > 1 ? 's' : ''} : ${res.liste}.`
+    : 'La capsule s’est posée en douceur sous ses parachutes. Pas d’échantillon cette fois.';
+  $('res-stats').innerHTML = resumeCampagne(etat.voyage).split(' · ').map((x) => `<dt>•</dt><dd style="text-align:left">${x}</dd>`).join('');
+  etat.suiteResultat = 'hangar';
+  $('vers-hangar').textContent = 'Retour au hangar';
+  $('rejouer').classList.add('cache');
+  montrer('resultat');
+}
+
+function terminerExpedition(texte) {
+  sauver(etat);
+  const h = $('res-titre');
+  h.textContent = 'Expédition perdue';
+  h.className = 'echec';
+  $('res-message').textContent = texte;
+  $('res-stats').innerHTML = '';
+  etat.suiteResultat = 'hangar';
+  $('vers-hangar').textContent = 'Retour au hangar';
+  $('rejouer').classList.add('cache');
+  montrer('resultat');
+}
+
+// Promenade sur Terre : fleurs, fruits, et une bière au bar.
+function promenadeSurTerre() {
+  if (!etat.voyage) etat.voyage = Orbiteur.nouveauVoyage();
+  const terre = ASTRES_PAR_ID.terre;
+  etat.destination = 'terre';
+  etat.vol = new Vol(terre, megaFusee(), { depuisSol: true });
+  etat.vol.promenade = true;
+  etat.enVoyage = false;
+  etat.explo = new Exploration(etat.vol, 'spationaute', etat.science, { terre: true, provisions: etat.voyage });
+  touches.clear();
+  redim();
+  montrer('explo');
 }
 
 // ---------- Voyage (orbiteur) ----------
 function allerNavigation() {
   if (!etat.voyage) etat.voyage = Orbiteur.nouveauVoyage();
+  // Pas d'expédition en cours : on lance d'abord la méga-fusée depuis la Terre.
+  if (!etat.voyage.orb) return lancerMegaFusee();
   Orbiteur.charger(etat.voyage);
   Orbiteur.construireHud();
   if (!Orbiteur.camPlacee) { Orbiteur.centrerSur('orbiteur'); Orbiteur.camPlacee = true; }
@@ -92,10 +221,10 @@ Orbiteur.contexte = {
   estEnPause: () => etat.pause,
   basculerPause: () => { etat.pause = !etat.pause; },
   hangar: () => { sauver(etat); allerHangar(); },
-  descendre: (id) => {
-    etat.destination = id;
-    lancer({ voyage: true, carburant: etat.voyage.carburantAtt === null ? undefined : etat.voyage.carburantAtt });
-  },
+  descendre: (id) => descendre(id),
+  larguerRobot: (id) => larguerRobot(id),
+  rentrer: () => rentrerSurTerre(),
+  finExpedition: (texte) => terminerExpedition(texte),
   journal: () => {
     const m = $('modale');
     m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>Journal de bord</h2></div><button class="fermer">✕</button></header>
@@ -107,13 +236,14 @@ Orbiteur.contexte = {
 };
 
 $('voyage-nouveau').onclick = () => {
-  if (etat.voyage && !confirm('Recommencer un nouveau voyage ? Les stations et sondes actuelles seront perdues.')) return;
+  if (etat.voyage && !confirm('Recommencer une nouvelle campagne ? Les stations, bases et sondes actuelles seront perdues.')) return;
   etat.voyage = Orbiteur.nouveauVoyage();
   Orbiteur.camPlacee = false;
   sauver(etat);
   allerNavigation();
 };
 $('voyage-reprendre').onclick = allerNavigation;
+$('promenade').onclick = promenadeSurTerre;
 
 // ---------- Informations ----------
 Infos.contexte = {
@@ -141,7 +271,7 @@ function ouvrirFiche(id) {
 $('vers-carte').onclick = allerCarte;
 $('retour-hangar').onclick = allerHangar;
 $('lancer').onclick = () => lancer();
-$('vers-hangar').onclick = () => (etat.enVoyage ? allerNavigation() : allerHangar());
+$('vers-hangar').onclick = () => (etat.suiteResultat === 'nav' && etat.voyage && etat.voyage.orb ? allerNavigation() : allerHangar());
 $('rejouer').onclick = () => lancer();
 document.querySelectorAll('.ouvrir-encyclo').forEach((b) => { b.onclick = () => Infos.ouvrirEncyclopedie(); });
 
@@ -171,6 +301,7 @@ for (const el of [canvas, toile]) {
     const bouge = glisser && glisser.bouge;
     glisser = null;
     if (bouge) return;
+    if (etat.ecran === 'nav' && Orbiteur.clicMiniCarte(e.clientX, e.clientY)) return;
     const id = astreSousSouris(e);
     if (id) ouvrirFiche(id);
   });
@@ -200,8 +331,17 @@ addEventListener('keydown', (e) => {
   if (etat.ecran === 'explo') {
     if (CODES_JEU.includes(e.code)) e.preventDefault();
     touches.add(e.code); touchesBreves.add(e.code);
-    if (e.code === 'KeyE') etat.explo.agir();
-    if (e.code === 'Escape') etat.explo.terminer('retour', 'Rappelé à bord.');
+    const x = etat.explo;
+    if (e.code === 'KeyE') x.agir();
+    if (e.code === 'KeyV') x.basculerRover();
+    if (e.code === 'Escape') {
+      if (x.terre) x.terminer('retour', `Fin de la promenade : ${x.bouquet || 0} fleurs, ${x.panier || 0} fruits, ${x.bieres} bière(s).`);
+      else x.agirRappel();
+    }
+    // Écoulement du temps pendant l'exploration : ×1, ×2, ×5, ×10.
+    const pal = [1, 2, 5, 10], i = pal.indexOf(x.warp);
+    if (e.key === '+' || e.code === 'NumpadAdd' || e.code === 'Equal') x.warp = pal[Math.min(pal.length - 1, i + 1)];
+    if (e.key === '-' || e.code === 'NumpadSubtract' || e.code === 'Minus') x.warp = pal[Math.max(0, i - 1)];
     if (e.code === 'KeyP') etat.pause = !etat.pause;
     return;
   }
@@ -222,6 +362,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'Space') v.manette = 1;
   if (e.code === 'KeyL') { v.autopilote = !v.autopilote; v.cibleX = null; v.tCible = -1; }
   if (e.code === 'KeyT') v.demanderDecollage();
+  if (e.code === 'KeyB') construireBase();
   if ((e.code === 'KeyE' || e.code === 'KeyR') && v.pose && v.astre.type === 'solide') {
     etat.explo = new Exploration(v, e.code === 'KeyE' ? 'spationaute' : 'robot', etat.science);
     touches.clear();
@@ -300,6 +441,7 @@ function boucle(t) {
       for (let i = 0; i < n && !v.fin; i++) v.step(total / n, cmd);
     }
     touchesBreves.clear();
+    if (etat.enVoyage) pleinALaBase(v);
     dessinerVol(ctx, v, canvas.width, canvas.height, etat.pause ? 0 : dt, w);
     if (etat.pause && !Infos.estOuverte()) dessinerPause(ctx, canvas.width, canvas.height);
     if (v.fin) {
@@ -310,22 +452,24 @@ function boucle(t) {
     const x = etat.explo;
     if (!etat.pause && !x.fin) {
       const cmd = commandes();
-      const n = Math.max(1, Math.ceil(dt / PAS_PHYSIQUE));
-      for (let i = 0; i < n && !x.fin; i++) x.step(dt / n, cmd);
+      const total = dt * x.warp;
+      const n = Math.max(1, Math.ceil(total / PAS_PHYSIQUE));
+      for (let i = 0; i < n && !x.fin; i++) x.step(total / n, cmd);
     }
     touchesBreves.clear();
     x.dessiner(ctx, canvas.width, canvas.height, etat.pause ? 0 : dt);
     if (etat.pause && !Infos.estOuverte()) dessinerPause(ctx, canvas.width, canvas.height);
     if (x.fin) {
-      // Retour à la fusée posée.
       etat.vol.messageExplo = { texte: x.fin.texte, vie: 8 };
       if (etat.voyage && etat.enVoyage) etat.voyage.journal.push({ t: etat.voyage.t, texte: `${etat.vol.astre.nom} : ${x.fin.texte}` });
-      sauver(etat);
       etat.explo = null;
       touches.clear();
-      montrer('vol');
+      sauver(etat);
+      if (etat.vol.promenade) allerHangar();                 // fin de la promenade sur Terre
+      else if (etat.vol.robotSeul) allerNavigation();        // le robot reste sur place, on revient à l'orbiteur
+      else montrer('vol');                                   // retour à la fusée posée
     }
-  } else if (etat.ecran === 'nav' && etat.voyage) {
+  } else if (etat.ecran === 'nav' && etat.voyage && etat.voyage.orb) {
     Orbiteur.mettreAJour(dt, etat.pause);
     Orbiteur.dessiner(ctxNav, toile.width, toile.height);
     if (etat.pause && !Infos.estOuverte()) dessinerPause(ctxNav, toile.width, toile.height);

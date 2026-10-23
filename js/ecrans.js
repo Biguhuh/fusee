@@ -212,7 +212,19 @@ function afficherFiche(etat) {
     <div>
       <h2>Votre fusée sur place</h2>
       <ul class="controle">${verifications(a, f).map((v) => `<li class="${v.niveau}">${v.texte}</li>`).join('')}</ul>
+      ${a.type === 'solide' || a.type === 'gazeuse' ? '<button id="adapter" style="margin-top:10px">⚙ Équiper pour se poser et repartir</button><p id="adapter-info" class="doux"></p>' : ''}
     </div>`;
+  const b = $('adapter');
+  if (b) {
+    b.onclick = () => {
+      $('adapter-info').textContent = 'Vols d’essai en cours…';
+      setTimeout(() => {
+        const c = concevoirAtterrisseur(a);
+        if (c.ok) { etat.equipement = { ...c.choix }; sauver(etat); afficherFiche(etat); $('adapter-info').textContent = 'Fusée équipée : ' + descriptionConception(c); }
+        else $('adapter-info').textContent = c.raison;
+      }, 30);
+    };
+  }
 }
 
 // ---------- Résultat ----------
@@ -259,7 +271,9 @@ function texteResultat(r) {
 }
 
 function afficherResultat(r) {
-  const [titre, classe, message] = texteResultat(r);
+  let [titre, classe, message] = texteResultat(r);
+  if (r.messageLancement) { titre = 'Lancement réussi'; classe = 'succes'; message = r.messageLancement; }
+  else if (r.fusee && r.fusee.mega) { titre = 'Échec du lancement : ' + titre.toLowerCase(); }
   const h = $('res-titre');
   h.textContent = titre;
   h.className = classe;

@@ -3,9 +3,19 @@
 Jeu web en HTML, JavaScript et canvas 2D, sans framework.
 **Pour jouer : ouvrir `index.html` dans un navigateur.**
 
-## Deux façons de jouer
-- **Mission directe** (hangar → carte) : on choisit un astre, la fusée arrive au-dessus, on se pose (ou on plonge), puis on repart en orbite.
-- **Voyage** (hangar → « Nouveau voyage ») : on pilote un orbiteur dans tout le système solaire, sur des trajectoires réalistes (Lambert, sphères d'influence), on descend avec l'atterrisseur, on explore, on envoie des sondes et on construit des stations.
+## Façons de jouer
+- **Mission directe** (hangar → carte) : on choisit un astre, la fusée arrive au-dessus, on se pose (ou on plonge), puis on repart en orbite. Le bouton « ⚙ Équiper pour se poser et repartir » choisit les pièces qui le permettent.
+- **Campagne** (hangar → « Commencer la campagne ») : tout part de la Terre.
+  1. **Méga-fusée** (2 étages, 110 t en orbite) : T pour décoller au pilote automatique. Séparation du 1er étage vers 65 km, orbite en 9 minutes.
+  2. **Station spatiale terrestre** : la première chose à construire (🏗). Elle reçoit un cargo de la Terre tous les 30 jours.
+  3. **Expédition** : l'orbiteur emporte son atterrisseur. On part vers un astre (pilotage libre, assistant ou planificateur), on se pose, on explore, on remonte.
+  4. **Retour** : cible Terre, puis « 🏠 Rentrer sur Terre » : la capsule rapporte les échantillons. Une nouvelle méga-fusée relance l'expédition suivante (elle s'amarre à la station terrestre).
+  5. **Stations** autour des autres astres : ravitaillées par des cargos venus de la Terre (plus elles sont loin, plus les cargos sont espacés). S'y amarrer prend ce qu'elles ont en stock.
+  6. **Bases au sol** (touche B une fois posé, s'il y a une station en orbite) : elles exploitent les ressources locales (glace de la Lune, CO₂ et glace de Mars, méthane de Titan…) pour produire des ergols. Elles en gardent 20 t pour faire le plein des atterrisseurs posés à côté et montent le surplus à la station. Ce qui manque vient de la Terre.
+- **Promenade sur Terre** (hangar) : cueillir fleurs et fruits pour la prochaine expédition, boire une bière au Bar de l'Espace.
+
+## Atterrisseur adapté : pour se poser, il faut pouvoir repartir
+L'atterrisseur de l'expédition est conçu pour chaque astre : le jeu essaie les combinaisons de pièces, de la plus légère à la plus lourde, en **simulant** la descente et la remontée en orbite, et garde la première qui réussit. Là où aucune ne peut repartir (Vénus : 12,6 km/s nécessaires), on ne peut pas se poser avec équipage : on largue un **robot en aller simple**. Sur Terre, on ne se pose pas avec l'atterrisseur : on rentre en capsule.
 
 ## Les astres : 478, données NASA/JPL
 Soleil, 8 planètes, Pluton, Cérès et 7 gros astéroïdes, et **les 460 lunes connues**.
@@ -23,6 +33,7 @@ Soleil, 8 planètes, Pluton, Cérès et 7 gros astéroïdes, et **les 460 lunes 
 | L | pilote automatique : se pose sur une zone plate, puis **reste posé** |
 | T | décoller (pilote automatique jusqu'à l'orbite) |
 | E / R | une fois posé : sortir le spationaute / le robot |
+| B | une fois posé (campagne) : construire une base |
 | + / − | accélérer / ralentir le temps (×1 sous 1,5 km et dès que la coque s'abîme) |
 | P | pause · Entrée : terminer (mission directe) · Échap : abandonner |
 
@@ -32,20 +43,25 @@ Soleil, 8 planètes, Pluton, Cérès et 7 gros astéroïdes, et **les 460 lunes 
 - Relief : collines, cratères, rochers ; la pente du sol compte à l'atterrissage.
 
 ## Exploration (vue de côté)
-- **Spationaute** : marche et saute selon la gravité locale (sauts de plusieurs mètres sur la Lune). Oxygène limité, combinaison limitée à 1,2 bar et 120 °C. Ramasse des échantillons (E) et les rapporte à la fusée. Sur les très petites lunes, il reste attaché par un câble : un saut le ferait partir dans l'espace.
-- **Robot** : roule (pentes de 25° max), résiste à 100 bar et 480 °C, analyse les sites sur place (E, 5 s).
+- Temps : ×1 par défaut, ×2, ×5 ou ×10 avec + / −.
+- **Spationaute** : marche et saute selon la gravité locale (sauts de plusieurs mètres sur la Lune). 4 h d'oxygène, combinaison limitée à 1,2 bar et 120 °C. Ramasse 6 échantillons (E) et les rapporte à la fusée. Sur les très petites lunes, il reste attaché par un câble : un saut le ferait partir dans l'espace.
+- **Rover** (touche V près de lui) : jusqu'à 3,6 m/s sur la Lune (comme celui d'Apollo), 20 échantillons dans sa caisse.
+- **Robot** : roule, résiste à 100 bar et 480 °C, 8 h de batterie, analyse les sites sur place (E, 5 s).
+- Les pentes raides ralentissent ; seules les falaises (> 40° en rover) arrêtent.
+- Les échantillons rangés dans l'atterrisseur remontent à l'orbiteur et comptent quand ils arrivent sur Terre.
 - Chaque astre a ses sites : lacs de méthane sur Titan, soufre sur Io, glace salée sur Europe, lits de rivière sur Mars…
 
 ## Orbiteur
 - Carte vue de dessus : molette = zoom, glisser = déplacer, clic = fiche, double-clic = centrer, F = revenir à l'orbiteur.
-- Temps : de ×1 à ×100 millions (1 s = 3 ans). Date affichée, durées en années, mois, jours, heures, minutes, secondes.
+- Temps : ×1 par défaut, réglable par le joueur jusqu'à ×100 millions (1 s = 3 ans). L'assistant et le planificateur ne changent jamais le temps d'eux-mêmes ; ils s'arrêtent juste pile au moment d'une manœuvre. Date affichée, durées en années, mois, jours, heures, minutes, secondes.
+- « 🎯 Centrer » : sur l'orbiteur, l'astre autour duquel on tourne, ou la cible, avec un zoom adapté. Une **mini-carte** (en bas à gauche) montre la vue d'ensemble autour de l'astre principal : en regardant la Lune, on voit la Terre et l'orbite lunaire. Un clic dessus y centre la vue.
 - **Trois modes de pilotage** (barre du haut) :
   - *Pilotage libre* : orientation (prograde, rétrograde, radiale, vers la cible…) et manette des gaz, avec trajectoire prévue.
   - *Assistant* : calcule la prochaine manœuvre (fenêtre de tir, Δv, durée), on avance le temps et on l'exécute.
   - *Planificateur* : on choisit la cible, il fait tout le voyage jusqu'à l'orbite basse.
 - Propulsion de l'orbiteur : Isp 3 000 s, 60 t de carburant (≈ 40 km/s de Δv), optimiste mais nécessaire pour aller partout.
 - **Sondes** (6 à bord) : partent seules vers leur cible, sur leurs propres trajectoires.
-- **Stations** (2 kits) : à construire en orbite ; s'y amarrer refait les pleins, recharge sondes et atterrisseurs, permet de changer l'équipement. La station terrestre recharge aussi les kits.
+- Chargement d'une expédition : 60 t de carburant, 60 t d'ergols pour l'atterrisseur, 2 atterrisseurs, 2 robots, 6 sondes, 2 kits de station (3 si la station terrestre n'existe pas encore), 1 kit de base.
 
 ## Informations
 Survoler un astre (carte de l'orbiteur, ou ciel pendant l'atterrissage) affiche son nom. Un clic ouvre sa **fiche complète** et met le jeu en pause ; un bouton relance le mouvement pour lire pendant le trajet. « 📖 Tous les astres » (ou I) ouvre l'encyclopédie, avec recherche.

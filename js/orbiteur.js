@@ -27,23 +27,54 @@ const Orbiteur = {
   messages: [],
   contexte: null,     // fonctions fournies par main.js
 
+  // Une campagne : ce qui dure (stations, bases, sondes, journal, échantillons rapportés).
+  // L'orbiteur (orb) n'existe que pendant une expédition, lancée depuis la Terre par la méga-fusée.
   nouveauVoyage() {
+    return {
+      t: DATE_DEBUT,
+      orb: null,
+      carburant: 0, ergolsAtt: 0, sondes: 0, kits: 0, kitsBase: 0, robots: 0, atterrisseurs: 0,
+      sondesEnVol: [], stations: [], bases: [],
+      journal: [{ t: DATE_DEBUT, texte: 'Début de la campagne. Première étape : lancer la méga-fusée et construire la station spatiale.' }],
+      mode: 'assistant', cible: null, manette: 0, orientation: 'prograde', warp: 1,
+      visites: {}, echantillonsABord: {}, echantillonsRapportes: {}, provisions: { fleurs: 0, fruits: 0 }, bieres: 0,
+      expeditions: 0,
+    };
+  },
+
+  // La méga-fusée a mis l'expédition en orbite basse terrestre : orbiteur + atterrisseur + chargement.
+  demarrerExpedition() {
+    const v = this.v;
     const terre = ASTRES_PAR_ID.terre;
     const r0 = terre.rayonKm + 400;
-    const v0 = Math.sqrt(terre.gm / r0);
-    const v = {
-      t: DATE_DEBUT,
-      orb: { centre: 'terre', r: [r0, 0], v: [0, v0], transfert: null },
-      carburant: ORBITEUR.carburantMax,
-      carburantAtt: null,
-      sondes: ORBITEUR.sondes, kits: ORBITEUR.kits, atterrisseurs: ORBITEUR.atterrisseurs,
-      sondesEnVol: [],
-      stations: [{ id: 's0', nom: 'Station terrestre', centre: 'terre', r: [r0, 0], v: [0, v0], t0: DATE_DEBUT, base: true }],
-      journal: [{ t: DATE_DEBUT, texte: 'Départ de la station terrestre, en orbite à 400 km.' }],
-      mode: 'assistant', cible: null, manette: 0, orientation: 'prograde', warp: 1,
-      visites: {},
-    };
-    return v;
+    v.orb = { centre: 'terre', r: [r0, 0], v: [0, Math.sqrt(terre.gm / r0)], transfert: null };
+    const station = v.stations.find((s) => s.centre === 'terre');
+    if (station) { const e = this.etatStation(station); v.orb.r = e.r; v.orb.v = e.v; }
+    Object.assign(v, {
+      carburant: ORBITEUR.carburantMax, ergolsAtt: ORBITEUR.ergolsAtt, sondes: ORBITEUR.sondes,
+      kits: ORBITEUR.kits + (station ? 0 : 1), kitsBase: ORBITEUR.kitsBase, robots: ORBITEUR.robots,
+      atterrisseurs: ORBITEUR.atterrisseurs, echantillonsABord: {}, cible: null, manette: 0,
+    });
+    v.expeditions++;
+    this.etape = null; this.auto = false; this.avance = false;
+    this.log(`Expédition n° ${v.expeditions} en orbite terrestre : orbiteur, atterrisseur et chargement prêts.` +
+      (station ? ` Amarrée à ${station.nom}.` : ' Construisez d’abord la station spatiale.'));
+  },
+
+  // Fin d'expédition : la capsule rentre sur Terre avec l'équipage et les échantillons.
+  rentrerSurTerre() {
+    const v = this.v;
+    let n = 0;
+    for (const id in v.echantillonsABord) {
+      v.echantillonsRapportes[id] = (v.echantillonsRapportes[id] || 0) + v.echantillonsABord[id];
+      n += v.echantillonsABord[id];
+    }
+    const liste = Object.entries(v.echantillonsABord).map(([id, k]) => `${k} de ${ASTRES_PAR_ID[id].nom}`).join(', ');
+    this.log(`Retour sur Terre de l’expédition n° ${v.expeditions}${n ? ` avec ${n} échantillon${n > 1 ? 's' : ''} (${liste})` : ''}.`);
+    v.orb = null;
+    v.echantillonsABord = {};
+    v.cible = null;
+    return { n, liste };
   },
 
   charger(v) { this.v = v; this.etape = null; this.auto = false; this.avance = false; this.messages = []; },
@@ -63,8 +94,10 @@ const Orbiteur = {
   masse() { return ORBITEUR.masseSeche + this.v.carburant; },
   enPoussee() { return this.v.mode === 'libre' && this.v.manette > 0 && this.v.carburant > 0; },
 
+  // Le joueur choisit toujours l'écoulement du temps (×1 par défaut).
+  // Seule exception : le bouton « avance rapide jusqu'à l'étape », qu'il déclenche lui-même.
   warpEffectif() {
-    if (this.auto || this.avance) {
+    if (this.avance) {
       if (!this.etape) return 1;
       const reste = this.etape.tExec - this.v.t;
       if (reste <= 0) return 1;
@@ -85,7 +118,13 @@ const Orbiteur = {
     let dt = dtReel * warp;
 
     // Assistant / planificateur : on ne dépasse pas l'instant de la prochaine manœuvre.
-    if ((this.auto || this.avance) && this.etape && !this.etape.attenteEvenement) dt = Math.min(dt, Math.max(0, this.etape.tExec - v.t));
+    if (v.mode !== 'libre' && v.cible && this.etape && this.etape.dv && !this.etape.attenteEvenement && this.etape.tExec > v.t) {
+      if (v.t + dt >= this.etape.tExec) {
+        dt = this.etape.tExec - v.t;
+        // Assistant : on s'arrête à ×1 pour laisser le joueur exécuter la manœuvre.
+        if (!this.auto) { v.warp = 1; this.avance = false; this.log('Manœuvre prête : « ' + this.etape.texte + ' ».'); }
+      }
+    }
 
     const centreAvant = v.orb.centre;
     if (this.enPoussee()) {
@@ -115,6 +154,7 @@ const Orbiteur = {
     if (v.orb.centre !== centreAvant) this.etape = null;
 
     this.mettreAJourSondes(dt);
+    this.mettreAJourLogistique();
     this.piloteAuto();
   },
 
@@ -138,13 +178,12 @@ const Orbiteur = {
   crash() {
     const nom = ASTRES_PAR_ID[this.v.orb.centre].nom;
     this.auto = false; this.avance = false;
-    this.log(`L’orbiteur s’est écrasé sur ${nom} ! Un nouvel orbiteur repart de la station terrestre.`);
-    const neuf = this.nouveauVoyage();
-    Object.assign(this.v, { orb: neuf.orb, carburant: neuf.carburant, sondes: neuf.sondes, atterrisseurs: neuf.atterrisseurs, manette: 0 });
-    this.v.orb.r = this.etatStation(this.v.stations[0]).r;
-    this.v.orb.v = this.etatStation(this.v.stations[0]).v;
+    this.log(`L’orbiteur s’est écrasé sur ${nom} !`);
+    this.log(`L’expédition est perdue. Il faudra lancer une nouvelle méga-fusée depuis la Terre.`);
+    this.v.orb = null;
+    this.v.echantillonsABord = {};
     this.etape = null;
-    if (this.contexte) this.contexte.alerte(`L’orbiteur s’est écrasé sur ${nom}.`);
+    if (this.contexte) this.contexte.finExpedition(`L’orbiteur s’est écrasé sur ${nom}. L’expédition est perdue.`);
   },
 
   // Exécution automatique des étapes (planificateur, ou assistant « avancer »).
@@ -251,31 +290,79 @@ const Orbiteur = {
   },
   construireStation() {
     const v = this.v, c = ASTRES_PAR_ID[v.orb.centre];
-    if (v.kits <= 0) return this.log('Plus de kit de station à bord (on en recharge à la station terrestre).');
+    if (v.kits <= 0) return this.log('Plus de kit de station à bord (la station terrestre en reçoit de la Terre).');
     if (!this.orbiteFermee()) return this.log('Il faut être en orbite fermée pour construire une station.');
     v.kits--;
     const n = v.stations.filter((s) => s.centre === c.id).length;
-    v.stations.push({ id: 's' + Date.now(), nom: `Station ${c.nom}${n ? ' ' + (n + 1) : ''}`, centre: c.id, r: v.orb.r.slice(), v: v.orb.v.slice(), t0: v.t });
-    this.log(`Station construite en orbite de ${c.nom}.`);
+    const terrestre = c.id === 'terre' && !v.stations.some((s) => s.terrestre);
+    const st = {
+      id: 's' + Date.now(), nom: terrestre ? 'Station spatiale terrestre' : `Station ${c.nom}${n ? ' ' + (n + 1) : ''}`,
+      centre: c.id, r: v.orb.r.slice(), v: v.orb.v.slice(), t0: v.t, terrestre,
+      stock: { carburant: 0, ergols: 0, sondes: 0, kits: 0, kitsBase: 0, robots: 0, atterrisseurs: 0 },
+      prochainCargo: v.t + intervalleCargo(c.id),
+    };
+    v.stations.push(st);
+    this.log(`${st.nom} construite en orbite de ${c.nom}. Premier ravitaillement depuis la Terre dans ${fmtDuree(st.prochainCargo - v.t)}.`);
   },
+
+  // Cargos venus de la Terre et production des bases au sol.
+  mettreAJourLogistique() {
+    const v = this.v;
+    for (const s of v.stations) {
+      if (!s.stock) s.stock = { carburant: 0, ergols: 0, sondes: 0, kits: 0, kitsBase: 0, robots: 0, atterrisseurs: 0 };
+      if (!s.prochainCargo) s.prochainCargo = v.t + intervalleCargo(s.centre);
+      let n = 0;
+      while (v.t >= s.prochainCargo && n++ < 50) {
+        livrerCargo(s);
+        s.prochainCargo += intervalleCargo(s.centre);
+        if (n === 1) this.log(`Cargo venu de la Terre arrivé à ${s.nom}.`);
+      }
+    }
+    for (const b of v.bases) {
+      const dt = v.t - (b.tMaj || v.t);
+      b.tMaj = v.t;
+      if (dt <= 0) continue;
+      const prod = productionBase(ASTRES_PAR_ID[b.astre]) * (dt / JOUR);
+      const st = v.stations.find((s) => s.centre === b.astre);
+      // La base garde d'abord 20 t pour les atterrisseurs ; sa navette monte le surplus à la station.
+      b.stock = (b.stock || 0) + prod;
+      const surplus = b.stock - 20000;
+      if (st && surplus > 0) {
+        const monte = Math.min(CAPACITES_STATION.ergols - st.stock.ergols, surplus);
+        st.stock.ergols += monte;
+        b.stock -= monte;
+      }
+      b.produitTotal = (b.produitTotal || 0) + prod;
+    }
+  },
+
   amarrer() {
     const v = this.v, s = this.stationIci();
     if (!s) return;
     const e = this.etatStation(s);
     v.orb.r = e.r; v.orb.v = e.v; v.orb.transfert = null;
-    v.carburant = ORBITEUR.carburantMax;
-    v.sondes = Math.max(v.sondes, ORBITEUR.sondes);
-    v.atterrisseurs = Math.max(v.atterrisseurs, ORBITEUR.atterrisseurs);
-    v.carburantAtt = null;
-    if (s.base) v.kits = Math.max(v.kits, ORBITEUR.kits);
+    // On prend ce que la station a en stock, dans la limite de ce que l'orbiteur peut emporter.
+    const pris = [];
+    const prendre = (cle, max, nom, unite = '') => {
+      const q = Math.max(0, Math.min(s.stock[cle], max - v[cle]));
+      if (q > 0) { s.stock[cle] -= q; v[cle] += q; pris.push(`${unite === 'kg' ? fmt(q / 1000, 1) + ' t' : fmt(q)} ${nom}`); }
+    };
+    prendre('carburant', ORBITEUR.carburantMax, 'de carburant', 'kg');
+    prendre('ergols', ORBITEUR.ergolsAtt, 'd’ergols pour l’atterrisseur', 'kg');
+    prendre('sondes', ORBITEUR.sondes, 'sondes');
+    prendre('kits', ORBITEUR.kits + 1, 'kits de station');
+    prendre('kitsBase', 2, 'kits de base');
+    prendre('robots', ORBITEUR.robots, 'robots');
+    prendre('atterrisseurs', ORBITEUR.atterrisseurs, 'atterrisseurs');
+    // Les échantillons peuvent attendre à la station ; ils repartent vers la Terre avec le cargo.
     this.etape = null;
-    this.log(`Amarré à ${s.nom} : pleins faits, sondes et atterrisseurs rechargés${s.base ? ', kits de station rechargés' : ''}.`);
+    this.log(`Amarré à ${s.nom}${pris.length ? ' : ' + pris.join(', ') : ' : stock vide, attendez le prochain cargo'}.`);
   },
 
   // Peut-on descendre avec l'atterrisseur ?
   peutDescendre() {
     const c = ASTRES_PAR_ID[this.v.orb.centre];
-    return c.type !== 'etoile' && this.orbiteFermee() && this.v.atterrisseurs > 0;
+    return c.type !== 'etoile' && c.id !== 'terre' && this.orbiteFermee() && this.v.atterrisseurs > 0;
   },
 
   // Actions proposées dans la fiche d'un astre.
@@ -460,27 +547,97 @@ const Orbiteur = {
     ctx.restore();
     if (this.flash > 0) this.flash -= 1 / 30;
 
+    this.dessinerMiniCarte(ctx, W, H);
+
     // Échelle
     const kmPour100 = 100 / s;
     ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = '11px system-ui';
     ctx.fillRect(W - 140, H - 30, 100, 2);
     ctx.fillText(kmPour100 > UA_KM / 10 ? fmt(kmPour100 / UA_KM, 2) + ' UA' : fmt(kmPour100) + ' km', W - 140, H - 36);
 
-    // Messages
-    let y = H - 70;
+    // Messages, en bas au centre
+    let y = H - 40;
+    ctx.textAlign = 'center';
+    ctx.font = '13px system-ui';
     for (let i = this.messages.length - 1; i >= 0 && y > H / 2; i--) {
       const m = this.messages[i];
       m.vie -= 1 / 60;
       if (m.vie <= 0) continue;
+      const tw = ctx.measureText(m.texte).width;
+      ctx.fillStyle = `rgba(0,0,0,${0.55 * Math.min(1, m.vie)})`;
+      ctx.fillRect(W / 2 - tw / 2 - 8, y - 15, tw + 16, 20);
       ctx.fillStyle = `rgba(255,255,255,${Math.min(1, m.vie)})`;
-      ctx.font = '13px system-ui';
-      ctx.fillText(m.texte, 20, y);
-      y -= 20;
+      ctx.fillText(m.texte, W / 2, y);
+      y -= 22;
     }
+    ctx.textAlign = 'left';
     this.messages = this.messages.filter((m) => m.vie > 0);
   },
 
+  // Mini-carte : vue plus large, centrée sur l'astre principal autour duquel tourne ce qu'on regarde.
+  dessinerMiniCarte(ctx, W, H) {
+    const v = this.v, t = v.t;
+    const vu = this.cam.focus === 'orbiteur' ? v.orb.centre : this.cam.focus;
+    const a = ASTRES_PAR_ID[vu];
+    this.mini = null;
+    if (!a || !a.orbite) return;
+    const principal = a.orbite.centre;
+    const etendue = a.orbite.a * (1 + a.orbite.e) * 1.35;
+    const L = Math.min(200, Math.max(120, H * 0.3)), x0 = 8, y0 = H - L - 52;
+    const cx = x0 + L / 2, cy = y0 + L / 2 + 8;
+    const k = (L / 2 - 14) / etendue;
+    this.mini = { x0, y0, L, principal };
+    ctx.fillStyle = 'rgba(8,12,24,0.88)';
+    ctx.fillRect(x0, y0, L, L + 16);
+    ctx.strokeStyle = 'rgba(140,160,200,0.5)';
+    ctx.strokeRect(x0, y0, L, L + 16);
+    ctx.fillStyle = '#cfd8dc';
+    ctx.font = '11px system-ui, sans-serif';
+    ctx.fillText(`Vue d’ensemble : ${ASTRES_PAR_ID[principal].nom}`, x0 + 8, y0 + 14);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x0, y0 + 18, L, L - 2); ctx.clip();
+    const pp = etatAbsolu(principal, t).r;
+    const versMini = (p) => [cx + (p[0] - pp[0]) * k, cy - (p[1] - pp[1]) * k];
+    // Orbites des enfants visibles à cette échelle
+    for (const c of ENFANTS[principal] || []) {
+      if (!(c.grosse || c.id === vu || c.id === v.cible)) continue;
+      const r = c.orbite.a * k;
+      if (r < 2 || r > L) continue;
+      ctx.strokeStyle = c.id === vu ? 'rgba(255,202,40,0.7)' : 'rgba(140,160,200,0.3)';
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, 2 * Math.PI); ctx.stroke();
+      const p = versMini(etatAbsolu(c.id, t).r);
+      ctx.fillStyle = c.couleurs.disque;
+      ctx.beginPath(); ctx.arc(p[0], p[1], c.id === vu ? 3.5 : 2, 0, 2 * Math.PI); ctx.fill();
+      if (c.id === vu || (c.grosse && r > 25 && !c.parent) || c.id === v.cible) { ctx.fillStyle = '#cfd8dc'; ctx.fillText(c.nom, p[0] + 5, p[1] - 3); }
+    }
+    // Astre principal
+    const pa = ASTRES_PAR_ID[principal];
+    ctx.fillStyle = pa.couleurs.disque;
+    ctx.beginPath(); ctx.arc(cx, cy, Math.max(3, Math.min(10, pa.rayonKm * k)), 0, 2 * Math.PI); ctx.fill();
+    // Orbiteur et cible
+    const po = versMini(this.absolu(v.orb));
+    ctx.fillStyle = '#ff7043';
+    ctx.fillRect(po[0] - 2.5, po[1] - 2.5, 5, 5);
+    // Cadre de la vue principale
+    const s = this.cam.echelle;
+    const focus = this.cam.focus === 'orbiteur' ? this.absolu(v.orb) : etatAbsolu(this.cam.focus, t).r;
+    const c0 = versMini(V.add(focus, this.cam.decal));
+    const lw = (W / s) * k, lh = (H / s) * k;
+    if (lw > 3) { ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.strokeRect(c0[0] - lw / 2, c0[1] - lh / 2, lw, lh); }
+    ctx.restore();
+    ctx.fillStyle = 'rgba(207,216,220,0.7)';
+    ctx.fillText('clic : centrer ici', x0 + 8, y0 + L + 11);
+  },
+
+  clicMiniCarte(x, y) {
+    const m = this.mini;
+    if (!m || x < m.x0 || x > m.x0 + m.L || y < m.y0 || y > m.y0 + m.L + 16) return false;
+    this.centrerSur(m.principal);
+    return true;
+  },
+
   astreSous(x, y) {
+    if (this.mini && x > this.mini.x0 && y > this.mini.y0 && x < this.mini.x0 + this.mini.L && y < this.mini.y0 + this.mini.L + 16) return null;
     let best = null, d0 = Infinity;
     for (const z of this.zones) {
       const d = Math.hypot(z.x - x, z.y - y) - z.prio;
@@ -499,6 +656,7 @@ const Orbiteur = {
         <span class="groupe modes">
           ${['libre', 'assistant', 'planificateur'].map((m) => `<button data-mode="${m}">${{ libre: 'Pilotage libre', assistant: 'Assistant', planificateur: 'Planificateur' }[m]}</button>`).join('')}
         </span>
+        <span class="groupe">🎯 Centrer : <button id="nav-c-orb">Orbiteur</button><button id="nav-c-astre"></button><button id="nav-c-cible" class="cache"></button></span>
         <label class="groupe"><input type="checkbox" id="nav-masque"> Grosses lunes seulement</label>
         <button id="nav-encyclo">📖 Astres</button>
         <button id="nav-pause">⏸</button>
@@ -511,6 +669,9 @@ const Orbiteur = {
     $('nav-plus').onclick = () => this.changerWarp(1);
     h.querySelectorAll('[data-mode]').forEach((b) => { b.onclick = () => { this.v.mode = b.dataset.mode; this.auto = false; this.avance = false; this.v.manette = 0; this.majHud(true); }; });
     $('nav-masque').onchange = () => this.contexte.basculerMasque();
+    $('nav-c-orb').onclick = () => this.centrerSur('orbiteur');
+    $('nav-c-astre').onclick = () => this.centrerSur(this.v.orb.centre);
+    $('nav-c-cible').onclick = () => { if (this.v.cible) this.centrerSur(this.v.cible); };
     $('nav-encyclo').onclick = () => Infos.ouvrirEncyclopedie();
     $('nav-pause').onclick = () => this.contexte.basculerPause();
     $('nav-hangar').onclick = () => this.contexte.hangar();
@@ -518,12 +679,35 @@ const Orbiteur = {
   },
 
   changerWarp(sens) {
+    this.avance = false;   // le joueur reprend la main sur le temps
     const i = PALIERS_NAV.indexOf(this.v.warp);
     this.v.warp = PALIERS_NAV[Math.max(0, Math.min(PALIERS_NAV.length - 1, (i < 0 ? 0 : i) + sens))];
     this.majHud(true);
   },
 
+  // Conception de l'atterrisseur : calculée hors de l'affichage (vols d'essai), puis gardée en mémoire.
+  conceptionPour(a) {
+    if (cacheConception[a.id]) return cacheConception[a.id];
+    if (!this.conceptionEnCours) {
+      this.conceptionEnCours = true;
+      setTimeout(() => { concevoirAtterrisseur(a); this.conceptionEnCours = false; this.majHud(true); }, 30);
+    }
+    return null;
+  },
+
+  // Ce qu'il faut faire ensuite, pour guider le joueur.
+  objectif() {
+    const v = this.v;
+    if (!v.stations.some((s) => s.terrestre)) return 'Construisez la station spatiale en orbite terrestre (bouton 🏗).';
+    if (!Object.keys(v.visites).some((id) => v.visites[id].pose)) return 'Choisissez une cible (la Lune ?), allez-y, posez-vous et rapportez des échantillons.';
+    if (Object.keys(v.echantillonsABord).length) return 'Échantillons à bord : rentrez sur Terre pour les rapporter (cible Terre, puis 🏠).';
+    if (v.stations.length < 2) return 'Construisez une station autour d’un autre astre : elle sera ravitaillée depuis la Terre.';
+    if (!v.bases.length) return 'Posez-vous sous une de vos stations et construisez une base (touche B une fois posé).';
+    return '';
+  },
+
   majHud(force) {
+    if (!this.v || !this.v.orb) return;
     const now = performance.now();
     if (!force && now - this.derniereMaj < 150) return;
     this.derniereMaj = now;
@@ -533,8 +717,13 @@ const Orbiteur = {
     $('nav-date').textContent = fmtDate(v.t);
     const hb = document.querySelector('#hud-nav .barre-haut').offsetHeight + 16;
     for (const id of ['nav-etat', 'nav-actions']) { $(id).style.top = hb + 'px'; $(id).style.maxHeight = `calc(100vh - ${hb + 40}px)`; }
+    // Le panneau de gauche laisse la place à la mini-carte en bas.
+    $('nav-etat').style.maxHeight = `calc(100vh - ${hb + Math.min(200, Math.max(120, innerHeight * 0.3)) + 70}px)`;
     $('nav-warp').textContent = `×${fmtNombre(w, 0)} (1 s = ${fmtDuree(w)})`;
     $('nav-masque').checked = this.contexte.masque();
+    $('nav-c-astre').textContent = c.nom;
+    $('nav-c-cible').classList.toggle('cache', !v.cible || v.cible === o.centre);
+    if (v.cible) $('nav-c-cible').textContent = ASTRES_PAR_ID[v.cible].nom;
     $('nav-pause').textContent = this.contexte.estEnPause() ? '▶' : '⏸';
     document.querySelectorAll('#hud-nav [data-mode]').forEach((b) => b.classList.toggle('choisi', b.dataset.mode === v.mode));
 
@@ -546,10 +735,15 @@ const Orbiteur = {
       ['Vitesse', fmtV(V.norm(o.v) * 1000)],
       ['Plus près / plus loin', el.e < 1 ? `${fmtAlt((el.rp - c.rayonKm) * 1000)} / ${fmtAlt((el.ra - c.rayonKm) * 1000)}` : `${fmtAlt((el.rp - c.rayonKm) * 1000)} / s’échappe`],
       ['Période', isFinite(el.periode) ? fmtDuree(el.periode) : '—'],
-      ['Carburant', `${fmt(v.carburant)} kg (Δv ${fmtV(dvRestant)})`],
-      ['Sondes / kits station', `${v.sondes} / ${v.kits}`],
-      ['Atterrisseurs', `${v.atterrisseurs}`],
+      ['Carburant', `${fmt(v.carburant / 1000, 1)} t (Δv ${fmtV(dvRestant)})`],
+      ['Ergols atterrisseur', `${fmt(v.ergolsAtt / 1000, 1)} t`],
+      ['Atterrisseurs / robots', `${v.atterrisseurs} / ${v.robots}`],
+      ['Sondes', `${v.sondes}`],
+      ['Kits station / base', `${v.kits} / ${v.kitsBase}`],
     ];
+    const ech = Object.entries(v.echantillonsABord);
+    if (ech.length) lignes.push(['Échantillons à bord', ech.map(([id, n]) => `${n} ${ASTRES_PAR_ID[id].nom}`).join(', ')]);
+    if (v.provisions.fleurs + v.provisions.fruits) lignes.push(['Douceurs de la Terre', `${v.provisions.fleurs} 🌸 ${v.provisions.fruits} 🍎`]);
     let html = '<h3>Orbiteur</h3><dl>' + lignes.map(([k, x]) => `<dt>${k}</dt><dd>${x}</dd>`).join('') + '</dl>';
     if (v.mode === 'libre') {
       html += `<h3>Pilotage libre</h3>
@@ -560,8 +754,10 @@ const Orbiteur = {
     $('nav-etat').innerHTML = html;
     $('nav-etat').querySelectorAll('[data-ori]').forEach((b) => { b.onclick = () => { v.orientation = b.dataset.ori; this.majHud(true); }; });
 
-    // Panneau de droite : cible, plan, actions
+    // Panneau de droite : objectif, cible, plan, actions
     let d = '';
+    const objectif = this.objectif();
+    if (objectif) d += `<div class="objectif">🎯 ${objectif}</div>`;
     if (v.cible) {
       const cb = ASTRES_PAR_ID[v.cible];
       d += `<h3>Cible : ${cb.nom}</h3>`;
@@ -580,19 +776,30 @@ const Orbiteur = {
       }
     } else d += '<h3>Pas de cible</h3><p class="doux">Cliquez un astre puis « Choisir comme cible ».</p>';
     d += '<h3>Actions</h3><div class="actions-nav">';
+    const fermee = this.orbiteFermee();
+    if (c.id === 'terre' && fermee) d += `<button id="nav-rentrer" class="principal">🏠 Rentrer sur Terre (capsule)</button>`;
     if (this.peutDescendre()) {
-      const f = assemblerFusee(this.contexte.equipement());
-      const carb = v.carburantAtt === null ? f.carburant : Math.min(v.carburantAtt, f.carburant);
-      const dvAtt = f.isp * G0 * Math.log((f.masseSeche + carb) / f.masseSeche);
-      const besoin = c.type === 'solide' ? c.depart.vitesse + Math.sqrt(2 * c.g * c.depart.alt) + besoinRetourOrbite(c) : 0;
-      d += `<button id="nav-descendre">⬇ Descendre sur ${c.nom}</button>`;
-      if (c.type === 'solide') d += `<p class="doux">Atterrisseur : Δv ${fmtV(dvAtt)} ; aller-retour ≈ ${fmtV(besoin)}${dvAtt < besoin ? ' — <b style="color:var(--alerte)">pas assez pour remonter !</b>' : ''}</p>`;
+      // L'atterrisseur est conçu pour l'astre : on ne descend que si l'on peut repartir.
+      const conc = this.conceptionPour(c);
+      if (!conc) d += `<p class="doux">⏳ Conception de l’atterrisseur pour ${c.nom} (vols d’essai)…</p>`;
+      else if (conc.ok) {
+        const manque = v.ergolsAtt < conc.fusee.carburant;
+        d += `<button id="nav-descendre" ${manque ? 'disabled' : ''}>⬇ Descendre sur ${c.nom}</button>`;
+        d += `<p class="doux">Atterrisseur conçu pour ${c.nom} : ${descriptionConception(conc)}. Ergols : ${fmt(conc.fusee.carburant / 1000, 1)} t${manque ? ' — <b style="color:var(--alerte)">réserve insuffisante, ravitaillez à une station</b>' : ''}.</p>`;
+      } else d += `<p class="doux">⚠ ${conc.raison}</p>`;
+      if (c.type === 'solide' && v.robots > 0) d += `<button id="nav-robot">🤖 Larguer un robot (aller simple)</button>`;
     }
     const st = this.stationIci();
-    if (st) d += `<button id="nav-amarrer">⚓ S’amarrer à ${st.nom}</button><button id="nav-equiper">🔧 Équiper l’atterrisseur</button>`;
-    if (v.kits > 0 && this.orbiteFermee() && c.type !== 'etoile') d += `<button id="nav-station">🏗 Construire une station ici</button>`;
+    if (st) {
+      d += `<button id="nav-amarrer">⚓ S’amarrer à ${st.nom}</button>`;
+      const k = st.stock;
+      d += `<p class="doux">Stock de ${st.nom} : ${fmt(k.carburant / 1000)} t carburant, ${fmt(k.ergols / 1000)} t ergols, ${k.sondes} sondes, ${k.atterrisseurs} atterrisseurs, ${k.robots} robots, ${k.kitsBase} kits de base${st.terrestre ? `, ${k.kits} kits de station` : ''}. Prochain cargo de la Terre dans ${fmtDuree(st.prochainCargo - v.t)}.</p>`;
+    }
+    if (v.kits > 0 && fermee && c.type !== 'etoile') d += `<button id="nav-station" ${!st && c.id === 'terre' ? 'class="principal"' : ''}>🏗 Construire une station ici</button>`;
     if (v.cible && v.sondes > 0) d += `<button id="nav-sonde">🛰 Sonde vers ${ASTRES_PAR_ID[v.cible].nom}</button>`;
     d += `<button id="nav-journal">📜 Journal</button></div>`;
+    const bases = v.bases.filter((b) => ancetres(b.astre).includes(c.id) || b.astre === c.id);
+    if (bases.length) d += '<h3>Bases</h3><ul class="sondes">' + bases.map((b) => { const a = ASTRES_PAR_ID[b.astre]; const [res, p] = ressourceLocale(a); return `<li>Base ${a.nom} — ${p ? `${res}, ${fmt(p / 1000, 1)} t/jour, ${fmt((b.stock || 0) / 1000, 1)} t en réserve` : 'pas de ressource locale'}</li>`; }).join('') + '</ul>';
     const sondes = v.sondesEnVol;
     if (sondes.length) d += '<h3>Sondes</h3><ul class="sondes">' + sondes.map((s) => `<li>${s.nom} — ${s.etat === 'vol' ? 'en route' : 'en orbite'}</li>`).join('') + '</ul>';
     $('nav-actions').innerHTML = d;
@@ -601,8 +808,9 @@ const Orbiteur = {
     bind('nav-executer', () => { this.executerEtape(); this.majHud(true); });
     bind('nav-auto', () => { this.auto = !this.auto; this.majHud(true); });
     bind('nav-descendre', () => this.contexte.descendre(o.centre));
+    bind('nav-robot', () => this.contexte.larguerRobot(o.centre));
+    bind('nav-rentrer', () => this.contexte.rentrer());
     bind('nav-amarrer', () => { this.amarrer(); this.majHud(true); });
-    bind('nav-equiper', () => this.contexte.hangar());
     bind('nav-station', () => { this.construireStation(); this.majHud(true); });
     bind('nav-sonde', () => { this.lancerSonde(v.cible); this.majHud(true); });
     bind('nav-journal', () => this.contexte.journal());

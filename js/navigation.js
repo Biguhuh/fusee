@@ -13,7 +13,10 @@ const ORBITEUR = {
   poussee: 400000,        // N
   sondes: 6,
   kits: 2,                // kits de station orbitale
-  atterrisseurs: 3,
+  kitsBase: 1,            // kits de base au sol
+  robots: 2,              // robots largables (aller simple)
+  atterrisseurs: 2,
+  ergolsAtt: 60000,       // kg d'ergols réservés à l'atterrisseur
 };
 
 // Rayon d'orbite basse autour d'un astre (km depuis le centre).

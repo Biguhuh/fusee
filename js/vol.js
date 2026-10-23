@@ -27,6 +27,10 @@ class Vol {
     this.vy = -astre.depart.vitesse;
     this.angle = 0;
     this.carburant = options.carburant !== undefined ? Math.min(options.carburant, fusee.carburant) : fusee.carburant;
+    this.lancement = !!options.lancement;
+    this.bases = options.bases || [];
+    this.echantillons = 0;
+    this.depuisSol = !!options.depuisSol;
     this.temp = 20;
     this.dose = 0;
     this.pose = false;
@@ -45,6 +49,14 @@ class Vol {
     this.cibleX = null;
     this.tCible = -1;
     this.fx = [];              // particules (fumée, étincelles), en coordonnées écran
+    // Départ du sol (méga-fusée sur son pas de tir, ou robot largué).
+    if (this.depuisSol) {
+      this.y = this.sol(0) + 0.01;
+      this.vy = 0;
+      this.pose = true;
+      this.phase = 'au sol';
+      this.dejaPose = true;
+    }
     this.c = conditions(astre, this.y);
   }
 
@@ -77,6 +89,12 @@ class Vol {
     const F = f.poussee * th;
     if (F > 0) {
       this.carburant = Math.max(0, this.carburant - F / (f.isp * G0) * dt);
+      // Méga-fusée : étage vide → séparation, l'étage suivant s'allume.
+      if (this.carburant === 0 && f.etages && f.etage < f.etages.length - 1) {
+        configurerEtage(f, f.etage + 1);
+        this.carburant = f.carburant;
+        this.messageExplo = { texte: `Séparation : ${f.etages[f.etage - 1].nom} largué, ${f.etages[f.etage].nom} allumé.`, vie: 5 };
+      }
       if (this.carburant === 0 && this.carburantVideAlt === null) this.carburantVideAlt = this.altSol();
     }
 
@@ -196,7 +214,7 @@ class Vol {
       // Libération : plus rien ne nous ramène vers l'astre.
       if (v >= this.vLiberation() && this.y > this.sol(this.x) + 50) { this.terminer(this.dejaPose ? 'liberation' : 'abandon'); return; }
       // Orbite : assez haut, assez vite à l'horizontale.
-      if (this.y >= this.altOrbite * 0.95 && Math.abs(this.vx) >= this.vOrbitale() * 0.98 && Math.abs(this.vy) < 0.2 * this.vOrbitale() + 5) {
+      if (this.y >= this.altOrbite * 0.9 && Math.abs(this.vx) >= this.vOrbitale() * 0.97 && Math.abs(this.vy) < 0.25 * this.vOrbitale() + 10) {
         this.terminer(this.dejaPose ? 'orbite' : 'abandon');
         return;
       }
@@ -374,9 +392,11 @@ class Vol {
     const a = this.astre;
     switch (this.phase) {
       case 'descente': return `Posez-vous en douceur : moins de ${a.vMax} m/s, fusée droite, sol pas trop pentu`;
-      case 'au sol': return this.voyage
-        ? 'Posé ! E : spationaute · R : robot · T : décoller vers l\'orbiteur'
-        : 'Posé ! Entrée : terminer · E : spationaute · R : robot · T : décoller vers l\'orbite';
+      case 'au sol':
+        if (this.lancement) return 'Méga-fusée sur le pas de tir : T pour décoller (pilote auto), ou montez les gaz';
+        return this.voyage
+          ? 'Posé ! E : spationaute · R : robot · B : construire une base · T : décoller vers l\'orbiteur'
+          : 'Posé ! Entrée : terminer · E : spationaute · R : robot · T : décoller vers l\'orbite';
       case 'remontee': return a.type === 'gazeuse'
         ? `${fmt(a.cible, 1)} bar atteints ! Remontez jusqu'au niveau 1 bar`
         : `Mise en orbite : ${fmtAlt(this.altOrbite)} d'altitude et ${fmtV(vitesseOrbitale(a, this.altOrbite))} à l'horizontale`;
@@ -571,7 +591,8 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
   }
 
   // Fumée et étincelles, puis fusée ou explosion.
-  const hPx = Math.max(FUSEE_BASE.hauteur * echelle, 56);
+  const hPx = Math.max((vol.f.hauteur || FUSEE_BASE.hauteur) * echelle, vol.f.mega ? 90 : 56);
+  if (solide) dessinerBases(ctx, vol, W, echelle, fuseeY);
   if (!vol.fin && dtReel > 0) emettreParticules(vol, W / 2, fuseeY, hPx, dtReel);
   dessinerParticules(ctx, vol, depX, depY, dtReel);
   if (vol.explosion) {
@@ -772,7 +793,7 @@ function dessinerFusee(ctx, vol, x, y, h) {
   const integrite = vol.integrite === undefined ? 100 : vol.integrite;
   // La pression écrase la coque : le corps se pince.
   const pince = 1 - 0.18 * Math.min(1, degats.pression / 100);
-  const w = h * 0.26;
+  const w = h * (vol.f.largeurRel || 0.26);
   const wc = w * pince;
   ctx.save();
   ctx.translate(x, y);
@@ -805,7 +826,7 @@ function dessinerFusee(ctx, vol, x, y, h) {
   ctx.beginPath(); ctx.moveTo(wc / 2, -h * 0.28); ctx.lineTo(w * 0.95, 0); ctx.lineTo(wc / 2, 0); ctx.fill();
 
   // Tuyère (plus large pour les gros moteurs)
-  const tuy = { libellule: 0.45, faucon: 0.6, titan: 0.8, heracles: 1, promethee: 1.2 }[ch.moteur] || 0.6;
+  const tuy = { libellule: 0.45, faucon: 0.6, titan: 0.8, heracles: 1, promethee: 1.2, raptor: 1.1 }[ch.moteur] || 0.6;
   ctx.fillStyle = '#555';
   ctx.beginPath(); ctx.moveTo(-w * 0.25, -h * 0.05); ctx.lineTo(-w * 0.5 * tuy, 0); ctx.lineTo(w * 0.5 * tuy, 0); ctx.lineTo(w * 0.25, -h * 0.05); ctx.fill();
 
@@ -873,6 +894,35 @@ function dessinerFusee(ctx, vol, x, y, h) {
     ctx.lineWidth = 2;
     ctx.stroke(forme);
   }
+  ctx.restore();
+}
+
+// Bases au sol : dômes habitables, panneaux solaires et usine à ergols.
+function dessinerBases(ctx, vol, W, echelle, fuseeY) {
+  for (const b of vol.bases) {
+    const sx = W / 2 + (b.x - vol.x) * echelle;
+    if (sx < -400 || sx > W + 400) continue;
+    const sy = fuseeY + (vol.y - vol.sol(b.x)) * echelle;
+    dessinerBase(ctx, sx, sy, Math.max(echelle, 0.4));
+  }
+}
+function dessinerBase(ctx, x, y, s) {
+  ctx.save();
+  ctx.translate(x, y);
+  // Panneaux solaires
+  ctx.fillStyle = '#2f6fd6';
+  for (let i = 0; i < 3; i++) { ctx.fillRect((-38 + i * 7) * s, -9 * s, 5 * s, 6 * s); ctx.fillRect((-38 + i * 7) * s, -3 * s, 0.6 * s, 3 * s); }
+  // Dômes
+  ctx.fillStyle = '#eceff1';
+  ctx.beginPath(); ctx.arc(-10 * s, 0, 8 * s, Math.PI, 0); ctx.fill();
+  ctx.beginPath(); ctx.arc(6 * s, 0, 6 * s, Math.PI, 0); ctx.fill();
+  ctx.fillStyle = '#4fc3f7';
+  ctx.fillRect(-12 * s, -4 * s, 4 * s, 2 * s);
+  // Usine à ergols et réservoir
+  ctx.fillStyle = '#b0bec5'; ctx.fillRect(15 * s, -10 * s, 8 * s, 10 * s);
+  ctx.fillStyle = '#ffb74d'; ctx.beginPath(); ctx.arc(28 * s, -4 * s, 4 * s, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#cfd8dc'; ctx.font = `${Math.max(10, 3 * s)}px system-ui, sans-serif`;
+  ctx.fillText('Base', -14 * s, -12 * s);
   ctx.restore();
 }
 
@@ -967,6 +1017,25 @@ function dessinerHUD(ctx, vol, W, H, warp) {
     ctx.textAlign = 'center';
     ctx.fillStyle = Math.sin(performance.now() / 150) > 0 ? '#ff1744' : '#ffffff';
     msgs.forEach((m, i) => ctx.fillText(m, W / 2, 70 + i * 24));
+    ctx.textAlign = 'left';
+  }
+
+  // Remontée vers l'orbite : deux jauges pour savoir où l'on en est.
+  if (vol.phase === 'remontee' && a.type === 'solide' && !vol.fin) {
+    const vO = vitesseOrbitale(a, vol.altOrbite);
+    const fa = Math.max(0, vol.y) / (vol.altOrbite * 0.9), fv = Math.abs(vol.vx) / (vO * 0.97);
+    const x0 = W / 2 - 160, y0 = 48;
+    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(x0 - 8, y0 - 6, 336, 52);
+    ctx.font = '12px system-ui, sans-serif'; ctx.fillStyle = '#fff';
+    ctx.fillText(`Altitude d’orbite : ${fmtAlt(Math.max(0, vol.y))} / ${fmtAlt(vol.altOrbite * 0.9)}`, x0, y0 + 8);
+    jauge(ctx, x0, y0 + 12, 320, fa, fa >= 1 ? '#66bb6a' : '#42a5f5');
+    ctx.fillStyle = '#fff';
+    ctx.fillText(`Vitesse horizontale : ${fmtV(Math.abs(vol.vx))} / ${fmtV(vO * 0.97)}`, x0, y0 + 32);
+    jauge(ctx, x0, y0 + 36, 320, fv, fv >= 1 ? '#66bb6a' : '#ffca28');
+  }
+  if (vol.f.mega && !vol.fin) {
+    ctx.font = 'bold 13px system-ui, sans-serif'; ctx.fillStyle = '#ffca28'; ctx.textAlign = 'right';
+    ctx.fillText(`${vol.f.etages[vol.f.etage].nom} (${vol.f.etage + 1}/${vol.f.etages.length})`, W - 14, 110);
     ctx.textAlign = 'left';
   }
 

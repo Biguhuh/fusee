@@ -4,12 +4,12 @@
 
 const EXPLORATEURS = {
   spationaute: {
-    nom: 'Spationaute', hauteur: 1.8, autonomie: 900, ressource: 'Oxygène',
+    nom: 'Spationaute', hauteur: 1.8, autonomie: 4 * 3600, ressource: 'Oxygène',
     pressionMax: 1.2, tempMax: 120, tempMin: -270, protection: 3, capacite: 6, penteMax: 35,
   },
   robot: {
-    nom: 'Robot', hauteur: 1.3, autonomie: 1800, ressource: 'Batterie',
-    pressionMax: 100, tempMax: 480, tempMin: -273, protection: 60, capacite: Infinity, penteMax: 25,
+    nom: 'Robot', hauteur: 1.3, autonomie: 8 * 3600, ressource: 'Batterie',
+    pressionMax: 100, tempMax: 480, tempMin: -273, protection: 60, capacite: Infinity, penteMax: 30,
   },
 };
 
@@ -32,14 +32,15 @@ const SITES_ROCHE = [['Roche', 'Roche primitive.'], ['Régolithe', 'Poussière d
 const SITES_ASTEROIDE = [['Roche carbonée', 'Matière primitive du système solaire.'], ['Métal', 'Fer et nickel.'], ['Régolithe', 'Poussière très fine.']];
 
 class Exploration {
-  constructor(vol, type, science) {
+  // options.terre : promenade sur Terre ; options.provisions : la campagne (fleurs, fruits, bières).
+  constructor(vol, type, science, options = {}) {
     this.vol = vol;
     this.astre = vol.astre;
     this.type = type;
     this.def = EXPLORATEURS[type];
     this.science = science;         // { [astreId]: { sites: {k: true}, echantillons } }
     this.xFusee = vol.x;
-    const x = vol.x + 4;
+    const x = vol.x + 2;
     this.p = { x, y: vol.sol(x), vx: 0, vy: 0, auSol: true, dir: 1, pas: 0 };
     this.reserve = this.def.autonomie;
     this.integrite = 100;
@@ -60,7 +61,79 @@ class Exploration {
     this.saut = type === 'robot' ? 0 : Math.min(2.2, 0.5 * this.vLib);
     this.cable = type === 'spationaute' && this.vLib < 4.4;
     if (this.cable) this.dire(`Gravité minuscule (libération à ${fmtV(this.vLib)}) : le spationaute reste attaché par un câble.`);
-    this.sites = this.genererSites();
+    // Promenade sur Terre : fleurs, fruits et bar, pas de science.
+    this.terre = !!options.terre;
+    this.campagne = options.provisions || null;
+    this.bieres = 0;
+    this.sites = this.terre ? this.genererTerre() : this.genererSites();
+    // Rover : garé à côté de la fusée, pour le spationaute (plus rapide, 20 échantillons).
+    this.rover = type === 'spationaute' && !this.terre && !vol.robotSeul && !this.cable ? { x: this.xFusee - 5, dir: 1, pas: 0 } : null;
+    this.enRover = false;
+    this.sacRover = [];
+    this.vMaxRover = Math.min(5, 2.8 * Math.sqrt(g));          // ≈ 3,6 m/s sur la Lune, comme le rover d'Apollo
+    this.accRover = Math.min(1.5, 0.5 * g + 0.001);
+    this.warp = 1;
+  }
+
+  // ---------- Promenade sur Terre ----------
+  genererTerre() {
+    const fleurs = ['Coquelicot', 'Marguerite', 'Tournesol', 'Lavande', 'Bleuet', 'Rose'];
+    const arbres = [['Pommier', 'pomme'], ['Cerisier', 'cerise'], ['Oranger', 'orange'], ['Prunier', 'prune'], ['Abricotier', 'abricot']];
+    const l = [{ k: 'bar', x: this.xFusee + 70, type: 'bar', nom: 'Bar de l’Espace' }];
+    for (let k = -30; k <= 30; k++) {
+      if (k === 0) continue;
+      const x = this.xFusee + k * 13 + (hash2(k, 60) - 0.5) * 6;
+      if (Math.abs(x - (this.xFusee + 70)) < 12) continue;
+      if (hash2(k, 61) < 0.3) {
+        const [nom, fruit] = arbres[Math.floor(hash2(k, 62) * arbres.length)];
+        l.push({ k: 't' + k, x, type: 'arbre', nom, fruit, reste: 3 });
+      } else if (hash2(k, 63) < 0.7) {
+        l.push({ k: 'f' + k, x, type: 'fleur', nom: fleurs[Math.floor(hash2(k, 64) * fleurs.length)], cueillie: false });
+      }
+    }
+    return l;
+  }
+
+  agirTerre() {
+    const p = this.p;
+    const proche = this.sites.filter((s) => Math.abs(s.x - p.x) < (s.type === 'bar' ? 8 : 2.5))
+      .sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0];
+    if (Math.abs(p.x - this.xFusee) < 4 && !proche) return this.terminer('retour', `Fin de la promenade : ${this.bouquet || 0} fleurs et ${this.panier || 0} fruits pour l’équipage${this.bieres ? `, et ${this.bieres} bière${this.bieres > 1 ? 's' : ''} au bar` : ''}.`);
+    if (!proche) return this.dire('Approchez-vous d’une fleur, d’un arbre fruitier ou du bar.');
+    const c = this.campagne;
+    if (proche.type === 'bar') {
+      this.bieres++;
+      if (c) c.bieres = (c.bieres || 0) + 1;
+      return this.dire(this.bieres === 1 ? '🍺 Une bière bien fraîche au Bar de l’Espace. Introuvable là-haut !'
+        : this.bieres < 4 ? `🍺 ${this.bieres}e bière… la démarche devient incertaine.` : '🍺 Le barman refuse : il y a un lancement demain !');
+    }
+    if (proche.type === 'arbre') {
+      if (proche.reste <= 0) return this.dire(`${proche.nom} : plus de fruits à portée.`);
+      proche.reste--;
+      this.panier = (this.panier || 0) + 1;
+      if (c) c.provisions.fruits++;
+      return this.dire(`Une ${proche.fruit} cueillie. Des fruits frais : le luxe absolu dans l’espace.`);
+    }
+    if (proche.cueillie) return this.dire('Déjà cueillie.');
+    proche.cueillie = true;
+    this.bouquet = (this.bouquet || 0) + 1;
+    if (c) c.provisions.fleurs++;
+    this.dire(`${proche.nom} cueilli${proche.nom === 'Marguerite' || proche.nom === 'Rose' || proche.nom === 'Lavande' ? 'e' : ''} pour égayer la station.`);
+  }
+
+  // Monter dans le rover ou en descendre (touche V).
+  basculerRover() {
+    if (!this.rover || this.fin) return;
+    const p = this.p;
+    if (this.enRover) {
+      this.enRover = false;
+      this.rover.x = p.x;
+      this.dire(`Vous descendez du rover. ${this.sacRover.length} échantillon${this.sacRover.length > 1 ? 's' : ''} dans sa caisse.`);
+    } else if (Math.abs(p.x - this.rover.x) < 4 && p.auSol) {
+      this.enRover = true;
+      p.x = this.rover.x;
+      this.dire('À bord du rover : jusqu’à ' + fmtV(this.vMaxRover) + ' et 20 échantillons.');
+    } else this.dire('Approchez-vous du rover (à côté de la fusée) pour monter dedans.');
   }
 
   genererSites() {
@@ -104,18 +177,26 @@ class Exploration {
       }
     }
 
-    // Déplacements
+    // Déplacements (à pied, en rover ou en robot)
     const veut = (cmd.droite ? 1 : 0) - (cmd.gauche ? 1 : 0);
     if (veut) p.dir = veut;
+    // Les pentes raides ralentissent ; seules les vraies falaises arrêtent (on ne peut pas les contourner en vue de côté).
+    const penteMax = this.enRover ? 40 : this.def.penteMax + 10;
+    const devant = Math.atan2(this.sol(p.x + 1.5 * (veut || 1)) - this.sol(p.x), 1.5) * (veut || 1) * 180 / Math.PI;
+    const freinPente = devant > 15 ? Math.max(0.3, 1 - (devant - 15) / (penteMax - 15)) : 1;
+    const vMax = (this.enRover ? this.vMaxRover : this.vMax) * freinPente;
+    const acc = this.enRover ? this.accRover : this.acc;
     if (p.auSol) {
-      const cible = veut * this.vMax;
+      // Après quelques bières, la démarche devient… approximative.
+      const titube = this.bieres >= 2 ? Math.sin(this.vol.t * 3) * 0.4 * Math.min(1, (this.bieres - 1) / 3) : 0;
+      const cible = veut * vMax * (1 + titube);
       const dv = cible - p.vx;
-      p.vx += Math.sign(dv) * Math.min(Math.abs(dv), this.acc * dt);
-      // Pente trop raide pour le robot
+      p.vx += Math.sign(dv) * Math.min(Math.abs(dv), acc * dt);
+      // Pente trop raide pour des roues
       const pente = Math.atan2(this.sol(p.x + 0.5 * Math.sign(p.vx || 1)) - this.sol(p.x), 0.5) * Math.sign(p.vx || 1);
-      if (pente * 180 / Math.PI > this.def.penteMax && Math.abs(p.vx) > 0) {
+      if (pente * 180 / Math.PI > penteMax && Math.abs(p.vx) > 0) {
         p.vx = 0;
-        if (this.type === 'robot') this.dire('Pente trop raide pour les roues du robot.');
+        if (this.type === 'robot' || this.enRover) this.dire(`Pente trop raide pour les roues du ${this.enRover ? 'rover' : 'robot'}.`);
       }
       const nx = p.x + p.vx * dt;
       const ny = this.sol(nx);
@@ -124,15 +205,20 @@ class Exploration {
         p.auSol = false; p.vy = 0; p.x = nx;
       } else { p.x = nx; p.y = ny; }
       p.pas += Math.abs(p.vx) * dt;
-      if (cmd.saut && this.saut > 0) {
+      if (cmd.saut && this.saut > 0 && !this.enRover) {
         p.vy = this.saut; p.auSol = false;
         this.poussiere(6);
       }
-      if (this.type === 'spationaute' && Math.abs(p.vx) > 0.05 && Math.floor(p.pas / 0.7) !== Math.floor((p.pas - Math.abs(p.vx) * dt) / 0.7)) {
+      if (this.type === 'spationaute' && !this.enRover && Math.abs(p.vx) > 0.05 && Math.floor(p.pas / 0.7) !== Math.floor((p.pas - Math.abs(p.vx) * dt) / 0.7)) {
         this.traces.push({ x: p.x, d: p.dir });
         if (this.traces.length > 300) this.traces.shift();
       }
-      if (this.type === 'robot' && Math.abs(p.vx) > 0.05 && Math.random() < 0.3) this.traces.push({ x: p.x, d: 0 });
+      if ((this.type === 'robot' || this.enRover) && Math.abs(p.vx) > 0.05 && Math.random() < 0.3) {
+        this.traces.push({ x: p.x, d: 0 });
+        if (this.traces.length > 600) this.traces.shift();
+        if (this.enRover && Math.random() < 0.3) this.poussiere(1);
+      }
+      if (this.enRover) this.rover.x = p.x;
     } else {
       p.vy -= g * dt;
       p.x += p.vx * dt;
@@ -156,6 +242,9 @@ class Exploration {
       }
     }
 
+    // Sur Terre : on respire, rien ne menace.
+    if (this.terre) { this.taux = 0; return; }
+
     // Réserve d'oxygène ou de batterie
     const effort = Math.abs(p.vx) > 0.05 ? 1 : 0.3;
     this.reserve -= dt * (this.type === 'robot' ? effort : 1);
@@ -174,40 +263,59 @@ class Exploration {
   }
 
   siteProche() {
-    let best = null, d0 = 2.5;
+    let best = null, d0 = this.enRover ? 4 : 2.5;
     for (const s of this.sites) {
       const d = Math.abs(s.x - this.p.x);
       if (d < d0) { d0 = d; best = s; }
     }
     return best;
   }
-  presDeLaFusee() { return Math.abs(this.p.x - this.xFusee) < 4 && this.p.auSol; }
+  presDeLaFusee() { return Math.abs(this.p.x - this.xFusee) < (this.enRover ? 12 : 4) && this.p.auSol; }
 
   // Touche E : ramasser, analyser, ou rentrer.
   agir() {
     if (this.fin) return;
-    if (this.presDeLaFusee()) {
-      const n = this.sac.length;
+    if (this.terre) return this.agirTerre();
+    if (this.presDeLaFusee() && !this.vol.robotSeul) {
+      // On rentre : les échantillons du sac et du rover montent à bord de l'atterrisseur.
+      const tous = [...this.sac, ...(this.rover ? this.sacRover : [])];
+      const n = tous.length;
       if (n) {
         const s = (this.science[this.astre.id] = this.science[this.astre.id] || { sites: {}, echantillons: 0, analyses: 0 });
         s.echantillons += n;
+        this.vol.echantillons = (this.vol.echantillons || 0) + n;
       }
-      return this.terminer('retour', n ? `${n} échantillon${n > 1 ? 's' : ''} rapporté${n > 1 ? 's' : ''} à bord.` : 'De retour à bord.');
+      return this.terminer('retour', n ? `${n} échantillon${n > 1 ? 's' : ''} rangé${n > 1 ? 's' : ''} à bord de l’atterrisseur.` : 'De retour à bord.');
     }
     const site = this.siteProche();
-    if (!site) return this.dire('Rien d’intéressant ici. Suivez les repères ◆.');
-    if (this.dejaFait(site) || this.sac.some((x) => x.k === site.k)) return this.dire(`${site.nom} : déjà étudié.`);
+    if (!site) return this.dire(this.rover && !this.enRover ? 'Rien ici. Suivez les repères ◆, ou prenez le rover (V).' : 'Rien d’intéressant ici. Suivez les repères ◆.');
+    if (this.dejaFait(site) || this.sac.some((x) => x.k === site.k) || this.sacRover.some((x) => x.k === site.k)) return this.dire(`${site.nom} : déjà étudié.`);
     if (this.type === 'robot') {
       if (!this.analyse) { this.analyse = { site, t: 0 }; this.dire(`Analyse de « ${site.nom} »…`); }
       return;
     }
-    if (this.sac.length >= this.def.capacite) return this.dire('Sac plein : rapportez les échantillons à la fusée.');
-    this.sac.push(site);
+    if (this.enRover) {
+      if (this.sacRover.length >= 20) return this.dire('Caisse du rover pleine (20) : rentrez à la fusée.');
+      this.sacRover.push(site);
+    } else {
+      if (this.sac.length >= this.def.capacite) return this.dire('Sac plein (6) : rapportez les échantillons, ou prenez le rover (20).');
+      this.sac.push(site);
+    }
     this.marquer(site);
     this.dire(`Échantillon ramassé : ${site.nom}. ${site.texte}`);
   }
 
   terminer(issue, texte) { this.fin = { issue, texte }; }
+
+  // Échap : le spationaute (et le rover) rentrent à la fusée avec ce qu'ils portent ; le robot s'arrête.
+  agirRappel() {
+    if (this.type === 'robot') return this.terminer('retour', this.vol.robotSeul ? 'Le robot poursuit sa mission seul ; retour à l’orbiteur.' : 'Robot rappelé à bord.');
+    this.p.x = this.xFusee;
+    this.p.y = this.sol(this.xFusee);
+    this.p.auSol = true;
+    this.enRover = false;
+    this.agir();
+  }
 
   poussiere(n) {
     for (let i = 0; i < n; i++) this.fx.push({ x: this.p.x, y: this.p.y, vx: (Math.random() - 0.5) * 1.5, vy: Math.random() * 1.2, vie: 0, max: 0.6 + Math.random() });
@@ -221,6 +329,7 @@ class Exploration {
     const camY = H * 0.55;
     const versEcran = (x, y) => [W / 2 + (x - p.x) * echelle, camY + (yCam - y) * echelle];
     dessinerFond(ctx, a, this.c, W, H, false);
+    if (this.terre) dessinerNuages(ctx, W, H, p.x * echelle);
 
     // Terrain (réutilise le rendu de l'atterrissage)
     dessinerTerrain(ctx, { x: p.x, y: yCam, sol: (x) => this.sol(x), astre: a, autopilote: false }, W, H, echelle, camY);
@@ -233,8 +342,25 @@ class Exploration {
       ctx.fillRect(sx - 3, sy - 1, 6, 2);
     }
 
+    // Bases au sol
+    for (const b of this.vol.bases || []) {
+      const [bx, by] = versEcran(b.x, this.sol(b.x));
+      if (bx > -1500 && bx < W + 1500) dessinerBase(ctx, bx, by, echelle);
+    }
+
+    // Promenade sur Terre : fleurs, arbres fruitiers, bar
+    if (this.terre) {
+      for (const s of this.sites) {
+        const [sx, sy] = versEcran(s.x, this.sol(s.x));
+        if (sx < -300 || sx > W + 300) continue;
+        if (s.type === 'bar') dessinerBar(ctx, sx, sy, echelle);
+        else if (s.type === 'arbre') dessinerArbre(ctx, sx, sy, echelle, s);
+        else if (!s.cueillie) dessinerFleur(ctx, sx, sy, echelle, s);
+      }
+    }
+
     // Sites d'intérêt
-    for (const s of this.sites) {
+    for (const s of this.terre ? [] : this.sites) {
       const [sx, sy] = versEcran(s.x, this.sol(s.x));
       if (sx < -40 || sx > W + 40) continue;
       const fait = this.dejaFait(s);
@@ -250,9 +376,16 @@ class Exploration {
       ctx.beginPath(); ctx.ellipse(sx, sy - 3, 7, 4, 0, Math.PI, 0); ctx.fill();
     }
 
-    // Fusée posée, à l'échelle
+    // Fusée posée, à l'échelle (sur Terre : la maison d'où part la promenade)
     const [fx, fy] = versEcran(this.xFusee, this.sol(this.xFusee));
-    dessinerFusee(ctx, { f: this.vol.f, angle: this.vol.angle, throttle: 0, temp: this.vol.temp, integrite: this.vol.integrite, degats: this.vol.degats, taux: { pression: 0, chaleur: 0 }, enDegats: () => false }, fx, fy, FUSEE_BASE.hauteur * echelle);
+    if (this.terre) dessinerMaison(ctx, fx, fy, echelle);
+    else dessinerFusee(ctx, { f: this.vol.f, angle: this.vol.angle, throttle: 0, temp: this.vol.temp, integrite: this.vol.integrite, degats: this.vol.degats, taux: { pression: 0, chaleur: 0 }, enDegats: () => false }, fx, fy, (this.vol.f.mega ? FUSEE_BASE.hauteur : this.vol.f.hauteur || FUSEE_BASE.hauteur) * echelle);
+
+    // Rover garé
+    if (this.rover && !this.enRover) {
+      const [rx, ry] = versEcran(this.rover.x, this.sol(this.rover.x));
+      dessinerRover(ctx, rx, ry, echelle, { dir: this.rover.dir, pas: this.rover.pas }, false);
+    }
 
     // Câble de sécurité
     if (this.cable) {
@@ -272,10 +405,42 @@ class Exploration {
 
     // Explorateur
     const [sx, sy] = versEcran(p.x, p.y);
-    if (this.type === 'spationaute') dessinerSpationaute(ctx, sx, sy, echelle, p);
+    if (this.enRover) dessinerRover(ctx, sx, sy, echelle, p, true);
+    else if (this.type === 'spationaute') dessinerSpationaute(ctx, sx, sy, echelle, p, this.terre);
     else dessinerRobot(ctx, sx, sy, echelle, p, this.analyse);
 
-    this.dessinerHud(ctx, W, H);
+    if (this.terre) this.dessinerHudTerre(ctx, W, H);
+    else this.dessinerHud(ctx, W, H);
+    ctx.textAlign = 'right'; ctx.font = 'bold 14px system-ui'; ctx.fillStyle = this.warp > 1 ? '#ffca28' : 'rgba(255,255,255,0.7)';
+    ctx.fillText(`Temps ×${this.warp}  (+/−)`, W - 14, 28);
+    ctx.textAlign = 'left';
+  }
+
+  dessinerHudTerre(ctx, W, H) {
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillRect(8, 8, 300, 104);
+    ctx.font = 'bold 15px system-ui'; ctx.fillStyle = '#fff';
+    ctx.fillText('Promenade sur Terre', 16, 30);
+    ctx.font = '13px system-ui';
+    ctx.fillText(`🌸 Fleurs cueillies : ${this.bouquet || 0}`, 16, 54);
+    ctx.fillText(`🍎 Fruits cueillis : ${this.panier || 0}`, 16, 74);
+    ctx.fillText(`🍺 Bières au bar : ${this.bieres}`, 16, 94);
+    const proche = this.sites.filter((s) => s.type === 'bar' || (s.type === 'arbre' && s.reste > 0) || (s.type === 'fleur' && !s.cueillie))
+      .reduce((m, x) => (!m || Math.abs(x.x - this.p.x) < Math.abs(m.x - this.p.x) ? x : m), null);
+    if (proche) {
+      const dx = proche.x - this.p.x;
+      ctx.font = 'bold 14px system-ui'; ctx.fillStyle = '#ffd54f'; ctx.textAlign = 'center';
+      ctx.fillText(`${dx < 0 ? '◀' : '▶'} ${proche.nom} à ${fmt(Math.abs(dx))} m`, W / 2, 30);
+    }
+    if (this.tMessage > 0) {
+      ctx.font = '15px system-ui'; ctx.textAlign = 'center';
+      const tw = ctx.measureText(this.message).width;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(W / 2 - tw / 2 - 10, H - 70, tw + 20, 26);
+      ctx.fillStyle = '#fff'; ctx.fillText(this.message, W / 2, H - 52);
+    }
+    ctx.font = '12px system-ui'; ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.textAlign = 'center';
+    ctx.fillText('←→ / Q D : marcher · ↑ / Z / Espace : sauter · E : cueillir, boire une bière, ou rentrer à la maison · Échap : rentrer', W / 2, H - 14);
+    ctx.textAlign = 'left';
   }
 
   dessinerHud(ctx, W, H) {
@@ -299,7 +464,7 @@ class Exploration {
     ligne('Gravité', fmtG(c.g));
     ligne('Libération', fmtV(this.vLib));
     const sc = this.science[a.id] || { echantillons: 0, analyses: 0, sites: {} };
-    ligne(this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? String(sc.analyses) : `${this.sac.length} / ${d.capacite}`);
+    ligne(this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? String(sc.analyses) : `${this.sac.length} / ${d.capacite}` + (this.rover ? `  rover ${this.sacRover.length} / 20` : ''));
     ligne('Sites étudiés ici', String(Object.keys(sc.sites || {}).length));
     ligne('Distance fusée', fmt(Math.abs(this.p.x - this.xFusee)) + ' m');
 
@@ -330,12 +495,84 @@ class Exploration {
       ctx.textAlign = 'left';
     }
     ctx.font = '12px system-ui'; ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.textAlign = 'center';
-    ctx.fillText(`←→ / Q D : ${this.type === 'robot' ? 'rouler' : 'marcher'}${this.saut ? ' · ↑ / Z / Espace : sauter' : ''} · E : ${this.type === 'robot' ? 'analyser' : 'ramasser'} (ou rentrer près de la fusée) · Échap : rappeler`, W / 2, H - 14);
+    ctx.fillText(`←→ / Q D : ${this.type === 'robot' || this.enRover ? 'rouler' : 'marcher'}${this.saut && !this.enRover ? ' · ↑ / Z / Espace : sauter' : ''}${this.rover ? ` · V : ${this.enRover ? 'descendre du' : 'monter dans le'} rover` : ''} · E : ${this.type === 'robot' ? 'analyser' : 'ramasser'} (ou rentrer près de la fusée) · Échap : rappeler`, W / 2, H - 14);
     ctx.textAlign = 'left';
   }
 }
 
-function dessinerSpationaute(ctx, x, y, s, p) {
+// ---------- Décor de la promenade sur Terre ----------
+function dessinerArbre(ctx, x, y, s, a) {
+  const coul = { pomme: '#e53935', cerise: '#b71c1c', orange: '#fb8c00', prune: '#6a1b9a', abricot: '#ffa726' }[a.fruit] || '#e53935';
+  ctx.fillStyle = '#6d4c41'; ctx.fillRect(x - 0.25 * s, y - 3 * s, 0.5 * s, 3 * s);
+  ctx.fillStyle = '#388e3c';
+  ctx.beginPath(); ctx.arc(x, y - 4 * s, 2 * s, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x - 1.3 * s, y - 3.3 * s, 1.4 * s, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + 1.3 * s, y - 3.4 * s, 1.4 * s, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = coul;
+  const pos = [[-1, -4.5], [0.8, -3.6], [-0.2, -2.9], [1.5, -4.4], [-1.6, -3.3]];
+  for (let i = 0; i < a.reste + 2 && i < pos.length; i++) { ctx.beginPath(); ctx.arc(x + pos[i][0] * s, y + pos[i][1] * s, 0.22 * s, 0, Math.PI * 2); ctx.fill(); }
+  ctx.fillStyle = '#fff'; ctx.font = '12px system-ui'; ctx.textAlign = 'center'; ctx.fillText(a.nom, x, y - 6.4 * s); ctx.textAlign = 'left';
+}
+function dessinerFleur(ctx, x, y, s, f) {
+  const coul = { Coquelicot: '#e53935', Marguerite: '#ffffff', Tournesol: '#fdd835', Lavande: '#9575cd', Bleuet: '#1e88e5', Rose: '#ec407a' }[f.nom] || '#fff';
+  const h = (f.nom === 'Tournesol' ? 1.4 : 0.5) * s;
+  ctx.strokeStyle = '#2e7d32'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - h); ctx.stroke();
+  ctx.fillStyle = coul;
+  for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; ctx.beginPath(); ctx.arc(x + Math.cos(a) * 0.12 * s, y - h + Math.sin(a) * 0.12 * s, 0.09 * s, 0, Math.PI * 2); ctx.fill(); }
+  ctx.fillStyle = f.nom === 'Tournesol' ? '#5d4037' : '#ffd54f';
+  ctx.beginPath(); ctx.arc(x, y - h, 0.07 * s, 0, Math.PI * 2); ctx.fill();
+}
+function dessinerBar(ctx, x, y, s) {
+  ctx.fillStyle = '#8d6e63'; ctx.fillRect(x - 5 * s, y - 4 * s, 10 * s, 4 * s);
+  ctx.fillStyle = '#5d4037'; ctx.beginPath(); ctx.moveTo(x - 5.6 * s, y - 4 * s); ctx.lineTo(x, y - 6 * s); ctx.lineTo(x + 5.6 * s, y - 4 * s); ctx.fill();
+  ctx.fillStyle = '#ffe082'; ctx.fillRect(x - 3.8 * s, y - 3.2 * s, 2.2 * s, 1.5 * s); ctx.fillRect(x + 1.6 * s, y - 3.2 * s, 2.2 * s, 1.5 * s);
+  ctx.fillStyle = '#4e342e'; ctx.fillRect(x - 0.7 * s, y - 2.4 * s, 1.4 * s, 2.4 * s);
+  ctx.fillStyle = '#1b5e20'; ctx.fillRect(x - 3 * s, y - 5.2 * s, 6 * s, 0.9 * s);
+  ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.max(11, 0.55 * s)}px system-ui`; ctx.textAlign = 'center';
+  ctx.fillText('🍺 Bar de l’Espace', x, y - 4.55 * s); ctx.textAlign = 'left';
+}
+function dessinerMaison(ctx, x, y, s) {
+  ctx.fillStyle = '#eceff1'; ctx.fillRect(x - 3 * s, y - 3 * s, 6 * s, 3 * s);
+  ctx.fillStyle = '#c62828'; ctx.beginPath(); ctx.moveTo(x - 3.5 * s, y - 3 * s); ctx.lineTo(x, y - 5 * s); ctx.lineTo(x + 3.5 * s, y - 3 * s); ctx.fill();
+  ctx.fillStyle = '#4fc3f7'; ctx.fillRect(x - 2.2 * s, y - 2.3 * s, 1.2 * s, 1 * s);
+  ctx.fillStyle = '#6d4c41'; ctx.fillRect(x + 0.8 * s, y - 2 * s, 1 * s, 2 * s);
+  ctx.fillStyle = '#fff'; ctx.font = '12px system-ui'; ctx.textAlign = 'center'; ctx.fillText('Maison (E pour rentrer)', x, y - 5.4 * s); ctx.textAlign = 'left';
+}
+function dessinerNuages(ctx, W, H, decalage) {
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  for (let i = 0; i < 6; i++) {
+    const x = ((i * 260 - decalage * 0.3) % (W + 300) + W + 300) % (W + 300) - 150;
+    const y = 40 + (i % 3) * 45;
+    for (const [dx, dy, r] of [[0, 0, 26], [28, -10, 22], [52, 2, 20], [-24, 4, 18]]) { ctx.beginPath(); ctx.arc(x + dx, y + dy, r, 0, Math.PI * 2); ctx.fill(); }
+  }
+}
+
+// Rover lunaire (inspiré du rover d'Apollo), avec le spationaute assis s'il est à bord.
+function dessinerRover(ctx, x, y, s, p, aBord) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(p.dir || 1, 1);
+  const rot = (p.pas || 0) * 2.5;
+  for (const wx of [-1.1, 1.1]) {
+    ctx.fillStyle = '#37474f';
+    ctx.beginPath(); ctx.arc(wx * s, -0.4 * s, 0.4 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#b0bec5'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(wx * s, -0.4 * s); ctx.lineTo(wx * s + Math.cos(rot) * 0.35 * s, -0.4 * s + Math.sin(rot) * 0.35 * s); ctx.stroke();
+  }
+  // Châssis, garde-boue, sièges, antenne parabolique
+  ctx.fillStyle = '#cfd8dc'; ctx.fillRect(-1.5 * s, -0.95 * s, 3 * s, 0.25 * s);
+  ctx.fillStyle = '#ffb300'; ctx.fillRect(-1.5 * s, -0.95 * s, 0.6 * s, 0.12 * s); ctx.fillRect(0.9 * s, -0.95 * s, 0.6 * s, 0.12 * s);
+  ctx.fillStyle = '#90a4ae'; ctx.fillRect(-0.6 * s, -1.4 * s, 0.15 * s, 0.45 * s); ctx.fillRect(0.2 * s, -1.4 * s, 0.15 * s, 0.45 * s);
+  ctx.fillStyle = '#795548'; ctx.fillRect(-1.4 * s, -1.25 * s, 0.6 * s, 0.3 * s); // caisse à échantillons
+  ctx.strokeStyle = '#b0bec5'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(1.2 * s, -0.95 * s); ctx.lineTo(1.2 * s, -1.9 * s); ctx.stroke();
+  ctx.fillStyle = '#eceff1'; ctx.beginPath(); ctx.arc(1.2 * s, -2 * s, 0.3 * s, Math.PI * 0.9, Math.PI * 2.1); ctx.fill();
+  ctx.restore();
+  if (aBord) dessinerSpationaute(ctx, x - 0.2 * s * (p.dir || 1), y - 0.8 * s, s * 0.8, { dir: p.dir, pas: 0 });
+}
+
+function dessinerSpationaute(ctx, x, y, s, p, surTerre) {
   const h = 1.8 * s;
   const phase = Math.sin(p.pas * 4.5);
   ctx.save();

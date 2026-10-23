@@ -22,10 +22,12 @@
         <canvas id="apercu" width="220" height="260"></canvas>
         <dl id="resume-fusee"></dl>
         <div class="voyage">
-          <h3>Voyage dans le système solaire</h3>
-          <p class="doux">Pilotez l'orbiteur d'astre en astre, envoyez des sondes, construisez des stations, descendez explorer.</p>
-          <button id="voyage-reprendre" class="principal cache">▶ Reprendre le voyage</button>
-          <button id="voyage-nouveau" class="principal">🛰 Nouveau voyage</button>
+          <h3>Campagne dans le système solaire</h3>
+          <p class="doux">Départ de la Terre en méga-fusée. Construisez la station spatiale, partez explorer avec l'orbiteur et son atterrisseur, rapportez des échantillons, installez stations et bases.</p>
+          <p id="voyage-etat" class="doux"></p>
+          <button id="voyage-reprendre" class="principal cache">▶ Reprendre</button>
+          <button id="voyage-nouveau" class="principal">🛰 Commencer la campagne</button>
+          <button id="promenade">🌳 Se promener sur Terre</button>
         </div>
         <button id="vers-carte">Mission directe : choisir la destination →</button>
       </aside>
@@ -85,6 +87,7 @@
   <script src="js/navigation.js"></script>
   <script src="js/orbiteur.js"></script>
   <script src="js/exploration.js"></script>
+  <script src="js/campagne.js"></script>
   <script src="js/ecrans.js"></script>
   <script src="js/infos.js"></script>
   <script src="js/main.js"></script>
