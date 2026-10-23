@@ -4,6 +4,32 @@
 //  - Voyage : hangar → orbiteur (navigation) → descente → vol / exploration → retour à l'orbiteur.
 
 const etat = { ...charger(), destination: null, ecran: 'hangar', vol: null, explo: null, pause: false, warp: 1, finDepuis: 0, enVoyage: false };
+etat.voyage = migrerVoyage(etat.voyage);
+
+// Sauvegarde d'une version précédente du jeu : on complète les champs qui manquent.
+function migrerVoyage(v) {
+  if (!v) return v;
+  const neuf = Orbiteur.nouveauVoyage();
+  const m = { ...neuf, ...v };
+  for (const cle of ['visites', 'echantillonsABord', 'echantillonsRapportes']) m[cle] = m[cle] || {};
+  m.provisions = { fleurs: 0, fruits: 0, ...(v.provisions || {}) };
+  m.bases = m.bases || [];
+  m.stations = (m.stations || []).map((s) => ({
+    ...s,
+    terrestre: s.terrestre || !!s.base,
+    stock: s.stock || { carburant: 0, ergols: 0, sondes: 0, kits: 0, kitsBase: 0, robots: 0, atterrisseurs: 0 },
+    prochainCargo: s.prochainCargo || m.t + intervalleCargo(s.centre),
+  }));
+  if (m.orb) {
+    // Expédition en cours avec l'ancien format : on lui donne le chargement actuel.
+    if (v.ergolsAtt === undefined) m.ergolsAtt = ORBITEUR.ergolsAtt;
+    if (v.robots === undefined) m.robots = ORBITEUR.robots;
+    if (v.kitsBase === undefined) m.kitsBase = ORBITEUR.kitsBase;
+    if (!m.expeditions) m.expeditions = 1;
+  }
+  delete m.carburantAtt;
+  return m;
+}
 const canvas = $('vol');
 const ctx = canvas.getContext('2d');
 const toile = $('nav');
