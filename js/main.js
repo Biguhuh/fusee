@@ -449,6 +449,18 @@ $('accueil-visite').onclick = allerCarte;
 $('accueil-hangar').onclick = allerHangar;
 $('accueil-promenade').onclick = promenadeSurTerre;
 $('accueil-spatio').onclick = () => afficherCreationSpatio(allerAccueil);
+$('exporter').onclick = () => { exporterSauvegarde(etat); $('sauvegarde-info').textContent = 'Fichier téléchargé.'; };
+$('importer').onclick = () => $('fichier-sauvegarde').click();
+$('fichier-sauvegarde').onchange = (e) => {
+  const f = e.target.files[0];
+  e.target.value = '';
+  if (!f) return;
+  if (etat.voyage && !confirm('Charger ce fichier remplace la partie en cours dans ce navigateur. Continuer ?')) return;
+  importerSauvegarde(f, (erreur) => {
+    if (erreur) { $('sauvegarde-info').textContent = '⚠ ' + erreur; return; }
+    location.reload();   // on repart proprement de la sauvegarde chargée
+  });
+};
 document.querySelectorAll('.vers-accueil').forEach((b) => { b.onclick = allerAccueil; });
 document.querySelectorAll('.ouvrir-encyclo').forEach((b) => { b.onclick = () => Infos.ouvrirEncyclopedie(); });
 

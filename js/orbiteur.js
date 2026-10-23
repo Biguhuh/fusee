@@ -257,8 +257,10 @@ const Orbiteur = {
     const c = ASTRES_PAR_ID[cibleId];
     v.sondes--;
     const n = v.sondesEnVol.length + 1;
-    v.sondesEnVol.push({ id: 'p' + Date.now(), nom: `Sonde ${n} → ${c.nom}`, cible: cibleId, centre: v.orb.centre, r: v.orb.r.slice(), v: v.orb.v.slice(), transfert: null, etat: 'vol', tLancement: v.t });
-    this.log(`Sonde lancée vers ${c.nom}.`);
+    const id = 'p' + Date.now();
+    v.sondesEnVol.push({ id, nom: `Sonde ${n} → ${c.nom}`, cible: cibleId, centre: v.orb.centre, r: v.orb.r.slice(), v: v.orb.v.slice(), transfert: null, etat: 'vol', tLancement: v.t });
+    this.log(`Sonde lancée vers ${c.nom}. Sa trajectoire prévue s’affiche (« ✕ Trajectoire » pour revenir).`);
+    this.ouvrirTrajet(id);
   },
 
   // Ravito : un cargo part de la Terre (ou d'une station) vers une station, sur sa propre trajectoire.
@@ -281,11 +283,13 @@ const Orbiteur = {
     }
     v.cargos = v.cargos || [];
     const origine = origineId === 'terre' ? 'la Terre' : v.stations.find((s) => s.id === origineId).nom;
+    const id = 'c' + Date.now();
     v.cargos.push({
-      id: 'c' + Date.now(), nom: `${nom} → ${dest.nom}`, type: 'cargo', cible: dest.centre, dest: destId, contenu,
+      id, nom: `${nom} → ${dest.nom}`, type: 'cargo', cible: dest.centre, dest: destId, contenu,
       centre: depart.centre, r: depart.r.slice(), v: depart.v.slice(), transfert: null, etat: 'vol', tLancement: v.t,
     });
     this.log(`Cargo « ${nom} » lancé depuis ${origine} vers ${dest.nom} : ${decrireContenu(contenu)}.`);
+    this.ouvrirTrajet(id);
   },
 
   mettreAJourSondes(dt) {
@@ -521,17 +525,207 @@ const Orbiteur = {
   },
 
   centrerSur(id) {
+    if (id === 'orbiteur' && !this.v.orb) id = 'terre';
     this.cam.focus = id;
     this.cam.decal = [0, 0];
-    const a = id === 'orbiteur' ? ASTRES_PAR_ID[this.v.orb.centre] : ASTRES_PAR_ID[id];
-    const taille = id === 'orbiteur' ? Math.max(V.norm(this.v.orb.r) * 3, a.rayonKm * 4) : (ENFANTS[id] ? Math.max(...ENFANTS[id].filter((c) => c.grosse).map((c) => c.orbite.a), a.rayonKm * 10) * 2.4 : a.rayonKm * 30);
+    let taille;
+    if (id === 'orbiteur' || id.startsWith('obj:')) {
+      // Un vaisseau : on cadre son orbite autour de l'astre qu'il survole.
+      const o = id === 'orbiteur' ? this.v.orb : this.objetSuivi(id.slice(4));
+      if (!o) return this.centrerSur('orbiteur');
+      const a = ASTRES_PAR_ID[o.centre];
+      taille = Math.max(V.norm(o.r) * 3, a.rayonKm * 4);
+      if (a.type === 'etoile') taille = Math.max(V.norm(o.r) * 0.25, 2e6);   // en croisière : la région autour
+    } else {
+      const a = ASTRES_PAR_ID[id];
+      taille = ENFANTS[id] ? Math.max(...ENFANTS[id].filter((c) => c.grosse).map((c) => c.orbite.a), a.rayonKm * 10) * 2.4 : a.rayonKm * 30;
+      if (id === 'soleil') taille = 70 * UA_KM;
+    }
     this.cam.echelle = Math.min(innerWidth, innerHeight) / taille;
+  },
+
+  // Ce que la caméra peut suivre en plus des astres : sondes, ravitos, stations.
+  // Renvoie { nom, centre, r, pos (position absolue), genre } ou null.
+  objetSuivi(id) {
+    const v = this.v;
+    const vs = [...v.sondesEnVol, ...(v.cargos || [])].find((o) => o.id === id);
+    if (vs) return { nom: vs.nom, centre: vs.centre, r: vs.r, pos: this.absolu(vs), genre: vs.type === 'cargo' ? 'cargo' : 'sonde', vaisseau: vs };
+    const st = v.stations.find((s) => s.id === id);
+    if (st) { const e = this.etatStation(st); return { nom: st.nom, centre: st.centre, r: e.r, pos: V.add(etatAbsolu(st.centre, v.t).r, e.r), genre: 'station' }; }
+    return null;
+  },
+
+  // Position absolue du point de vue, et astre « principal » de la vue (pour la mini-carte).
+  positionVue() {
+    const f = this.cam.focus, v = this.v;
+    if (f === 'orbiteur') return v.orb ? this.absolu(v.orb) : etatAbsolu('terre', v.t).r;
+    if (f.startsWith('trajet:')) return this.trajet ? this.trajet.centre : [0, 0];
+    if (f.startsWith('obj:')) {
+      const o = this.objetSuivi(f.slice(4));
+      if (o) return o.pos;
+      // L'objet n'existe plus (ravito livré, sonde perdue) : retour à l'orbiteur.
+      this.cam.focus = 'orbiteur';
+      return this.positionVue();
+    }
+    return etatAbsolu(f, v.t).r;
+  },
+  astreDeLaVue() {
+    const f = this.cam.focus;
+    if (f === 'orbiteur') return this.v.orb ? this.v.orb.centre : 'terre';
+    if (f.startsWith('trajet:')) return 'soleil';
+    if (f.startsWith('obj:')) { const o = this.objetSuivi(f.slice(4)); return o ? o.centre : 'soleil'; }
+    return f;
+  },
+
+  // ---------- Trajectoire prévue d'une sonde ou d'un ravito ----------
+  // On rejoue le planificateur sur une copie du vaisseau jusqu'à l'arrivée, en notant les points
+  // de la trajectoire (positions absolues) et chaque événement qui la modifie.
+  planTrajet(vs) {
+    const s = JSON.parse(JSON.stringify({ centre: vs.centre, r: vs.r, v: vs.v, transfert: vs.transfert || null }));
+    const cible = vs.cible;
+    let t = vs.tSonde !== undefined ? vs.tSonde : this.v.t;
+    const t0 = t, tMax = t + 40 * 365.25 * JOUR;
+    const pts = [], marques = [];
+    const abs = () => V.add(etatAbsolu(s.centre, t).r, s.r);
+    const marquer = (type, texte, extra = {}) => marques.push({ type, texte, t, p: abs(), ...extra });
+    pts.push(abs());
+    marquer('depart', `Départ de l’orbite de ${ASTRES_PAR_ID[s.centre].nom}`);
+    let fin = null;
+    for (let boucle = 0; boucle < 80 && !fin; boucle++) {
+      const e = prochaineEtape(s, t, cible);
+      if (e.type === 'fini') { fin = 'arrivee'; marquer('arrivee', e.texte); break; }
+      if (e.type === 'impossible') { fin = 'impossible'; marquer('impossible', e.texte); break; }
+      if (!e.attenteEvenement && t >= e.tExec - 1e-6) {
+        const dv = e.dv(s, t);
+        appliquerImpulsion(s, dv);
+        marquer('manoeuvre', e.texte.split(' : ')[0], { dv: V.norm(dv) * 1000 });
+        continue;
+      }
+      // Événement attendu (sortie de sphère, arrivée) : on avance jusqu'à lui, ou d'au moins un jour s'il est en retard.
+      const tFin = e.attenteEvenement ? Math.min(tMax, Math.max(e.tExec, t + JOUR) + Math.max(3600, 0.1 * (e.tExec - t))) : e.tExec;
+      if (tFin <= t) { t += 60; continue; }
+      // Découpage en petits pas pour dessiner une courbe lisse.
+      const n = 48, h = (tFin - t) / n;
+      for (let k = 0; k < n; k++) {
+        const ev = [];
+        const res = avancerVaisseau(s, t, h, ev, true);
+        if (res === 'impact') { fin = 'impact'; t += h; pts.push(abs()); marquer('impact', `Impact sur ${ASTRES_PAR_ID[s.centre].nom}`); break; }
+        if (res === 'changement') {
+          const x = ev[ev.length - 1];
+          t = x.t;
+          pts.push(abs());
+          marquer('soi', x.type === 'entree' ? `Entrée dans la sphère d’influence de ${ASTRES_PAR_ID[x.vers].nom}` : `Sortie de la sphère d’influence de ${ASTRES_PAR_ID[x.de].nom}`);
+          break;
+        }
+        t += h;
+        pts.push(abs());
+      }
+      if (t >= tMax) { fin = 'trop-long'; break; }
+    }
+    return { pts, marques, t0, tFin: t, fin, cible, nom: vs.nom, id: vs.id };
+  },
+
+  // Ouvre la vue « trajectoire » : départ, arrivée et le trajet entre les deux, avec ses manœuvres.
+  ouvrirTrajet(id) {
+    const o = this.objetSuivi(id);
+    if (!o || !o.vaisseau) return;
+    const plan = this.planTrajet(o.vaisseau);
+    // Cadre : tous les points du trajet, l'astre de départ maintenant et la cible à l'arrivée.
+    const boite = [...plan.pts, etatAbsolu(o.vaisseau.centre, this.v.t).r, etatAbsolu(plan.cible, plan.tFin).r];
+    const xs = boite.map((p) => p[0]), ys = boite.map((p) => p[1]);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    this.trajet = { ...plan, centre: [(x0 + x1) / 2, (y0 + y1) / 2] };
+    this.cam.focus = 'trajet:' + id;
+    this.cam.decal = [0, 0];
+    const marge = 1.25;
+    this.cam.echelle = Math.min((innerWidth - 560) / ((x1 - x0) * marge || 1), (innerHeight - 160) / ((y1 - y0) * marge || 1));
+    this.cam.echelle = Math.max(1e-10, Math.min(5, this.cam.echelle));
+    this.majHud(true);
+  },
+  fermerTrajet() { this.trajet = null; if (this.cam.focus.startsWith('trajet:')) this.centrerSur('orbiteur'); },
+
+  dessinerTrajet(ctx, ecran, W, H) {
+    const tr = this.trajet, t = this.v.t;
+    if (!tr) return;
+    // Courbe : en pointillés cyan, la partie déjà parcourue plus pâle.
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 5]);
+    ctx.strokeStyle = 'rgba(77,208,225,0.9)';
+    ctx.beginPath();
+    tr.pts.forEach((p, i) => { const q = ecran(p); if (i === 0) ctx.moveTo(q[0], q[1]); else ctx.lineTo(q[0], q[1]); });
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // Cible à l'arrivée
+    const cible = ASTRES_PAR_ID[tr.cible];
+    const pa = ecran(etatAbsolu(tr.cible, tr.tFin).r);
+    ctx.strokeStyle = 'rgba(102,187,106,0.9)'; ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.arc(pa[0], pa[1], 10, 0, 2 * Math.PI); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(102,187,106,0.95)'; ctx.font = '11px system-ui, sans-serif';
+    ctx.fillText(`${cible.nom} à l’arrivée (${fmtDate(tr.tFin, false)})`, pa[0] + 13, pa[1] + 4);
+    // Événements numérotés ; ceux déjà passés sont grisés. Les points trop proches à l'écran sont regroupés.
+    const places = [];
+    tr.marques.forEach((m, i) => {
+      const q = ecran(m.p);
+      const passe = m.t < t;
+      const couleur = passe ? '#78909c' : { manoeuvre: '#ffca28', soi: '#4dd0e1', arrivee: '#66bb6a', depart: '#ff7043', impact: '#ff1744', impossible: '#ff1744' }[m.type] || '#fff';
+      ctx.fillStyle = couleur;
+      ctx.beginPath(); ctx.arc(q[0], q[1], m.type === 'manoeuvre' ? 6 : 4.5, 0, 2 * Math.PI); ctx.fill();
+      let dy = 0;
+      for (const p of places) if (Math.hypot(p[0] - q[0], p[1] - q[1]) < 14) dy += 13;
+      places.push(q);
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 11px system-ui, sans-serif';
+      ctx.fillText(String(i + 1), q[0] + 8, q[1] - 6 + dy);
+    });
+    // Légende
+    const lignes = tr.marques.map((m, i) => `${i + 1}. ${fmtDate(m.t, false)} · ${m.texte}${m.dv ? ` (${fmtV(m.dv)})` : ''}`);
+    const titre = `Trajectoire de ${tr.nom} · durée ${fmtDuree(tr.tFin - tr.t0)}` + (tr.fin !== 'arrivee' ? ' · ⚠ n’arrive pas' : '');
+    ctx.font = '12px system-ui, sans-serif';
+    const L = Math.max(ctx.measureText(titre).width, ...lignes.map((l) => ctx.measureText(l).width)) + 24;
+    const x0 = Math.max(8, W / 2 - L / 2), y0 = 52, hBoite = 26 + lignes.length * 17;
+    ctx.fillStyle = 'rgba(8,12,24,0.85)'; ctx.fillRect(x0, y0, L, hBoite);
+    ctx.strokeStyle = 'rgba(77,208,225,0.6)'; ctx.strokeRect(x0, y0, L, hBoite);
+    ctx.fillStyle = '#4dd0e1'; ctx.font = 'bold 12px system-ui, sans-serif'; ctx.fillText(titre, x0 + 12, y0 + 17);
+    ctx.font = '12px system-ui, sans-serif';
+    lignes.forEach((l, i) => { ctx.fillStyle = tr.marques[i].t < t ? '#78909c' : '#dfe8ff'; ctx.fillText(l, x0 + 12, y0 + 36 + i * 17); });
+  },
+
+  // Fenêtre « Vues » : tout ce qu'on peut regarder.
+  ouvrirVues() {
+    const v = this.v, m = $('modale');
+    const bouton = (vue, texte, principal) => `<button data-vue="${vue}" ${principal ? 'class="principal"' : ''}>${texte}</button>`;
+    const ligne = (titre, boutons) => `<div class="ligne-vue"><span>${titre}</span><span>${boutons}</span></div>`;
+    const enVol = [...v.sondesEnVol.filter((s) => s.etat !== 'perdue'), ...(v.cargos || [])];
+    const section = (titre, contenu) => `<section><h3>${titre}</h3>${contenu || '<p class="doux">Aucun pour l’instant.</p>'}</section>`;
+    m.innerHTML = `
+      <div class="fenetre">
+        <header class="entete"><div><h2>👁 Vues</h2><p>Choisissez ce que la carte suit. « Trajectoire » montre le trajet prévu d’un vaisseau, du départ à l’arrivée, avec ses manœuvres.</p></div><button class="fermer">✕</button></header>
+        <div class="sections">
+          ${section('Expédition', (v.orb ? ligne('🚀 Orbiteur', bouton('astre:orbiteur', 'Suivre', true)) + ligne(`🪐 ${ASTRES_PAR_ID[v.orb.centre].nom} (astre survolé)`, bouton('astre:' + v.orb.centre, 'Centrer')) : '') +
+            (v.cible ? ligne(`🎯 ${ASTRES_PAR_ID[v.cible].nom} (cible)`, bouton('astre:' + v.cible, 'Centrer')) : '') +
+            ligne('☀ Tout le système solaire', bouton('astre:soleil', 'Centrer')) + ligne('🌍 Terre', bouton('astre:terre', 'Centrer')))}
+          ${section('Sondes et ravitos en route', enVol.map((o) => ligne(`${o.type === 'cargo' ? '📦' : '🛰'} ${o.nom}${o.etat === 'arrivee' ? ' (en orbite)' : ''}`,
+            bouton('obj:' + o.id, 'Suivre') + (o.etat === 'vol' ? bouton('trajet:' + o.id, 'Trajectoire', true) : ''))).join(''))}
+          ${section('Stations', v.stations.map((s) => ligne(`🛰 ${s.nom}`, bouton('obj:' + s.id, 'Suivre'))).join(''))}
+          ${section('Bases', v.bases.map((b) => ligne(`🏠 Base sur ${ASTRES_PAR_ID[b.astre].nom} (niveau ${b.niveau || 1})`, bouton('astre:' + b.astre, 'Centrer'))).join(''))}
+        </div>
+      </div>`;
+    m.classList.remove('cache');
+    m.querySelector('.fermer').onclick = () => Infos.fermer();
+    m.querySelectorAll('[data-vue]').forEach((b) => {
+      b.onclick = () => {
+        const [genre, id] = b.dataset.vue.split(':');
+        Infos.fermer();
+        if (genre === 'trajet') return this.ouvrirTrajet(id);
+        this.trajet = null;
+        this.centrerSur(genre === 'obj' ? 'obj:' + id : id);
+      };
+    });
   },
 
   // ---------- Rendu ----------
   dessiner(ctx, W, H) {
     const v = this.v, t = v.t, s = this.cam.echelle;
-    const focus = this.cam.focus === 'orbiteur' ? this.absolu(v.orb) : etatAbsolu(this.cam.focus, t).r;
+    const focus = this.positionVue();
     const cam = V.add(focus, this.cam.decal);
     const ecran = (p) => [W / 2 + (p[0] - cam[0]) * s, H / 2 - (p[1] - cam[1]) * s];
     const dansEcran = (p, m = 50) => p[0] > -m && p[0] < W + m && p[1] > -m && p[1] < H + m;
@@ -709,6 +903,16 @@ const Orbiteur = {
     ctx.restore();
     if (this.flash > 0) this.flash -= 1 / 30;
 
+    this.dessinerTrajet(ctx, ecran, W, H);
+    // Vaisseau suivi (ou dont on regarde la trajectoire) : cercle qui pulse et nom.
+    const suivi = this.cam.focus.startsWith('obj:') ? this.cam.focus.slice(4) : this.trajet ? this.trajet.id : null;
+    const os = suivi && this.objetSuivi(suivi);
+    if (os) {
+      const q = ecran(os.pos), r = 11 + 3 * Math.sin(performance.now() / 200);
+      ctx.strokeStyle = '#4dd0e1'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(q[0], q[1], r, 0, 2 * Math.PI); ctx.stroke();
+      ctx.fillStyle = '#e0f7fa'; ctx.font = 'bold 12px system-ui, sans-serif'; ctx.fillText(os.nom, q[0] + r + 4, q[1] - r);
+    }
     this.dessinerMiniCarte(ctx, W, H);
 
     // Échelle
@@ -739,7 +943,7 @@ const Orbiteur = {
   // Mini-carte : vue plus large, centrée sur l'astre principal autour duquel tourne ce qu'on regarde.
   dessinerMiniCarte(ctx, W, H) {
     const v = this.v, t = v.t;
-    const vu = this.cam.focus === 'orbiteur' ? v.orb.centre : this.cam.focus;
+    const vu = this.astreDeLaVue();
     const a = ASTRES_PAR_ID[vu];
     this.mini = null;
     if (!a || !a.orbite) return;
@@ -782,8 +986,7 @@ const Orbiteur = {
     ctx.fillRect(po[0] - 2.5, po[1] - 2.5, 5, 5);
     // Cadre de la vue principale
     const s = this.cam.echelle;
-    const focus = this.cam.focus === 'orbiteur' ? this.absolu(v.orb) : etatAbsolu(this.cam.focus, t).r;
-    const c0 = versMini(V.add(focus, this.cam.decal));
+    const c0 = versMini(V.add(this.positionVue(), this.cam.decal));
     const lw = (W / s) * k, lh = (H / s) * k;
     if (lw > 3) { ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.strokeRect(c0[0] - lw / 2, c0[1] - lh / 2, lw, lh); }
     ctx.restore();
@@ -818,7 +1021,7 @@ const Orbiteur = {
         <span class="groupe modes">
           ${['libre', 'assistant', 'planificateur'].map((m) => `<button data-mode="${m}">${{ libre: 'Pilotage libre', assistant: 'Assistant', planificateur: 'Planificateur' }[m]}</button>`).join('')}
         </span>
-        <span class="groupe">🎯 Centrer : <button id="nav-c-orb">Orbiteur</button><button id="nav-c-astre"></button><button id="nav-c-cible" class="cache"></button></span>
+        <span class="groupe">🎯 Centrer : <button id="nav-c-orb">Orbiteur</button><button id="nav-c-astre"></button><button id="nav-c-cible" class="cache"></button><button id="nav-vues">👁 Vues…</button><button id="nav-fermer-trajet" class="cache">✕ Trajectoire</button></span>
         <label class="groupe"><input type="checkbox" id="nav-masque"> Grosses lunes seulement</label>
         <button id="nav-encyclo">📖 Astres</button>
         <button id="nav-pause">⏸</button>
@@ -831,9 +1034,11 @@ const Orbiteur = {
     $('nav-plus').onclick = () => this.changerWarp(1);
     h.querySelectorAll('[data-mode]').forEach((b) => { b.onclick = () => { this.v.mode = b.dataset.mode; this.auto = false; this.avance = false; this.v.manette = 0; this.majHud(true); }; });
     $('nav-masque').onchange = () => this.contexte.basculerMasque();
-    $('nav-c-orb').onclick = () => this.centrerSur('orbiteur');
-    $('nav-c-astre').onclick = () => this.centrerSur(this.v.orb.centre);
-    $('nav-c-cible').onclick = () => { if (this.v.cible) this.centrerSur(this.v.cible); };
+    $('nav-c-orb').onclick = () => { this.trajet = null; this.centrerSur('orbiteur'); };
+    $('nav-c-astre').onclick = () => { this.trajet = null; this.centrerSur(this.v.orb ? this.v.orb.centre : 'terre'); };
+    $('nav-c-cible').onclick = () => { if (this.v.cible) { this.trajet = null; this.centrerSur(this.v.cible); } };
+    $('nav-vues').onclick = () => this.ouvrirVues();
+    $('nav-fermer-trajet').onclick = () => { this.fermerTrajet(); this.majHud(true); };
     $('nav-encyclo').onclick = () => Infos.ouvrirEncyclopedie();
     $('nav-pause').onclick = () => this.contexte.basculerPause();
     $('nav-hangar').onclick = () => this.contexte.hangar();
@@ -885,6 +1090,7 @@ const Orbiteur = {
     $('nav-masque').checked = this.contexte.masque();
     $('nav-c-astre').textContent = c.nom;
     $('nav-c-cible').classList.toggle('cache', !v.cible || v.cible === o.centre);
+    $('nav-fermer-trajet').classList.toggle('cache', !this.trajet);
     if (v.cible) $('nav-c-cible').textContent = ASTRES_PAR_ID[v.cible].nom;
     $('nav-pause').textContent = this.contexte.estEnPause() ? '▶' : '⏸';
     document.querySelectorAll('#hud-nav [data-mode]').forEach((b) => b.classList.toggle('choisi', b.dataset.mode === v.mode));
@@ -1005,7 +1211,7 @@ const Orbiteur = {
     const v = this.v;
     if (e.key === '+' || e.code === 'NumpadAdd' || e.code === 'Equal') this.changerWarp(1);
     if (e.key === '-' || e.code === 'NumpadSubtract' || e.code === 'Minus' || e.code === 'Digit6' && e.key === '-') this.changerWarp(-1);
-    if (e.code === 'KeyF') this.centrerSur('orbiteur');
+    if (e.code === 'KeyF') { this.trajet = null; this.centrerSur('orbiteur'); this.majHud(true); }
     if (v.mode === 'libre') {
       if (['ArrowUp', 'KeyW'].includes(e.code)) v.manette = Math.min(1, v.manette + 0.05);
       if (['ArrowDown', 'KeyS'].includes(e.code)) v.manette = Math.max(0, v.manette - 0.05);

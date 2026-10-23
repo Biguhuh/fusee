@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Fusée — Système solaire</title>
-  <link rel="stylesheet" href="css/style.css?v=12">
+  <link rel="stylesheet" href="css/style.css?v=13">
 </head>
 <body>
   <!-- 0. Accueil -->
@@ -43,6 +43,14 @@
         <p>Avant de partir, cueillez des fleurs et des fruits pour l'équipage (introuvables là-haut) et buvez une bière au Bar de l'Espace.</p>
         <div class="boutons"><button id="accueil-promenade">🌳 Se promener</button></div>
       </article>
+    </div>
+
+    <div class="sauvegarde-accueil">
+      <span>💾 La partie est enregistrée dans ce navigateur, toutes les 5 secondes.</span>
+      <button id="exporter">⬇ Télécharger la sauvegarde</button>
+      <button id="importer">⬆ Charger une sauvegarde</button>
+      <input type="file" id="fichier-sauvegarde" accept=".json,application/json" class="cache">
+      <span id="sauvegarde-info" class="doux"></span>
     </div>
 
     <h2>Les données</h2>
@@ -193,20 +201,20 @@
   <div id="modale" class="modale cache"></div>
   <div id="infobulle" class="infobulle cache"></div>
 
-  <script src="js/astres.js?v=12"></script>
-  <script src="js/equipements.js?v=12"></script>
-  <script src="js/physique.js?v=12"></script>
-  <script src="js/donnees-jpl.js?v=12"></script>
-  <script src="js/catalogue.js?v=12"></script>
-  <script src="js/orbites.js?v=12"></script>
-  <script src="js/vol.js?v=12"></script>
-  <script src="js/navigation.js?v=12"></script>
-  <script src="js/orbiteur.js?v=12"></script>
-  <script src="js/exploration.js?v=12"></script>
-  <script src="js/equipage.js?v=12"></script>
-  <script src="js/campagne.js?v=12"></script>
-  <script src="js/ecrans.js?v=12"></script>
-  <script src="js/infos.js?v=12"></script>
-  <script src="js/main.js?v=12"></script>
+  <script src="js/astres.js?v=13"></script>
+  <script src="js/equipements.js?v=13"></script>
+  <script src="js/physique.js?v=13"></script>
+  <script src="js/donnees-jpl.js?v=13"></script>
+  <script src="js/catalogue.js?v=13"></script>
+  <script src="js/orbites.js?v=13"></script>
+  <script src="js/vol.js?v=13"></script>
+  <script src="js/navigation.js?v=13"></script>
+  <script src="js/orbiteur.js?v=13"></script>
+  <script src="js/exploration.js?v=13"></script>
+  <script src="js/equipage.js?v=13"></script>
+  <script src="js/campagne.js?v=13"></script>
+  <script src="js/ecrans.js?v=13"></script>
+  <script src="js/infos.js?v=13"></script>
+  <script src="js/main.js?v=13"></script>
 </body>
 </html>

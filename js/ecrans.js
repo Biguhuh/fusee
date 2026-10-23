@@ -26,6 +26,73 @@ function sauver(etat) {
   } catch (e) { /* ignoré */ }
 }
 
+// ---------- Fichier de sauvegarde (télécharger / charger) ----------
+// Le fichier est du JSON simple. À l'import, on ne lui fait pas confiance :
+// lecture par JSON.parse (jamais exécuté), taille limitée, structure vérifiée,
+// et chaque texte nettoyé pour qu'il ne puisse pas glisser du HTML dans les pages.
+const TAILLE_MAX_SAUVEGARDE = 5 * 1024 * 1024;
+
+function exporterSauvegarde(etat) {
+  sauver(etat);
+  const contenu = {
+    jeu: 'fusee', format: 1, date: new Date().toISOString(),
+    sauvegarde: JSON.parse(localStorage.getItem(CLE_SAUVEGARDE) || 'null'),
+    spationaute: JSON.parse(localStorage.getItem(CLE_SPATIO) || 'null'),
+  };
+  const blob = new Blob([JSON.stringify(contenu)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `fusee-sauvegarde-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// Copie « propre » : seulement des objets, tableaux, nombres finis, booléens et textes sans balises.
+function nettoyerDonnees(x, profondeur = 0) {
+  if (profondeur > 40) throw new Error('structure trop profonde');
+  if (x === null || typeof x === 'boolean') return x;
+  if (typeof x === 'number') { if (!Number.isFinite(x)) throw new Error('nombre invalide'); return x; }
+  if (typeof x === 'string') return x.slice(0, 2000).replace(/</g, '‹').replace(/>/g, '›').replace(/"/g, '”').replace(/`/g, '’');
+  if (Array.isArray(x)) return x.slice(0, 100000).map((e) => nettoyerDonnees(e, profondeur + 1));
+  if (typeof x === 'object') {
+    const o = {};
+    for (const [k, val] of Object.entries(x)) {
+      if (k === '__proto__' || k === 'constructor' || k === 'prototype' || k.length > 100) continue;
+      o[nettoyerDonnees(k, profondeur + 1)] = nettoyerDonnees(val, profondeur + 1);
+    }
+    return o;
+  }
+  throw new Error('type inattendu');
+}
+
+// Lit le fichier choisi ; appelle fini(message d'erreur ou null).
+function importerSauvegarde(fichier, fini) {
+  if (!fichier) return;
+  if (fichier.size > TAILLE_MAX_SAUVEGARDE) return fini('Fichier trop gros pour être une sauvegarde du jeu.');
+  const lecteur = new FileReader();
+  lecteur.onerror = () => fini('Impossible de lire ce fichier.');
+  lecteur.onload = () => {
+    let d;
+    try { d = nettoyerDonnees(JSON.parse(lecteur.result)); } catch (e) { return fini('Ce fichier n’est pas une sauvegarde valide (' + e.message + ').'); }
+    if (!d || d.jeu !== 'fusee' || !d.sauvegarde || typeof d.sauvegarde.equipement !== 'object') return fini('Ce fichier n’est pas une sauvegarde de Fusée.');
+    // Essai à blanc : la sauvegarde doit pouvoir être chargée sans erreur.
+    try {
+      if (d.sauvegarde.voyage) { const v = migrerVoyage(d.sauvegarde.voyage); resumeCampagne(v); }
+    } catch (e) { return fini('Sauvegarde abîmée : elle ne peut pas être chargée.'); }
+    try {
+      // On garde l'ancienne sauvegarde de côté, au cas où.
+      const avant = localStorage.getItem(CLE_SAUVEGARDE);
+      if (avant) localStorage.setItem(CLE_SAUVEGARDE + '-avant-import', avant);
+      localStorage.setItem(CLE_SAUVEGARDE, JSON.stringify(d.sauvegarde));
+      if (d.spationaute && typeof d.spationaute === 'object') localStorage.setItem(CLE_SPATIO, JSON.stringify(d.spationaute));
+    } catch (e) { return fini('Le navigateur refuse d’enregistrer cette sauvegarde (stockage plein ou bloqué).'); }
+    fini(null);
+  };
+  lecteur.readAsText(fichier);
+}
+
 // ---------- Hangar ----------
 function descriptionPiece(cat, o) {
   switch (cat) {

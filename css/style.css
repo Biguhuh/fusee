@@ -232,3 +232,9 @@ dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .spatio .boutons { text-align: right; }
 .equipage-accueil { display: flex; align-items: center; gap: 10px; margin: 14px 0 0; font-size: 15px; }
 .equipage-accueil button { padding: 4px 10px; font-size: 13px; }
+
+/* Sauvegarde (accueil) et fenêtre des vues */
+.sauvegarde-accueil { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 18px 0 0; padding: 12px 14px; background: var(--panneau); border: 1px solid var(--bord); border-radius: 12px; }
+.sauvegarde-accueil button { padding: 6px 12px; }
+.ligne-vue { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.ligne-vue button { padding: 4px 10px; font-size: 13px; margin-left: 4px; }
