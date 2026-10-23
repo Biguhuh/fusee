@@ -152,8 +152,8 @@ function verifications(a, f) {
     const aide = a.atm && a.atm.rho0 > 0.5 ? " L'air freine aussi." : '';
     ajoute(twr < 1 ? 'danger' : twr < 1.3 ? 'alerte' : 'ok', `Poussée/poids au sol : ${fmt(twr, 2)}. ${twr < 1 ? 'Le moteur ne peut pas freiner la chute.' : 'Plus de 1 : vous pouvez freiner et redécoller.'}${aide}`);
     const p = a.atm ? a.atm.p0 : 0;
-    ajoute(p > f.pressionMax ? 'danger' : p * 1.3 > f.pressionMax ? 'alerte' : 'ok', `Pression au sol : ${fmtP(p)} (coque ${fmt(f.pressionMax)} bar).`);
-    ajoute(a.tempSurface > f.tempMax ? 'danger' : a.tempSurface > f.tempMax - 50 ? 'alerte' : 'ok', `Température au sol : ${fmt(a.tempSurface)} °C (bouclier ${fmt(f.tempMax)} °C).`);
+    ajoute(p > f.pressionMax ? 'danger' : p * 1.3 > f.pressionMax ? 'alerte' : 'ok', `Pression au sol : ${fmtP(p)} (coque : ${fmt(f.pressionMax)} bar sans dégâts${p > f.pressionMax ? ', au-delà elle s\'abîme puis cède' : ''}).`);
+    ajoute(a.tempSurface > f.tempMax ? 'danger' : a.tempSurface > f.tempMax - 50 ? 'alerte' : 'ok', `Température au sol : ${fmt(a.tempSurface)} °C (bouclier : ${fmt(f.tempMax)} °C sans dégâts${a.tempSurface > f.tempMax ? ', au-delà la coque brûle peu à peu' : ''}).`);
     const besoin = a.depart.vitesse + Math.sqrt(2 * a.g * a.depart.alt) * (a.atm && a.atm.rho0 > 0.5 ? 0.3 : 1);
     ajoute(dv < besoin ? 'danger' : dv < besoin * 1.5 ? 'alerte' : 'ok', `Δv : ${fmt(dv)} m/s (≈ ${fmt(besoin)} m/s pour se poser sans air pour freiner).`);
   }
@@ -203,7 +203,9 @@ function texteResultat(r) {
       if (i.vv > a.vMax) raisons.push(`vitesse verticale ${fmt(i.vv, 1)} m/s`);
       if (i.vh > a.vMax) raisons.push(`vitesse horizontale ${fmt(i.vh, 1)} m/s`);
       if (i.inc > INCLINAISON_MAX) raisons.push(`inclinaison ${fmt(i.inc)}°`);
-      return ['Écrasée', 'echec', `Contact trop brutal avec le sol de ${a.nom} : ${raisons.join(', ')}. Maximum supporté : ${a.vMax} m/s et ${INCLINAISON_MAX}° d'inclinaison.`];
+      if (i.pente > INCLINAISON_MAX) raisons.push(`sol en pente de ${fmt(i.pente)}°`);
+      const suite = i.exces < MARGE_RUPTURE ? ` La coque, déjà abîmée (${fmt(i.integriteAvant)} %), n'a pas tenu le choc.` : '';
+      return ['Écrasée', 'echec', `Contact trop brutal avec le sol de ${a.nom} : ${raisons.join(', ')}. Sans dégâts : ${a.vMax} m/s, ${INCLINAISON_MAX}° d'inclinaison et de pente au maximum.${suite}`];
     }
     case 'carburant':
       return ['À court de carburant', 'echec', `Réservoir vide à ${fmtAlt(Math.max(0, r.carburantVideAlt || 0))} d'altitude. Sans moteur pour freiner, la fusée s'est écrasée à ${fmt(i.vv, 1)} m/s (maximum ${a.vMax} m/s).`];
@@ -211,15 +213,17 @@ function texteResultat(r) {
       return ['Posé… mais à court de carburant', 'partiel', `La fusée est intacte sur ${a.nom}, mais le réservoir est vide : impossible de redécoller.`];
     case 'brulee':
       return ['Brûlée', 'echec', a.type === 'etoile'
-        ? `La coque a atteint ${fmt(r.temp)} °C à ${fmtAlt(r.stats.altMin)} de la photosphère, au-delà des ${fmt(f.tempMax)} °C du bouclier. Se poser sur le Soleil est impossible : tout brûle bien avant.`
-        : `La coque a atteint ${fmt(r.temp)} °C, au-delà des ${fmt(f.tempMax)} °C que supporte le bouclier. Extérieur : ${fmt(c.t)} °C.`];
+        ? `La coque a chauffé jusqu'à ${fmt(r.temp)} °C à ${fmtAlt(r.stats.altMin)} de la photosphère, au-delà des ${fmt(f.tempMax)} °C du bouclier, et a fini par fondre. Se poser sur le Soleil est impossible : tout brûle bien avant.`
+        : `La coque a chauffé jusqu'à ${fmt(r.temp)} °C, au-delà des ${fmt(f.tempMax)} °C du bouclier, et s'est consumée peu à peu. Extérieur : ${fmt(c.t)} °C.`];
     case 'pressurisee':
-      return ['Pressurisée', 'echec', `La pression extérieure a atteint ${fmtP(c.p)}, la coque n'en supporte que ${fmt(f.pressionMax)}.` +
+      return ['Pressurisée', 'echec', `La pression extérieure est montée jusqu'à ${fmtP(c.p)} pour une coque prévue pour ${fmt(f.pressionMax)} bar : elle s'est déformée puis a cédé.` +
         (a.type === 'gazeuse' ? (r.carburantRestant <= 0 ? ` Réservoir vide, la fusée a sombré vers le centre de ${a.nom}.` : ` Plus on descend dans ${a.nom}, plus la pression monte.`) : '')];
     case 'irradiee':
       return ['Irradiée', 'echec', `Le rayonnement (${fmt(c.rad, 1)}, protection ${fmt(f.protection, 1)}) a grillé l'électronique. Il faut un panneau anti-vent solaire plus épais.`];
     case 'pose':
-      return [`Réussite : posé sur ${a.nom}`, 'succes', `Contact à ${fmt(i ? i.vv : 0, 1)} m/s. Pour la réussite totale, redécollez et revenez en orbite.`];
+      return [`Réussite : posé sur ${a.nom}`, 'succes', `Contact à ${fmt(i ? i.vv : 0, 1)} m/s.` +
+        (i && i.degats > 0 ? ` Atterrissage dur : la coque a perdu ${fmt(i.degats)} %.` : '') +
+        ' Pour la réussite totale, redécollez et revenez en orbite.'];
     case 'retour':
       return ['Réussite totale : aller-retour', 'succes', `Posé sur ${a.nom} puis revenu à ${fmtAlt(altitudeRetour(a))}.`];
     case 'plongee':
@@ -242,6 +246,8 @@ function afficherResultat(r) {
     <dt>Vitesse max</dt><dd>${fmtV(r.stats.vMax)}</dd>
     <dt>Pression max</dt><dd>${fmtP(r.stats.pMax)}</dd>
     <dt>Température coque max</dt><dd>${fmt(r.stats.tMax)} °C</dd>
+    <dt>Intégrité de la coque</dt><dd>${fmt(Math.max(0, r.integrite))} %</dd>
+    <dt>Dégâts pression / chaleur / chocs</dt><dd>${fmt(r.degats.pression)} / ${fmt(r.degats.chaleur)} / ${fmt(r.degats.impact)} %</dd>
     <dt>Carburant restant</dt><dd>${fmt(r.carburantRestant)} kg</dd>
     <dt>Dose de rayonnement</dt><dd>${fmt(Math.min(100, r.dose))} %</dd>`;
 }

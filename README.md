@@ -15,13 +15,26 @@ Jeu web en HTML, JavaScript et canvas 2D, sans framework.
 ## Commandes
 | Touche | Action |
 |---|---|
-| ↑ / Z / Espace | pleine poussée |
-| ↓ / S | poussée douce (30 %) |
+| ↑ / Z | monter la manette des gaz (+5 % par appui, en continu si maintenu) |
+| ↓ / S | baisser la manette des gaz |
+| X | couper les gaz |
+| Espace | plein gaz |
 | ← → / Q D | orienter |
-| + / − | accélérer / ralentir le temps (repasse à ×1 sous 1,5 km) |
+| L | pilote automatique (toute commande manuelle le coupe) |
+| + / − | accélérer / ralentir le temps (repasse à ×1 sous 1,5 km et dès que la coque s'abîme) |
 | P | pause |
 | Entrée | terminer la mission une fois posé |
 | Échap | abandonner |
+
+La manette reste où on la laisse. Le trait blanc sur la jauge « Gaz » indique la poussée qui compense exactement le poids.
+
+## Dégâts progressifs
+- Au-delà de la pression ou de la température supportée, la coque s'abîme petit à petit : 1 %/s à +5 %, 5 %/s à +10 %, 20 %/s à +20 %.
+- Un atterrissage un peu trop dur (jusqu'à +50 % des limites) abîme la coque au lieu de la détruire.
+- À l'écran : fissures, coque pincée par la pression, peinture noircie et rougeoiement par la chaleur, fumée, étincelles, bords rouges et secousses.
+
+## Relief
+Les astres solides ont des collines, des cratères et des rochers. La pente du sol est affichée : au-delà de 15°, l'atterrissage est dangereux. Le pilote automatique cherche seul une zone plate (repère vert).
 
 ## Fichiers
 - `js/astres.js` : données des 19 astres (valeurs réelles arrondies)

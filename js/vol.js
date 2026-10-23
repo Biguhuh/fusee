@@ -1,15 +1,21 @@
 'use strict';
 // Simulation et affichage d'un vol.
-// Repère : x horizontal (m), y = altitude (m). angle = 0 quand la fusée pointe vers le haut.
+// Repère : x horizontal (m), y = altitude (m) par rapport au niveau moyen du sol
+// (ou au niveau 1 bar des géantes). angle = 0 quand la fusée pointe vers le haut.
 
 const VITESSE_ROTATION = 1.6;  // rad/s
-const INCLINAISON_MAX = 15;    // degrés, au contact du sol
-const POUSSEE_DOUCE = 0.3;     // fraction de poussée avec ↓ / S
+const INCLINAISON_MAX = 15;    // degrés : inclinaison de la fusée et pente du sol supportées à l'atterrissage
+const MARGE_RUPTURE = 0.5;     // au-delà de +50 % des limites d'atterrissage, c'est le crash direct
+
+// Dégâts par seconde quand on dépasse une limite (pression ou chaleur) d'un ratio r :
+// 5 %/s à +10 %, 1,25 %/s à +5 %, 20 %/s à +20 %.
+function tauxDegats(r) { return r > 0 ? Math.min(200, 5 * Math.pow(r / 0.1, 2)) : 0; }
 
 class Vol {
   constructor(astre, fusee) {
     this.astre = astre;
     this.f = fusee;
+    this.terrain = creerTerrain(astre);
     this.x = 0;
     this.y = astre.depart.alt;
     this.vx = 0;
@@ -19,37 +25,50 @@ class Vol {
     this.temp = 20;
     this.dose = 0;
     this.pose = false;
-    this.throttle = 0;
+    this.manette = 0;          // réglage de la manette des gaz (0 à 1), reste fixe
+    this.throttle = 0;         // poussée effective (0 si réservoir vide)
+    this.autopilote = false;
+    this.messageAuto = '';
+    this.integrite = 100;      // % de coque restante
+    this.degats = { pression: 0, chaleur: 0, impact: 0 };
+    this.taux = { pression: 0, chaleur: 0 };
     this.t = 0;
-    this.fin = null;          // résultat quand le vol est terminé
+    this.fin = null;
     this.phase = { solide: 'descente', gazeuse: 'plongee', etoile: 'approche' }[astre.type];
     this.stats = { vMax: 0, pMax: 0, tMax: 20, altMin: this.y };
     this.carburantVideAlt = null;
+    this.cibleX = null;
+    this.tCible = -1;
+    this.fx = [];              // particules (fumée, étincelles), en coordonnées écran
     this.c = conditions(astre, this.y);
   }
 
   masse() { return this.f.masseSeche + this.carburant; }
-
-  // Rapport poussée / poids local, à pleine poussée.
   twr() { return this.f.poussee / (this.masse() * this.c.g); }
+  sol(x) { return this.terrain ? this.terrain(x) : 0; }
+  altSol() { return this.terrain ? this.y - this.sol(this.x) : this.y; }
+  pente(x) { return Math.atan2(this.sol(x + 3) - this.sol(x - 3), 6); }
+  enDegats() { return this.taux.pression + this.taux.chaleur > 0; }
 
   step(dt, cmd) {
     if (this.fin) return;
     const a = this.astre, f = this.f;
     this.t += dt;
 
-    if (cmd.gauche) this.angle -= VITESSE_ROTATION * dt;
-    if (cmd.droite) this.angle += VITESSE_ROTATION * dt;
+    if (this.autopilote) this.pilotage(dt);
+    else {
+      if (cmd.gauche) this.angle -= VITESSE_ROTATION * dt;
+      if (cmd.droite) this.angle += VITESSE_ROTATION * dt;
+    }
     if (this.angle > Math.PI) this.angle -= 2 * Math.PI;
     if (this.angle < -Math.PI) this.angle += 2 * Math.PI;
 
-    let th = cmd.haut ? 1 : cmd.bas ? POUSSEE_DOUCE : 0;
-    if (this.carburant <= 0) th = 0;
+    const th = this.carburant > 0 ? this.manette : 0;
     this.throttle = th;
     const F = f.poussee * th;
     if (F > 0) {
       this.carburant = Math.max(0, this.carburant - F / (f.isp * G0) * dt);
-      if (this.carburant === 0 && this.carburantVideAlt === null) this.carburantVideAlt = this.y;
+      if (this.carburant === 0 && this.carburantVideAlt === null) this.carburantVideAlt = this.altSol();
     }
 
     const m = this.masse();
@@ -67,6 +86,7 @@ class Vol {
       }
       this.pose = false;
       this.phase = 'remontee';
+      this.y += 0.05;
     }
 
     this.vx += ax * dt;
@@ -88,7 +108,7 @@ class Vol {
     this.dangers(c, v, dt);
     if (this.fin) return;
 
-    if (a.type === 'solide' && this.y <= 0) this.contact();
+    if (this.terrain && this.y <= this.sol(this.x)) this.contact();
     if (this.fin) return;
     this.objectifs();
   }
@@ -102,8 +122,19 @@ class Vol {
     this.stats.pMax = Math.max(this.stats.pMax, c.p);
     this.stats.tMax = Math.max(this.stats.tMax, this.temp);
 
-    if (c.p > f.pressionMax) return this.terminer('pressurisee');
-    if (this.temp > f.tempMax) return this.terminer('brulee');
+    // Au-delà des limites, la coque s'abîme petit à petit.
+    const tp = tauxDegats(c.p / f.pressionMax - 1);
+    const tc = tauxDegats((this.temp + KELVIN) / (f.tempMax + KELVIN) - 1);
+    this.taux = { pression: tp, chaleur: tc };
+    if (tp + tc > 0) {
+      this.degats.pression += tp * dt;
+      this.degats.chaleur += tc * dt;
+      this.integrite -= (tp + tc) * dt;
+      if (this.integrite <= 0) {
+        this.integrite = 0;
+        return this.terminer(tp >= tc ? 'pressurisee' : 'brulee');
+      }
+    }
     if (c.rad > f.protection) {
       this.dose += (c.rad / f.protection - 1) * 5 * dt;
       if (this.dose >= 100) return this.terminer('irradiee');
@@ -112,18 +143,36 @@ class Vol {
 
   contact() {
     const a = this.astre;
-    const vv = -this.vy, vh = Math.abs(this.vx);
+    const penteRad = this.pente(this.x);
+    const vv = Math.max(0, -this.vy), vh = Math.abs(this.vx);
     const inc = Math.abs(this.angle) * 180 / Math.PI;
-    this.y = 0;
-    this.impact = { vv, vh, inc };
-    if (vv > a.vMax || vh > a.vMax || inc > INCLINAISON_MAX) {
+    const pente = Math.abs(penteRad) * 180 / Math.PI;
+    this.y = this.sol(this.x);
+    // Dépassement de la pire des limites (0 = pile à la limite).
+    const exces = Math.max(vv / a.vMax, vh / a.vMax, inc / INCLINAISON_MAX, pente / INCLINAISON_MAX) - 1;
+    this.impact = { vv, vh, inc, pente, exces, degats: 0, integriteAvant: this.integrite };
+    if (exces >= MARGE_RUPTURE) {
       this.terminer(this.carburant <= 0 ? 'carburant' : 'ecrasee');
       return;
     }
+    if (exces > 0) {
+      // Atterrissage dur : la coque encaisse.
+      const d = 160 * exces;
+      this.impact.degats = d;
+      this.degats.impact += d;
+      this.integrite -= d;
+      this.secousse = 0.5;
+      if (this.integrite <= 0) {
+        this.integrite = 0;
+        this.terminer(this.carburant <= 0 ? 'carburant' : 'ecrasee');
+        return;
+      }
+    }
     this.pose = true;
     this.vx = 0; this.vy = 0;
-    this.angle = 0;
+    this.angle = penteRad;     // la fusée repose sur la pente
     this.phase = 'au sol';
+    this.manette = 0;
     this.dejaPose = true;
   }
 
@@ -135,6 +184,87 @@ class Vol {
       return;
     }
     if (this.phase !== 'remontee' && this.y > a.depart.alt * 1.3 + 1000) this.terminer('abandon');
+  }
+
+  // ---------- Pilote automatique ----------
+  // Calcule une vitesse visée, en déduit la poussée et l'orientation nécessaires.
+  pilotage(dt) {
+    const a = this.astre, g = this.c.g, m = this.masse();
+    const alt = this.altSol();
+    const twr = this.twr();
+    let vxCible = 0, vyCible = 0, inclinaisonMax = 0.35;
+    let aFrein = 0;   // décélération nécessaire pour arriver doucement au sol
+
+    switch (this.phase) {
+      case 'descente': {
+        // Cherche un endroit plat à proximité.
+        // On garde la même cible tant qu'elle reste valable, pour ne pas hésiter entre deux zones.
+        if (alt < 1500 && this.t - this.tCible > 1) {
+          if (this.cibleX === null || !this.estPlat(this.cibleX)) this.cibleX = this.chercherPlat();
+          this.tCible = this.t;
+        }
+        const ecart = this.cibleX === null ? 0 : this.cibleX - this.x;
+        vxCible = Math.max(-25, Math.min(25, ecart * 0.08));
+        // L'air freine aussi : on en tient compte pour ne pas gaspiller le carburant.
+        const trainee = 0.5 * this.c.rho * FUSEE_BASE.cx * FUSEE_BASE.surface * this.vy * this.vy / m;
+        const freinage = Math.max(0.3, (twr * 0.85 - 1) * g + 0.7 * trainee);
+        const vFinale = 0.4 * a.vMax;
+        vyCible = -(vFinale + 0.8 * Math.sqrt(2 * freinage * Math.max(0, alt - 3)));
+        if (this.vy < -vFinale) aFrein = (this.vy * this.vy - vFinale * vFinale) / (2 * Math.max(0.5, alt - 2)) - trainee;
+        if (Math.abs(ecart) > 6 && alt < 80) { vyCible = Math.max(vyCible, alt < 30 ? 0.5 : -2); aFrein = 0; } // attendre d'être au-dessus du plat
+        if (alt < 15) inclinaisonMax = 0.05;
+        this.messageAuto = twr < 1 ? 'poussée insuffisante pour freiner !' : this.cibleX === null && alt < 1500 ? 'aucun terrain plat en vue' : 'descente vers une zone plate';
+        break;
+      }
+      case 'au sol':
+      case 'remontee': {
+        const reste = altitudeRetour(a) - this.y;
+        // Dans les géantes, monter vite limite les pertes dues à la gravité.
+        vyCible = a.type === 'gazeuse' ? 550 : Math.min(400, 30 + 0.05 * Math.max(0, reste));
+        this.messageAuto = twr < 1 ? 'poussée insuffisante pour monter !' : 'remontée';
+        break;
+      }
+      case 'plongee': {
+        const zone = 1 + (a.cible - 1) * 0.3;
+        vyCible = this.c.p < zone ? -1e9 : -200;
+        this.messageAuto = 'plongée vers ' + fmt(a.cible, 1) + ' bar';
+        break;
+      }
+      case 'approche':
+        vyCible = -1e9;
+        this.messageAuto = 'aucune trajectoire sûre près du Soleil';
+        break;
+    }
+
+    // Accélération voulue → vecteur poussée.
+    const axV = Math.max(-g, Math.min(g, (vxCible - this.vx) * 0.4));
+    const suivi = (vyCible - this.vy) * 2;
+    const ayV = g + (aFrein > 0 ? Math.max(aFrein * 1.25, suivi) : suivi);
+    const Fx = m * axV, Fy = Math.max(0, m * ayV);
+    let angleCible = Fy > 0 || Fx !== 0 ? Math.atan2(Fx, Math.max(Fy, 1e-6)) : 0;
+    angleCible = Math.max(-inclinaisonMax, Math.min(inclinaisonMax, angleCible));
+    if (this.pose) angleCible = 0;
+    const dA = angleCible - this.angle;
+    this.angle += Math.max(-VITESSE_ROTATION * dt, Math.min(VITESSE_ROTATION * dt, dA));
+    let th = Math.hypot(Fx, Fy) / this.f.poussee;
+    if (Fy <= 0) th = 0;
+    if (Math.abs(dA) > 0.4) th *= 0.3;   // pas de pleine poussée tant qu'on est mal orienté
+    this.manette = Math.max(0, Math.min(1, th));
+  }
+
+  // Endroit le plus proche où le sol est presque plat sur une vingtaine de mètres.
+  estPlat(x) {
+    for (let d = -10; d <= 10; d += 5) if (Math.abs(this.pente(x + d)) > 6 * Math.PI / 180) return false;
+    return true;
+  }
+
+  chercherPlat() {
+    const plat = (x) => this.estPlat(x);
+    for (let r = 0; r <= 800; r += 15) {
+      if (plat(this.x + r)) return this.x + r;
+      if (r && plat(this.x - r)) return this.x - r;
+    }
+    return null;
   }
 
   // Le joueur termine la mission une fois posé (Entrée) ou l'abandonne (Échap).
@@ -152,17 +282,21 @@ class Vol {
       conditions: this.c,
       temp: this.temp,
       dose: this.dose,
+      integrite: this.integrite,
+      degats: { ...this.degats },
       fusee: this.f,
       carburantVideAlt: this.carburantVideAlt,
       stats: { ...this.stats },
     };
     if (detruite) this.explosion = creerExplosion();
+    this.manette = 0;
+    this.throttle = 0;
   }
 
   objectifTexte() {
     const a = this.astre;
     switch (this.phase) {
-      case 'descente': return `Posez-vous en douceur : moins de ${a.vMax} m/s, fusée droite`;
+      case 'descente': return `Posez-vous en douceur : moins de ${a.vMax} m/s, fusée droite, sol pas trop pentu`;
       case 'au sol': return `Posé ! Entrée pour terminer, ou redécollez jusqu'à ${fmtAlt(altitudeRetour(a))}`;
       case 'remontee': return a.type === 'gazeuse'
         ? `${fmt(a.cible, 1)} bar atteints ! Remontez jusqu'au niveau 1 bar`
@@ -183,7 +317,7 @@ function creerExplosion() {
   for (let i = 0; i < 90; i++) {
     const ang = Math.random() * Math.PI * 2;
     const sp = 40 + Math.random() * 220;
-    parts.push({ x: 0, y: 0, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, vie: 0.6 + Math.random() * 1.2 });
+    parts.push({ vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, vie: 0.6 + Math.random() * 1.2 });
   }
   return { parts, t: 0 };
 }
@@ -214,6 +348,18 @@ const POUSSIERES = Array.from({ length: 60 }, () => ({ x: Math.random(), y: Math
 
 function hash(n) { const s = Math.sin(n * 127.1) * 43758.5453; return s - Math.floor(s); }
 
+// Fissures de la coque, en coordonnées relatives (largeur, hauteur de la fusée).
+const FISSURES = Array.from({ length: 16 }, (_, i) => {
+  let x = (hash(i * 3.1) - 0.5) * 0.9, y = -0.12 - hash(i * 5.7) * 0.62;
+  const pts = [[x, y]];
+  for (let s = 0; s < 4; s++) {
+    x = Math.max(-0.5, Math.min(0.5, x + (hash(i * 7 + s) - 0.5) * 0.4));
+    y += (hash(i * 11 + s) - 0.5) * 0.1;
+    pts.push([x, y]);
+  }
+  return pts;
+});
+
 function melanger(c1, c2, t) {
   const a = parseInt(c1.slice(1), 16), b = parseInt(c2.slice(1), 16);
   const r = Math.round(((a >> 16) & 255) * (1 - t) + ((b >> 16) & 255) * t);
@@ -222,9 +368,16 @@ function melanger(c1, c2, t) {
   return `rgb(${r},${g},${bl})`;
 }
 
+function assombrir(hex, k) {
+  const n = parseInt(hex.slice(1), 16);
+  const f = (v) => Math.round(v * k);
+  return `rgb(${f((n >> 16) & 255)},${f((n >> 8) & 255)},${f(n & 255)})`;
+}
+
 function dessinerVol(ctx, vol, W, H, dtReel, warp) {
   const a = vol.astre, c = vol.c;
   const gaz = a.type === 'gazeuse';
+  const solide = a.type === 'solide';
 
   // Échelle : le sol (ou le niveau 1 bar) reste visible en bas quand on s'approche.
   let echelle, fuseeY, solY;
@@ -233,10 +386,17 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
     fuseeY = H * 0.42;
     solY = fuseeY + vol.y * echelle;
   } else {
-    echelle = Math.min(3, (0.45 * H) / Math.max(vol.y, 1));
-    solY = H * 0.8;
-    fuseeY = solY - vol.y * echelle;
+    const alt = vol.altSol();
+    echelle = Math.min(3, (0.45 * H) / Math.max(alt, 1));
+    fuseeY = H * 0.8 - alt * echelle;
+    solY = fuseeY + vol.y * echelle;
   }
+
+  // Secousse de l'écran pendant les dégâts.
+  ctx.save();
+  if (vol.secousse > 0) vol.secousse = Math.max(0, vol.secousse - dtReel);
+  const tremble = (vol.enDegats() && !vol.fin ? 2 + Math.min(6, (vol.taux.pression + vol.taux.chaleur) / 5) : 0) + (vol.secousse > 0 ? 8 * vol.secousse : 0);
+  if (tremble > 0) ctx.translate((Math.random() - 0.5) * tremble, (Math.random() - 0.5) * tremble);
 
   // Ciel : noir dans le vide, couleur de l'atmosphère quand l'air s'épaissit.
   let tCiel = 0;
@@ -251,7 +411,7 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
     ciel = melanger('#02030a', '#ff8a00', lum * 0.8);
   }
   ctx.fillStyle = ciel;
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(-10, -10, W + 20, H + 20);
 
   // Étoiles, de moins en moins visibles quand le ciel s'éclaire.
   const visEt = 1 - Math.min(1, tCiel * 1.4);
@@ -274,17 +434,19 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
     ctx.beginPath(); ctx.arc(W * 0.15, H * 0.12, rs, 0, Math.PI * 2); ctx.fill();
   }
 
+  // Déplacement apparent du décor pendant cette image (pour la poussière et la fumée).
+  const ep = Math.max(0.15, Math.min(3, echelle));
+  const depX = -vol.vx * ep * dtReel * warp, depY = vol.vy * ep * dtReel * warp;
+
   // Poussières / nuages qui défilent pour sentir la vitesse.
   if (c.rho > 1e-4 || gaz || a.type === 'etoile') {
-    const ep = Math.max(0.15, Math.min(3, echelle));
-    const dx = vol.vx * ep * dtReel * warp, dy = -vol.vy * ep * dtReel * warp;
     const lx = Math.max(-80, Math.min(80, vol.vx * ep * 0.05)), ly = Math.max(-80, Math.min(80, -vol.vy * ep * 0.05));
     ctx.strokeStyle = gaz || a.type === 'etoile' ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.35)';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     for (const p of POUSSIERES) {
-      p.x = (((p.x - dx / W) % 1) + 1) % 1;
-      p.y = (((p.y + dy / H) % 1) + 1) % 1;
+      p.x = (((p.x + depX / W) % 1) + 1) % 1;
+      p.y = (((p.y + depY / H) % 1) + 1) % 1;
       const px = p.x * W, py = p.y * H;
       ctx.moveTo(px, py); ctx.lineTo(px - lx, py - ly);
     }
@@ -301,48 +463,27 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
       const sy = fuseeY + (vol.y - k * pas) * echelle;
       const epais = 8 + h * 40;
       ctx.fillStyle = k * pas < 0 ? `rgba(60,25,10,${0.15 + 0.2 * h})` : `rgba(255,255,255,${0.08 + 0.15 * h})`;
-      const dec = ((vol.x * echelle * 0.5 + hash(k) * W) % W + W) % W;
+      const dec = ((-vol.x * echelle * 0.5 + hash(k) * W) % W + W) % W;
       ctx.fillRect(dec - W, sy - epais / 2, W * 0.7, epais);
       ctx.fillRect(dec + W * 0.1, sy - epais / 2, W * 0.6, epais);
     }
   }
 
-  // Sol des astres solides, ou niveau 1 bar des géantes.
-  const rayonPx = a.rayonKm * 1000 * echelle;
-  if (!gaz && rayonPx < 1e5) {
-    // Vu de loin, l'astre est un disque.
-    const g = ctx.createRadialGradient(W / 2, solY + rayonPx, rayonPx * 0.7, W / 2, solY + rayonPx, rayonPx * 1.08);
-    g.addColorStop(0, a.type === 'etoile' ? '#fff3c0' : a.couleurs.sol);
-    g.addColorStop(0.92, a.type === 'etoile' ? '#ff9800' : a.couleurs.sol);
-    g.addColorStop(1, 'rgba(255,152,0,0)');
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(W / 2, solY + rayonPx, rayonPx * 1.08, 0, Math.PI * 2); ctx.fill();
-  } else if (!gaz && solY < H + 10) {
-    if (a.type === 'etoile') {
+  if (solide) dessinerTerrain(ctx, vol, W, H, echelle, fuseeY);
+
+  // Soleil : disque vu de loin, surface au plus près.
+  if (a.type === 'etoile') {
+    const rayonPx = a.rayonKm * 1000 * echelle;
+    if (rayonPx < 1e5) {
+      const g = ctx.createRadialGradient(W / 2, solY + rayonPx, rayonPx * 0.7, W / 2, solY + rayonPx, rayonPx * 1.08);
+      g.addColorStop(0, '#fff3c0'); g.addColorStop(0.92, '#ff9800'); g.addColorStop(1, 'rgba(255,152,0,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(W / 2, solY + rayonPx, rayonPx * 1.08, 0, Math.PI * 2); ctx.fill();
+    } else if (solY < H + 10) {
       const g = ctx.createLinearGradient(0, solY, 0, H);
       g.addColorStop(0, '#fff3c0'); g.addColorStop(1, '#ff9800');
       ctx.fillStyle = g;
-    } else {
-      ctx.fillStyle = a.couleurs.sol;
-    }
-    ctx.fillRect(0, solY, W, H - solY);
-    if (a.type === 'solide' && echelle > 0.03) {
-      // Rochers décoratifs, fixés au terrain.
-      const pas = 30;
-      const x0 = vol.x - W / 2 / echelle, x1 = vol.x + W / 2 / echelle;
-      const n = (x1 - x0) / pas;
-      if (n < 400) {
-        ctx.fillStyle = 'rgba(0,0,0,0.25)';
-        for (let k = Math.floor(x0 / pas); k <= Math.ceil(x1 / pas); k++) {
-          const h = hash(k);
-          if (h < 0.55) continue;
-          const sx = W / 2 + (k * pas - vol.x) * echelle;
-          const r = (1 + hash(k + 7) * 3) * echelle;
-          ctx.beginPath(); ctx.ellipse(sx, solY + 1, r * 1.6, r * 0.6, 0, Math.PI, 0); ctx.fill();
-        }
-      }
-      ctx.fillStyle = 'rgba(255,255,255,0.15)';
-      ctx.fillRect(0, solY, W, 2);
+      ctx.fillRect(0, solY, W, H - solY);
     }
   }
   if (gaz && solY > -50 && solY < H + 50) {
@@ -355,31 +496,150 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
     ctx.fillText('niveau 1 bar', 12, solY - 6);
   }
 
-  // Fusée ou explosion.
+  // Fumée et étincelles, puis fusée ou explosion.
   const hPx = Math.max(FUSEE_BASE.hauteur * echelle, 56);
+  if (!vol.fin && dtReel > 0) emettreParticules(vol, W / 2, fuseeY, hPx, dtReel);
+  dessinerParticules(ctx, vol, depX, depY, dtReel);
   if (vol.explosion) {
     dessinerExplosion(ctx, vol.explosion, W / 2, fuseeY - hPx * 0.4, dtReel);
   } else {
     dessinerFusee(ctx, vol, W / 2, fuseeY, hPx);
   }
+  ctx.restore();
+
+  // Bords rouges qui pulsent quand la coque s'abîme.
+  if (vol.enDegats() && !vol.fin) {
+    const puls = 0.25 + 0.2 * Math.sin(performance.now() / 120);
+    const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
+    g.addColorStop(0, 'rgba(255,0,0,0)');
+    g.addColorStop(1, `rgba(255,${vol.taux.chaleur > vol.taux.pression ? 90 : 0},0,${puls})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
 
   dessinerHUD(ctx, vol, W, H, warp);
 }
 
+function dessinerTerrain(ctx, vol, W, H, echelle, fuseeY) {
+  const a = vol.astre;
+  const ecranY = (wx) => fuseeY + (vol.y - vol.sol(wx)) * echelle;
+  const pas = 3;
+  const pts = [];
+  for (let sx = -pas; sx <= W + pas; sx += pas) pts.push([sx, ecranY(vol.x + (sx - W / 2) / echelle)]);
+
+  // Sol, plus sombre en profondeur.
+  const haut = Math.min(...pts.map((p) => p[1]));
+  if (haut > H + 10) return;
+  const g = ctx.createLinearGradient(0, haut, 0, H);
+  g.addColorStop(0, a.couleurs.sol);
+  g.addColorStop(1, assombrir(a.couleurs.sol, 0.45));
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], H + 10);
+  for (const [x, y] of pts) ctx.lineTo(x, y);
+  ctx.lineTo(W + pas, H + 10);
+  ctx.closePath();
+  ctx.fill();
+
+  // Pentes éclairées d'un côté, ombrées de l'autre.
+  ctx.lineWidth = 2;
+  for (let i = 1; i < pts.length; i++) {
+    const dy = pts[i][1] - pts[i - 1][1];
+    ctx.strokeStyle = dy < 0 ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.25)';
+    ctx.beginPath(); ctx.moveTo(pts[i - 1][0], pts[i - 1][1]); ctx.lineTo(pts[i][0], pts[i][1]); ctx.stroke();
+  }
+
+  // Rochers, posés sur le relief.
+  if (echelle > 0.15) {
+    const pasR = 8;
+    const x0 = vol.x - W / 2 / echelle, x1 = vol.x + W / 2 / echelle;
+    for (let k = Math.floor(x0 / pasR); k <= Math.ceil(x1 / pasR); k++) {
+      const h = hash(k);
+      if (h < 0.55) continue;
+      const wx = k * pasR + hash(k + 3) * pasR;
+      const r = Math.max(1.2, (0.5 + Math.pow(hash(k + 7), 2) * 3) * echelle);
+      const sx = W / 2 + (wx - vol.x) * echelle;
+      const sy = ecranY(wx) + r * 0.25;
+      ctx.fillStyle = assombrir(a.couleurs.sol, 0.55 + 0.25 * hash(k + 11));
+      ctx.beginPath(); ctx.ellipse(sx, sy, r * 1.4, r * 0.9, 0, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.beginPath(); ctx.ellipse(sx - r * 0.4, sy - r * 0.45, r * 0.5, r * 0.25, 0, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  // Zone visée par le pilote automatique.
+  if (vol.autopilote && vol.cibleX !== null && vol.phase === 'descente') {
+    const sx = W / 2 + (vol.cibleX - vol.x) * echelle;
+    const sy = ecranY(vol.cibleX);
+    ctx.strokeStyle = '#66bb6a';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath(); ctx.moveTo(sx - 14, sy - 3); ctx.lineTo(sx + 14, sy - 3); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(sx, sy - 8); ctx.lineTo(sx, sy - 22); ctx.stroke();
+  }
+}
+
+// Fumée quand la coque est abîmée, étincelles quand elle encaisse des dégâts.
+function emettreParticules(vol, x, y, h, dt) {
+  const usure = 1 - vol.integrite / 100;
+  const cy = y - h * 0.45;
+  if (usure > 0.25 && Math.random() < usure * 1.2) {
+    vol.fx.push({ type: 'fumee', x: x + (Math.random() - 0.5) * h * 0.2, y: cy + (Math.random() - 0.5) * h * 0.4,
+      vx: (Math.random() - 0.5) * 20, vy: -10 - Math.random() * 20, vie: 0, max: 1.5 + Math.random() * 1.5, r: 4 + Math.random() * 6 });
+  }
+  if (vol.enDegats()) {
+    const n = Math.min(6, 1 + Math.floor((vol.taux.pression + vol.taux.chaleur) / 4));
+    const chaud = vol.taux.chaleur > vol.taux.pression;
+    for (let i = 0; i < n; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      vol.fx.push({ type: chaud ? 'braise' : 'etincelle', x: x + (Math.random() - 0.5) * h * 0.26, y: cy + (Math.random() - 0.5) * h * 0.7,
+        vx: Math.cos(ang) * 80, vy: Math.sin(ang) * 80, vie: 0, max: 0.3 + Math.random() * 0.4, r: 1.5 });
+    }
+  }
+  if (vol.fx.length > 400) vol.fx.splice(0, vol.fx.length - 400);
+}
+
+function dessinerParticules(ctx, vol, depX, depY, dt) {
+  const vivantes = [];
+  for (const p of vol.fx) {
+    p.vie += dt;
+    if (p.vie > p.max) continue;
+    p.x += p.vx * dt + depX;
+    p.y += p.vy * dt + depY;
+    const k = p.vie / p.max;
+    if (p.type === 'fumee') {
+      ctx.fillStyle = `rgba(70,70,70,${0.45 * (1 - k)})`;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1 + 2 * k), 0, Math.PI * 2); ctx.fill();
+    } else {
+      ctx.fillStyle = p.type === 'braise' ? `rgba(255,${Math.round(160 - 100 * k)},0,${1 - k})` : `rgba(255,255,${Math.round(200 - 150 * k)},${1 - k})`;
+      ctx.fillRect(p.x, p.y, 2, 2);
+    }
+    vivantes.push(p);
+  }
+  vol.fx = vivantes;
+}
+
 function dessinerFusee(ctx, vol, x, y, h) {
   const ch = vol.f.choix;
+  const degats = vol.degats || { pression: 0, chaleur: 0, impact: 0 };
+  const integrite = vol.integrite === undefined ? 100 : vol.integrite;
+  // La pression écrase la coque : le corps se pince.
+  const pince = 1 - 0.18 * Math.min(1, degats.pression / 100);
   const w = h * 0.26;
+  const wc = w * pince;
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(vol.angle);
 
   // Flamme
   if (vol.throttle > 0) {
-    const L = h * (0.35 + 0.5 * vol.throttle) * (0.85 + Math.random() * 0.3);
+    const L = h * (0.25 + 0.6 * vol.throttle) * (0.85 + Math.random() * 0.3);
+    const lg = w * (0.2 + 0.18 * vol.throttle);
     const gr = ctx.createLinearGradient(0, 0, 0, L);
     gr.addColorStop(0, '#fff6c0'); gr.addColorStop(0.4, '#ffab40'); gr.addColorStop(1, 'rgba(255,60,0,0)');
     ctx.fillStyle = gr;
-    ctx.beginPath(); ctx.moveTo(-w * 0.35, 0); ctx.lineTo(0, L); ctx.lineTo(w * 0.35, 0); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-lg, 0); ctx.lineTo(0, L); ctx.lineTo(lg, 0); ctx.fill();
   }
 
   // Panneaux anti-vent solaire
@@ -389,47 +649,83 @@ function dessinerFusee(ctx, vol, x, y, h) {
     ctx.strokeStyle = '#9ec3ff';
     ctx.lineWidth = 1;
     const pw = w * taille, ph = h * 0.22;
-    ctx.fillRect(-w / 2 - pw, -h * 0.62, pw, ph); ctx.strokeRect(-w / 2 - pw, -h * 0.62, pw, ph);
-    ctx.fillRect(w / 2, -h * 0.62, pw, ph); ctx.strokeRect(w / 2, -h * 0.62, pw, ph);
+    ctx.fillRect(-wc / 2 - pw, -h * 0.62, pw, ph); ctx.strokeRect(-wc / 2 - pw, -h * 0.62, pw, ph);
+    ctx.fillRect(wc / 2, -h * 0.62, pw, ph); ctx.strokeRect(wc / 2, -h * 0.62, pw, ph);
   }
 
-  // Ailerons
+  // Ailerons et pieds
   ctx.fillStyle = '#c62828';
-  ctx.beginPath(); ctx.moveTo(-w / 2, -h * 0.28); ctx.lineTo(-w * 0.95, 0); ctx.lineTo(-w / 2, 0); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(w / 2, -h * 0.28); ctx.lineTo(w * 0.95, 0); ctx.lineTo(w / 2, 0); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-wc / 2, -h * 0.28); ctx.lineTo(-w * 0.95, 0); ctx.lineTo(-wc / 2, 0); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(wc / 2, -h * 0.28); ctx.lineTo(w * 0.95, 0); ctx.lineTo(wc / 2, 0); ctx.fill();
 
   // Tuyère (plus large pour les gros moteurs)
   const tuy = { libellule: 0.45, faucon: 0.6, titan: 0.8, heracles: 1, promethee: 1.2 }[ch.moteur] || 0.6;
   ctx.fillStyle = '#555';
   ctx.beginPath(); ctx.moveTo(-w * 0.25, -h * 0.05); ctx.lineTo(-w * 0.5 * tuy, 0); ctx.lineTo(w * 0.5 * tuy, 0); ctx.lineTo(w * 0.25, -h * 0.05); ctx.fill();
 
-  // Corps
-  ctx.fillStyle = '#eceff1';
-  ctx.fillRect(-w / 2, -h * 0.8, w, h * 0.75);
+  // Corps (pincé au milieu sous la pression)
+  const yh = -h * 0.8, yb = -h * 0.05;
+  const forme = new Path2D();
+  forme.moveTo(-w / 2, yb);
+  forme.quadraticCurveTo(-w / 2 + (w - wc) * 1.5, (yh + yb) / 2, -w / 2, yh);
+  forme.lineTo(w / 2, yh);
+  forme.quadraticCurveTo(w / 2 - (w - wc) * 1.5, (yh + yb) / 2, w / 2, yb);
+  forme.closePath();
+  // La chaleur noircit la peinture.
+  const brule = Math.min(1, degats.chaleur / 100);
+  ctx.fillStyle = melanger('#eceff1', '#3e2723', brule * 0.8);
+  ctx.fill(forme);
   if (ch.coque !== 'aucun') {
-    const ep = { leger: 1, renforce: 2, lourd: 3, abyssal: 4 }[ch.coque] || 1;
+    const epc = { leger: 1, renforce: 2, lourd: 3, abyssal: 4 }[ch.coque] || 1;
     ctx.strokeStyle = '#607d8b';
-    ctx.lineWidth = ep;
-    ctx.strokeRect(-w / 2, -h * 0.8, w, h * 0.75);
+    ctx.lineWidth = epc;
+    ctx.stroke(forme);
+    ctx.save(); ctx.clip(forme);
     ctx.beginPath();
-    for (let i = 1; i <= ep; i++) { const yy = -h * 0.8 + (h * 0.75 * i) / (ep + 1); ctx.moveTo(-w / 2, yy); ctx.lineTo(w / 2, yy); }
+    for (let i = 1; i <= epc; i++) { const yy = yh + (h * 0.75 * i) / (epc + 1); ctx.moveTo(-w / 2, yy); ctx.lineTo(w / 2, yy); }
     ctx.stroke();
+    ctx.restore();
   }
   // Hublot
-  ctx.fillStyle = '#4fc3f7';
-  ctx.beginPath(); ctx.arc(0, -h * 0.6, w * 0.22, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = integrite < 30 ? '#90a4ae' : '#4fc3f7';
+  ctx.beginPath(); ctx.arc(0, -h * 0.6, wc * 0.22, 0, Math.PI * 2); ctx.fill();
 
   // Coiffe (couleur du bouclier thermique)
   const coul = { aucun: '#c62828', ceramique: '#e0e0e0', ablatif: '#6d4c41', carbone: '#212121', tungstene: '#90a4ae' }[ch.bouclier] || '#c62828';
-  ctx.fillStyle = coul;
-  ctx.beginPath(); ctx.moveTo(-w / 2, -h * 0.8); ctx.quadraticCurveTo(0, -h * 1.1, w / 2, -h * 0.8); ctx.fill();
+  ctx.fillStyle = melanger(coul.length === 7 ? coul : '#c62828', '#1b0f0a', brule * 0.6);
+  ctx.beginPath(); ctx.moveTo(-w / 2, yh); ctx.quadraticCurveTo(0, -h * 1.1, w / 2, yh); ctx.fill();
   if (ch.bouclier !== 'aucun') { ctx.fillRect(-w / 2, -h * 0.07, w, h * 0.03); }
+
+  // Fissures : de plus en plus nombreuses quand l'intégrité baisse.
+  const nFiss = Math.round((1 - integrite / 100) * FISSURES.length);
+  if (nFiss > 0) {
+    ctx.save(); ctx.clip(forme);
+    ctx.lineWidth = Math.max(1, h / 60);
+    for (let i = 0; i < nFiss; i++) {
+      const pts = FISSURES[i];
+      ctx.strokeStyle = vol.taux && vol.taux.chaleur > 0 ? 'rgba(255,120,0,0.9)' : 'rgba(30,30,30,0.85)';
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0] * w, pts[0][1] * h);
+      for (let k = 1; k < pts.length; k++) ctx.lineTo(pts[k][0] * w, pts[k][1] * h);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
 
   // Rougeoiement quand la coque chauffe
   const chauffe = Math.max(0, Math.min(1, (vol.temp - 100) / Math.max(200, vol.f.tempMax - 100)));
   if (chauffe > 0.05) {
+    ctx.save(); ctx.clip(forme);
     ctx.fillStyle = `rgba(255,${Math.round(120 - 80 * chauffe)},0,${0.55 * chauffe})`;
-    ctx.fillRect(-w / 2, -h * 0.8, w, h * 0.75);
+    ctx.fillRect(-w / 2, yh, w, h * 0.75);
+    ctx.restore();
+  }
+
+  // Contour qui clignote en rouge pendant les dégâts.
+  if (vol.enDegats && vol.enDegats() && Math.sin(performance.now() / 70) > 0) {
+    ctx.strokeStyle = '#ff1744';
+    ctx.lineWidth = 2;
+    ctx.stroke(forme);
   }
   ctx.restore();
 }
@@ -451,14 +747,14 @@ function jauge(ctx, x, y, w, frac, couleur) {
   ctx.fillRect(x, y, w * Math.max(0, Math.min(1, frac)), 5);
 }
 
-function couleurRisque(frac) { return frac < 0.6 ? '#66bb6a' : frac < 0.9 ? '#ffca28' : '#ef5350'; }
+function couleurRisque(frac) { return frac < 0.6 ? '#66bb6a' : frac < 0.9 ? '#ffca28' : frac <= 1 ? '#ff7043' : '#ef5350'; }
 
 function dessinerHUD(ctx, vol, W, H, warp) {
   const a = vol.astre, c = vol.c, f = vol.f;
   const x = 14, larg = 250;
   let y = 14;
   ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  ctx.fillRect(8, 8, larg + 12, 330);
+  ctx.fillRect(8, 8, larg + 12, a.type === 'solide' ? 398 : 380);
   ctx.font = 'bold 15px system-ui, sans-serif';
   ctx.fillStyle = '#fff';
   ctx.fillText(a.nom, x, y + 12);
@@ -474,16 +770,24 @@ function dessinerHUD(ctx, vol, W, H, warp) {
     y += 18;
   };
 
-  ligne('Altitude', fmtAlt(vol.y) + (a.type === 'gazeuse' ? ' (1 bar)' : ''));
+  const alt = vol.altSol();
+  ligne(a.type === 'solide' ? 'Altitude (sol)' : 'Altitude', fmtAlt(alt) + (a.type === 'gazeuse' ? ' (1 bar)' : ''));
   const vv = -vol.vy;
-  let coulV = '#fff';
-  if (a.type === 'solide' && vol.y < 2000) coulV = vv > a.vMax ? '#ef5350' : '#66bb6a';
-  ligne('Vitesse vert.', (vv >= 0 ? '↓ ' : '↑ ') + fmtV(Math.abs(vv)), coulV);
-  ligne('Vitesse horiz.', fmtV(Math.abs(vol.vx)), a.type === 'solide' && Math.abs(vol.vx) > a.vMax && vol.y < 2000 ? '#ef5350' : '#fff');
+  const proche = a.type === 'solide' && alt < 2000;
+  ligne('Vitesse vert.', (vv >= 0 ? '↓ ' : '↑ ') + fmtV(Math.abs(vv)), proche ? (vv > a.vMax ? '#ef5350' : '#66bb6a') : '#fff');
+  ligne('Vitesse horiz.', fmtV(Math.abs(vol.vx)), proche && Math.abs(vol.vx) > a.vMax ? '#ef5350' : '#fff');
+  if (a.type === 'solide') {
+    const p = Math.abs(vol.pente(vol.x)) * 180 / Math.PI;
+    ligne('Pente du sol', fmt(p) + '°', p > INCLINAISON_MAX ? '#ef5350' : p > INCLINAISON_MAX * 0.6 ? '#ffca28' : '#66bb6a');
+  }
 
   const fc = vol.carburant / f.carburant;
   ligne('Carburant', fmt(vol.carburant) + ' kg', fc < 0.15 ? '#ef5350' : '#fff');
   jauge(ctx, x, y - 4, larg, fc, fc < 0.15 ? '#ef5350' : '#42a5f5'); y += 6;
+
+  const fi = vol.integrite / 100;
+  ligne('Intégrité coque', fmt(vol.integrite) + ' %', fi > 0.6 ? '#66bb6a' : fi > 0.3 ? '#ffca28' : '#ef5350');
+  jauge(ctx, x, y - 4, larg, fi, fi > 0.6 ? '#66bb6a' : fi > 0.3 ? '#ffca28' : '#ef5350'); y += 6;
 
   const fp = c.p / f.pressionMax;
   ligne('Pression', fmtP(c.p) + ' / ' + fmt(f.pressionMax), couleurRisque(fp));
@@ -496,11 +800,46 @@ function dessinerHUD(ctx, vol, W, H, warp) {
 
   ligne('Gravité locale', fmt(c.g, 2) + ' m/s² (' + fmt(c.g / G0, 2) + ' g)');
   const twr = vol.twr();
-  ligne('Poussée/poids', fmt(twr, 2), twr < 1 ? '#ef5350' : '#66bb6a');
+  ligne('Poussée/poids', fmt(twr * vol.throttle, 2) + ' (max ' + fmt(twr, 2) + ')', twr < 1 ? '#ef5350' : '#fff');
 
   const fr = c.rad / f.protection;
   ligne('Rayonnement', fmt(c.rad, c.rad < 10 ? 1 : 0) + ' / ' + fmt(f.protection, 1), couleurRisque(fr));
   ligne('Dose reçue', fmt(vol.dose) + ' %', couleurRisque(vol.dose / 100));
+
+  // Alertes de dégâts
+  if (vol.enDegats() && !vol.fin) {
+    const msgs = [];
+    if (vol.taux.pression > 0) msgs.push('SURPRESSION : la coque se déforme');
+    if (vol.taux.chaleur > 0) msgs.push('SURCHAUFFE : la coque brûle');
+    ctx.font = 'bold 18px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = Math.sin(performance.now() / 150) > 0 ? '#ff1744' : '#ffffff';
+    msgs.forEach((m, i) => ctx.fillText(m, W / 2, 70 + i * 24));
+    ctx.textAlign = 'left';
+  }
+
+  // Manette des gaz : barre verticale à droite.
+  const bx = W - 46, bh = Math.min(240, H * 0.4), by = H / 2 - bh / 2;
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(bx - 12, by - 30, 50, bh + 58);
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.fillRect(bx, by, 26, bh);
+  ctx.fillStyle = vol.autopilote ? '#66bb6a' : '#ff7043';
+  ctx.fillRect(bx, by + bh * (1 - vol.manette), 26, bh * vol.manette);
+  if (twr > 1) {
+    // Repère de vol stationnaire : poussée = poids.
+    const ys = by + bh * (1 - 1 / twr);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(bx - 6, ys); ctx.lineTo(bx + 32, ys); ctx.stroke();
+  }
+  ctx.font = 'bold 13px ui-monospace, Consolas, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#fff';
+  ctx.fillText(fmt(vol.manette * 100) + ' %', bx + 13, by + bh + 18);
+  ctx.font = '11px system-ui, sans-serif';
+  ctx.fillStyle = '#b0bec5';
+  ctx.fillText('Gaz', bx + 13, by - 12);
 
   // Objectif
   ctx.font = 'bold 16px system-ui, sans-serif';
@@ -512,10 +851,12 @@ function dessinerHUD(ctx, vol, W, H, warp) {
   ctx.fillStyle = '#fff';
   ctx.fillText(txt, W / 2, 31);
 
-  // Aide commandes et accélération du temps
+  // Aide commandes
   ctx.font = '12px system-ui, sans-serif';
   ctx.fillStyle = 'rgba(255,255,255,0.75)';
-  ctx.fillText('↑/Z pousser · ↓/S poussée douce · ←→/Q D orienter · +/− temps · P pause · Échap quitter', W / 2, H - 14);
+  ctx.fillText('↑↓ / Z S : gaz · X couper · Espace plein gaz · ←→ / Q D : orienter · L pilote auto · +/− temps · P pause · Échap quitter', W / 2, H - 14);
+
+  // Temps et pilote automatique
   ctx.textAlign = 'right';
   ctx.font = 'bold 14px system-ui, sans-serif';
   ctx.fillStyle = warp > 1 ? '#ffca28' : 'rgba(255,255,255,0.6)';
@@ -523,5 +864,12 @@ function dessinerHUD(ctx, vol, W, H, warp) {
   ctx.font = '12px system-ui, sans-serif';
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
   ctx.fillText('T+ ' + fmt(vol.t) + ' s', W - 14, 46);
+  if (vol.autopilote) {
+    ctx.font = 'bold 14px system-ui, sans-serif';
+    ctx.fillStyle = '#66bb6a';
+    ctx.fillText('PILOTE AUTO', W - 14, 70);
+    ctx.font = '12px system-ui, sans-serif';
+    ctx.fillText(vol.messageAuto, W - 14, 88);
+  }
   ctx.textAlign = 'left';
 }

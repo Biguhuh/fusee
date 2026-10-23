@@ -38,7 +38,7 @@ const EQUIPEMENTS = {
   },
   coque: {
     titre: 'Renforts de coque',
-    aide: 'Pression maximale supportée.',
+    aide: 'Pression supportée sans dégâts. Au-delà, la coque se déforme puis cède (vite après +10 %).',
     options: [
       { id: 'aucun', nom: 'Aucun', pressionMax: FUSEE_BASE.pressionMax, masse: 0 },
       { id: 'leger', nom: 'Léger', pressionMax: 15, masse: 300 },
@@ -50,7 +50,7 @@ const EQUIPEMENTS = {
   },
   bouclier: {
     titre: 'Bouclier thermique',
-    aide: 'Température maximale de la coque.',
+    aide: 'Température de coque supportée sans dégâts. Au-delà, elle brûle petit à petit.',
     options: [
       { id: 'aucun', nom: 'Aucun', tempMax: FUSEE_BASE.tempMax, masse: 0 },
       { id: 'ceramique', nom: 'Céramique', tempMax: 600, masse: 300 },

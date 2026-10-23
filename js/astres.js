@@ -202,3 +202,24 @@ const ASTRES = [
 ];
 
 const ASTRES_PAR_ID = Object.fromEntries(ASTRES.map((a) => [a.id, a]));
+
+// Relief des astres solides.
+// amplitude : hauteur des collines (m), longueur : taille typique des collines (m),
+// crateres : proportion de zones avec un cratère (0 à 1).
+const RELIEFS = {
+  mercure: { amplitude: 120, longueur: 1600, crateres: 0.6 },
+  venus: { amplitude: 100, longueur: 2500, crateres: 0.08 },
+  terre: { amplitude: 90, longueur: 1800, crateres: 0 },
+  mars: { amplitude: 130, longueur: 2000, crateres: 0.3 },
+  ganymede: { amplitude: 90, longueur: 1500, crateres: 0.4 },
+  titan: { amplitude: 50, longueur: 900, crateres: 0 },        // dunes
+  callisto: { amplitude: 110, longueur: 1500, crateres: 0.85 },
+  io: { amplitude: 140, longueur: 2200, crateres: 0.15 },
+  lune: { amplitude: 110, longueur: 1500, crateres: 0.7 },
+  europe: { amplitude: 35, longueur: 700, crateres: 0.05 },   // banquise striée, presque plate
+  triton: { amplitude: 80, longueur: 1400, crateres: 0.3 },
+  titania: { amplitude: 120, longueur: 1400, crateres: 0.55 },
+  oberon: { amplitude: 120, longueur: 1400, crateres: 0.65 },
+  rhea: { amplitude: 130, longueur: 1400, crateres: 0.75 },
+};
+for (const id in RELIEFS) ASTRES_PAR_ID[id].relief = RELIEFS[id];

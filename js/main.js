@@ -52,13 +52,28 @@ $('vers-hangar').onclick = allerHangar;
 $('rejouer').onclick = lancer;
 
 // ---------- Clavier ----------
-const CODES_JEU = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'];
+const CODES_JEU = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Tab'];
+const PLUS_GAZ = ['ArrowUp', 'KeyW'], MOINS_GAZ = ['ArrowDown', 'KeyS'];
+const PAS_MANETTE = 0.05;      // un appui = 5 %
+const VITESSE_MANETTE = 0.6;   // touche maintenue : 60 % par seconde
+
 addEventListener('keydown', (e) => {
   if (etat.ecran !== 'vol') return;
   if (CODES_JEU.includes(e.code)) e.preventDefault();
   touches.add(e.code);
   touchesBreves.add(e.code);
   const v = etat.vol;
+  if (v.fin) return;
+  // Toute commande manuelle reprend la main sur le pilote automatique.
+  const manuel = [...PLUS_GAZ, ...MOINS_GAZ, 'ArrowLeft', 'ArrowRight', 'KeyA', 'KeyD', 'KeyX', 'Space'].includes(e.code);
+  if (manuel) v.autopilote = false;
+  if (!e.repeat) {
+    if (PLUS_GAZ.includes(e.code)) v.manette = Math.min(1, v.manette + PAS_MANETTE);
+    if (MOINS_GAZ.includes(e.code)) v.manette = Math.max(0, v.manette - PAS_MANETTE);
+  }
+  if (e.code === 'KeyX') v.manette = 0;
+  if (e.code === 'Space') v.manette = 1;
+  if (e.code === 'KeyL') { v.autopilote = !v.autopilote; v.cibleX = null; v.tCible = -1; }
   const max = v.astre.type === 'etoile' ? 1000 : 100;
   const i = PALIERS_TEMPS.indexOf(etat.warp);
   if (e.key === '+' || e.code === 'NumpadAdd' || e.code === 'Equal') etat.warp = Math.min(max, PALIERS_TEMPS[Math.min(PALIERS_TEMPS.length - 1, i + 1)]);
@@ -74,11 +89,17 @@ addEventListener('blur', () => touches.clear());
 function commandes() {
   const t = (code) => touches.has(code) || touchesBreves.has(code);
   return {
-    haut: t('ArrowUp') || t('KeyW') || t('Space'),
-    bas: t('ArrowDown') || t('KeyS'),
     gauche: t('ArrowLeft') || t('KeyA'),
     droite: t('ArrowRight') || t('KeyD'),
   };
+}
+
+// Touche de gaz maintenue : la manette monte ou descend en continu (en temps réel).
+function reglerManette(v, dt) {
+  if (v.autopilote) return;
+  const enfoncee = (codes) => codes.some((c) => touches.has(c));
+  if (enfoncee(PLUS_GAZ)) v.manette = Math.min(1, v.manette + VITESSE_MANETTE * dt);
+  if (enfoncee(MOINS_GAZ)) v.manette = Math.max(0, v.manette - VITESSE_MANETTE * dt);
 }
 
 function redim() {
@@ -89,7 +110,7 @@ addEventListener('resize', redim);
 
 // Près du sol, le temps repasse en ×1 pour garder le contrôle.
 function warpEffectif(v) {
-  if (v.astre.type === 'solide' && v.y < 1500 && !v.pose) return 1;
+  if (v.astre.type === 'solide' && v.altSol() < 1500 && !v.pose) return 1;
   return etat.warp;
 }
 
@@ -100,8 +121,11 @@ function boucle(t) {
   avant = t;
   if (etat.ecran === 'vol' && etat.vol) {
     const v = etat.vol;
+    // Dès que la coque s'abîme, le temps repasse à ×1 pour laisser réagir.
+    if (v.enDegats()) etat.warp = 1;
     const w = warpEffectif(v);
     if (!etat.pause && !v.fin) {
+      reglerManette(v, dt);
       const total = dt * w;
       const n = Math.min(20000, Math.max(1, Math.ceil(total / PAS_PHYSIQUE)));
       const cmd = commandes();
