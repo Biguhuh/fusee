@@ -238,3 +238,6 @@ dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .sauvegarde-accueil button { padding: 6px 12px; }
 .ligne-vue { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
 .ligne-vue button { padding: 4px 10px; font-size: 13px; margin-left: 4px; }
+
+/* Erreur affichée au joueur */
+pre.erreur { white-space: pre-wrap; background: #1a0d0d; border: 1px solid #5a2323; border-radius: 8px; padding: 10px; font-size: 12px; color: #ffcdd2; max-height: 160px; overflow: auto; }

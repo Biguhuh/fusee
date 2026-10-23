@@ -16,6 +16,8 @@ function migrerVoyage(v) {
   m.bases = (m.bases || []).map((b) => ({ niveau: 1, ...b }));
   m.sites = m.sites || {};
   m.cargos = m.cargos || [];
+  // Les étapes de navigation contiennent des fonctions, perdues à la sauvegarde : elles seront recalculées.
+  for (const s of [...(m.sondesEnVol || []), ...m.cargos]) delete s.etape;
   m.stations = (m.stations || []).map((s) => ({
     ...s,
     terrestre: s.terrestre || !!s.base,
@@ -622,7 +624,39 @@ function dessinerPause(c, W, H) {
 // ---------- Boucle ----------
 let avant = performance.now();
 let tSauvegarde = 0;
+// La prochaine image est demandée d'abord : une erreur dans une image ne doit jamais figer le jeu.
+// L'erreur est montrée (une seule fois), le jeu se met en pause et on peut télécharger la sauvegarde.
+let erreurAffichee = null;
 function boucle(t) {
+  requestAnimationFrame(boucle);
+  try {
+    image(t);
+  } catch (e) {
+    console.error(e);
+    signalerErreur(e);
+  }
+}
+function signalerErreur(e) {
+  const texte = `${e && e.message} — ${(e && e.stack || '').split('\n').slice(1, 3).join(' ').trim()}`;
+  const date = etat.voyage ? fmtDate(etat.voyage.t) : '';
+  try { localStorage.setItem('fusee-derniere-erreur', JSON.stringify({ texte, date, quand: new Date().toISOString(), ecran: etat.ecran })); } catch (x) { /* ignoré */ }
+  etat.pause = true;
+  if (erreurAffichee === texte) return;
+  erreurAffichee = texte;
+  const m = $('modale');
+  m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>⚠ Le jeu a rencontré une erreur</h2>
+    <p>Le jeu est en pause${date ? ` (date du jeu : ${date})` : ''}. Vous pouvez reprendre ; si l’erreur revient, téléchargez la sauvegarde et envoyez-la avec ce message pour qu’elle soit corrigée.</p></div><button class="fermer">✕</button></header>
+    <pre class="erreur"></pre>
+    <div class="actions"><button id="err-sauvegarde">⬇ Télécharger la sauvegarde</button><button id="err-accueil">← Accueil</button><button id="err-reprendre" class="principal">▶ Reprendre</button></div></div>`;
+  m.querySelector('.erreur').textContent = texte;
+  m.classList.remove('cache');
+  const fermer = () => { m.classList.add('cache'); m.innerHTML = ''; };
+  m.querySelector('.fermer').onclick = fermer;
+  $('err-sauvegarde').onclick = () => exporterSauvegarde(etat);
+  $('err-accueil').onclick = () => { fermer(); etat.pause = false; allerAccueil(); };
+  $('err-reprendre').onclick = () => { fermer(); etat.pause = false; erreurAffichee = null; };
+}
+function image(t) {
   const dt = Math.min(0.05, (t - avant) / 1000);
   avant = t;
   if (etat.ecran === 'vol' && etat.vol) {
@@ -674,7 +708,6 @@ function boucle(t) {
     Orbiteur.majHud(false);
     if (t - tSauvegarde > 5000) { sauver(etat); tSauvegarde = t; }
   }
-  requestAnimationFrame(boucle);
 }
 
 // Premier lancement : on choisit d'abord son ou sa spationaute.

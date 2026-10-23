@@ -296,13 +296,29 @@ const Orbiteur = {
     const v = this.v;
     v.cargos = v.cargos || [];
     for (const s of [...v.sondesEnVol, ...v.cargos]) {
+      try { this.avancerSonde(s, dt); } catch (e) {
+        // Un vaisseau dont le calcul échoue ne doit pas bloquer tout le jeu.
+        console.error(s.nom, e);
+        s.etat = 'perdue';
+        this.log(`${s.nom} : erreur de navigation, contact perdu.`);
+      }
+    }
+    v.sondesEnVol = v.sondesEnVol.filter((s) => s.etat !== 'perdue' || v.t - s.tLancement < 0);
+    v.cargos = v.cargos.filter((s) => s.etat === 'vol');
+  },
+
+  avancerSonde(s, dt) {
+    const v = this.v;
+    {
       if (s.etat !== 'vol') {
         // Sonde arrivée : elle reste en orbite autour de sa cible (orbite fermée, propagation directe).
         if (s.tSonde === undefined) s.tSonde = v.t;
         const p = propager(s.r, s.v, v.t - s.tSonde, ASTRES_PAR_ID[s.centre].gm);
         s.r = p.r; s.v = p.v; s.tSonde = v.t;
-        continue;
+        return;
       }
+      // Une étape relue depuis la sauvegarde a perdu son calcul de poussée (fonction) : on la recalcule.
+      if (s.etape && !s.etape.attenteEvenement && typeof s.etape.dv !== 'function' && !['fini', 'impossible'].includes(s.etape.type)) s.etape = null;
       // La sonde rattrape le temps commun, en s'arrêtant à chaque manœuvre et changement de sphère d'influence.
       if (s.tSonde === undefined) s.tSonde = v.t - dt;
       for (let boucle = 0; boucle < 20 && s.etat === 'vol'; boucle++) {
@@ -335,8 +351,6 @@ const Orbiteur = {
         if (e.attenteEvenement && s.tSonde > e.tExec + 1) s.etape = null;
       }
     }
-    v.sondesEnVol = v.sondesEnVol.filter((s) => s.etat !== 'perdue' || v.t - s.tLancement < 0);
-    v.cargos = v.cargos.filter((s) => s.etat === 'vol');
   },
 
   // Cargo arrivé : son contenu rejoint le stock de la station.
@@ -591,35 +605,44 @@ const Orbiteur = {
     pts.push(abs());
     marquer('depart', `Départ de l’orbite de ${ASTRES_PAR_ID[s.centre].nom}`);
     let fin = null;
+    // Même logique que le vol réel (avancerSonde) : une étape est gardée jusqu'à son exécution.
+    // (On ne reprend pas l'étape du vrai vaisseau : sa poussée modifierait le vrai vaisseau, pas la copie.)
+    let e = null;
     for (let boucle = 0; boucle < 80 && !fin; boucle++) {
-      const e = prochaineEtape(s, t, cible);
+      if (!e) e = prochaineEtape(s, t, cible);
       if (e.type === 'fini') { fin = 'arrivee'; marquer('arrivee', e.texte); break; }
       if (e.type === 'impossible') { fin = 'impossible'; marquer('impossible', e.texte); break; }
-      if (!e.attenteEvenement && t >= e.tExec - 1e-6) {
+      if (!e.attenteEvenement && t >= e.tExec - 1e-3) {
         const dv = e.dv(s, t);
         appliquerImpulsion(s, dv);
         marquer('manoeuvre', e.texte.split(' : ')[0], { dv: V.norm(dv) * 1000 });
+        e = null;
         continue;
       }
       // Événement attendu (sortie de sphère, arrivée) : on avance jusqu'à lui, ou d'au moins un jour s'il est en retard.
       const tFin = e.attenteEvenement ? Math.min(tMax, Math.max(e.tExec, t + JOUR) + Math.max(3600, 0.1 * (e.tExec - t))) : e.tExec;
       if (tFin <= t) { t += 60; continue; }
       // Découpage en petits pas pour dessiner une courbe lisse.
-      const n = 48, h = (tFin - t) / n;
+      // Le dernier pas tombe exactement sur tFin (sinon les arrondis empêchent d'atteindre la manœuvre).
+      const n = 48, debut = t;
       for (let k = 0; k < n; k++) {
+        const tn = k === n - 1 ? tFin : debut + ((tFin - debut) * (k + 1)) / n;
+        const h = tn - t;
         const ev = [];
         const res = avancerVaisseau(s, t, h, ev, true);
-        if (res === 'impact') { fin = 'impact'; t += h; pts.push(abs()); marquer('impact', `Impact sur ${ASTRES_PAR_ID[s.centre].nom}`); break; }
+        if (res === 'impact') { fin = 'impact'; t = tn; pts.push(abs()); marquer('impact', `Impact sur ${ASTRES_PAR_ID[s.centre].nom}`); break; }
         if (res === 'changement') {
           const x = ev[ev.length - 1];
           t = x.t;
           pts.push(abs());
           marquer('soi', x.type === 'entree' ? `Entrée dans la sphère d’influence de ${ASTRES_PAR_ID[x.vers].nom}` : `Sortie de la sphère d’influence de ${ASTRES_PAR_ID[x.de].nom}`);
+          e = null;
           break;
         }
-        t += h;
+        t = tn;
         pts.push(abs());
       }
+      if (e && e.attenteEvenement) e = null;   // événement en retard : on recalcule, comme le vol réel
       if (t >= tMax) { fin = 'trop-long'; break; }
     }
     return { pts, marques, t0, tFin: t, fin, cible, nom: vs.nom, id: vs.id };
@@ -638,8 +661,13 @@ const Orbiteur = {
     this.cam.focus = 'trajet:' + id;
     this.cam.decal = [0, 0];
     const marge = 1.25;
-    this.cam.echelle = Math.min((innerWidth - 560) / ((x1 - x0) * marge || 1), (innerHeight - 160) / ((y1 - y0) * marge || 1));
+    // Place utile : l'écran moins les panneaux latéraux et la légende (au moins 200 × 150 px).
+    const Lw = Math.max(200, innerWidth - 560), Lh = Math.max(150, innerHeight - 260);
+    this.cam.echelle = Math.min(Lw / ((x1 - x0) * marge || 1), Lh / ((y1 - y0) * marge || 1));
     this.cam.echelle = Math.max(1e-10, Math.min(5, this.cam.echelle));
+    // La légende occupe le bas de l'écran : on remonte le cadre d'autant.
+    const hLegende = 26 + plan.marques.length * 17 + 70;
+    this.cam.decal = [0, -hLegende / 2 / this.cam.echelle];
     this.majHud(true);
   },
   fermerTrajet() { this.trajet = null; if (this.cam.focus.startsWith('trajet:')) this.centrerSur('orbiteur'); },
@@ -681,7 +709,10 @@ const Orbiteur = {
     const titre = `Trajectoire de ${tr.nom} · durée ${fmtDuree(tr.tFin - tr.t0)}` + (tr.fin !== 'arrivee' ? ' · ⚠ n’arrive pas' : '');
     ctx.font = '12px system-ui, sans-serif';
     const L = Math.max(ctx.measureText(titre).width, ...lignes.map((l) => ctx.measureText(l).width)) + 24;
-    const x0 = Math.max(8, W / 2 - L / 2), y0 = 52, hBoite = 26 + lignes.length * 17;
+    // En bas au centre, au-dessus des messages et de l'aide.
+    const hBoite = 26 + lignes.length * 17;
+    const x0 = Math.max(8, W / 2 - L / 2), y0 = Math.max(110, H - 70 - hBoite);
+    this.hautLegende = y0;
     ctx.fillStyle = 'rgba(8,12,24,0.85)'; ctx.fillRect(x0, y0, L, hBoite);
     ctx.strokeStyle = 'rgba(77,208,225,0.6)'; ctx.strokeRect(x0, y0, L, hBoite);
     ctx.fillStyle = '#4dd0e1'; ctx.font = 'bold 12px system-ui, sans-serif'; ctx.fillText(titre, x0 + 12, y0 + 17);
@@ -921,11 +952,12 @@ const Orbiteur = {
     ctx.fillRect(W - 140, H - 30, 100, 2);
     ctx.fillText(kmPour100 > UA_KM / 10 ? fmt(kmPour100 / UA_KM, 2) + ' UA' : fmt(kmPour100) + ' km', W - 140, H - 36);
 
-    // Messages, en bas au centre
-    let y = H - 40;
+    // Messages, en bas au centre (au-dessus de la légende de trajectoire si elle est ouverte)
+    let y = this.trajet && this.hautLegende ? this.hautLegende - 10 : H - 40;
     ctx.textAlign = 'center';
     ctx.font = '13px system-ui';
-    for (let i = this.messages.length - 1; i >= 0 && y > H / 2; i--) {
+    const yMin = Math.min(H / 2, y - 140);
+    for (let i = this.messages.length - 1; i >= 0 && y > yMin; i--) {
       const m = this.messages[i];
       m.vie -= 1 / 60;
       if (m.vie <= 0) continue;
