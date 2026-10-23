@@ -291,27 +291,63 @@ function avancerAvecPoussee(vs, t, dt, accel) {
   return null;
 }
 
-// Trajectoire prévue : liste de segments { centre, points:[[x,y] relatifs], fin }.
+// Temps pour sortir de la sphère d'influence du centre (trajectoire sans poussée), ou Infinity.
+function tempsSortieSoi(vs) {
+  const c = ASTRES_PAR_ID[vs.centre];
+  if (!isFinite(c.soi)) return Infinity;
+  const loin = (dt) => V.norm(propager(vs.r, vs.v, dt, c.gm).r) >= c.soi;
+  if (V.norm(vs.r) >= c.soi) return 0;
+  let haut = 60, n = 0;
+  while (!loin(haut) && n++ < 60) haut *= 2;
+  if (n >= 60) return Infinity;
+  let bas = haut / 2;
+  for (let i = 0; i < 40; i++) { const m = (bas + haut) / 2; if (loin(m)) haut = m; else bas = m; }
+  return haut;
+}
+
+// Durée à prévoir dans la sphère d'influence courante : une période pour une orbite fermée,
+// le temps de sortie pour une trajectoire ouverte.
+function horizonTroncon(vs, dureeMax) {
+  const c = ASTRES_PAR_ID[vs.centre];
+  const el = elements(vs.r, vs.v, c.gm);
+  if (el.e < 1 && el.ra < c.soi) return Math.min(dureeMax, el.periode * 1.02);
+  const sortie = tempsSortieSoi(vs);
+  if (isFinite(sortie)) return Math.min(dureeMax, sortie * 1.02 + 1);
+  return Math.min(dureeMax, isFinite(el.periode) ? el.periode : 5 * 365.25 * JOUR);
+}
+
+// Trajectoire prévue : liste de tronçons { centre, points:[[x,y] relatifs], fin }.
+// Chaque tronçon (une sphère d'influence) a son propre horizon et ses propres points : pas de grands traits
+// droits quand on passe d'une petite sphère (la Lune) à une grande (la Terre, le Soleil).
 function predireTrajectoire(vs, t, duree, nPoints = 240) {
   const copie = { centre: vs.centre, r: vs.r.slice(), v: vs.v.slice() };
   const segments = [];
-  let seg = { centre: copie.centre, points: [copie.r.slice()] };
-  segments.push(seg);
-  const el = elements(copie.r, copie.v, ASTRES_PAR_ID[copie.centre].gm);
-  const horizon = isFinite(el.periode) ? Math.min(duree, el.periode * 1.02) : duree;
-  const dt = horizon / nPoints;
-  let tc = t;
-  for (let i = 0; i < nPoints; i++) {
-    const ev = [];
-    const res = avancerVaisseau(copie, tc, dt, ev);
-    tc += dt;
-    if (copie.centre !== seg.centre) {
-      seg.fin = { type: ev.length ? ev[ev.length - 1].type : 'changement', t: tc };
-      if (segments.length >= 3) break;
-      seg = { centre: copie.centre, points: [copie.r.slice()] };
-      segments.push(seg);
-    } else seg.points.push(copie.r.slice());
-    if (res === 'impact') { seg.fin = { type: 'impact', t: tc }; break; }
+  let tc = t, reste = duree;
+  const parTroncon = Math.max(60, Math.round(nPoints / 2));
+  for (let k = 0; k < 3 && reste > 0; k++) {
+    const seg = { centre: copie.centre, points: [copie.r.slice()] };
+    segments.push(seg);
+    const horizon = horizonTroncon(copie, reste);
+    const dt = horizon / parTroncon;
+    let change = false;
+    for (let i = 0; i < parTroncon; i++) {
+      const ev = [];
+      const res = avancerVaisseau(copie, tc, dt, ev, true);
+      if (res === 'changement') {
+        const te = ev[ev.length - 1].t;
+        // Dernier point du tronçon : le point exact de passage, exprimé dans l'ancien repère.
+        const ancien = etatAbsolu(seg.centre, te), nouveau = etatAbsolu(copie.centre, te);
+        seg.points.push(V.sub(V.add(copie.r, nouveau.r), ancien.r));
+        reste -= te - tc; tc = te;
+        seg.fin = { type: ev[ev.length - 1].type, t: tc };
+        change = true;
+        break;
+      }
+      tc += dt; reste -= dt;
+      seg.points.push(copie.r.slice());
+      if (res === 'impact') { seg.fin = { type: 'impact', t: tc }; return segments; }
+    }
+    if (!change) break;
   }
   return segments;
 }

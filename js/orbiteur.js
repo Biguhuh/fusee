@@ -245,6 +245,7 @@ const Orbiteur = {
     v.carburant = reservoir.kg;
     this.log(`${e.texte} — poussée de ${fmtV(V.norm(dv) * 1000)}.`);
     this.flash = 1;
+    this.prevision = null;   // la trajectoire vient de changer
     this.etape = null;
   },
 
@@ -517,7 +518,12 @@ const Orbiteur = {
     }
 
     // Trajectoire prévue de l'orbiteur
-    const segs = predireTrajectoire(v.orb, t, 400 * 365.25 * JOUR, 260);
+    // La prévision coûte quelques millisecondes : on la recalcule toutes les 150 ms (ou si l'on change de sphère d'influence).
+    const maintenant = performance.now();
+    if (!this.prevision || maintenant - this.prevision.quand > 150 || this.prevision.centre !== v.orb.centre || this.enPoussee()) {
+      this.prevision = { quand: maintenant, centre: v.orb.centre, segs: predireTrajectoire(v.orb, t, 400 * 365.25 * JOUR, 260) };
+    }
+    const segs = this.prevision.segs;
     const couleurs = ['#ff7043', '#ffca28', '#66bb6a'];
     segs.forEach((sg, i) => {
       const pc = etatAbsolu(sg.centre, t).r;
