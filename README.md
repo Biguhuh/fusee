@@ -46,7 +46,10 @@ Soleil, 8 planètes, Pluton, Cérès et 7 gros astéroïdes, et **les 460 lunes 
 - Relief : collines, cratères, rochers ; la pente du sol compte à l'atterrissage.
 
 ## Exploration (vue de côté)
-- Temps : ×1 par défaut, ×2, ×5 ou ×10 avec + / −.
+- Temps : ×1 par défaut, jusqu'à ×50 avec + / −.
+- L'atterrisseur est un **module** léger (étage de descente sur 4 pieds, cabine de remontée), pas une fusée.
+- **Robot largué** depuis l'orbite : il descend avec un petit **module robot** (panneaux solaires, antenne). Ses analyses restent dans sa mémoire jusqu'à son retour au module, qui recharge sa batterie et envoie les données à l'orbiteur.
+- Les montées raides ralentissent ; les descentes ne freinent jamais.
 - **Spationaute** : marche et saute selon la gravité locale (sauts de plusieurs mètres sur la Lune). 4 h d'oxygène, combinaison limitée à 1,2 bar et 120 °C. Ramasse 6 échantillons (E) et les rapporte à la fusée. Sur les très petites lunes, il reste attaché par un câble : un saut le ferait partir dans l'espace.
 - **Rover** (touche V près de lui) : jusqu'à 3,6 m/s sur la Lune (comme celui d'Apollo), 20 échantillons dans sa caisse.
 - **Robot** : roule, résiste à 100 bar et 480 °C, 8 h de batterie, analyse les sites sur place (E, 5 s).

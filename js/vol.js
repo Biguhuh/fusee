@@ -644,7 +644,7 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
   }
 
   // Fumée et étincelles, puis fusée ou explosion.
-  const hPx = Math.max((vol.f.hauteur || FUSEE_BASE.hauteur) * echelle, vol.f.mega ? 90 : 56);
+  const hPx = vol.f.mega ? Math.max(vol.f.hauteur * echelle, 90) : Math.max(HAUTEUR_MODULE * echelle, 44);
   if (solide) dessinerBases(ctx, vol, W, echelle, fuseeY);
   // Pas de tir : la tour de lancement, à côté de la fusée.
   if (vol.lancement && solide) {
@@ -868,7 +868,116 @@ function dessinerParticules(ctx, vol, depX, depY, dt) {
   vol.fx = vivantes;
 }
 
+const HAUTEUR_MODULE = 7; // m : l'atterrisseur est un module trapu, pas une fusée
+
+// Atterrisseur : module léger à 4 pieds (étage de descente doré + cabine de remontée), façon Apollo.
+function dessinerModule(ctx, vol, x, y, h) {
+  const ch = vol.f.choix;
+  const degats = vol.degats || { pression: 0, chaleur: 0, impact: 0 };
+  const integrite = vol.integrite === undefined ? 100 : vol.integrite;
+  const pince = 1 - 0.15 * Math.min(1, degats.pression / 100);
+  const brule = Math.min(1, degats.chaleur / 100);
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(vol.angle);
+  // Flamme sous la tuyère
+  if (vol.throttle > 0) {
+    const L = h * (0.25 + 0.55 * vol.throttle) * (0.85 + Math.random() * 0.3);
+    const gr = ctx.createLinearGradient(0, -h * 0.12, 0, L);
+    gr.addColorStop(0, '#fff6c0'); gr.addColorStop(0.4, '#ffab40'); gr.addColorStop(1, 'rgba(255,60,0,0)');
+    ctx.fillStyle = gr;
+    ctx.beginPath(); ctx.moveTo(-h * 0.07, -h * 0.1); ctx.lineTo(0, L); ctx.lineTo(h * 0.07, -h * 0.1); ctx.fill();
+  }
+  // Pieds et patins
+  ctx.strokeStyle = '#b0bec5'; ctx.lineWidth = Math.max(1.5, h * 0.025);
+  ctx.beginPath();
+  for (const s of [-1, 1]) {
+    ctx.moveTo(s * h * 0.32, -h * 0.42); ctx.lineTo(s * h * 0.62, -h * 0.03);
+    ctx.moveTo(s * h * 0.34, -h * 0.22); ctx.lineTo(s * h * 0.6, -h * 0.05);
+  }
+  ctx.stroke();
+  ctx.fillStyle = '#90a4ae';
+  for (const s of [-1, 1]) { ctx.beginPath(); ctx.ellipse(s * h * 0.62, -h * 0.02, h * 0.07, h * 0.025, 0, 0, Math.PI * 2); ctx.fill(); }
+  // Tuyère de descente
+  ctx.fillStyle = '#546e7a';
+  ctx.beginPath(); ctx.moveTo(-h * 0.06, -h * 0.2); ctx.lineTo(-h * 0.1, -h * 0.1); ctx.lineTo(h * 0.1, -h * 0.1); ctx.lineTo(h * 0.06, -h * 0.2); ctx.fill();
+  // Forme du module (pour les fissures et le rougeoiement)
+  const wd = h * 0.74, wc = h * 0.52 * pince;
+  const forme = new Path2D();
+  forme.rect(-wd / 2, -h * 0.5, wd, h * 0.3);                // étage de descente
+  forme.moveTo(-wc / 2, -h * 0.5);                             // cabine à facettes
+  forme.lineTo(-wc / 2 - h * 0.04, -h * 0.72);
+  forme.lineTo(-wc * 0.3, -h * 0.9);
+  forme.lineTo(wc * 0.3, -h * 0.9);
+  forme.lineTo(wc / 2 + h * 0.04, -h * 0.72);
+  forme.lineTo(wc / 2, -h * 0.5);
+  forme.closePath();
+  // Étage de descente : feuille d'or isolante (assombrie par la chaleur), bouclier dessous
+  ctx.fillStyle = melanger('#d4a017', '#3e2723', brule * 0.7);
+  ctx.fillRect(-wd / 2, -h * 0.5, wd, h * 0.3);
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(-wd / 2 + (wd * i) / 4, -h * 0.5); ctx.lineTo(-wd / 2 + (wd * i) / 4, -h * 0.2); ctx.stroke(); }
+  const coulBouclier = { ceramique: '#e0e0e0', ablatif: '#6d4c41', carbone: '#212121', tungstene: '#90a4ae' }[ch.bouclier];
+  if (coulBouclier) { ctx.fillStyle = coulBouclier; ctx.fillRect(-wd / 2, -h * 0.23, wd, h * 0.04); }
+  // Cabine de remontée
+  const cabine = new Path2D();
+  cabine.moveTo(-wc / 2, -h * 0.5); cabine.lineTo(-wc / 2 - h * 0.04, -h * 0.72); cabine.lineTo(-wc * 0.3, -h * 0.9);
+  cabine.lineTo(wc * 0.3, -h * 0.9); cabine.lineTo(wc / 2 + h * 0.04, -h * 0.72); cabine.lineTo(wc / 2, -h * 0.5); cabine.closePath();
+  ctx.fillStyle = melanger('#cfd8dc', '#3e2723', brule * 0.6);
+  ctx.fill(cabine);
+  if (ch.coque !== 'aucun') {
+    const ep = { leger: 1, renforce: 2, lourd: 3, abyssal: 4 }[ch.coque] || 1;
+    ctx.strokeStyle = '#607d8b'; ctx.lineWidth = ep; ctx.stroke(cabine);
+  }
+  // Hublot triangulaire, tunnel d'amarrage, antenne
+  ctx.fillStyle = integrite < 30 ? '#455a64' : '#263238';
+  ctx.beginPath(); ctx.moveTo(-wc * 0.28, -h * 0.66); ctx.lineTo(-wc * 0.05, -h * 0.66); ctx.lineTo(-wc * 0.2, -h * 0.78); ctx.fill();
+  ctx.fillStyle = '#b0bec5'; ctx.fillRect(-h * 0.06, -h * 0.97, h * 0.12, h * 0.07);
+  ctx.strokeStyle = '#eceff1'; ctx.lineWidth = Math.max(1, h * 0.012);
+  ctx.beginPath(); ctx.moveTo(wc * 0.25, -h * 0.9); ctx.lineTo(wc * 0.35, -h * 1.02); ctx.stroke();
+  ctx.fillStyle = '#eceff1'; ctx.beginPath(); ctx.arc(wc * 0.36, -h * 1.04, h * 0.035, 0, Math.PI * 2); ctx.fill();
+  // Petits propulseurs d'attitude
+  ctx.fillStyle = '#78909c';
+  for (const s of [-1, 1]) ctx.fillRect(s * (wc / 2 + h * 0.02) - h * 0.02, -h * 0.66, h * 0.04, h * 0.05);
+  // Panneaux solaires / anti-vent solaire
+  if (ch.panneau !== 'aucun') {
+    const t = { leger: 0.18, moyen: 0.26, lourd: 0.34, helio: 0.44 }[ch.panneau] || 0.2;
+    ctx.fillStyle = '#2f6fd6'; ctx.strokeStyle = '#9ec3ff'; ctx.lineWidth = 1;
+    ctx.fillRect(-wd / 2 - h * t, -h * 0.48, h * t, h * 0.12); ctx.strokeRect(-wd / 2 - h * t, -h * 0.48, h * t, h * 0.12);
+    ctx.fillRect(wd / 2, -h * 0.48, h * t, h * 0.12); ctx.strokeRect(wd / 2, -h * 0.48, h * t, h * 0.12);
+  }
+  // Fissures
+  const nFiss = Math.round((1 - integrite / 100) * FISSURES.length);
+  if (nFiss > 0) {
+    ctx.save(); ctx.clip(forme);
+    ctx.lineWidth = Math.max(1, h / 60);
+    for (let i = 0; i < nFiss; i++) {
+      const pts = FISSURES[i];
+      ctx.strokeStyle = vol.taux && vol.taux.chaleur > 0 ? 'rgba(255,120,0,0.9)' : 'rgba(30,30,30,0.85)';
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0] * wd, pts[0][1] * h * 1.1);
+      for (let k = 1; k < pts.length; k++) ctx.lineTo(pts[k][0] * wd, pts[k][1] * h * 1.1);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  // Rougeoiement
+  const chauffe = Math.max(0, Math.min(1, (vol.temp - 100) / Math.max(200, vol.f.tempMax - 100)));
+  if (chauffe > 0.05) {
+    ctx.save(); ctx.clip(forme);
+    ctx.fillStyle = `rgba(255,${Math.round(120 - 80 * chauffe)},0,${0.55 * chauffe})`;
+    ctx.fillRect(-wd, -h, wd * 2, h);
+    ctx.restore();
+  }
+  if (vol.enDegats && vol.enDegats() && Math.sin(performance.now() / 70) > 0) {
+    ctx.strokeStyle = '#ff1744'; ctx.lineWidth = 2; ctx.stroke(forme);
+  }
+  ctx.restore();
+}
+
 function dessinerFusee(ctx, vol, x, y, h) {
+  // Les grands lanceurs sont des fusées ; tout ce qui se pose ailleurs est un module léger.
+  if (!(vol.f && vol.f.mega)) return dessinerModule(ctx, vol, x, y, h);
   const ch = vol.f.choix;
   const degats = vol.degats || { pression: 0, chaleur: 0, impact: 0 };
   const integrite = vol.integrite === undefined ? 100 : vol.integrite;

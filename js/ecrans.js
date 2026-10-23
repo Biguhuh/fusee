@@ -88,7 +88,7 @@ function afficherHangar(etat, auChangement) {
   const cv = $('apercu');
   const cx = cv.getContext('2d');
   cx.clearRect(0, 0, cv.width, cv.height);
-  dessinerFusee(cx, { f, angle: 0, throttle: 0, temp: 20 }, cv.width / 2, cv.height - 20, 190);
+  dessinerFusee(cx, { f, angle: 0, throttle: 0, temp: 20 }, cv.width / 2, cv.height - 30, 150);
   if (auChangement) auChangement();
 }
 

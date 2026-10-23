@@ -73,6 +73,9 @@ class Exploration {
     this.vMaxRover = Math.min(5, 2.8 * Math.sqrt(g));          // ≈ 3,6 m/s sur la Lune, comme le rover d'Apollo
     this.accRover = Math.min(1.5, 0.5 * g + 0.001);
     this.warp = 1;
+    // Robot : ses analyses attendent dans sa mémoire jusqu'au retour à sa base (module robot ou fusée).
+    this.moduleRobot = !!vol.robotSeul;
+    this.donneesEnAttente = 0;
   }
 
   // ---------- Promenade sur Terre ----------
@@ -171,8 +174,8 @@ class Exploration {
       if (this.analyse.t >= 5) {
         const s = this.analyse.site;
         this.marquer(s);
-        this.science[this.astre.id].analyses++;
-        this.dire(`Analyse terminée : ${s.nom}. ${s.texte}`);
+        this.donneesEnAttente++;
+        this.dire(`Analyse terminée : ${s.nom}. ${s.texte} (données à transmettre depuis ${this.moduleRobot ? 'le module' : 'la fusée'})`);
         this.analyse = null;
       }
     }
@@ -182,7 +185,9 @@ class Exploration {
     if (veut) p.dir = veut;
     // Les pentes raides ralentissent ; seules les vraies falaises arrêtent (on ne peut pas les contourner en vue de côté).
     const penteMax = this.enRover ? 40 : this.def.penteMax + 10;
-    const devant = Math.atan2(this.sol(p.x + 1.5 * (veut || 1)) - this.sol(p.x), 1.5) * (veut || 1) * 180 / Math.PI;
+    // Pente dans le sens de la marche : positive en montée, négative en descente (la descente ne freine pas).
+    const sens = veut || p.dir || 1;
+    const devant = Math.atan2(this.sol(p.x + 1.5 * sens) - this.sol(p.x), 1.5) * 180 / Math.PI;
     const freinPente = devant > 15 ? Math.max(0.3, 1 - (devant - 15) / (penteMax - 15)) : 1;
     const vMax = (this.enRover ? this.vMaxRover : this.vMax) * freinPente;
     const acc = this.enRover ? this.accRover : this.acc;
@@ -193,7 +198,8 @@ class Exploration {
       const dv = cible - p.vx;
       p.vx += Math.sign(dv) * Math.min(Math.abs(dv), acc * dt);
       // Pente trop raide pour des roues
-      const pente = Math.atan2(this.sol(p.x + 0.5 * Math.sign(p.vx || 1)) - this.sol(p.x), 0.5) * Math.sign(p.vx || 1);
+      // Montée trop raide (falaise) : on s'arrête. Une descente raide ne bloque jamais.
+      const pente = Math.atan2(this.sol(p.x + 0.5 * Math.sign(p.vx || 1)) - this.sol(p.x), 0.5);
       if (pente * 180 / Math.PI > penteMax && Math.abs(p.vx) > 0) {
         p.vx = 0;
         if (this.type === 'robot' || this.enRover) this.dire(`Pente trop raide pour les roues du ${this.enRover ? 'rover' : 'robot'}.`);
@@ -245,9 +251,10 @@ class Exploration {
     // Sur Terre : on respire, rien ne menace.
     if (this.terre) { this.taux = 0; return; }
 
-    // Réserve d'oxygène ou de batterie
+    // Réserve d'oxygène ou de batterie (le module robot recharge la batterie au soleil quand le robot est à côté)
     const effort = Math.abs(p.vx) > 0.05 ? 1 : 0.3;
     this.reserve -= dt * (this.type === 'robot' ? effort : 1);
+    if (this.moduleRobot && this.presDeLaFusee()) this.reserve = Math.min(this.def.autonomie, this.reserve + dt * 20);
     if (this.reserve <= 0) {
       return this.terminer('perdu', this.type === 'robot' ? 'Batterie vide : le robot s’est arrêté pour toujours.' : 'Plus d’oxygène : le spationaute n’a pas pu rentrer à temps.');
     }
@@ -276,6 +283,16 @@ class Exploration {
   agir() {
     if (this.fin) return;
     if (this.terre) return this.agirTerre();
+    // Robot de retour au module : recharge et envoi des données à l'orbiteur, puis il repart.
+    if (this.moduleRobot && this.presDeLaFusee()) {
+      const n = this.transmettre();
+      this.reserve = this.def.autonomie;
+      return this.dire(`Batterie rechargée par les panneaux solaires.${n ? ` ${n} analyse${n > 1 ? 's' : ''} envoyée${n > 1 ? 's' : ''} à l’orbiteur.` : ''} Échap : laisser le robot ici et revenir à l’orbiteur.`);
+    }
+    if (this.type === 'robot' && this.presDeLaFusee()) {
+      const n = this.transmettre();
+      return this.terminer('retour', n ? `Robot rentré : ${n} analyse${n > 1 ? 's' : ''} transmise${n > 1 ? 's' : ''}.` : 'Robot rentré à bord.');
+    }
     if (this.presDeLaFusee() && !this.vol.robotSeul) {
       // On rentre : les échantillons du sac et du rover montent à bord de l'atterrisseur.
       const tous = [...this.sac, ...(this.rover ? this.sacRover : [])];
@@ -307,9 +324,27 @@ class Exploration {
 
   terminer(issue, texte) { this.fin = { issue, texte }; }
 
+  transmettre() {
+    const n = this.donneesEnAttente;
+    if (n) {
+      const s = (this.science[this.astre.id] = this.science[this.astre.id] || { sites: {}, echantillons: 0, analyses: 0 });
+      s.analyses += n;
+      this.donneesEnAttente = 0;
+    }
+    return n;
+  }
+
   // Échap : le spationaute (et le rover) rentrent à la fusée avec ce qu'ils portent ; le robot s'arrête.
   agirRappel() {
-    if (this.type === 'robot') return this.terminer('retour', this.vol.robotSeul ? 'Le robot poursuit sa mission seul ; retour à l’orbiteur.' : 'Robot rappelé à bord.');
+    if (this.type === 'robot') {
+      const pres = this.presDeLaFusee();
+      const n = pres ? this.transmettre() : 0;
+      const perdues = this.donneesEnAttente;
+      if (this.moduleRobot) {
+        return this.terminer('retour', `Le robot reste sur place, près de son module.${n ? ` ${n} analyse(s) transmise(s).` : ''}${perdues ? ` ${perdues} analyse(s) non transmise(s) : il faudra le ramener au module.` : ''}`);
+      }
+      return this.terminer('retour', `Robot rappelé à bord.${n ? ` ${n} analyse(s) transmise(s).` : ''}`);
+    }
     this.p.x = this.xFusee;
     this.p.y = this.sol(this.xFusee);
     this.p.auSol = true;
@@ -379,7 +414,8 @@ class Exploration {
     // Fusée posée, à l'échelle (sur Terre : la maison d'où part la promenade)
     const [fx, fy] = versEcran(this.xFusee, this.sol(this.xFusee));
     if (this.terre) dessinerMaison(ctx, fx, fy, echelle);
-    else dessinerFusee(ctx, { f: this.vol.f, angle: this.vol.angle, throttle: 0, temp: this.vol.temp, integrite: this.vol.integrite, degats: this.vol.degats, taux: { pression: 0, chaleur: 0 }, enDegats: () => false }, fx, fy, (this.vol.f.mega ? FUSEE_BASE.hauteur : this.vol.f.hauteur || FUSEE_BASE.hauteur) * echelle);
+    else if (this.moduleRobot) dessinerModuleRobot(ctx, fx, fy, echelle, this.presDeLaFusee());
+    else dessinerFusee(ctx, { f: this.vol.f, angle: this.vol.angle, throttle: 0, temp: this.vol.temp, integrite: this.vol.integrite, degats: this.vol.degats, taux: { pression: 0, chaleur: 0 }, enDegats: () => false }, fx, fy, HAUTEUR_MODULE * echelle);
 
     // Rover garé
     if (this.rover && !this.enRover) {
@@ -464,7 +500,7 @@ class Exploration {
     ligne('Gravité', fmtG(c.g));
     ligne('Libération', fmtV(this.vLib));
     const sc = this.science[a.id] || { echantillons: 0, analyses: 0, sites: {} };
-    ligne(this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? String(sc.analyses) : `${this.sac.length} / ${d.capacite}` + (this.rover ? `  rover ${this.sacRover.length} / 20` : ''));
+    ligne(this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? `${sc.analyses} envoyées, ${this.donneesEnAttente} en mémoire` : `${this.sac.length} / ${d.capacite}` + (this.rover ? `  rover ${this.sacRover.length} / 20` : ''), this.donneesEnAttente ? '#ffca28' : '#fff');
     ligne('Sites étudiés ici', String(Object.keys(sc.sites || {}).length));
     ligne('Distance fusée', fmt(Math.abs(this.p.x - this.xFusee)) + ' m');
 
@@ -498,6 +534,36 @@ class Exploration {
     ctx.fillText(`←→ / Q D : ${this.type === 'robot' || this.enRover ? 'rouler' : 'marcher'}${this.saut && !this.enRover ? ' · ↑ / Z / Espace : sauter' : ''}${this.rover ? ` · V : ${this.enRover ? 'descendre du' : 'monter dans le'} rover` : ''} · E : ${this.type === 'robot' ? 'analyser' : 'ramasser'} (ou rentrer près de la fusée) · Échap : rappeler`, W / 2, H - 14);
     ctx.textAlign = 'left';
   }
+}
+
+// Module robot : petite base posée avec le robot. Panneaux solaires pour recharger, antenne vers l'orbiteur.
+function dessinerModuleRobot(ctx, x, y, s, actif) {
+  ctx.save();
+  ctx.translate(x, y);
+  // Pieds
+  ctx.strokeStyle = '#90a4ae'; ctx.lineWidth = Math.max(1.5, 0.08 * s);
+  ctx.beginPath(); ctx.moveTo(-0.9 * s, -0.7 * s); ctx.lineTo(-1.4 * s, 0); ctx.moveTo(0.9 * s, -0.7 * s); ctx.lineTo(1.4 * s, 0); ctx.stroke();
+  ctx.fillStyle = '#78909c'; ctx.fillRect(-1.6 * s, -0.08 * s, 0.4 * s, 0.08 * s); ctx.fillRect(1.2 * s, -0.08 * s, 0.4 * s, 0.08 * s);
+  // Corps (feuille dorée isolante)
+  ctx.fillStyle = '#d4a017'; ctx.fillRect(-1 * s, -1.4 * s, 2 * s, 0.75 * s);
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(-1 * s + i * 0.5 * s, -1.4 * s); ctx.lineTo(-1 * s + i * 0.5 * s, -0.65 * s); ctx.stroke(); }
+  // Panneaux solaires déployés
+  ctx.fillStyle = '#1e4fa8'; ctx.strokeStyle = '#9ec3ff';
+  ctx.fillRect(-3.2 * s, -1.35 * s, 2.1 * s, 0.5 * s); ctx.strokeRect(-3.2 * s, -1.35 * s, 2.1 * s, 0.5 * s);
+  ctx.fillRect(1.1 * s, -1.35 * s, 2.1 * s, 0.5 * s); ctx.strokeRect(1.1 * s, -1.35 * s, 2.1 * s, 0.5 * s);
+  // Antenne parabolique vers l'orbiteur
+  ctx.strokeStyle = '#cfd8dc'; ctx.lineWidth = Math.max(1, 0.05 * s);
+  ctx.beginPath(); ctx.moveTo(0.3 * s, -1.4 * s); ctx.lineTo(0.3 * s, -2.1 * s); ctx.stroke();
+  ctx.fillStyle = '#eceff1'; ctx.beginPath(); ctx.ellipse(0.45 * s, -2.25 * s, 0.45 * s, 0.2 * s, -0.6, 0, Math.PI * 2); ctx.fill();
+  if (actif && Math.sin(performance.now() / 200) > 0) {
+    ctx.strokeStyle = 'rgba(79,195,247,0.8)';
+    for (let r = 1; r <= 3; r++) { ctx.beginPath(); ctx.arc(0.6 * s, -2.4 * s, r * 0.35 * s, -1.6, -0.4); ctx.stroke(); }
+  }
+  ctx.fillStyle = '#fff'; ctx.font = '12px system-ui'; ctx.textAlign = 'center';
+  ctx.fillText(actif ? 'Module robot — recharge et liaison' : 'Module robot (E à côté : recharger, envoyer les données)', 0, -2.9 * s);
+  ctx.textAlign = 'left';
+  ctx.restore();
 }
 
 // ---------- Décor de la promenade sur Terre ----------

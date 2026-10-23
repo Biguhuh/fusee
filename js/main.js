@@ -500,8 +500,8 @@ addEventListener('keydown', (e) => {
       if (x.terre) x.terminer('retour', `Fin de la promenade : ${x.bouquet || 0} fleurs, ${x.panier || 0} fruits, ${x.bieres} bière(s).`);
       else x.agirRappel();
     }
-    // Écoulement du temps pendant l'exploration : ×1, ×2, ×5, ×10.
-    const pal = [1, 2, 5, 10], i = pal.indexOf(x.warp);
+    // Écoulement du temps pendant l'exploration : ×1 à ×50.
+    const pal = [1, 2, 5, 10, 20, 50], i = pal.indexOf(x.warp);
     if (e.key === '+' || e.code === 'NumpadAdd' || e.code === 'Equal') x.warp = pal[Math.min(pal.length - 1, i + 1)];
     if (e.key === '-' || e.code === 'NumpadSubtract' || e.code === 'Minus') x.warp = pal[Math.max(0, i - 1)];
     if (e.code === 'KeyP') etat.pause = !etat.pause;
