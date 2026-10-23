@@ -660,7 +660,7 @@ const Orbiteur = {
         <label class="groupe"><input type="checkbox" id="nav-masque"> Grosses lunes seulement</label>
         <button id="nav-encyclo">📖 Astres</button>
         <button id="nav-pause">⏸</button>
-        <button id="nav-hangar">Hangar</button>
+        <button id="nav-hangar">← Accueil</button>
       </div>
       <div class="panneau gauche" id="nav-etat"></div>
       <div class="panneau droite" id="nav-actions"></div>

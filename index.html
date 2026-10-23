@@ -4,15 +4,101 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Fusée — Système solaire</title>
-  <link rel="stylesheet" href="css/style.css?v=4">
+  <link rel="stylesheet" href="css/style.css?v=5">
 </head>
 <body>
+  <!-- 0. Accueil -->
+  <section id="ecran-accueil" class="ecran accueil">
+    <div class="bandeau">
+      <canvas id="ciel-accueil"></canvas>
+      <div class="titre-accueil">
+        <h1>Fusée</h1>
+        <p>Décollez de la Terre, posez-vous sur n'importe quel astre du système solaire, explorez-le et rentrez à la maison. Avec la vraie gravité, les vraies atmosphères et les vraies orbites.</p>
+      </div>
+    </div>
+
+    <h2>Choisissez votre façon de jouer</h2>
+    <div class="modes">
+      <article class="mode">
+        <h3>🪐 Exploration du système solaire</h3>
+        <p><b>Objectif : aller partout.</b> Lancez la méga-fusée depuis la Terre, construisez la station spatiale, puis partez en expédition avec l'orbiteur et son atterrisseur. Posez-vous, sortez le spationaute, le rover ou le robot, rapportez des échantillons sur Terre. Installez des stations ravitaillées depuis la Terre et des bases qui exploitent les ressources locales.</p>
+        <p id="progres-accueil" class="progres"></p>
+        <div class="boutons">
+          <button id="accueil-reprendre" class="principal cache">▶ Reprendre</button>
+          <button id="accueil-campagne" class="principal">🛰 Commencer</button>
+        </div>
+      </article>
+      <article class="mode">
+        <h3>🚀 Visite rapide</h3>
+        <p><b>On choisit une cible, on y va, on se pose, et c'est tout.</b> La fusée arrive au-dessus de l'astre, déjà équipée pour s'y poser et en repartir. Idéal pour découvrir la gravité de Rhéa, l'air épais de Titan ou les plongées dans Jupiter.</p>
+        <div class="boutons">
+          <button id="accueil-visite" class="principal">🎯 Choisir une destination</button>
+          <button id="accueil-hangar">🔧 Personnaliser la fusée</button>
+        </div>
+      </article>
+      <article class="mode">
+        <h3>🌳 Promenade sur Terre</h3>
+        <p>Avant de partir, cueillez des fleurs et des fruits pour l'équipage (introuvables là-haut) et buvez une bière au Bar de l'Espace.</p>
+        <div class="boutons"><button id="accueil-promenade">🌳 Se promener</button></div>
+      </article>
+    </div>
+
+    <h2>Les données</h2>
+    <div class="donnees">
+      <div class="chiffre"><b>478</b><span>astres</span></div>
+      <div class="chiffre"><b>460</b><span>lunes connues</span></div>
+      <div class="chiffre"><b>8</b><span>planètes, Pluton et Cérès</span></div>
+      <div class="chiffre"><b>NASA/JPL</b><span>orbites et masses</span></div>
+    </div>
+    <p class="doux">Gravité, rayon, atmosphère (pression, densité, température), orbites et masses viennent de la NASA (JPL) et des valeurs publiées. Les lunes sans taille mesurée sont estimées, et leur fiche le dit. Survolez un astre pour voir son nom, cliquez pour lire sa fiche complète.</p>
+    <button class="ouvrir-encyclo">📖 Parcourir tous les astres</button>
+
+    <h2>Aide</h2>
+    <div class="aide">
+      <section>
+        <h3>Atterrissage et décollage</h3>
+        <table>
+          <tr><td>↑ / Z, ↓ / S</td><td>Manette des gaz (elle reste où on la laisse)</td></tr>
+          <tr><td>X / Espace</td><td>Couper / plein gaz</td></tr>
+          <tr><td>← → / Q D</td><td>Orienter la fusée</td></tr>
+          <tr><td>L</td><td>Pilote automatique : se pose sur une zone plate et y reste</td></tr>
+          <tr><td>T</td><td>Décoller (pilote automatique jusqu'à l'orbite)</td></tr>
+          <tr><td>E / R / B</td><td>Une fois posé : spationaute / robot / construire une base</td></tr>
+          <tr><td>+ / −</td><td>Accélérer / ralentir le temps (limité juste avant le contact)</td></tr>
+          <tr><td>P / Échap</td><td>Pause / abandonner</td></tr>
+        </table>
+        <p class="doux">Pour se poser : moins que la vitesse maximale de l'astre, fusée droite, sol pas trop pentu. Pour repartir : atteindre l'altitude d'orbite et la vitesse orbitale à l'horizontale (jauges en haut de l'écran). La coque s'abîme petit à petit au-delà de ses limites de pression et de chaleur.</p>
+      </section>
+      <section>
+        <h3>Exploration au sol</h3>
+        <table>
+          <tr><td>← → / Q D</td><td>Marcher, rouler</td></tr>
+          <tr><td>↑ / Z / Espace</td><td>Sauter (selon la gravité locale)</td></tr>
+          <tr><td>E</td><td>Ramasser, analyser, cueillir… ou rentrer près de la fusée</td></tr>
+          <tr><td>V</td><td>Monter dans le rover / en descendre (20 échantillons)</td></tr>
+          <tr><td>+ / −</td><td>Temps ×1, ×2, ×5, ×10</td></tr>
+        </table>
+      </section>
+      <section>
+        <h3>Orbiteur</h3>
+        <table>
+          <tr><td>Molette, glisser</td><td>Zoomer, déplacer la carte</td></tr>
+          <tr><td>Clic / double-clic</td><td>Fiche d'un astre / centrer dessus</td></tr>
+          <tr><td>🎯 Centrer</td><td>Sur l'orbiteur, l'astre proche ou la cible ; mini-carte en bas à gauche</td></tr>
+          <tr><td>+ / −</td><td>Temps de ×1 à ×100 millions</td></tr>
+          <tr><td>I</td><td>Tous les astres</td></tr>
+        </table>
+        <p class="doux">Trois pilotages au choix : <b>libre</b> (on pousse soi-même), <b>assistant</b> (il calcule la prochaine manœuvre, on l'exécute), <b>planificateur</b> (il fait tout le voyage). Le temps reste toujours celui que vous choisissez.</p>
+      </section>
+    </div>
+  </section>
+
   <!-- 1. Hangar -->
-  <section id="ecran-hangar" class="ecran">
+  <section id="ecran-hangar" class="ecran cache">
     <header>
       <div class="titre-ligne">
         <h1>Hangar</h1>
-        <button class="ouvrir-encyclo">📖 Tous les astres</button>
+        <span><button class="vers-accueil">← Accueil</button> <button class="ouvrir-encyclo">📖 Tous les astres</button></span>
       </div>
       <p>Équipez l'atterrisseur. Chaque pièce ajoute du poids : il faudra plus de poussée.</p>
     </header>
@@ -38,15 +124,16 @@
   <section id="ecran-carte" class="ecran cache">
     <header>
       <div class="titre-ligne">
-        <h1>Mission directe</h1>
+        <h1>Visite rapide</h1>
         <button class="ouvrir-encyclo">📖 Tous les astres (lunes, astéroïdes…)</button>
       </div>
-      <p>Choisissez un astre. Les avertissements comparent votre fusée aux conditions sur place.</p>
+      <p>Choisissez un astre, la fusée arrive au-dessus. Posez-vous (ou plongez dans une géante), et c'est tout. Les autres lunes et les astéroïdes se choisissent dans « Tous les astres ».</p>
     </header>
     <div id="systeme" class="systeme"></div>
     <div id="fiche" class="fiche"><p class="vide">Cliquez sur un astre.</p></div>
+    <label class="auto-equip"><input type="checkbox" id="equip-auto" checked> Équiper automatiquement la fusée pour se poser et repartir (sinon : l'équipement du hangar)</label>
     <div class="actions">
-      <button id="retour-hangar">← Hangar</button>
+      <span><button class="vers-accueil">← Accueil</button> <button id="retour-hangar">🔧 Hangar</button></span>
       <button id="lancer" class="principal" disabled>Lancer la mission</button>
     </div>
   </section>
@@ -77,19 +164,19 @@
   <div id="modale" class="modale cache"></div>
   <div id="infobulle" class="infobulle cache"></div>
 
-  <script src="js/astres.js?v=4"></script>
-  <script src="js/equipements.js?v=4"></script>
-  <script src="js/physique.js?v=4"></script>
-  <script src="js/donnees-jpl.js?v=4"></script>
-  <script src="js/catalogue.js?v=4"></script>
-  <script src="js/orbites.js?v=4"></script>
-  <script src="js/vol.js?v=4"></script>
-  <script src="js/navigation.js?v=4"></script>
-  <script src="js/orbiteur.js?v=4"></script>
-  <script src="js/exploration.js?v=4"></script>
-  <script src="js/campagne.js?v=4"></script>
-  <script src="js/ecrans.js?v=4"></script>
-  <script src="js/infos.js?v=4"></script>
-  <script src="js/main.js?v=4"></script>
+  <script src="js/astres.js?v=5"></script>
+  <script src="js/equipements.js?v=5"></script>
+  <script src="js/physique.js?v=5"></script>
+  <script src="js/donnees-jpl.js?v=5"></script>
+  <script src="js/catalogue.js?v=5"></script>
+  <script src="js/orbites.js?v=5"></script>
+  <script src="js/vol.js?v=5"></script>
+  <script src="js/navigation.js?v=5"></script>
+  <script src="js/orbiteur.js?v=5"></script>
+  <script src="js/exploration.js?v=5"></script>
+  <script src="js/campagne.js?v=5"></script>
+  <script src="js/ecrans.js?v=5"></script>
+  <script src="js/infos.js?v=5"></script>
+  <script src="js/main.js?v=5"></script>
 </body>
 </html>

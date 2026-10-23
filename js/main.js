@@ -42,6 +42,7 @@ const PAS_PHYSIQUE = 0.02; // s
 
 function montrer(ecran) {
   etat.ecran = ecran;
+  $('ecran-accueil').classList.toggle('cache', ecran !== 'accueil');
   $('ecran-hangar').classList.toggle('cache', ecran !== 'hangar');
   $('ecran-carte').classList.toggle('cache', ecran !== 'carte');
   $('ecran-resultat').classList.toggle('cache', ecran !== 'resultat');
@@ -58,8 +59,62 @@ function allerHangar() {
   $('voyage-reprendre').textContent = v && v.orb ? '▶ Reprendre l’expédition en cours' : '🚀 Lancer une expédition (méga-fusée)';
   $('voyage-nouveau').textContent = v ? '↺ Nouvelle campagne' : '🛰 Commencer la campagne';
   $('voyage-etat').innerHTML = v ? resumeCampagne(v) : '';
-  $('vers-carte').textContent = 'Mission directe : choisir la destination →';
+  $('vers-carte').textContent = 'Visite rapide : choisir la destination →';
   montrer('hangar');
+}
+
+// ---------- Accueil ----------
+// « Aller partout » : les astres où l'on peut se poser (ou plonger), hors Terre et Soleil.
+function astresAVisiter() { return ASTRES.filter((a) => a.type !== 'etoile' && a.id !== 'terre'); }
+const PRINCIPAUX = ['mercure', 'venus', 'mars', 'jupiter', 'saturne', 'uranus', 'neptune', 'pluton', 'lune', 'io', 'europe', 'ganymede', 'callisto', 'titan', 'rhea', 'titania', 'oberon', 'triton', 'a1'];
+
+function allerAccueil() {
+  const v = etat.voyage;
+  $('accueil-reprendre').classList.toggle('cache', !v);
+  $('accueil-reprendre').textContent = v && v.orb ? '▶ Reprendre l’expédition' : '▶ Reprendre (lancer une expédition)';
+  $('accueil-campagne').textContent = v ? '↺ Nouvelle campagne' : '🛰 Commencer';
+  if (v) {
+    const vus = Object.keys(v.visites).filter((id) => v.visites[id].pose && ASTRES_PAR_ID[id]);
+    const nPrinc = PRINCIPAUX.filter((id) => vus.includes(id)).length;
+    $('progres-accueil').innerHTML = `Progression : <b>${vus.length} astre${vus.length > 1 ? 's' : ''} visité${vus.length > 1 ? 's' : ''}</b> sur ${astresAVisiter().length} (dont ${nPrinc} des ${PRINCIPAUX.length} principaux). ` + resumeCampagne(v);
+  } else $('progres-accueil').innerHTML = '';
+  montrer('accueil');
+  animerAccueil();
+}
+
+// Petit système solaire animé en bandeau : planètes à leurs vraies positions, temps accéléré.
+let animAccueil = null;
+function animerAccueil() {
+  if (animAccueil) return;
+  const cv = $('ciel-accueil');
+  const c = cv.getContext('2d');
+  const t0 = performance.now();
+  const ids = ['mercure', 'venus', 'terre', 'mars', 'jupiter', 'saturne', 'uranus', 'neptune'];
+  const image = () => {
+    if (etat.ecran !== 'accueil') { animAccueil = null; return; }
+    const W = (cv.width = cv.clientWidth), H = (cv.height = cv.clientHeight);
+    c.fillStyle = '#02040a'; c.fillRect(0, 0, W, H);
+    c.fillStyle = 'rgba(255,255,255,0.6)';
+    for (const e of ETOILES) c.fillRect(e.x * W, e.y * H, e.r, e.r);
+    const t = DATE_DEBUT + ((performance.now() - t0) / 1000) * 20 * JOUR;   // 1 s = 20 jours
+    const cx = W * 0.7, cy = H * 0.5, rMax = Math.min(W * 0.32, H * 0.48);
+    const echelle = (a) => rMax * Math.log(1 + a / (0.3 * UA_KM)) / Math.log(1 + 30.1 / 0.3);
+    const g = c.createRadialGradient(cx, cy, 0, cx, cy, 22);
+    g.addColorStop(0, '#fff3c0'); g.addColorStop(1, 'rgba(255,160,0,0)');
+    c.fillStyle = g; c.beginPath(); c.arc(cx, cy, 22, 0, 7); c.fill();
+    for (const id of ids) {
+      const a = ASTRES_PAR_ID[id];
+      const p = etatRelatif(a, t).r;
+      const d = echelle(V.norm(p)), ang = Math.atan2(p[1], p[0]);
+      c.strokeStyle = 'rgba(140,160,200,0.18)'; c.beginPath(); c.arc(cx, cy, echelle(a.orbite.a), 0, 7); c.stroke();
+      const x = cx + d * Math.cos(ang), y = cy - d * Math.sin(ang);
+      const r = Math.max(2.5, Math.log(a.rayonKm / 1000 + 1) * 2.4);
+      c.fillStyle = a.couleurs.disque; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
+      if (id === 'saturne') { c.strokeStyle = 'rgba(230,210,160,0.7)'; c.beginPath(); c.ellipse(x, y, r * 2, r * 0.6, -0.4, 0, 7); c.stroke(); }
+    }
+    animAccueil = requestAnimationFrame(image);
+  };
+  animAccueil = requestAnimationFrame(image);
 }
 
 function resumeCampagne(v) {
@@ -88,7 +143,7 @@ function finVol(r) {
   if (rang[r.cause] && (rang[r.cause] > (rang[etat.records[r.astre.id]] || 0))) etat.records[r.astre.id] = r.cause;
   const v = etat.voyage;
   const reussi = ['orbite', 'liberation', 'plongee'].includes(r.cause);
-  etat.suiteResultat = etat.enVoyage ? 'nav' : 'hangar';
+  etat.suiteResultat = etat.enVoyage ? 'nav' : 'visite';
   if (etat.vol.lancement) {
     // Lancement de la méga-fusée depuis la Terre.
     if (reussi) {
@@ -100,7 +155,7 @@ function finVol(r) {
     } else {
       Orbiteur.charger(v);
       Orbiteur.log('Échec du lancement de la méga-fusée.');
-      etat.suiteResultat = 'hangar';
+      etat.suiteResultat = 'accueil';
     }
   } else if (etat.enVoyage) {
     const a = r.astre.id;
@@ -117,10 +172,32 @@ function finVol(r) {
   }
   sauver(etat);
   afficherResultat(r);
-  $('vers-hangar').textContent = etat.suiteResultat === 'nav' ? 'Aller à l’orbiteur' : 'Retour au hangar';
+  $('vers-hangar').textContent = { nav: 'Aller à l’orbiteur', visite: '🎯 Autre destination', accueil: '← Accueil' }[etat.suiteResultat];
   $('rejouer').classList.toggle('cache', etat.enVoyage || etat.vol.lancement);
+  $('rejouer').textContent = etat.vol.lancement ? 'Relancer' : 'Rejouer cette visite';
   montrer('resultat');
 }
+
+// Visite rapide : la fusée est équipée automatiquement pour se poser et repartir (si possible).
+function lancerVisite() {
+  const a = ASTRES_PAR_ID[etat.destination];
+  if (!a) return;
+  if (!$('equip-auto').checked || !(a.type === 'solide' || a.type === 'gazeuse') || a.id === 'terre') {
+    etat.fuseeVisite = null;
+    return lancer();
+  }
+  const b = $('lancer');
+  b.textContent = 'Préparation de la fusée (vols d’essai)…';
+  b.disabled = true;
+  setTimeout(() => {
+    const c = concevoirAtterrisseur(a);
+    b.textContent = 'Lancer la mission';
+    b.disabled = false;
+    etat.fuseeVisite = c.ok ? c.choix : null;
+    lancer(c.ok ? { fusee: assemblerFusee(c.choix) } : {});
+  }, 30);
+}
+function rejouerVisite() { lancer(etat.fuseeVisite ? { fusee: assemblerFusee(etat.fuseeVisite) } : {}); }
 
 // ---------- Campagne : lancement, descente, robot, retour ----------
 function lancerMegaFusee() {
@@ -194,8 +271,8 @@ function rentrerSurTerre() {
     ? `La capsule s’est posée en douceur sous ses parachutes. ${res.n} échantillon${res.n > 1 ? 's' : ''} rapporté${res.n > 1 ? 's' : ''} : ${res.liste}.`
     : 'La capsule s’est posée en douceur sous ses parachutes. Pas d’échantillon cette fois.';
   $('res-stats').innerHTML = resumeCampagne(etat.voyage).split(' · ').map((x) => `<dt>•</dt><dd style="text-align:left">${x}</dd>`).join('');
-  etat.suiteResultat = 'hangar';
-  $('vers-hangar').textContent = 'Retour au hangar';
+  etat.suiteResultat = 'accueil';
+  $('vers-hangar').textContent = '← Accueil';
   $('rejouer').classList.add('cache');
   montrer('resultat');
 }
@@ -207,8 +284,8 @@ function terminerExpedition(texte) {
   h.className = 'echec';
   $('res-message').textContent = texte;
   $('res-stats').innerHTML = '';
-  etat.suiteResultat = 'hangar';
-  $('vers-hangar').textContent = 'Retour au hangar';
+  etat.suiteResultat = 'accueil';
+  $('vers-hangar').textContent = '← Accueil';
   $('rejouer').classList.add('cache');
   montrer('resultat');
 }
@@ -246,7 +323,7 @@ Orbiteur.contexte = {
   basculerMasque: () => { etat.masque = !etat.masque; sauver(etat); },
   estEnPause: () => etat.pause,
   basculerPause: () => { etat.pause = !etat.pause; },
-  hangar: () => { sauver(etat); allerHangar(); },
+  hangar: () => { sauver(etat); allerAccueil(); },
   descendre: (id) => descendre(id),
   larguerRobot: (id) => larguerRobot(id),
   rentrer: () => rentrerSurTerre(),
@@ -281,7 +358,7 @@ Infos.contexte = {
     const l = [];
     if (etat.ecran === 'nav') l.push(...Orbiteur.actionsPour(a));
     if (etat.ecran !== 'nav' && etat.ecran !== 'vol' && etat.ecran !== 'explo') {
-      l.push({ texte: '🚀 Mission directe ici', action: () => { etat.destination = a.id; lancer(); } });
+      l.push({ texte: '🚀 Visite rapide ici', action: () => { etat.destination = a.id; montrer('carte'); afficherCarte(etat, choisirDestination); lancerVisite(); } });
     }
     return l;
   },
@@ -296,9 +373,19 @@ function ouvrirFiche(id) {
 
 $('vers-carte').onclick = allerCarte;
 $('retour-hangar').onclick = allerHangar;
-$('lancer').onclick = () => lancer();
-$('vers-hangar').onclick = () => (etat.suiteResultat === 'nav' && etat.voyage && etat.voyage.orb ? allerNavigation() : allerHangar());
-$('rejouer').onclick = () => lancer();
+$('lancer').onclick = lancerVisite;
+$('vers-hangar').onclick = () => {
+  if (etat.suiteResultat === 'nav' && etat.voyage && etat.voyage.orb) allerNavigation();
+  else if (etat.suiteResultat === 'visite') allerCarte();
+  else allerAccueil();
+};
+$('rejouer').onclick = () => (etat.vol && etat.vol.lancement ? lancerMegaFusee() : rejouerVisite());
+$('accueil-campagne').onclick = () => $('voyage-nouveau').click();
+$('accueil-reprendre').onclick = allerNavigation;
+$('accueil-visite').onclick = allerCarte;
+$('accueil-hangar').onclick = allerHangar;
+$('accueil-promenade').onclick = promenadeSurTerre;
+document.querySelectorAll('.vers-accueil').forEach((b) => { b.onclick = allerAccueil; });
 document.querySelectorAll('.ouvrir-encyclo').forEach((b) => { b.onclick = () => Infos.ouvrirEncyclopedie(); });
 
 // Souris : infobulle au survol des astres, fiche au clic.
@@ -430,10 +517,18 @@ function redim() {
 }
 addEventListener('resize', redim);
 
-// Près du sol, le temps repasse en ×1 pour garder le contrôle.
+// Le joueur choisit l'écoulement du temps. Près du sol, on le limite pour qu'il reste toujours
+// au moins 2 secondes réelles avant le contact : une descente lente sur une petite lune peut être accélérée,
+// une arrivée rapide repasse d'elle-même à ×1.
 function warpEffectif(v) {
-  if (v.astre.type === 'solide' && v.altSol() < 1500 && !v.pose) return 1;
-  return etat.warp;
+  if (v.astre.type !== 'solide' || v.pose || v.fin) return etat.warp;
+  const alt = v.altSol();
+  const vDesc = Math.max(0.05, -v.vy, Math.abs(v.vx) * 0.2);
+  const tContact = Math.max(0, alt - 5) / vDesc;     // secondes de jeu avant le contact
+  const max = Math.max(1, tContact / 2);
+  let w = 1;
+  for (const p of PALIERS_TEMPS) if (p <= etat.warp && p <= max) w = p;
+  return w;
 }
 
 function dessinerPause(c, W, H) {
@@ -468,6 +563,7 @@ function boucle(t) {
     }
     touchesBreves.clear();
     if (etat.enVoyage) pleinALaBase(v);
+    v.warpChoisi = etat.warp;
     dessinerVol(ctx, v, canvas.width, canvas.height, etat.pause ? 0 : dt, w);
     if (etat.pause && !Infos.estOuverte()) dessinerPause(ctx, canvas.width, canvas.height);
     if (v.fin) {
@@ -491,7 +587,7 @@ function boucle(t) {
       etat.explo = null;
       touches.clear();
       sauver(etat);
-      if (etat.vol.promenade) allerHangar();                 // fin de la promenade sur Terre
+      if (etat.vol.promenade) allerAccueil();                // fin de la promenade sur Terre
       else if (etat.vol.robotSeul) allerNavigation();        // le robot reste sur place, on revient à l'orbiteur
       else montrer('vol');                                   // retour à la fusée posée
     }
@@ -505,5 +601,5 @@ function boucle(t) {
   requestAnimationFrame(boucle);
 }
 
-allerHangar();
+allerAccueil();
 requestAnimationFrame(boucle);

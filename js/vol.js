@@ -1094,7 +1094,7 @@ function dessinerHUD(ctx, vol, W, H, warp) {
   ctx.textAlign = 'right';
   ctx.font = 'bold 14px system-ui, sans-serif';
   ctx.fillStyle = warp > 1 ? '#ffca28' : 'rgba(255,255,255,0.6)';
-  ctx.fillText('Temps ×' + warp, W - 14, 28);
+  ctx.fillText('Temps ×' + warp + (vol.warpChoisi > warp ? ` (×${vol.warpChoisi} demandé, limité près du sol)` : '') + '  +/−', W - 14, 28);
   ctx.font = '12px system-ui, sans-serif';
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
   ctx.fillText('T+ ' + fmtDuree(vol.t), W - 14, 46);
