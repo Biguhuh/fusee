@@ -74,26 +74,50 @@ function calculerConception(a) {
   return { ok: true, besoin, ...meilleur };
 }
 
-// ---------- Méga-fusée (départ de la Terre) ----------
-// Deux étages, 110 t de charge utile : orbiteur, atterrisseur, kits et ergols.
-const MEGA_FUSEE = {
-  chargeUtile: 110000,
-  etages: [
-    { nom: '1er étage', masseSeche: 150000, carburant: 2200000, poussee: 40e6, isp: 320, hauteur: 120 },
-    { nom: '2e étage', masseSeche: 40000, carburant: 450000, poussee: 5e6, isp: 440, hauteur: 55 },
-  ],
+// ---------- Lanceurs (départ de la Terre) ----------
+// Deux destinations, deux fusées.
+const LANCEURS = {
+  station: {
+    nom: 'Hercule', destination: 'la station spatiale (orbite basse, 400 km)',
+    description: 'Lanceur lourd à 2 étages. Met 110 t en orbite basse : orbiteur, atterrisseur, kits et ergols.',
+    chargeUtile: 110000,
+    etages: [
+      { nom: '1er étage', masseSeche: 150000, carburant: 2200000, poussee: 40e6, isp: 320, hauteur: 120 },
+      { nom: '2e étage', masseSeche: 40000, carburant: 450000, poussee: 5e6, isp: 440, hauteur: 55 },
+    ],
+  },
+  lune: {
+    nom: 'Séléné', destination: 'la Lune (injection translunaire)',
+    description: 'Lanceur géant à 3 étages, du gabarit de Saturn V. Le 3e étage atteint l’orbite, puis rallume pour envoyer l’expédition vers la Lune.',
+    chargeUtile: 45000,
+    etages: [
+      { nom: '1er étage', masseSeche: 135000, carburant: 2150000, poussee: 39e6, isp: 330, hauteur: 111 },
+      { nom: '2e étage', masseSeche: 40000, carburant: 480000, poussee: 5.1e6, isp: 430, hauteur: 69 },
+      { nom: '3e étage', masseSeche: 13000, carburant: 107000, poussee: 1e6, isp: 421, hauteur: 34 },
+    ],
+  },
 };
 
+function caracteristiquesLanceur(l) {
+  const masse = l.chargeUtile + l.etages.reduce((s, e) => s + e.masseSeche + e.carburant, 0);
+  const poussee = l.etages[0].poussee;
+  return { masse, poussee, hauteur: l.etages[0].hauteur, twr: poussee / (masse * G0) };
+}
+
 // Fusée « mutable » : ses caractéristiques changent à chaque séparation d'étage.
-function megaFusee() {
+function megaFusee(type = 'station') {
+  const l = LANCEURS[type];
   const f = {
-    mega: true, etages: MEGA_FUSEE.etages, chargeUtile: MEGA_FUSEE.chargeUtile,
+    mega: true, lanceur: type, nomLanceur: l.nom, etages: l.etages, chargeUtile: l.chargeUtile,
     choix: { moteur: 'raptor', reservoir: 'titanesque', coque: 'renforce', bouclier: 'ablatif', panneau: 'aucun' },
-    pressionMax: 5, tempMax: 1200, protection: 5, largeurRel: 0.11,
+    pressionMax: 5, tempMax: 1200, protection: 5, largeurRel: type === 'lune' ? 0.09 : 0.11,
   };
   configurerEtage(f, 0);
   return f;
 }
+
+// Δv qu'il reste au dernier étage (pour l'injection translunaire).
+function deltaVRestant(f, carburant) { return f.isp * G0 * Math.log((f.masseSeche + carburant) / f.masseSeche); }
 function configurerEtage(f, i) {
   const e = f.etages[i];
   let reste = f.chargeUtile;

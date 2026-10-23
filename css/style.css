@@ -123,6 +123,16 @@ dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .aide td:first-child { white-space: nowrap; color: var(--accent); font-weight: 600; width: 1%; }
 .aide p { font-size: 13px; }
 .auto-equip { display: block; margin-top: 12px; font-size: 14px; }
+
+/* Centre de lancement */
+.lanceurs { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; }
+.lanceur { background: var(--panneau); border: 1px solid var(--bord); border-radius: 14px; padding: 18px; display: grid; grid-template-columns: 120px 1fr; gap: 16px; }
+.lanceur canvas { background: linear-gradient(#5aa9f0, #a7d3f7 70%, #3f7d3a 70%); border-radius: 10px; }
+.lanceur h2 { margin: 0 0 4px; }
+.lanceur .dest { color: var(--accent); font-weight: 600; margin: 0 0 8px; }
+.lanceur p { font-size: 14px; color: #cfd8dc; margin: 0 0 10px; }
+.lanceur dl { font-size: 13px; margin-bottom: 12px; }
+.lanceur .note { font-size: 12.5px; color: var(--doux); }
 .titre-ligne { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .voyage { border-top: 1px solid var(--bord); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
 .voyage h3 { margin: 0; font-size: 15px; }

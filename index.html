@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Fusée — Système solaire</title>
-  <link rel="stylesheet" href="css/style.css?v=5">
+  <link rel="stylesheet" href="css/style.css?v=6">
 </head>
 <body>
   <!-- 0. Accueil -->
@@ -21,7 +21,7 @@
     <div class="modes">
       <article class="mode">
         <h3>🪐 Exploration du système solaire</h3>
-        <p><b>Objectif : aller partout.</b> Lancez la méga-fusée depuis la Terre, construisez la station spatiale, puis partez en expédition avec l'orbiteur et son atterrisseur. Posez-vous, sortez le spationaute, le rover ou le robot, rapportez des échantillons sur Terre. Installez des stations ravitaillées depuis la Terre et des bases qui exploitent les ressources locales.</p>
+        <p><b>Objectif : aller partout.</b> Tout part de la Terre : lanceur Hercule vers la station spatiale, ou lanceur Séléné directement vers la Lune. Construisez la station spatiale, puis partez en expédition avec l'orbiteur et son atterrisseur. Posez-vous, sortez le spationaute, le rover ou le robot, rapportez des échantillons sur Terre. Installez des stations ravitaillées depuis la Terre et des bases qui exploitent les ressources locales.</p>
         <p id="progres-accueil" class="progres"></p>
         <div class="boutons">
           <button id="accueil-reprendre" class="principal cache">▶ Reprendre</button>
@@ -91,6 +91,18 @@
         <p class="doux">Trois pilotages au choix : <b>libre</b> (on pousse soi-même), <b>assistant</b> (il calcule la prochaine manœuvre, on l'exécute), <b>planificateur</b> (il fait tout le voyage). Le temps reste toujours celui que vous choisissez.</p>
       </section>
     </div>
+  </section>
+
+  <!-- 0 bis. Pas de tir : choix de la destination et du lanceur -->
+  <section id="ecran-lancement" class="ecran cache">
+    <header>
+      <div class="titre-ligne">
+        <h1>Centre de lancement</h1>
+        <button class="vers-accueil">← Accueil</button>
+      </div>
+      <p>Tout part de la Terre. Choisissez la destination : la fusée qui va avec est prête sur le pas de tir.</p>
+    </header>
+    <div id="lanceurs" class="lanceurs"></div>
   </section>
 
   <!-- 1. Hangar -->
@@ -164,19 +176,19 @@
   <div id="modale" class="modale cache"></div>
   <div id="infobulle" class="infobulle cache"></div>
 
-  <script src="js/astres.js?v=5"></script>
-  <script src="js/equipements.js?v=5"></script>
-  <script src="js/physique.js?v=5"></script>
-  <script src="js/donnees-jpl.js?v=5"></script>
-  <script src="js/catalogue.js?v=5"></script>
-  <script src="js/orbites.js?v=5"></script>
-  <script src="js/vol.js?v=5"></script>
-  <script src="js/navigation.js?v=5"></script>
-  <script src="js/orbiteur.js?v=5"></script>
-  <script src="js/exploration.js?v=5"></script>
-  <script src="js/campagne.js?v=5"></script>
-  <script src="js/ecrans.js?v=5"></script>
-  <script src="js/infos.js?v=5"></script>
-  <script src="js/main.js?v=5"></script>
+  <script src="js/astres.js?v=6"></script>
+  <script src="js/equipements.js?v=6"></script>
+  <script src="js/physique.js?v=6"></script>
+  <script src="js/donnees-jpl.js?v=6"></script>
+  <script src="js/catalogue.js?v=6"></script>
+  <script src="js/orbites.js?v=6"></script>
+  <script src="js/vol.js?v=6"></script>
+  <script src="js/navigation.js?v=6"></script>
+  <script src="js/orbiteur.js?v=6"></script>
+  <script src="js/exploration.js?v=6"></script>
+  <script src="js/campagne.js?v=6"></script>
+  <script src="js/ecrans.js?v=6"></script>
+  <script src="js/infos.js?v=6"></script>
+  <script src="js/main.js?v=6"></script>
 </body>
 </html>

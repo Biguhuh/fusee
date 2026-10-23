@@ -6,7 +6,10 @@ Jeu web en HTML, JavaScript et canvas 2D, sans framework.
 ## Façons de jouer
 - **Mission directe** (hangar → carte) : on choisit un astre, la fusée arrive au-dessus, on se pose (ou on plonge), puis on repart en orbite. Le bouton « ⚙ Équiper pour se poser et repartir » choisit les pièces qui le permettent.
 - **Campagne** (hangar → « Commencer la campagne ») : tout part de la Terre.
-  1. **Méga-fusée** (2 étages, 110 t en orbite) : T pour décoller au pilote automatique. Séparation du 1er étage vers 65 km, orbite en 9 minutes.
+  1. **Centre de lancement** : tout part de la Terre, avec la fusée qui correspond à la destination.
+     - **Hercule** (2 étages, 2 950 t, 110 t en orbite basse) → la station spatiale.
+     - **Séléné** (3 étages, du gabarit de Saturn V) → la Lune : après la mise en orbite, le 3e étage rallume pour l'injection translunaire (≈ 3,1 km/s), puis le planificateur fait la mise en orbite lunaire.
+     - Lancement en bonne et due forme : tour de lancement, T pour lancer le compte à rebours, allumage à T−3 (les pinces retiennent la fusée), décollage, Max Q, séparations d'étages, largage de la coiffe, mise en orbite. La chronologie s'affiche pendant le vol et dans le résultat.
   2. **Station spatiale terrestre** : la première chose à construire (🏗). Elle reçoit un cargo de la Terre tous les 30 jours.
   3. **Expédition** : l'orbiteur emporte son atterrisseur. On part vers un astre (pilotage libre, assistant ou planificateur), on se pose, on explore, on remonte.
   4. **Retour** : cible Terre, puis « 🏠 Rentrer sur Terre » : la capsule rapporte les échantillons. Une nouvelle méga-fusée relance l'expédition suivante (elle s'amarre à la station terrestre).

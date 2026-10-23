@@ -61,6 +61,28 @@ const Orbiteur = {
       (station ? ` Amarrée à ${station.nom}.` : ' Construisez d’abord la station spatiale.'));
   },
 
+  // Lanceur Séléné : son 3e étage rallume pour envoyer l'expédition vers la Lune.
+  // On attend la fenêtre (au plus une orbite), puis l'étage fournit la poussée : l'orbiteur garde son carburant.
+  injectionTranslunaire(dvDispo) {
+    const v = this.v;
+    v.cible = 'lune';
+    v.mode = 'planificateur';
+    const e = prochaineEtape(v.orb, v.t, 'lune');
+    if (e.type !== 'transfert') return { ok: false, texte: 'Pas de fenêtre vers la Lune trouvée.' };
+    if (e.tExec > v.t) { avancerVaisseau(v.orb, v.t, e.tExec - v.t); v.t = e.tExec; }
+    const dv = e.dv(v.orb, v.t);
+    const besoin = V.norm(dv) * 1000;
+    if (besoin > dvDispo) {
+      this.log(`Le 3e étage n’a plus assez d’ergols pour l’injection translunaire (${fmtV(dvDispo)} sur ${fmtV(besoin)}). L’expédition reste en orbite terrestre.`);
+      return { ok: false, texte: `Injection translunaire impossible : il manquait ${fmtV(besoin - dvDispo)}. L’expédition reste en orbite terrestre.` };
+    }
+    appliquerImpulsion(v.orb, dv);
+    this.etape = null;
+    this.auto = true;
+    this.log(`Injection translunaire par le 3e étage : ${fmtV(besoin)}. Arrivée à la Lune dans environ ${fmtDuree(v.orb.transfert.tArrivee - v.t)}.`);
+    return { ok: true, texte: `Le 3e étage a rallumé pour l’injection translunaire (${fmtV(besoin)}) : l’expédition est en route vers la Lune, arrivée dans environ ${fmtDuree(v.orb.transfert.tArrivee - v.t)}. Le planificateur s’occupera de la mise en orbite lunaire ; réglez l’écoulement du temps à votre guise.` };
+  },
+
   // Fin d'expédition : la capsule rentre sur Terre avec l'équipage et les échantillons.
   rentrerSurTerre() {
     const v = this.v;
@@ -698,7 +720,7 @@ const Orbiteur = {
   // Ce qu'il faut faire ensuite, pour guider le joueur.
   objectif() {
     const v = this.v;
-    if (!v.stations.some((s) => s.terrestre)) return 'Construisez la station spatiale en orbite terrestre (bouton 🏗).';
+    if (!v.stations.some((s) => s.terrestre) && v.orb.centre === 'terre') return 'Construisez la station spatiale en orbite terrestre (bouton 🏗).';
     if (!Object.keys(v.visites).some((id) => v.visites[id].pose)) return 'Choisissez une cible (la Lune ?), allez-y, posez-vous et rapportez des échantillons.';
     if (Object.keys(v.echantillonsABord).length) return 'Échantillons à bord : rentrez sur Terre pour les rapporter (cible Terre, puis 🏠).';
     if (v.stations.length < 2) return 'Construisez une station autour d’un autre astre : elle sera ravitaillée depuis la Terre.';

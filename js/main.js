@@ -43,6 +43,7 @@ const PAS_PHYSIQUE = 0.02; // s
 function montrer(ecran) {
   etat.ecran = ecran;
   $('ecran-accueil').classList.toggle('cache', ecran !== 'accueil');
+  $('ecran-lancement').classList.toggle('cache', ecran !== 'lancement');
   $('ecran-hangar').classList.toggle('cache', ecran !== 'hangar');
   $('ecran-carte').classList.toggle('cache', ecran !== 'carte');
   $('ecran-resultat').classList.toggle('cache', ecran !== 'resultat');
@@ -150,7 +151,14 @@ function finVol(r) {
       Orbiteur.charger(v);
       Orbiteur.demarrerExpedition();
       Orbiteur.camPlacee = false;
-      r.messageLancement = 'La méga-fusée a placé l’expédition en orbite terrestre.' + (v.stations.some((s) => s.terrestre) ? '' : ' Première tâche : construire la station spatiale.');
+      const f = etat.vol.f;
+      if (f.lanceur === 'lune') {
+        const tli = Orbiteur.injectionTranslunaire(deltaVRestant(f, etat.vol.carburant));
+        etat.reprendreAuto = tli.ok;   // le planificateur poursuit le voyage à l'ouverture de l'orbiteur
+        r.messageLancement = `${f.nomLanceur} a placé l’expédition en orbite terrestre. ` + tli.texte;
+      } else {
+        r.messageLancement = `${f.nomLanceur} a placé l’expédition en orbite terrestre.` + (v.stations.some((s) => s.terrestre) ? ' Rendez-vous avec la station spatiale.' : ' Première tâche : construire la station spatiale.');
+      }
       etat.suiteResultat = 'nav';
     } else {
       Orbiteur.charger(v);
@@ -200,9 +208,49 @@ function lancerVisite() {
 function rejouerVisite() { lancer(etat.fuseeVisite ? { fusee: assemblerFusee(etat.fuseeVisite) } : {}); }
 
 // ---------- Campagne : lancement, descente, robot, retour ----------
-function lancerMegaFusee() {
+function lancerMegaFusee(type = etat.typeLanceur || 'station') {
+  etat.typeLanceur = type;
   etat.destination = 'terre';
-  lancer({ fusee: megaFusee(), lancement: true, depuisSol: true, voyage: false });
+  lancer({ fusee: megaFusee(type), lancement: true, depuisSol: true, voyage: false });
+}
+
+// Centre de lancement : on choisit la destination, la fusée qui va avec est sur le pas de tir.
+function allerLancement() {
+  const v = etat.voyage;
+  const station = v && v.stations.find((s) => s.terrestre);
+  const notes = {
+    station: station ? `Rendez-vous et amarrage à ${station.nom}.` : 'Arrivée en orbite basse : vous y construirez la station spatiale.',
+    lune: 'Après la mise en orbite, le 3e étage rallume pour l’injection translunaire : l’expédition part directement vers la Lune (environ 5 jours de trajet).',
+  };
+  $('lanceurs').innerHTML = ['station', 'lune'].map((type) => {
+    const l = LANCEURS[type], c = caracteristiquesLanceur(l);
+    return `<article class="lanceur">
+      <canvas width="120" height="300" data-type="${type}"></canvas>
+      <div>
+        <h2>${l.nom}</h2>
+        <p class="dest">→ ${l.destination}</p>
+        <p>${l.description}</p>
+        <dl>
+          <dt>Hauteur</dt><dd>${fmt(c.hauteur)} m</dd>
+          <dt>Masse au décollage</dt><dd>${fmt(c.masse / 1000)} t</dd>
+          <dt>Poussée au décollage</dt><dd>${fmt(c.poussee / 1e6, 1)} MN (${fmt(c.twr, 2)} fois son poids)</dd>
+          <dt>Étages</dt><dd>${l.etages.length}</dd>
+          <dt>Charge utile</dt><dd>${fmt(l.chargeUtile / 1000)} t</dd>
+        </dl>
+        <p class="note">${notes[type]}</p>
+        <button class="principal" data-lancer="${type}">🚀 Aller sur le pas de tir</button>
+      </div>
+    </article>`;
+  }).join('');
+  $('lanceurs').querySelectorAll('canvas').forEach((cv) => {
+    const f = megaFusee(cv.dataset.type);
+    const c = cv.getContext('2d');
+    c.clearRect(0, 0, cv.width, cv.height);
+    dessinerTour(c, cv.width / 2 + 22, 210, 190 / f.hauteur, f.hauteur);
+    dessinerFusee(c, { f, angle: 0, throttle: 0, temp: 20 }, cv.width / 2, 210, 190 * (f.hauteur / 120));
+  });
+  $('lanceurs').querySelectorAll('[data-lancer]').forEach((b) => { b.onclick = () => lancerMegaFusee(b.dataset.lancer); });
+  montrer('lancement');
 }
 
 function basesSur(id) { return etat.voyage ? etat.voyage.bases.filter((b) => b.astre === id) : []; }
@@ -307,9 +355,10 @@ function promenadeSurTerre() {
 // ---------- Voyage (orbiteur) ----------
 function allerNavigation() {
   if (!etat.voyage) etat.voyage = Orbiteur.nouveauVoyage();
-  // Pas d'expédition en cours : on lance d'abord la méga-fusée depuis la Terre.
-  if (!etat.voyage.orb) return lancerMegaFusee();
+  // Pas d'expédition en cours : tout part de la Terre, depuis le centre de lancement.
+  if (!etat.voyage.orb) return allerLancement();
   Orbiteur.charger(etat.voyage);
+  if (etat.reprendreAuto) { Orbiteur.auto = true; etat.reprendreAuto = false; }
   Orbiteur.construireHud();
   if (!Orbiteur.camPlacee) { Orbiteur.centrerSur('orbiteur'); Orbiteur.camPlacee = true; }
   etat.pause = false;

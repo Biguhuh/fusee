@@ -288,4 +288,9 @@ function afficherResultat(r) {
     <dt>Dégâts pression / chaleur / chocs</dt><dd>${fmt(r.degats.pression)} / ${fmt(r.degats.chaleur)} / ${fmt(r.degats.impact)} %</dd>
     <dt>Carburant restant</dt><dd>${fmt(r.carburantRestant)} kg</dd>
     <dt>Dose de rayonnement</dt><dd>${fmt(Math.min(100, r.dose))} %</dd>`;
+  // Lancement : la chronologie, du compte à rebours à la mise en orbite.
+  if (r.fusee && r.fusee.mega && r.chrono && r.chrono.length) {
+    $('res-stats').innerHTML = `<dt>Lanceur</dt><dd>${r.fusee.nomLanceur}</dd><dt>Durée de la montée</dt><dd>${fmtDuree(r.chrono[r.chrono.length - 1].t)}</dd>` +
+      r.chrono.filter((e) => !e.avant || /T−/.test(e.texte)).map((e) => `<dt>${e.avant ? '' : 'T+' + fmtDuree(e.t)}</dt><dd style="text-align:left">${e.texte}</dd>`).join('');
+  }
 }

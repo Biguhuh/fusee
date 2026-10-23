@@ -76,6 +76,22 @@ class Vol {
     const a = this.astre, f = this.f;
     this.t += dt;
 
+    // Compte à rebours sur le pas de tir : les pinces retiennent la fusée pendant l'allumage.
+    if (this.compteARebours > 0) {
+      const avant = this.compteARebours;
+      this.compteARebours = Math.max(0, this.compteARebours - dt);
+      if (avant > 3 && this.compteARebours <= 3) this.noter('T−3 s : allumage des moteurs');
+      this.throttle = this.compteARebours <= 3 ? Math.min(1, (3 - this.compteARebours) / 2) : 0;
+      this.manette = this.throttle;
+      if (this.compteARebours === 0) {
+        this.tDecollage = this.t;
+        this.noter('T−0 : décollage !');
+        this.decollageDemande = true;
+        this.autopilote = true;
+      } else return;
+    }
+    if (this.lancement && this.tDecollage && !this.pose) this.suivreLancement();
+
     if (this.autopilote) this.pilotage(dt);
     else {
       if (cmd.gauche) this.angle -= VITESSE_ROTATION * dt;
@@ -93,7 +109,9 @@ class Vol {
       if (this.carburant === 0 && f.etages && f.etage < f.etages.length - 1) {
         configurerEtage(f, f.etage + 1);
         this.carburant = f.carburant;
-        this.messageExplo = { texte: `Séparation : ${f.etages[f.etage - 1].nom} largué, ${f.etages[f.etage].nom} allumé.`, vie: 5 };
+        this.noter(`Séparation : ${f.etages[f.etage - 1].nom} largué à ${fmtAlt(this.y)}, ${f.etages[f.etage].nom} allumé`);
+        // L'étage vide retombe : on le voit s'éloigner.
+        this.etageLargue = { x: this.x, y: this.y, vx: this.vx, vy: this.vy, angle: this.angle, h: f.etages[f.etage - 1].hauteur - f.hauteur, t: 0 };
       }
       if (this.carburant === 0 && this.carburantVideAlt === null) this.carburantVideAlt = this.altSol();
     }
@@ -356,15 +374,46 @@ class Vol {
   // Le joueur termine la mission une fois posé (Entrée) ou l'abandonne (Échap).
   finirAuSol() { if (this.pose && !this.fin && !this.voyage) this.terminer('pose'); }
   // Décollage volontaire, confié au pilote automatique.
+  // Sur le pas de tir : compte à rebours de 10 s, allumage à T−3, décollage à T−0.
   demanderDecollage() {
     if (!this.pose || this.fin) return;
+    if (this.lancement && this.compteARebours === undefined) {
+      this.compteARebours = 10;
+      this.noter('Compte à rebours : T−10 s');
+      return;
+    }
+    if (this.compteARebours > 0) return;
     this.decollageDemande = true;
     this.autopilote = true;
+  }
+
+  // Chronologie du lancement (affichée à l'écran et dans le résultat).
+  noter(texte) {
+    this.chrono = this.chrono || [];
+    this.chrono.push({ t: this.t - (this.tDecollage || this.t), texte, avant: !this.tDecollage });
+    this.messageExplo = { texte, vie: 5 };
+  }
+
+  // Événements de la montée : Max Q, coiffe.
+  suivreLancement() {
+    const v = Math.hypot(this.vx, this.vy);
+    const q = 0.5 * this.c.rho * v * v;
+    this.qMax = Math.max(this.qMax || 0, q);
+    if (!this.maxQAnnonce && this.qMax > 5000 && q < 0.9 * this.qMax) {
+      this.maxQAnnonce = true;
+      this.noter(`Max Q : pression aérodynamique maximale (${fmt(this.qMax / 1000)} kPa) à ${fmtAlt(this.y)}`);
+    }
+    if (!this.coiffeLarguee && this.y > 110000) {
+      this.coiffeLarguee = true;
+      this.noter('Largage de la coiffe : l’atmosphère est trop ténue pour la charge utile');
+    }
   }
   abandonner() { if (!this.fin) this.terminer(this.pose ? 'pose' : 'abandon'); }
 
   terminer(cause) {
     const detruite = ['ecrasee', 'brulee', 'pressurisee', 'carburant', 'irradiee'].includes(cause);
+    if (this.lancement && cause === 'orbite') this.noter(`Mise en orbite à ${fmtAlt(this.y)}, ${fmtV(Math.abs(this.vx))}`);
+    if (this.lancement && detruite) this.noter('Perte du lanceur');
     this.fin = {
       cause, detruite,
       astre: this.astre,
@@ -378,6 +427,7 @@ class Vol {
       altitude: this.y,
       vitesse: Math.hypot(this.vx, this.vy),
       dejaPose: !!this.dejaPose,
+      chrono: this.chrono || [],
       degats: { ...this.degats },
       fusee: this.f,
       carburantVideAlt: this.carburantVideAlt,
@@ -393,7 +443,10 @@ class Vol {
     switch (this.phase) {
       case 'descente': return `Posez-vous en douceur : moins de ${a.vMax} m/s, fusée droite, sol pas trop pentu`;
       case 'au sol':
-        if (this.lancement) return 'Méga-fusée sur le pas de tir : T pour décoller (pilote auto), ou montez les gaz';
+        if (this.lancement) {
+          if (this.compteARebours > 0) return `${this.f.nomLanceur} : compte à rebours en cours…`;
+          return `${this.f.nomLanceur} sur le pas de tir : T pour lancer le compte à rebours`;
+        }
         return this.voyage
           ? 'Posé ! E : spationaute · R : robot · B : construire une base · T : décoller vers l\'orbiteur'
           : 'Posé ! Entrée : terminer · E : spationaute · R : robot · T : décoller vers l\'orbite';
@@ -593,6 +646,26 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
   // Fumée et étincelles, puis fusée ou explosion.
   const hPx = Math.max((vol.f.hauteur || FUSEE_BASE.hauteur) * echelle, vol.f.mega ? 90 : 56);
   if (solide) dessinerBases(ctx, vol, W, echelle, fuseeY);
+  // Pas de tir : la tour de lancement, à côté de la fusée.
+  if (vol.lancement && solide) {
+    const xt = 9;
+    const sx = W / 2 + (xt - vol.x) * echelle, sy = fuseeY + (vol.y - vol.sol(xt)) * echelle;
+    if (sx > -200 && sx < W + 200 && sy > -50) dessinerTour(ctx, sx, sy, echelle, vol.f.etages[0].hauteur);
+  }
+  // Étage largué qui retombe
+  if (vol.etageLargue && dtReel > 0) {
+    const e = vol.etageLargue;
+    const h = dtReel * warp;
+    e.t += h; e.vy -= c.g * h; e.x += e.vx * h; e.y += e.vy * h; e.angle += 0.05 * h;
+    const sx = W / 2 + (e.x - vol.x) * echelle, sy = fuseeY + (vol.y - e.y) * echelle;
+    if (e.t < 120 && sx > -100 && sx < W + 100 && sy > -100 && sy < H + 100) {
+      const hh = Math.max(14, e.h * echelle), ww = Math.max(4, hh * 0.22);
+      ctx.save(); ctx.translate(sx, sy); ctx.rotate(e.angle);
+      ctx.fillStyle = '#eceff1'; ctx.fillRect(-ww / 2, 0, ww, hh);
+      ctx.fillStyle = '#212121'; ctx.fillRect(-ww / 2, hh * 0.8, ww / 2, hh * 0.1);
+      ctx.restore();
+    }
+  }
   if (!vol.fin && dtReel > 0) emettreParticules(vol, W / 2, fuseeY, hPx, dtReel);
   dessinerParticules(ctx, vol, depX, depY, dtReel);
   if (vol.explosion) {
@@ -751,6 +824,14 @@ function dessinerTerrain(ctx, vol, W, H, echelle, fuseeY) {
 function emettreParticules(vol, x, y, h, dt) {
   const usure = 1 - vol.integrite / 100;
   const cy = y - h * 0.45;
+  // Grands nuages de fumée au décollage (eau du déluge vaporisée et gaz des moteurs).
+  if (vol.f.mega && vol.throttle > 0 && vol.altSol() < 300) {
+    for (let i = 0; i < 4; i++) {
+      const cote = Math.random() < 0.5 ? -1 : 1;
+      vol.fx.push({ type: 'vapeur', x: x + cote * Math.random() * h * 0.1, y, vx: cote * (40 + Math.random() * 120), vy: -5 - Math.random() * 25,
+        vie: 0, max: 2.5 + Math.random() * 2.5, r: 8 + Math.random() * 14 });
+    }
+  }
   if (usure > 0.25 && Math.random() < usure * 1.2) {
     vol.fx.push({ type: 'fumee', x: x + (Math.random() - 0.5) * h * 0.2, y: cy + (Math.random() - 0.5) * h * 0.4,
       vx: (Math.random() - 0.5) * 20, vy: -10 - Math.random() * 20, vie: 0, max: 1.5 + Math.random() * 1.5, r: 4 + Math.random() * 6 });
@@ -775,8 +856,8 @@ function dessinerParticules(ctx, vol, depX, depY, dt) {
     p.x += p.vx * dt + depX;
     p.y += p.vy * dt + depY;
     const k = p.vie / p.max;
-    if (p.type === 'fumee') {
-      ctx.fillStyle = `rgba(70,70,70,${0.45 * (1 - k)})`;
+    if (p.type === 'fumee' || p.type === 'vapeur') {
+      ctx.fillStyle = p.type === 'vapeur' ? `rgba(235,235,235,${0.7 * (1 - k)})` : `rgba(70,70,70,${0.45 * (1 - k)})`;
       ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1 + 2 * k), 0, Math.PI * 2); ctx.fill();
     } else {
       ctx.fillStyle = p.type === 'braise' ? `rgba(255,${Math.round(160 - 100 * k)},0,${1 - k})` : `rgba(255,255,${Math.round(200 - 150 * k)},${1 - k})`;
@@ -838,6 +919,7 @@ function dessinerFusee(ctx, vol, x, y, h) {
   forme.lineTo(w / 2, yh);
   forme.quadraticCurveTo(w / 2 - (w - wc) * 1.5, (yh + yb) / 2, w / 2, yb);
   forme.closePath();
+  const lanceur = vol.f && vol.f.mega && vol.f.etages;
   // La chaleur noircit la peinture.
   const brule = Math.min(1, degats.chaleur / 100);
   ctx.fillStyle = melanger('#eceff1', '#3e2723', brule * 0.8);
@@ -853,9 +935,14 @@ function dessinerFusee(ctx, vol, x, y, h) {
     ctx.stroke();
     ctx.restore();
   }
+  if (lanceur) {
+    ctx.save(); ctx.clip(forme);
+    dessinerBandesLanceur(ctx, vol.f, w, h);
+    ctx.restore();
+  }
   // Hublot
   ctx.fillStyle = integrite < 30 ? '#90a4ae' : '#4fc3f7';
-  ctx.beginPath(); ctx.arc(0, -h * 0.6, wc * 0.22, 0, Math.PI * 2); ctx.fill();
+  if (!lanceur) { ctx.beginPath(); ctx.arc(0, -h * 0.6, wc * 0.22, 0, Math.PI * 2); ctx.fill(); }
 
   // Coiffe (couleur du bouclier thermique)
   const coul = { aucun: '#c62828', ceramique: '#e0e0e0', ablatif: '#6d4c41', carbone: '#212121', tungstene: '#90a4ae' }[ch.bouclier] || '#c62828';
@@ -895,6 +982,43 @@ function dessinerFusee(ctx, vol, x, y, h) {
     ctx.stroke(forme);
   }
   ctx.restore();
+}
+
+// Tour de lancement en treillis, avec ses bras d'accès.
+function dessinerTour(ctx, x, yBase, s, hauteurFusee) {
+  const H = hauteurFusee * 1.08 * s, L = Math.max(6, 9 * s);
+  ctx.save();
+  ctx.strokeStyle = '#c62828';
+  ctx.lineWidth = Math.max(1, 0.5 * s);
+  ctx.strokeRect(x, yBase - H, L, H);
+  ctx.beginPath();
+  const pas = Math.max(6, 6 * s);
+  for (let y = 0; y < H; y += pas) {
+    ctx.moveTo(x, yBase - y); ctx.lineTo(x + L, yBase - y - pas);
+    ctx.moveTo(x + L, yBase - y); ctx.lineTo(x, yBase - y - pas);
+  }
+  ctx.stroke();
+  // Bras d'accès vers la fusée
+  ctx.fillStyle = '#8d6e63';
+  for (const f of [0.35, 0.6, 0.85]) ctx.fillRect(x - 5 * s, yBase - H * f, 5 * s, Math.max(1.5, 0.8 * s));
+  // Table de lancement
+  ctx.fillStyle = '#546e7a';
+  ctx.fillRect(x - 24 * s, yBase - 3 * s, 36 * s, 3 * s);
+  ctx.restore();
+}
+
+// Bandes noires et séparations d'étages des grands lanceurs.
+function dessinerBandesLanceur(ctx, f, w, h) {
+  const reste = f.etages.slice(f.etage);
+  ctx.fillStyle = '#212121';
+  // Motif noir et blanc en bas du premier étage restant (aide à suivre le roulis)
+  for (let i = 0; i < 4; i++) ctx.fillRect(i % 2 ? 0 : -w / 2, -h * (0.08 + 0.05 * Math.floor(i / 2)), w / 2, h * 0.05);
+  // Séparations entre étages
+  for (let k = 1; k < reste.length; k++) {
+    const y = -h * (reste[k].hauteur / reste[0].hauteur) * 0.75 - h * 0.05;
+    ctx.fillRect(-w / 2, y, w, Math.max(1.5, h * 0.012));
+    ctx.fillRect(-w / 2, y + h * 0.02, w * 0.25, h * 0.04);
+  }
 }
 
 // Bases au sol : dômes habitables, panneaux solaires et usine à ergols.
@@ -1017,6 +1141,28 @@ function dessinerHUD(ctx, vol, W, H, warp) {
     ctx.textAlign = 'center';
     ctx.fillStyle = Math.sin(performance.now() / 150) > 0 ? '#ff1744' : '#ffffff';
     msgs.forEach((m, i) => ctx.fillText(m, W / 2, 70 + i * 24));
+    ctx.textAlign = 'left';
+  }
+
+  // Compte à rebours, en grand
+  if (vol.compteARebours > 0) {
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 96px system-ui, sans-serif';
+    ctx.fillStyle = vol.compteARebours <= 3 ? '#ffca28' : '#ffffff';
+    ctx.fillText('T−' + Math.ceil(vol.compteARebours), W / 2, H * 0.4);
+    ctx.font = '16px system-ui, sans-serif';
+    ctx.fillText(vol.compteARebours <= 3 ? 'Allumage — les pinces retiennent la fusée' : 'Compte à rebours', W / 2, H * 0.4 + 30);
+    ctx.textAlign = 'left';
+  }
+  // Chronologie du lancement
+  if (vol.lancement && vol.chrono && vol.tDecollage) {
+    const evs = vol.chrono.filter((e) => !e.avant).slice(-5);
+    ctx.font = '12px system-ui, sans-serif';
+    ctx.textAlign = 'right';
+    evs.forEach((e, i) => {
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.fillText(`T+${fmtDuree(e.t)}  ${e.texte}`, W - 70, H - 120 - (evs.length - 1 - i) * 17);
+    });
     ctx.textAlign = 'left';
   }
 
