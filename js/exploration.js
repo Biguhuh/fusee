@@ -49,7 +49,7 @@ class Exploration {
     this.analyse = null;
     this.fin = null;
     this.message = '';
-    this.tMessage = 0;
+    this.fileMessages = [];
     this.traces = [];
     this.fx = [];
     this.c = conditions(this.astre, this.p.y);
@@ -158,7 +158,17 @@ class Exploration {
     const s = (this.science[this.astre.id] = this.science[this.astre.id] || { sites: {}, echantillons: 0, analyses: 0 });
     s.sites[site.k] = true;
   }
-  dire(m) { this.message = m; this.tMessage = 6; }
+  // Les messages restent affichés en temps réel (7 s, 12 s quand le temps est accéléré ×10 et plus), 3 au plus.
+  dire(m) {
+    this.message = m;
+    const fin = performance.now() + ((this.warp || 1) >= 10 ? 12000 : 7000);
+    this.fileMessages = (this.fileMessages || []).filter((x) => x.texte !== m).concat({ texte: m, fin }).slice(-3);
+  }
+  messagesVisibles() {
+    const t = performance.now();
+    this.fileMessages = (this.fileMessages || []).filter((x) => x.fin > t);
+    return this.fileMessages.map((x) => x.texte);
+  }
   // Pente moyenne sous un véhicule (empattement d'environ 2,4 m).
   penteSous(x) { return Math.atan2(this.sol(x + 1.2) - this.sol(x - 1.2), 2.4); }
   sol(x) { return this.vol.sol(x); }
@@ -168,7 +178,6 @@ class Exploration {
     const p = this.p, g = this.c.g;
     this.c = conditions(this.astre, p.y);
     this.vol.t += dt;
-    if (this.tMessage > 0) this.tMessage -= dt;
 
     // Analyse en cours (robot)
     if (this.analyse) {
@@ -472,12 +481,7 @@ class Exploration {
       ctx.font = 'bold 14px system-ui'; ctx.fillStyle = '#ffd54f'; ctx.textAlign = 'center';
       ctx.fillText(`${dx < 0 ? '◀' : '▶'} ${proche.nom} à ${fmt(Math.abs(dx))} m`, W / 2, 30);
     }
-    if (this.tMessage > 0) {
-      ctx.font = '15px system-ui'; ctx.textAlign = 'center';
-      const tw = ctx.measureText(this.message).width;
-      ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(W / 2 - tw / 2 - 10, H - 70, tw + 20, 26);
-      ctx.fillStyle = '#fff'; ctx.fillText(this.message, W / 2, H - 52);
-    }
+    afficherMessages(ctx, this.messagesVisibles(), W, H - 46);
     ctx.font = '12px system-ui'; ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.textAlign = 'center';
     ctx.fillText('←→ / Q D : marcher · ↑ / Z / Espace : sauter · E : cueillir, boire une bière, ou rentrer à la maison · Échap : rentrer', W / 2, H - 14);
     ctx.textAlign = 'left';
@@ -521,13 +525,7 @@ class Exploration {
       ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(W / 2 - 100, 44, 200, 14);
       ctx.fillStyle = '#4fc3f7'; ctx.fillRect(W / 2 - 100, 44, 200 * (this.analyse.t / 5), 14);
     }
-    if (this.tMessage > 0) {
-      ctx.font = '15px system-ui'; ctx.textAlign = 'center';
-      const tw = ctx.measureText(this.message).width;
-      ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(W / 2 - tw / 2 - 10, H - 70, tw + 20, 26);
-      ctx.fillStyle = '#fff'; ctx.fillText(this.message, W / 2, H - 52);
-      ctx.textAlign = 'left';
-    }
+    afficherMessages(ctx, this.messagesVisibles(), W, H - 46);
     if (this.taux > 0) {
       ctx.font = 'bold 18px system-ui'; ctx.textAlign = 'center';
       ctx.fillStyle = Math.sin(performance.now() / 150) > 0 ? '#ff1744' : '#fff';

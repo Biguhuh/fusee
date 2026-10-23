@@ -821,21 +821,57 @@ function dessinerTerrain(ctx, vol, W, H, echelle, fuseeY) {
     ctx.beginPath(); ctx.moveTo(pts[i - 1][0], pts[i - 1][1]); ctx.lineTo(pts[i][0], pts[i][1]); ctx.stroke();
   }
 
-  // Rochers, posés sur le relief.
+  // Rochers, plantés dans le relief. Sans atmosphère (ni vent ni eau), ils gardent des arêtes vives ;
+  // sous une atmosphère épaisse, l'érosion les arrondit.
   if (echelle > 0.15) {
     const pasR = 8;
+    const erosion = a.atm ? Math.min(1, Math.sqrt(a.atm.p0) * 0.8) : 0;   // 0 : anguleux, 1 : bien arrondi
     const x0 = vol.x - W / 2 / echelle, x1 = vol.x + W / 2 / echelle;
     for (let k = Math.floor(x0 / pasR); k <= Math.ceil(x1 / pasR); k++) {
       const h = hash(k);
       if (h < 0.55) continue;
       const wx = k * pasR + hash(k + 3) * pasR;
-      const r = Math.max(1.2, (0.5 + Math.pow(hash(k + 7), 2) * 3) * echelle);
+      const tailleM = 0.5 + Math.pow(hash(k + 7), 2) * 3;                 // m
+      const demi = tailleM * 1.3;                                         // demi-largeur (m)
       const sx = W / 2 + (wx - vol.x) * echelle;
-      const sy = ecranY(wx) + r * 0.25;
-      ctx.fillStyle = assombrir(a.couleurs.sol, 0.55 + 0.25 * hash(k + 11));
-      ctx.beginPath(); ctx.ellipse(sx, sy, r * 1.4, r * 0.9, 0, Math.PI, 0); ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,0.18)';
-      ctx.beginPath(); ctx.ellipse(sx - r * 0.4, sy - r * 0.45, r * 0.5, r * 0.25, 0, 0, Math.PI * 2); ctx.fill();
+      if (sx < -100 || sx > W + 100) continue;
+      // La base suit le sol à gauche, au milieu et à droite, un peu enfoncée : pas de vide sous la roche.
+      const enfonce = Math.max(1.5, tailleM * 0.25 * echelle);
+      const yg = ecranY(wx - demi) + enfonce, ym = ecranY(wx) + enfonce, yd = ecranY(wx + demi) + enfonce;
+      const haut = Math.max(2, tailleM * echelle * (0.9 + 0.5 * hash(k + 13)));
+      // Silhouette : quelques sommets irréguliers entre les deux pieds.
+      const n = 5 + Math.floor(hash(k + 17) * 3);
+      const pts = [[sx - demi * echelle, yg]];
+      for (let i = 1; i < n; i++) {
+        const f = i / n;
+        const bosse = Math.sin(f * Math.PI);                              // plus haut au milieu
+        const alea = 0.55 + 0.6 * hash(k * 7 + i);
+        const base = yg + (yd - yg) * f;
+        pts.push([sx + (f * 2 - 1) * demi * echelle + (hash(k * 3 + i) - 0.5) * demi * echelle * 0.3, base - haut * bosse * alea]);
+      }
+      pts.push([sx + demi * echelle, yd]);
+      const couleur = assombrir(a.couleurs.sol, 0.5 + 0.25 * hash(k + 11));
+      ctx.fillStyle = couleur;
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      if (erosion < 0.2) {
+        for (const p of pts.slice(1)) ctx.lineTo(p[0], p[1]);           // arêtes vives
+      } else {
+        for (let i = 1; i < pts.length; i++) {                          // contours adoucis par l'érosion
+          const p0 = pts[i - 1], p1 = pts[i];
+          ctx.quadraticCurveTo(p0[0], p0[1], (p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2);
+        }
+        ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
+      }
+      ctx.lineTo(sx, ym + enfonce);
+      ctx.closePath();
+      ctx.fill();
+      // Faces éclairées (lumière venant de la gauche) et faces dans l'ombre.
+      const sommet = pts.reduce((m, p) => (p[1] < m[1] ? p : m), pts[0]);
+      ctx.fillStyle = `rgba(255,255,255,${erosion < 0.2 ? 0.22 : 0.12})`;
+      ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); ctx.lineTo(sommet[0], sommet[1]); ctx.lineTo(sommet[0] - (sommet[0] - pts[0][0]) * 0.3, ym); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.beginPath(); ctx.moveTo(sommet[0], sommet[1]); ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]); ctx.lineTo(sx + (pts[pts.length - 1][0] - sx) * 0.2, ym); ctx.closePath(); ctx.fill();
     }
   }
 
@@ -1274,6 +1310,32 @@ function dessinerExplosion(ctx, ex, x, y, dt) {
   }
 }
 
+// Messages empilés en bas de l'écran (le plus récent en bas). Un message trop long passe sur deux lignes.
+function afficherMessages(ctx, textes, W, yBas) {
+  ctx.save();
+  ctx.font = 'bold 15px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  const blocs = textes.map((t) => {
+    if (ctx.measureText(t).width <= W - 60) return [t];
+    let i = t.indexOf(' : ');
+    if (i > 0) return [t.slice(0, i + 2), t.slice(i + 3)];
+    i = t.lastIndexOf(' ', t.length / 2);
+    return i > 0 ? [t.slice(0, i), t.slice(i + 1)] : [t];
+  });
+  let y = yBas;
+  for (let b = blocs.length - 1; b >= 0; b--) {
+    const lignes = blocs[b];
+    const tw = Math.min(W - 20, Math.max(...lignes.map((l) => ctx.measureText(l).width)));
+    const hb = lignes.length * 20 + 8;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(W / 2 - tw / 2 - 12, y - hb + 6, tw + 24, hb);
+    ctx.fillStyle = b === blocs.length - 1 ? '#ffd54f' : 'rgba(255,213,79,0.75)';
+    lignes.forEach((l, k) => ctx.fillText(l, W / 2, y - (lignes.length - 1 - k) * 20));
+    y -= hb + 4;
+  }
+  ctx.restore();
+}
+
 function jauge(ctx, x, y, w, frac, couleur) {
   ctx.fillStyle = 'rgba(255,255,255,0.15)';
   ctx.fillRect(x, y, w, 5);
@@ -1401,25 +1463,15 @@ function dessinerHUD(ctx, vol, W, H, warp) {
   }
 
   // Message de retour d'exploration
-  if (vol.messageExplo && vol.messageExplo.vie > 0) {
-    vol.messageExplo.vie -= 1 / 60;
-    ctx.font = 'bold 15px system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    // Message trop long : coupé en deux lignes (après « : » ou au milieu).
-    let lignes = [vol.messageExplo.texte];
-    if (ctx.measureText(lignes[0]).width > W - 60) {
-      const t = lignes[0];
-      let i = t.indexOf(' : ');
-      if (i < 0) i = t.lastIndexOf(' ', t.length / 2);
-      lignes = i > 0 ? [t.slice(0, i + (t[i + 1] === ':' ? 2 : 0)), t.slice(i + (t[i + 1] === ':' ? 3 : 1))] : [t];
-    }
-    const tw = Math.min(W - 20, Math.max(...lignes.map((l) => ctx.measureText(l).width)));
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.fillRect(W / 2 - tw / 2 - 12, H - 58 - lignes.length * 22, tw + 24, lignes.length * 22 + 8);
-    ctx.fillStyle = '#ffd54f';
-    lignes.forEach((l, k) => ctx.fillText(l, W / 2, H - 56 - (lignes.length - 1 - k) * 22));
-    ctx.textAlign = 'left';
+  // Messages : chaque nouveau message rejoint une file (3 au plus) et reste affiché en temps réel,
+  // plus longtemps quand le temps est accéléré (×10 et plus), pour avoir le temps de lire.
+  const maintenant = performance.now();
+  if (vol.messageExplo && vol.messageExplo !== vol.dernierMessage) {
+    vol.dernierMessage = vol.messageExplo;
+    vol.fileMessages = (vol.fileMessages || []).concat({ texte: vol.messageExplo.texte, fin: maintenant + (warp >= 10 ? 12000 : 7000) }).slice(-3);
   }
+  vol.fileMessages = (vol.fileMessages || []).filter((m) => m.fin > maintenant);
+  afficherMessages(ctx, vol.fileMessages.map((m) => m.texte), W, H - 56);
 
   // Manette des gaz : barre verticale à droite.
   const bx = W - 46, bh = Math.min(240, H * 0.4), by = H / 2 - bh / 2;

@@ -110,7 +110,8 @@ const Orbiteur = {
   log(texte) {
     this.v.journal.push({ t: this.v.t, texte });
     if (this.v.journal.length > 200) this.v.journal.shift();
-    this.messages.push({ texte, vie: 6 });
+    // En temps accéléré, les événements s'enchaînent : on les laisse plus longtemps à l'écran.
+    this.messages.push({ texte, vie: (this.warpAffiche || this.v.warp) >= 10 ? 12 : 7 });
     if (this.messages.length > 6) this.messages.shift();
   },
   masse() { return ORBITEUR.masseSeche + this.v.carburant; },
