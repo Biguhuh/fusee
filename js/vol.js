@@ -1510,7 +1510,7 @@ function drapeauxSur(astreId) { return (typeof etat !== 'undefined' && etat.drap
 function ventPourDrapeau(a) { return !!(a.atm && a.atm.p0 > 0.003); }
 
 // Drapeau planté par le ou la spationaute : drapeau des Nations unies en haut du mât,
-// fanion de l'AS Nancy Lorraine dessous (hommage dessiné : croix de Lorraine, rouge et blanc).
+// fanion de l'AS Nancy Lorraine dessous (rouge bordé de blanc, « ASNL » en blanc).
 // Sans air, une tringle horizontale le tient déplié (comme sur la Lune avec Apollo) ; avec du vent, il ondule.
 // (x, y) : pied du mât au sol ; s : pixels par mètre ; air : il y a une atmosphère.
 function dessinerDrapeauPlante(ctx, x, y, s, air) {
@@ -1556,24 +1556,16 @@ function dessinerDrapeauPlante(ctx, x, y, s, air) {
       }
     }
   }
-  // --- Fanion de l'AS Nancy Lorraine : triangle rouge bordé de blanc, croix de Lorraine blanche
+  // --- Fanion de l'AS Nancy Lorraine : triangle rouge bordé de blanc, « ASNL »
   const yF = yU + Hd + 0.12 * s, hF = 0.7 * s, lF = 1.1 * s;
   const ff = tissu(yF, hF, lF, true);
   ctx.fillStyle = '#d0021b'; ctx.fill(ff);
   ctx.strokeStyle = '#ffffff'; ctx.lineWidth = Math.max(0.6, s * 0.03); ctx.stroke(ff);
   if (s > 6) {
-    const cx = lF * 0.22, cy = yF + hF / 2 + onde(0.22), hc = hF * 0.62;
-    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = Math.max(0.8, s * 0.035);
-    ctx.beginPath();
-    ctx.moveTo(cx, cy - hc / 2); ctx.lineTo(cx, cy + hc / 2);                       // montant
-    ctx.moveTo(cx - hc * 0.2, cy - hc * 0.28); ctx.lineTo(cx + hc * 0.2, cy - hc * 0.28);   // petite traverse
-    ctx.moveTo(cx - hc * 0.3, cy - hc * 0.02); ctx.lineTo(cx + hc * 0.3, cy - hc * 0.02);   // grande traverse
-    ctx.stroke();
-    if (s > 14) {
-      ctx.fillStyle = '#ffffff'; ctx.font = `bold ${Math.round(hF * 0.24)}px system-ui, sans-serif`; ctx.textBaseline = 'middle';
-      ctx.fillText('ASNL', lF * 0.34, yF + hF / 2 + onde(0.45));
-      ctx.textBaseline = 'alphabetic';
-    }
+    // « ASNL » en blanc, dans la partie large du triangle.
+    ctx.fillStyle = '#ffffff'; ctx.font = `bold ${Math.max(5, Math.round(hF * 0.3))}px system-ui, sans-serif`; ctx.textBaseline = 'middle';
+    ctx.fillText('ASNL', lF * 0.07, yF + hF / 2 + onde(0.3));
+    ctx.textBaseline = 'alphabetic';
   }
   ctx.restore();
 }
