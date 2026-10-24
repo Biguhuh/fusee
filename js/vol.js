@@ -1497,6 +1497,85 @@ function dessinerBases(ctx, vol, W, echelle, fuseeY) {
   }
   // Zone repérée par une sonde, pas encore construite : un fanion vert.
   if (vol.site && !vol.bases.some((b) => Math.abs(b.x - vol.site.x) < 500)) dessinerFanion(ctx, W / 2 + (vol.site.x - vol.x) * echelle, ecranY(vol.site.x), Math.max(echelle, 0.4));
+  // Drapeaux plantés lors des visites précédentes
+  for (const d of drapeauxSur(vol.astre.id)) {
+    const sx = W / 2 + (d.x - vol.x) * echelle;
+    if (sx > -60 && sx < W + 60) dessinerDrapeauPlante(ctx, sx, ecranY(d.x), Math.max(echelle, 0.4), ventPourDrapeau(vol.astre));
+  }
+}
+
+// Drapeaux plantés sur un astre (sauvegardés avec la partie).
+function drapeauxSur(astreId) { return (typeof etat !== 'undefined' && etat.drapeaux && etat.drapeaux[astreId]) || []; }
+// Assez d'air pour que le drapeau flotte au vent ?
+function ventPourDrapeau(a) { return !!(a.atm && a.atm.p0 > 0.003); }
+
+// Drapeau planté par le ou la spationaute : drapeau des Nations unies en haut du mât,
+// fanion de l'AS Nancy Lorraine dessous (hommage dessiné : croix de Lorraine, rouge et blanc).
+// Sans air, une tringle horizontale le tient déplié (comme sur la Lune avec Apollo) ; avec du vent, il ondule.
+// (x, y) : pied du mât au sol ; s : pixels par mètre ; air : il y a une atmosphère.
+function dessinerDrapeauPlante(ctx, x, y, s, air) {
+  const mat = 3 * s, L = 1.5 * s, Hd = 0.95 * s;
+  const t = performance.now() / 1000;
+  ctx.save();
+  ctx.translate(x, y);
+  // Mât
+  ctx.strokeStyle = '#cfd8dc'; ctx.lineWidth = Math.max(1, 0.05 * s);
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -mat); ctx.stroke();
+  ctx.fillStyle = '#eceff1'; ctx.beginPath(); ctx.arc(0, -mat, Math.max(1.2, 0.05 * s), 0, Math.PI * 2); ctx.fill();
+  // Forme du tissu : ondulation (air) ou léger froissé (vide), recalculée pour chaque point.
+  const onde = (u) => air ? Math.sin(u * 5 - t * 4) * 0.07 * s * u : Math.sin(u * 9) * 0.015 * s;
+  const tissu = (y0, h, largeur, pointe) => {
+    const p = new Path2D();
+    const n = 14;
+    p.moveTo(0, y0);
+    for (let i = 1; i <= n; i++) { const u = i / n; p.lineTo(u * largeur, y0 + onde(u) + (pointe ? u * h / 2 : 0)); }
+    if (pointe) { p.lineTo(largeur, y0 + h / 2 + onde(1)); }
+    for (let i = n; i >= 0; i--) { const u = i / n; p.lineTo(u * largeur, y0 + h + onde(u) - (pointe ? u * h / 2 : 0)); }
+    p.closePath();
+    return p;
+  };
+  // --- Drapeau des Nations unies : bleu clair, emblème blanc (globe vu du pôle et rameaux d'olivier)
+  const yU = -mat + 0.04 * s;
+  const fu = tissu(yU, Hd, L, false);
+  ctx.fillStyle = '#4b92db'; ctx.fill(fu);
+  if (!air) { ctx.strokeStyle = '#b0bec5'; ctx.lineWidth = Math.max(1, 0.03 * s); ctx.beginPath(); ctx.moveTo(0, yU); ctx.lineTo(L, yU + onde(1)); ctx.stroke(); }
+  if (s > 6) {
+    const cx = L * 0.5, cy = yU + Hd * 0.5 + onde(0.5), R = Hd * 0.28;
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = Math.max(0.6, s * 0.018);
+    ctx.beginPath();
+    for (const k of [1, 0.66, 0.33]) { ctx.moveTo(cx + R * k, cy); ctx.arc(cx, cy, R * k, 0, Math.PI * 2); }
+    for (let i = 0; i < 8; i++) { const a = (i * Math.PI) / 4; ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R); }
+    ctx.stroke();
+    // Rameaux d'olivier autour du globe
+    ctx.fillStyle = '#ffffff';
+    for (const sens of [-1, 1]) {
+      for (let i = 0; i < 6; i++) {
+        const a = Math.PI / 2 + sens * (0.35 + i * 0.42);
+        const px = cx + Math.cos(a) * R * 1.32, py = cy + Math.sin(a) * R * 1.32;
+        ctx.beginPath(); ctx.ellipse(px, py, R * 0.16, R * 0.07, a + Math.PI / 2, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  }
+  // --- Fanion de l'AS Nancy Lorraine : triangle rouge bordé de blanc, croix de Lorraine blanche
+  const yF = yU + Hd + 0.12 * s, hF = 0.7 * s, lF = 1.1 * s;
+  const ff = tissu(yF, hF, lF, true);
+  ctx.fillStyle = '#d0021b'; ctx.fill(ff);
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = Math.max(0.6, s * 0.03); ctx.stroke(ff);
+  if (s > 6) {
+    const cx = lF * 0.22, cy = yF + hF / 2 + onde(0.22), hc = hF * 0.62;
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = Math.max(0.8, s * 0.035);
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - hc / 2); ctx.lineTo(cx, cy + hc / 2);                       // montant
+    ctx.moveTo(cx - hc * 0.2, cy - hc * 0.28); ctx.lineTo(cx + hc * 0.2, cy - hc * 0.28);   // petite traverse
+    ctx.moveTo(cx - hc * 0.3, cy - hc * 0.02); ctx.lineTo(cx + hc * 0.3, cy - hc * 0.02);   // grande traverse
+    ctx.stroke();
+    if (s > 14) {
+      ctx.fillStyle = '#ffffff'; ctx.font = `bold ${Math.round(hF * 0.24)}px system-ui, sans-serif`; ctx.textBaseline = 'middle';
+      ctx.fillText('ASNL', lF * 0.34, yF + hF / 2 + onde(0.45));
+      ctx.textBaseline = 'alphabetic';
+    }
+  }
+  ctx.restore();
 }
 
 function dessinerFanion(ctx, x, y, s) {

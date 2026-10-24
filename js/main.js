@@ -531,6 +531,7 @@ addEventListener('keydown', (e) => {
     const x = etat.explo;
     if (e.code === 'KeyE') x.agir();
     if (e.code === 'KeyV') x.basculerRover();
+    if (e.code === 'KeyF') x.planterDrapeau();
     if (e.code === 'Escape') {
       if (x.terre) x.terminer('retour', `Fin de la promenade : ${x.bouquet || 0} fleurs, ${x.panier || 0} fruits, ${x.bieres} bière(s).`);
       else x.agirRappel();

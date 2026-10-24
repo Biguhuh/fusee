@@ -64,6 +64,7 @@ const Tactile = {
       const action = x.terre ? '🌸 Cueillir' : x.type === 'robot' ? '🔬 Analyser' : '🪨 Ramasser';
       b.push({ zone: 'droite', label: action, code: 'KeyE', principal: true, large: true });
       if (x.rover) b.push({ zone: 'actions', label: x.enRover ? '🚶 Descendre' : '🛞 Rover', code: 'KeyV' });
+      if (x.type === 'spationaute' && !x.terre && !x.enRover) b.push({ zone: 'actions', label: '🚩', code: 'KeyF', titre: 'Planter le drapeau' });
       temps('actions');
       b.push({ zone: 'actions', label: etat.pause ? '▶' : '⏸', code: 'KeyP' });
       b.push({ zone: 'actions', label: x.terre ? '🏠 Rentrer' : x.type === 'robot' ? '⏹ Arrêter' : '↩ Rentrer', code: 'Escape' });

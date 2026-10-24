@@ -334,6 +334,25 @@ class Exploration {
     this.dire(`Échantillon ramassé : ${site.nom}. ${site.texte}`);
   }
 
+  // Touche F : planter le drapeau (spationaute seulement, pas sur Terre, un drapeau tous les 20 m au plus).
+  planterDrapeau() {
+    if (this.fin) return;
+    if (this.terre) return this.dire('Sur Terre, on garde le drapeau pour les astres.');
+    if (this.type !== 'spationaute') return this.dire('Seul·e le ou la spationaute peut planter le drapeau.');
+    if (this.enRover) return this.dire('Descendez du rover (V) pour planter le drapeau.');
+    if (!this.p.auSol) return this.dire('Il faut avoir les pieds au sol pour planter le drapeau.');
+    const liste = (etat.drapeaux[this.astre.id] = etat.drapeaux[this.astre.id] || []);
+    if (liste.some((d) => Math.abs(d.x - this.p.x) < 20)) return this.dire('Un drapeau flotte déjà ici.');
+    const x = this.p.x + 1.2 * (this.p.dir || 1);
+    const premier = liste.length === 0;
+    liste.push({ x, par: nomSpatio(), quand: etat.voyage && etat.enVoyage ? etat.voyage.t : null });
+    sauver(etat);
+    this.poussiere(10);
+    this.dire(premier
+      ? `🚩 Drapeau des Nations unies et fanion de l’AS Nancy Lorraine plantés sur ${this.astre.nom} : une première !`
+      : `🚩 Un drapeau de plus sur ${this.astre.nom} (${liste.length}).`);
+  }
+
   terminer(issue, texte) { this.fin = { issue, texte }; }
 
   transmettre() {
@@ -398,6 +417,12 @@ class Exploration {
     if (this.vol.site && !(this.vol.bases || []).some((b) => Math.abs(b.x - this.vol.site.x) < 500)) {
       const [fx2, fy2] = versEcran(this.vol.site.x, this.sol(this.vol.site.x));
       if (fx2 > -200 && fx2 < W + 200) dessinerFanion(ctx, fx2, fy2, echelle);
+    }
+
+    // Drapeaux plantés
+    for (const d of drapeauxSur(a.id)) {
+      const [dx, dy] = versEcran(d.x, this.sol(d.x));
+      if (dx > -80 && dx < W + 80) dessinerDrapeauPlante(ctx, dx, dy, echelle, ventPourDrapeau(a));
     }
 
     // Promenade sur Terre : fleurs, arbres fruitiers, bar
@@ -570,7 +595,7 @@ class Exploration {
     }
     if (!ECRAN_TACTILE) {
       ctx.font = '12px system-ui'; ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.textAlign = 'center';
-      ctx.fillText(`←→ / Q D : ${this.type === 'robot' || this.enRover ? 'rouler' : 'marcher'}${this.saut && !this.enRover ? ' · ↑ / Z / Espace : sauter' : ''}${this.rover ? ` · V : ${this.enRover ? 'descendre du' : 'monter dans le'} rover` : ''} · E : ${this.type === 'robot' ? 'analyser' : 'ramasser'} (ou rentrer près du module) · Échap : rappeler`, W / 2, H - 14);
+      ctx.fillText(`←→ / Q D : ${this.type === 'robot' || this.enRover ? 'rouler' : 'marcher'}${this.saut && !this.enRover ? ' · ↑ / Z / Espace : sauter' : ''}${this.rover ? ` · V : ${this.enRover ? 'descendre du' : 'monter dans le'} rover` : ''} · E : ${this.type === 'robot' ? 'analyser' : 'ramasser'} (ou rentrer près du module)${this.type === 'spationaute' ? ' · F : planter le drapeau' : ''} · Échap : rappeler`, W / 2, H - 14);
     }
     ctx.textAlign = 'left';
   }

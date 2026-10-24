@@ -6,13 +6,14 @@ const $ = (id) => document.getElementById(id);
 // ---------- Sauvegarde (équipement + astres réussis) ----------
 const CLE_SAUVEGARDE = 'fusee-systeme-solaire';
 function charger() {
-  const vide = { equipement: equipementParDefaut(), records: {}, science: {}, masque: false, voyage: null };
+  const vide = { equipement: equipementParDefaut(), records: {}, science: {}, masque: false, voyage: null, drapeaux: {} };
   try {
     const s = JSON.parse(localStorage.getItem(CLE_SAUVEGARDE));
     if (s && s.equipement) {
       return {
         equipement: { ...equipementParDefaut(), ...s.equipement },
         records: s.records || {}, science: s.science || {}, masque: !!s.masque, voyage: s.voyage || null,
+        drapeaux: s.drapeaux || {},   // drapeaux plantés : { astreId: [{ x, par, quand }] }
       };
     }
   } catch (e) { /* stockage indisponible */ }
@@ -22,6 +23,7 @@ function sauver(etat) {
   try {
     localStorage.setItem(CLE_SAUVEGARDE, JSON.stringify({
       equipement: etat.equipement, records: etat.records, science: etat.science, masque: etat.masque, voyage: etat.voyage,
+      drapeaux: etat.drapeaux,
     }));
   } catch (e) { /* ignoré */ }
 }
