@@ -76,7 +76,7 @@ function importerSauvegarde(fichier, fini) {
   lecteur.onload = () => {
     let d;
     try { d = nettoyerDonnees(JSON.parse(lecteur.result)); } catch (e) { return fini('Ce fichier n’est pas une sauvegarde valide (' + e.message + ').'); }
-    if (!d || d.jeu !== 'fusee' || !d.sauvegarde || typeof d.sauvegarde.equipement !== 'object') return fini('Ce fichier n’est pas une sauvegarde de Fusée.');
+    if (!d || d.jeu !== 'fusee' || !d.sauvegarde || typeof d.sauvegarde.equipement !== 'object') return fini('Ce fichier n’est pas une sauvegarde de La fusée de l’espace.');
     // Essai à blanc : la sauvegarde doit pouvoir être chargée sans erreur.
     try {
       if (d.sauvegarde.voyage) { const v = migrerVoyage(d.sauvegarde.voyage); resumeCampagne(v); }

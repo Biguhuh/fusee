@@ -1,4 +1,4 @@
-# Fusée — plan
+# La fusée de l'espace — plan
 
 Jeu web sans framework (HTML + JS + canvas 2D). On ouvre `index.html`, c'est tout.
 

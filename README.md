@@ -1,4 +1,5 @@
-# Fusée — Système solaire
+# La fusée de l'espace
+*(manh, qu'elle est exploratoire !)*
 
 Jeu web en HTML, JavaScript et canvas 2D, sans framework.
 **Jouer en ligne : https://biguhuh.github.io/fusee/** — ou ouvrir `index.html` dans un navigateur.
@@ -16,7 +17,7 @@ Au premier lancement, on crée son ou sa spationaute (modifiable depuis l'accuei
 - **prénom** (facultatif), utilisé dans les messages ;
 - **genre** : femme, homme, non-binaire ou « je préfère ne pas le dire ». Il sert seulement aux accords (attachée, attaché, attaché·e) ; l'apparence se choisit à part ;
 - **carnation** (8 teintes), **coiffure** (courte, longue, bouclée/afro, tresses, rasée, foulard) et couleur des cheveux ;
-- **corps et mobilité** : fauteuil roulant, une jambe ou un bras en moins. Un **exosquelette** motorisé (et une jambe ou un bras robotisés) permet de marcher, sauter et explorer comme tout l'équipage.
+- **handicap des membres supérieurs** et **des membres inférieurs** : aucun, 1 membre ou les 2. Pour chacun, on choisit l'aide : **exosquelette** motorisé (attelles et moteurs aux articulations) ou **membre bionique** (bras à pince, jambe à lame de carbone). On marche, saute et explore comme tout l'équipage.
 
 Tenue : combinaison de vol bleue de l'ESA sur Terre, scaphandre blanc aux couleurs de l'ESA sur les astres (visage visible derrière la visière).
 

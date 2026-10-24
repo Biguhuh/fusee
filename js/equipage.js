@@ -24,30 +24,43 @@ const COIFFURES = {
   foulard: 'Foulard',
 };
 
-const CORPS = {
-  aucun: { libelle: 'Aucun aménagement', texte: '' },
-  fauteuil: {
-    libelle: 'Fauteuil roulant',
-    texte: 'Au quotidien, en fauteuil roulant. En mission, un exosquelette motorisé tient les hanches et les jambes : marcher, sauter dans la faible gravité et conduire le rover, comme tout l’équipage.',
-  },
-  jambe: {
-    libelle: 'Une jambe en moins',
-    texte: 'Une jambe robotisée, reliée à un exosquelette des hanches, remplace la jambe absente : même foulée, mêmes sauts que tout l’équipage.',
-  },
-  bras: {
-    libelle: 'Un bras en moins',
-    texte: 'Un bras robotisé, porté par un exosquelette des épaules, remplace le bras absent : ramasser les échantillons, conduire, cueillir.',
-  },
-};
+// Handicap des membres supérieurs (bras) et inférieurs (jambes) : aucun, un ou les deux membres.
+// Pour chaque groupe, on choisit l'aide : un exosquelette (structure motorisée qui soutient le membre)
+// ou un membre bionique (prothèse robotisée qui le remplace).
+const NB_MEMBRES = { 0: 'Aucun', 1: '1 membre', 2: 'Les 2' };
+const AIDES = { exo: 'Exosquelette', bionique: 'Membre bionique' };
+function texteMobilite(p) {
+  const t = [];
+  const bras = p.membresSup === 2 ? 'les deux bras' : 'un bras', jambes = p.membresInf === 2 ? 'les deux jambes' : 'une jambe';
+  if (p.membresInf) {
+    t.push(p.aideInf === 'exo'
+      ? `Un exosquelette motorisé soutient ${jambes} depuis les hanches${p.membresInf === 2 ? ' (au quotidien, en fauteuil roulant si besoin)' : ''}`
+      : `${p.membresInf === 2 ? 'Deux jambes bioniques remplacent' : 'Une jambe bionique remplace'} ${p.membresInf === 2 ? 'les jambes' : 'la jambe'}`);
+  }
+  if (p.membresSup) {
+    t.push(p.aideSup === 'exo'
+      ? `un exosquelette des épaules soutient ${bras}`
+      : `${p.membresSup === 2 ? 'deux bras bioniques à pince remplacent les bras' : 'un bras bionique à pince remplace le bras'}`);
+  }
+  if (!t.length) return 'Tout l’équipage porte la même combinaison de l’ESA.';
+  const phrase = t.join(' ; ');
+  return phrase.charAt(0).toUpperCase() + phrase.slice(1) + ' : marcher, sauter, conduire le rover et ramasser des échantillons, comme tout l’équipage.';
+}
 
-const PROFIL_DEFAUT = { prenom: '', genre: 'aucun', carnation: 3, cheveux: 1, coiffure: 'courte', corps: 'aucun' };
+const PROFIL_DEFAUT = { prenom: '', genre: 'aucun', carnation: 3, cheveux: 1, coiffure: 'courte', membresSup: 0, membresInf: 0, aideSup: 'bionique', aideInf: 'exo' };
 
 let SPATIO = chargerSpatio();
 
 function chargerSpatio() {
   try {
     const s = JSON.parse(localStorage.getItem(CLE_SPATIO));
-    if (s) return { ...PROFIL_DEFAUT, ...s, choisi: true };
+    if (s) {
+      // Profil de l'ancienne version (champ « corps ») : on le traduit.
+      const anc = { fauteuil: { membresInf: 2, aideInf: 'exo' }, jambe: { membresInf: 1, aideInf: 'bionique' }, bras: { membresSup: 1, aideSup: 'bionique' } }[s.corps] || {};
+      const p = { ...PROFIL_DEFAUT, ...s, ...anc, choisi: true };
+      delete p.corps;
+      return p;
+    }
   } catch (e) { /* ignoré */ }
   return { ...PROFIL_DEFAUT, choisi: false };
 }
@@ -64,8 +77,10 @@ function nomSpatio() {
 function acc() { return (GENRES[SPATIO.genre] || GENRES.aucun).accord; }
 function emojiSpatio() { return (GENRES[SPATIO.genre] || GENRES.aucun).emoji; }
 function resumeSpatio() {
-  const c = CORPS[SPATIO.corps];
-  return `${emojiSpatio()} ${SPATIO.prenom || 'Spationaute sans prénom'}` + (SPATIO.corps !== 'aucun' ? ` · exosquelette (${c.libelle.toLowerCase()})` : '');
+  const p = SPATIO, d = [];
+  if (p.membresSup) d.push(`${p.membresSup === 2 ? '2 bras' : '1 bras'} : ${AIDES[p.aideSup].toLowerCase()}`);
+  if (p.membresInf) d.push(`${p.membresInf === 2 ? '2 jambes' : '1 jambe'} : ${AIDES[p.aideInf].toLowerCase()}`);
+  return `${emojiSpatio()} ${p.prenom || 'Spationaute sans prénom'}` + (d.length ? ` · ${d.join(', ')}` : '');
 }
 
 // ---------- Page de création ----------
@@ -85,8 +100,11 @@ function afficherCreationSpatio(suite) {
       <div class="champ"><span>Carnation</span><div class="pastilles">${nuancier('carnation', CARNATIONS, brouillon.carnation)}</div></div>
       <div class="champ"><span>Coiffure</span><div class="pastilles">${pastilles('coiffure', COIFFURES, brouillon.coiffure)}</div></div>
       <div class="champ"><span>Couleur des cheveux</span><div class="pastilles">${nuancier('cheveux', COULEURS_CHEVEUX, brouillon.cheveux)}</div></div>
-      <div class="champ"><span>Corps et mobilité</span><div class="pastilles">${pastilles('corps', CORPS, brouillon.corps)}</div>
-        <p class="doux">${CORPS[brouillon.corps].texte || 'Tout l’équipage porte la même combinaison de l’ESA.'}</p></div>`;
+      <div class="champ"><span>Handicap des membres supérieurs</span><div class="pastilles">${pastilles('membresSup', NB_MEMBRES, String(brouillon.membresSup))}</div>
+        ${brouillon.membresSup ? `<div class="pastilles aide">${pastilles('aideSup', AIDES, brouillon.aideSup)}</div>` : ''}</div>
+      <div class="champ"><span>Handicap des membres inférieurs</span><div class="pastilles">${pastilles('membresInf', NB_MEMBRES, String(brouillon.membresInf))}</div>
+        ${brouillon.membresInf ? `<div class="pastilles aide">${pastilles('aideInf', AIDES, brouillon.aideInf)}</div>` : ''}
+        <p class="doux">${texteMobilite(brouillon)}</p></div>`;
     el.querySelectorAll('[data-champ]').forEach((b) => {
       b.onclick = () => {
         const v = b.dataset.val;
@@ -142,7 +160,11 @@ function dessinerSpationaute(ctx, x, y, s, p, surTerre) {
   const phase = Math.sin((p.pas || 0) * 4.5);
   const tissu = surTerre ? '#1d4f91' : '#f2f2f2';         // bleu des combinaisons de vol ESA / blanc du scaphandre
   const tissuOmbre = surTerre ? '#163d72' : '#d5d8db';
-  const exo = prof.corps !== 'aucun';
+  // Membres concernés : avec 1, c'est celui de devant ; avec 2, les deux.
+  const nInf = prof.membresInf || 0, nSup = prof.membresSup || 0;
+  const jambeTouchee = (devant) => nInf === 2 || (nInf === 1 && devant);
+  const brasTouche = (devant) => nSup === 2 || (nSup === 1 && devant);
+  const exoJambes = nInf > 0 && prof.aideInf === 'exo', exoBras = nSup > 0 && prof.aideSup === 'exo';
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(p.dir || 1, 1);
@@ -160,20 +182,27 @@ function dessinerSpationaute(ctx, x, y, s, p, surTerre) {
     ctx.stroke();
   };
   const articulation = (q, r) => { ctx.fillStyle = '#ff8f00'; ctx.beginPath(); ctx.arc(q[0], q[1], r, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#263238'; ctx.beginPath(); ctx.arc(q[0], q[1], r * 0.45, 0, Math.PI * 2); ctx.fill(); };
-  // Jambe humaine, jambe robotisée, et attelles d'exosquelette
+  const led = (q, r) => { ctx.fillStyle = '#4fc3f7'; ctx.beginPath(); ctx.arc(q[0], q[1], r, 0, Math.PI * 2); ctx.fill(); };
+  // Jambe : humaine, bionique (prothèse robotisée), ou humaine soutenue par une attelle d'exosquelette.
   const dessinerJambe = (sgn, devant) => {
     const { genou, pied } = jambe(sgn);
-    const robot = prof.corps === 'jambe' && devant;
-    if (robot) {
-      trait([hanche, genou, pied], '#78909c', h * 0.06);
-      trait([hanche, genou, pied], '#b0bec5', h * 0.025);
-    } else {
-      trait([hanche, genou, pied], devant ? tissu : tissuOmbre, h * 0.11);
+    const touchee = jambeTouchee(devant);
+    if (touchee && prof.aideInf === 'bionique') {
+      trait([hanche, genou, pied], devant ? '#78909c' : '#5f7480', h * 0.06);
+      trait([hanche, genou, pied], devant ? '#b0bec5' : '#8fa1ab', h * 0.025);
+      articulation(genou, h * 0.026);
+      led([genou[0] + h * 0.012, genou[1] - h * 0.04], h * 0.008);
+      // Pied en lame de carbone
+      ctx.fillStyle = '#263238';
+      ctx.beginPath(); ctx.moveTo(pied[0] - h * 0.02, pied[1] - h * 0.02); ctx.quadraticCurveTo(pied[0] + h * 0.09, pied[1] - h * 0.01, pied[0] + h * 0.08, pied[1] + h * 0.025);
+      ctx.lineTo(pied[0] - h * 0.03, pied[1] + h * 0.025); ctx.closePath(); ctx.fill();
+      return;
     }
+    trait([hanche, genou, pied], devant ? tissu : tissuOmbre, h * 0.11);
     // Chaussure / botte
     ctx.fillStyle = surTerre ? '#212121' : '#9e9e9e';
     ctx.beginPath(); ctx.ellipse(pied[0] + h * 0.03, pied[1] + h * 0.01, h * 0.065, h * 0.03, 0, 0, Math.PI * 2); ctx.fill();
-    if (exo && prof.corps !== 'bras') {
+    if (touchee) {
       // Attelle : une barre graphite le long de la jambe, moteurs orange aux articulations.
       const dec = h * 0.035;
       trait([[hanche[0] + dec, hanche[1]], [genou[0] + dec, genou[1]], [pied[0] + dec, pied[1] - h * 0.02]], '#37474f', h * 0.025);
@@ -183,10 +212,34 @@ function dessinerSpationaute(ctx, x, y, s, p, surTerre) {
   };
   dessinerJambe(-1, false);
 
-  // Bras arrière
+  // Bras : humain, bionique (à pince), ou humain soutenu par une attelle d'exosquelette.
   const epaule = [0, -h * 0.76];
   const brasPts = (sgn) => [epaule, [sgn * -phase * h * 0.1 + h * 0.05, -h * 0.57], [h * 0.09 + sgn * -phase * h * 0.04, -h * 0.46]];
-  trait(brasPts(-1), tissuOmbre, h * 0.075);
+  const dessinerBras = (sgn, devant) => {
+    const pts = brasPts(sgn);
+    const touche = brasTouche(devant);
+    if (touche && prof.aideSup === 'bionique') {
+      trait(pts, devant ? '#78909c' : '#5f7480', h * 0.05);
+      trait(pts, devant ? '#b0bec5' : '#8fa1ab', h * 0.02);
+      articulation(pts[0], h * 0.03);
+      articulation(pts[1], h * 0.024);
+      ctx.strokeStyle = '#546e7a'; ctx.lineWidth = h * 0.015;   // pince à deux doigts
+      ctx.beginPath(); ctx.moveTo(pts[2][0], pts[2][1]); ctx.lineTo(pts[2][0] + h * 0.03, pts[2][1] - h * 0.015);
+      ctx.moveTo(pts[2][0], pts[2][1]); ctx.lineTo(pts[2][0] + h * 0.03, pts[2][1] + h * 0.015); ctx.stroke();
+      led(pts[1], h * 0.008);
+      return;
+    }
+    trait(pts, devant ? tissu : tissuOmbre, h * 0.075);
+    ctx.fillStyle = surTerre ? peau : devant ? '#eceff1' : '#cfd3d6';     // main, ou gant
+    ctx.beginPath(); ctx.arc(pts[2][0] + h * 0.01, pts[2][1], h * 0.03, 0, Math.PI * 2); ctx.fill();
+    if (touche) {
+      const dec = -h * 0.03;
+      trait(pts.map(([px, py]) => [px, py + dec]), '#37474f', h * 0.02);
+      articulation([pts[1][0], pts[1][1] + dec], h * 0.022);
+    }
+    if (devant && surTerre) { ctx.fillStyle = '#ffd600'; ctx.fillRect(-h * 0.02, -h * 0.79, h * 0.04, h * 0.012); }  // liseré d'épaule
+  };
+  dessinerBras(-1, false);
 
   // Sac de survie (scaphandre)
   if (!surTerre) {
@@ -214,18 +267,20 @@ function dessinerSpationaute(ctx, x, y, s, p, surTerre) {
     ctx.fillStyle = '#ef5350'; ctx.fillRect(h * 0.065, -h * 0.7, h * 0.015, h * 0.015);
     ctx.fillStyle = '#66bb6a'; ctx.fillRect(h * 0.09, -h * 0.7, h * 0.015, h * 0.015);
   }
-  // Exosquelette : colonne et ceinture de hanches (ou harnais d'épaule pour le bras)
-  if (exo) {
-    ctx.fillStyle = '#37474f';
-    if (prof.corps === 'bras') {
-      ctx.fillRect(-h * 0.12, -h * 0.82, h * 0.03, h * 0.3);
-      ctx.fillRect(-h * 0.12, -h * 0.8, h * 0.18, h * 0.025);
-    } else {
-      ctx.fillRect(-h * 0.13, -h * 0.84, h * 0.03, h * 0.42);
-      ctx.fillRect(-h * 0.12, -h * 0.49, h * 0.24, h * 0.035);
-      articulation([h * 0.035, -h * 0.47], h * 0.03);
-    }
+  // Exosquelette : colonne et ceinture de hanches (jambes), harnais d'épaules (bras).
+  ctx.fillStyle = '#37474f';
+  if (exoJambes) {
+    ctx.fillRect(-h * 0.13, -h * 0.84, h * 0.03, h * 0.42);
+    ctx.fillRect(-h * 0.12, -h * 0.49, h * 0.24, h * 0.035);
+    articulation([h * 0.035, -h * 0.47], h * 0.03);
   }
+  if (exoBras) {
+    ctx.fillRect(-h * 0.13, -h * 0.84, h * 0.03, h * 0.3);
+    ctx.fillRect(-h * 0.12, -h * 0.81, h * 0.2, h * 0.025);
+    articulation([h * 0.0, -h * 0.79], h * 0.026);
+  }
+  // Membre bionique de jambe : emboîture à la hanche.
+  if (nInf > 0 && prof.aideInf === 'bionique') { ctx.fillStyle = '#546e7a'; ctx.beginPath(); ctx.arc(hanche[0], hanche[1], h * 0.04, 0, Math.PI * 2); ctx.fill(); }
   dessinerJambe(1, true);
 
   // Tête
@@ -247,24 +302,8 @@ function dessinerSpationaute(ctx, x, y, s, p, surTerre) {
     ctx.fillStyle = '#1d4f91'; ctx.fillRect(tete[0] - h * 0.13, tete[1] - h * 0.02, h * 0.04, h * 0.05);   // lampes / caméra
   }
 
-  // Bras avant (humain, ou robotisé)
-  const bp = brasPts(1);
-  if (prof.corps === 'bras') {
-    trait(bp, '#78909c', h * 0.05);
-    trait(bp, '#b0bec5', h * 0.02);
-    articulation(epaule, h * 0.035);
-    articulation(bp[1], h * 0.025);
-    // Pince à trois doigts
-    ctx.strokeStyle = '#546e7a'; ctx.lineWidth = h * 0.015;
-    ctx.beginPath(); ctx.moveTo(bp[2][0], bp[2][1]); ctx.lineTo(bp[2][0] + h * 0.03, bp[2][1] - h * 0.015);
-    ctx.moveTo(bp[2][0], bp[2][1]); ctx.lineTo(bp[2][0] + h * 0.03, bp[2][1] + h * 0.015); ctx.stroke();
-    ctx.fillStyle = '#4fc3f7'; ctx.beginPath(); ctx.arc(bp[1][0], bp[1][1], h * 0.008, 0, Math.PI * 2); ctx.fill();
-  } else {
-    trait(bp, tissu, h * 0.075);
-    ctx.fillStyle = surTerre ? peau : '#eceff1';     // main, ou gant
-    ctx.beginPath(); ctx.arc(bp[2][0] + h * 0.01, bp[2][1], h * 0.03, 0, Math.PI * 2); ctx.fill();
-    if (surTerre) { ctx.fillStyle = '#ffd600'; ctx.fillRect(-h * 0.02, -h * 0.79, h * 0.04, h * 0.012); }  // liseré d'épaule
-  }
+  // Bras avant
+  dessinerBras(1, true);
   ctx.restore();
 }
 
