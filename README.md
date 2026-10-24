@@ -1,7 +1,7 @@
 # Fusée — Système solaire
 
 Jeu web en HTML, JavaScript et canvas 2D, sans framework.
-**Pour jouer : ouvrir `index.html` dans un navigateur.**
+**Jouer en ligne : https://biguhuh.github.io/fusee/** — ou ouvrir `index.html` dans un navigateur.
 
 ## Votre spationaute
 Au premier lancement, on crée son ou sa spationaute (modifiable depuis l'accueil) :
