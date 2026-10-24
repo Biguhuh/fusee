@@ -244,3 +244,43 @@ pre.erreur { white-space: pre-wrap; background: #1a0d0d; border: 1px solid #5a23
 
 /* Globe dans les fiches */
 .globe-fiche { width: 64px; height: 64px; flex: none; margin-right: 6px; }
+
+/* ---------- Écrans tactiles ---------- */
+/* Pas de zoom ni de défilement de la page pendant le jeu : les doigts pilotent. */
+#vol, #nav { touch-action: none; -webkit-user-select: none; user-select: none; }
+#tactile { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
+#tactile.cache { display: none; }
+.zone-tactile { position: absolute; display: flex; gap: 10px; pointer-events: none; }
+.zone-tactile button {
+  pointer-events: auto; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  min-width: 58px; min-height: 58px; padding: 6px 10px; border-radius: 14px; font-size: 22px; font-weight: 700;
+  background: rgba(20, 28, 48, 0.72); border: 1px solid rgba(255, 255, 255, 0.28); color: #fff;
+}
+.zone-tactile button.appui { background: rgba(255, 112, 67, 0.75); }
+.zone-tactile button.actif { border-color: #66bb6a; color: #a5d6a7; }
+.zone-tactile button.principal { background: rgba(255, 112, 67, 0.85); border-color: var(--accent); color: #1a0c06; }
+.zone-tactile button.large { min-width: 110px; font-size: 16px; }
+.zone-tactile.gauche { left: max(10px, env(safe-area-inset-left)); bottom: max(12px, env(safe-area-inset-bottom)); }
+.zone-tactile.droite { right: max(10px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); flex-direction: column; }
+.zone-tactile.droite2 { right: calc(max(10px, env(safe-area-inset-right)) + 70px); bottom: max(12px, env(safe-area-inset-bottom)); flex-direction: column-reverse; }
+.zone-tactile.droite2 button { min-width: 50px; min-height: 50px; font-size: 15px; }
+.zone-tactile.actions { left: 8px; right: 8px; bottom: 150px; justify-content: center; flex-wrap: wrap; gap: 6px; }
+.zone-tactile.actions button { min-width: 44px; min-height: 44px; font-size: 15px; padding: 4px 10px; }
+/* Paysage : les boutons d'action passent entre les deux groupes du bas. */
+@media (orientation: landscape) {
+  .zone-tactile.actions { left: 160px; right: 170px; bottom: 12px; }
+}
+/* Orbiteur sur petit écran : barre compacte, panneaux repliés ouverts à la demande. */
+.petit-seul { display: none !important; }
+@media (max-width: 720px), (max-height: 520px) {
+  .petit-seul { display: inline-flex !important; }
+  .barre-haut { gap: 4px; padding: 4px 6px; top: 4px; left: 4px; right: 4px; font-size: 12px; }
+  .barre-haut .date { min-width: 0; width: 100%; font-size: 12px; }
+  #nav-warp { min-width: 0; }
+  #hud-nav button { padding: 5px 8px; font-size: 12px; }
+  .panneau { display: none; left: 4px !important; right: 4px !important; width: auto; top: auto; bottom: 8px; max-height: 58vh; }
+  .panneau.ouvert { display: block; }
+  .aide-nav { white-space: normal; text-align: center; width: 90%; bottom: 4px; font-size: 11px; }
+  .fenetre { padding: 12px; }
+  .sections { grid-template-columns: 1fr; }
+}

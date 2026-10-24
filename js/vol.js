@@ -888,7 +888,8 @@ function dessinerTerrain(ctx, vol, W, H, echelle, fuseeY) {
   // Rotondité : chaque point du sol est placé sur la sphère (rayon R + relief), vu depuis la fusée.
   // Près du sol, c'est le dessin plat habituel ; en altitude, l'horizon se courbe et s'éloigne.
   const R = a.rayonKm * 1000;
-  const alt = Math.max(0, vol.altSol());
+  // (calcul direct : l'écran d'exploration passe un objet simplifié, sans altSol)
+  const alt = Math.max(0, vol.y - vol.sol(vol.x));
   const courbe = (W / 2 / echelle) * (W / 2 / echelle) / (2 * R) * echelle > 0.5;   // flèche visible (> 0,5 px) ?
   if (!courbe) {
     for (let sx = -pas; sx <= W + pas; sx += pas) pts.push([sx, ecranY(vol.x + (sx - W / 2) / echelle)]);
@@ -1573,24 +1574,32 @@ function dessinerExplosion(ctx, ex, x, y, dt) {
 // Messages empilés en bas de l'écran (le plus récent en bas). Un message trop long passe sur deux lignes.
 function afficherMessages(ctx, textes, W, yBas) {
   ctx.save();
-  ctx.font = 'bold 15px system-ui, sans-serif';
+  const petit = W < 720;
+  const taille = petit ? 13 : 15, interligne = taille + 5;
+  ctx.font = `bold ${taille}px system-ui, sans-serif`;
   ctx.textAlign = 'center';
-  const blocs = textes.map((t) => {
-    if (ctx.measureText(t).width <= W - 60) return [t];
-    let i = t.indexOf(' : ');
-    if (i > 0) return [t.slice(0, i + 2), t.slice(i + 3)];
-    i = t.lastIndexOf(' ', t.length / 2);
-    return i > 0 ? [t.slice(0, i), t.slice(i + 1)] : [t];
-  });
+  // Retour à la ligne mot à mot pour tenir dans la largeur de l'écran.
+  const largeurMax = Math.min(W - 40, 900);
+  const couper = (t) => {
+    const lignes = [];
+    let l = '';
+    for (const mot of t.split(' ')) {
+      const essai = l ? l + ' ' + mot : mot;
+      if (ctx.measureText(essai).width > largeurMax && l) { lignes.push(l); l = mot; } else l = essai;
+    }
+    if (l) lignes.push(l);
+    return lignes;
+  };
+  const blocs = textes.map(couper);
   let y = yBas;
   for (let b = blocs.length - 1; b >= 0; b--) {
     const lignes = blocs[b];
     const tw = Math.min(W - 20, Math.max(...lignes.map((l) => ctx.measureText(l).width)));
-    const hb = lignes.length * 20 + 8;
+    const hb = lignes.length * interligne + 8;
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     ctx.fillRect(W / 2 - tw / 2 - 12, y - hb + 6, tw + 24, hb);
     ctx.fillStyle = b === blocs.length - 1 ? '#ffd54f' : 'rgba(255,213,79,0.75)';
-    lignes.forEach((l, k) => ctx.fillText(l, W / 2, y - (lignes.length - 1 - k) * 20));
+    lignes.forEach((l, k) => ctx.fillText(l, W / 2, y - (lignes.length - 1 - k) * interligne));
     y -= hb + 4;
   }
   ctx.restore();
@@ -1605,12 +1614,67 @@ function jauge(ctx, x, y, w, frac, couleur) {
 
 function couleurRisque(frac) { return frac < 0.6 ? '#66bb6a' : frac < 0.9 ? '#ffca28' : frac <= 1 ? '#ff7043' : '#ef5350'; }
 
+// Écran tactile (téléphone, tablette) : boutons à l'écran à la place du clavier.
+const ECRAN_TACTILE = typeof matchMedia === 'function' && (matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window);
+
+// Petit écran (téléphone) : tableau de bord réduit à l'essentiel ; un appui dessus affiche le détail.
+function ecranCompact(W, H) { return W < 720 || H < 520; }
+let ZONE_HUD = null;   // rectangle du tableau de bord quand il est compact (pour l'appui)
+
+function dessinerHudCompact(ctx, vol, W, H) {
+  const a = vol.astre, c = vol.c, f = vol.f;
+  const larg = Math.min(176, W * 0.48);
+  const lignes = [];
+  const alt = vol.altSol();
+  const proche = a.type === 'solide' && alt < 2000;
+  const vv = -vol.vy;
+  lignes.push(['Alt.', fmtAlt(alt), '#fff']);
+  lignes.push(['V vert.', (vv >= 0 ? '↓ ' : '↑ ') + fmtV(Math.abs(vv)), proche ? (vv > a.vMax ? '#ef5350' : '#66bb6a') : '#fff']);
+  lignes.push(['V horiz.', fmtV(Math.abs(vol.vx)), proche && Math.abs(vol.vx) > a.vMax ? '#ef5350' : '#fff']);
+  const fc = vol.carburant / f.carburant;
+  lignes.push(['Carbur.', fmt(fc * 100) + ' %', fc < 0.15 ? '#ef5350' : '#42a5f5']);
+  const fi = vol.integrite / 100;
+  lignes.push(['Coque', fmt(vol.integrite) + ' %', fi > 0.6 ? '#66bb6a' : fi > 0.3 ? '#ffca28' : '#ef5350']);
+  // Les limites n'apparaissent que si elles approchent.
+  const fp = c.p / f.pressionMax, ft = (vol.temp + KELVIN) / (f.tempMax + KELVIN), fr = c.rad / f.protection;
+  if (fp > 0.6) lignes.push(['Pression', fmtP(c.p), couleurRisque(fp)]);
+  if (ft > 0.7) lignes.push(['Temp.', fmt(vol.temp) + ' °C', couleurRisque(ft)]);
+  if (fr > 0.7) lignes.push(['Rayonn.', fmt(c.rad, 1), couleurRisque(fr)]);
+  if (a.type === 'gazeuse') lignes.push(['Prélèv.', String((vol.prelevements || []).length), '#4dd0e1']);
+  const h = 26 + lignes.length * 16 + 14;
+  const y0 = 44;   // sous la ligne de l'objectif
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(6, y0, larg, h);
+  ctx.font = 'bold 13px system-ui, sans-serif'; ctx.fillStyle = '#fff';
+  ctx.fillText(a.nom, 12, y0 + 16);
+  let y = y0 + 34;
+  for (const [k, v, coul] of lignes) {
+    ctx.font = '11px system-ui, sans-serif'; ctx.fillStyle = '#b0bec5'; ctx.fillText(k, 12, y);
+    ctx.font = 'bold 12px ui-monospace, Consolas, monospace'; ctx.fillStyle = coul; ctx.fillText(v, 70, y);
+    y += 16;
+  }
+  ctx.font = '10px system-ui, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillText('toucher : détails', 12, y + 2);
+  ZONE_HUD = { x: 6, y: y0, w: larg, h };
+}
+
 function dessinerHUD(ctx, vol, W, H, warp) {
   const a = vol.astre, c = vol.c, f = vol.f;
-  const x = 14, larg = 250;
+  const compact = ecranCompact(W, H);
+  const twr = vol.twr();
+  if (compact && !vol.hudComplet) dessinerHudCompact(ctx, vol, W, H);
+  else dessinerHudDetail(ctx, vol, W, H, compact);
+  dessinerHudSuite(ctx, vol, W, H, warp, compact, twr);
+}
+
+function dessinerHudDetail(ctx, vol, W, H, compact) {
+  const a = vol.astre, c = vol.c, f = vol.f;
+  const x = 14, larg = compact ? Math.min(250, W - 40) : 250;
   let y = 14;
-  ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  ctx.fillRect(8, 8, larg + 12, a.type === 'solide' ? 434 : a.type === 'etoile' ? 380 : 416);
+  ctx.fillStyle = compact ? 'rgba(0,0,0,0.8)' : 'rgba(0,0,0,0.55)';
+  const hPanneau = a.type === 'solide' ? 434 : a.type === 'etoile' ? 380 : 416;
+  ctx.fillRect(8, 8, larg + 12, hPanneau);
+  ZONE_HUD = compact ? { x: 8, y: 8, w: larg + 12, h: hPanneau } : null;
   ctx.font = 'bold 15px system-ui, sans-serif';
   ctx.fillStyle = '#fff';
   ctx.fillText(a.nom, x, y + 12);
@@ -1668,16 +1732,22 @@ function dessinerHUD(ctx, vol, W, H, warp) {
   ligne('Rayonnement', fmt(c.rad, c.rad < 10 ? 1 : 0) + ' / ' + fmt(f.protection, 1), couleurRisque(fr));
   ligne('Dose reçue', fmt(vol.dose) + ' %', couleurRisque(vol.dose / 100));
   if (a.type === 'gazeuse') ligne('Prélèvements', String((vol.prelevements || []).length), '#4dd0e1');
+  if (compact) { ctx.font = '11px system-ui, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillText('toucher : réduire', x, y + 12); }
+}
+
+// Le reste du tableau de bord : alertes, compte à rebours, jauges, manette, objectif, temps.
+function dessinerHudSuite(ctx, vol, W, H, warp, compact, twr) {
+  const a = vol.astre;
 
   // Alertes de dégâts
   if (vol.enDegats() && !vol.fin) {
     const msgs = [];
     if (vol.taux.pression > 0) msgs.push('SURPRESSION : la coque se déforme');
     if (vol.taux.chaleur > 0) msgs.push('SURCHAUFFE : la coque brûle');
-    ctx.font = 'bold 18px system-ui, sans-serif';
+    ctx.font = compact ? 'bold 14px system-ui, sans-serif' : 'bold 18px system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillStyle = Math.sin(performance.now() / 150) > 0 ? '#ff1744' : '#ffffff';
-    msgs.forEach((m, i) => ctx.fillText(m, W / 2, 70 + i * 24));
+    msgs.forEach((m, i) => ctx.fillText(m, W / 2, (compact ? H * 0.32 : 70) + i * 24));
     ctx.textAlign = 'left';
   }
 
@@ -1691,14 +1761,20 @@ function dessinerHUD(ctx, vol, W, H, warp) {
     ctx.fillText(vol.compteARebours <= 3 ? 'Allumage — les pinces retiennent la fusée' : 'Compte à rebours', W / 2, H * 0.4 + 30);
     ctx.textAlign = 'left';
   }
+  // Disposition : sur petit écran, tout se range autour des boutons tactiles (en bas en portrait, sur les côtés en paysage).
+  const portrait = H > W;
+  const yMessages = ECRAN_TACTILE ? H - (portrait ? 210 : 70) : H - 56;
+  const hautDroite = compact ? 52 : 0;   // en compact, l'objectif occupe la première ligne
+
   // Chronologie du lancement
   if (vol.lancement && vol.chrono && vol.tDecollage) {
-    const evs = vol.chrono.filter((e) => !e.avant).slice(-5);
-    ctx.font = '12px system-ui, sans-serif';
+    const evs = vol.chrono.filter((e) => !e.avant).slice(compact ? -2 : -5);
+    ctx.font = compact ? '11px system-ui, sans-serif' : '12px system-ui, sans-serif';
     ctx.textAlign = 'right';
     evs.forEach((e, i) => {
       ctx.fillStyle = 'rgba(255,255,255,0.8)';
-      ctx.fillText(`T+${fmtDuree(e.t)}  ${e.texte}`, W - 70, H - 120 - (evs.length - 1 - i) * 17);
+      const yy = compact ? yMessages - 70 - (evs.length - 1 - i) * 15 : H - 120 - (evs.length - 1 - i) * 17;
+      ctx.fillText(`T+${fmtDuree(e.t)}  ${e.texte}`, compact ? W - 12 : W - 70, yy);
     });
     ctx.textAlign = 'left';
   }
@@ -1707,18 +1783,19 @@ function dessinerHUD(ctx, vol, W, H, warp) {
   if (vol.phase === 'remontee' && a.type === 'solide' && !vol.fin) {
     const vO = vitesseOrbitale(a, vol.altOrbite);
     const fa = Math.max(0, vol.y) / (vol.altOrbite * 0.9), fv = Math.abs(vol.vx) / (vO * 0.97);
-    const x0 = W / 2 - 160, y0 = 48;
-    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(x0 - 8, y0 - 6, 336, 52);
-    ctx.font = '12px system-ui, sans-serif'; ctx.fillStyle = '#fff';
-    ctx.fillText(`Altitude d’orbite : ${fmtAlt(Math.max(0, vol.y))} / ${fmtAlt(vol.altOrbite * 0.9)}`, x0, y0 + 8);
-    jauge(ctx, x0, y0 + 12, 320, fa, fa >= 1 ? '#66bb6a' : '#42a5f5');
+    const lj = compact ? Math.min(320, W - 90) : 320;
+    const x0 = compact ? 14 : W / 2 - 160, y0 = compact ? (ZONE_HUD ? ZONE_HUD.y + ZONE_HUD.h + 18 : 190) : 48;
+    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(x0 - 8, y0 - 6, lj + 16, 52);
+    ctx.font = compact ? '11px system-ui, sans-serif' : '12px system-ui, sans-serif'; ctx.fillStyle = '#fff';
+    ctx.fillText(`${compact ? 'Alt. d’orbite' : 'Altitude d’orbite'} : ${fmtAlt(Math.max(0, vol.y))} / ${fmtAlt(vol.altOrbite * 0.9)}`, x0, y0 + 8);
+    jauge(ctx, x0, y0 + 12, lj, fa, fa >= 1 ? '#66bb6a' : '#42a5f5');
     ctx.fillStyle = '#fff';
-    ctx.fillText(`Vitesse horizontale : ${fmtV(Math.abs(vol.vx))} / ${fmtV(vO * 0.97)}`, x0, y0 + 32);
-    jauge(ctx, x0, y0 + 36, 320, fv, fv >= 1 ? '#66bb6a' : '#ffca28');
+    ctx.fillText(`${compact ? 'V horiz.' : 'Vitesse horizontale'} : ${fmtV(Math.abs(vol.vx))} / ${fmtV(vO * 0.97)}`, x0, y0 + 32);
+    jauge(ctx, x0, y0 + 36, lj, fv, fv >= 1 ? '#66bb6a' : '#ffca28');
   }
   if (vol.f.mega && !vol.fin) {
     ctx.font = 'bold 13px system-ui, sans-serif'; ctx.fillStyle = '#ffca28'; ctx.textAlign = 'right';
-    ctx.fillText(`${vol.f.etages[vol.f.etage].nom} (${vol.f.etage + 1}/${vol.f.etages.length})`, W - 14, 110);
+    ctx.fillText(`${vol.f.etages[vol.f.etage].nom} (${vol.f.etage + 1}/${vol.f.etages.length})`, W - 14, compact ? hautDroite + 70 : 110);
     ctx.textAlign = 'left';
   }
 
@@ -1731,10 +1808,12 @@ function dessinerHUD(ctx, vol, W, H, warp) {
     vol.fileMessages = (vol.fileMessages || []).concat({ texte: vol.messageExplo.texte, fin: maintenant + (warp >= 10 ? 12000 : 7000) }).slice(-3);
   }
   vol.fileMessages = (vol.fileMessages || []).filter((m) => m.fin > maintenant);
-  afficherMessages(ctx, vol.fileMessages.map((m) => m.texte), W, H - 56);
+  afficherMessages(ctx, vol.fileMessages.map((m) => m.texte), W, yMessages);
 
   // Manette des gaz : barre verticale à droite.
-  const bx = W - 46, bh = Math.min(240, H * 0.4), by = H / 2 - bh / 2;
+  const bx = W - 46;
+  const bh = compact ? Math.max(60, Math.min(150, (portrait ? H * 0.2 : H * 0.2))) : Math.min(240, H * 0.4);
+  const by = compact ? hautDroite + (portrait ? 110 : 66) : H / 2 - bh / 2;
   ctx.fillStyle = 'rgba(0,0,0,0.55)';
   ctx.fillRect(bx - 12, by - 30, 50, bh + 58);
   ctx.fillStyle = 'rgba(255,255,255,0.15)';
@@ -1756,35 +1835,61 @@ function dessinerHUD(ctx, vol, W, H, warp) {
   ctx.fillStyle = '#b0bec5';
   ctx.fillText('Gaz', bx + 13, by - 12);
 
-  // Objectif
-  ctx.font = 'bold 16px system-ui, sans-serif';
+  // Objectif (en compact : sur toute la largeur en haut, police réduite, deux lignes au plus)
   ctx.textAlign = 'center';
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
   const txt = vol.objectifTexte();
-  const tw = ctx.measureText(txt).width;
-  ctx.fillRect(W / 2 - tw / 2 - 12, 10, tw + 24, 30);
-  ctx.fillStyle = '#fff';
-  ctx.fillText(txt, W / 2, 31);
+  if (!compact) {
+    ctx.font = 'bold 16px system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    const tw = ctx.measureText(txt).width;
+    ctx.fillRect(W / 2 - tw / 2 - 12, 10, tw + 24, 30);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(txt, W / 2, 31);
+  } else {
+    ctx.font = 'bold 12px system-ui, sans-serif';
+    const mots = txt.split(' '), lignes = [''];
+    for (const m of mots) {
+      const essai = lignes[lignes.length - 1] ? lignes[lignes.length - 1] + ' ' + m : m;
+      if (ctx.measureText(essai).width > W - 24 && lignes[lignes.length - 1]) lignes.push(m); else lignes[lignes.length - 1] = essai;
+    }
+    const l2 = lignes.slice(0, 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(4, 4, W - 8, 8 + l2.length * 15);
+    ctx.fillStyle = '#fff';
+    l2.forEach((l, i) => ctx.fillText(l, W / 2, 17 + i * 15));
+  }
 
-  // Aide commandes
-  ctx.font = '12px system-ui, sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.75)';
-  ctx.fillText('↑↓ / Z S : gaz · X couper · Espace plein gaz · ←→ / Q D : orienter · L pilote auto · +/− temps · P pause · Échap quitter', W / 2, H - 14);
+  // Aide commandes (clavier seulement : sur écran tactile, ce sont les boutons)
+  if (!ECRAN_TACTILE) {
+    ctx.font = '12px system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.fillText('↑↓ / Z S : gaz · X couper · Espace plein gaz · ←→ / Q D : orienter · L pilote auto · +/− temps · P pause · Échap quitter', W / 2, H - 14);
+  }
 
   // Temps et pilote automatique
   ctx.textAlign = 'right';
-  ctx.font = 'bold 14px system-ui, sans-serif';
+  const y0 = hautDroite;
+  ctx.font = compact ? 'bold 12px system-ui, sans-serif' : 'bold 14px system-ui, sans-serif';
   ctx.fillStyle = warp > 1 ? '#ffca28' : 'rgba(255,255,255,0.6)';
-  ctx.fillText('Temps ×' + warp + (vol.warpChoisi > warp ? ` (×${vol.warpChoisi} demandé, limité près du sol)` : '') + '  +/−', W - 14, 28);
-  ctx.font = '12px system-ui, sans-serif';
+  const limite = vol.warpChoisi > warp ? (compact ? ` (×${vol.warpChoisi} limité)` : ` (×${vol.warpChoisi} demandé, limité près du sol)`) : '';
+  ctx.fillText('Temps ×' + warp + limite + (ECRAN_TACTILE ? '' : '  +/−'), W - 14, y0 + 28);
+  ctx.font = compact ? '11px system-ui, sans-serif' : '12px system-ui, sans-serif';
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  ctx.fillText('T+ ' + fmtDuree(vol.t), W - 14, 46);
+  ctx.fillText('T+ ' + fmtDuree(vol.t), W - 14, y0 + (compact ? 43 : 46));
   if (vol.autopilote) {
-    ctx.font = 'bold 14px system-ui, sans-serif';
+    ctx.font = compact ? 'bold 12px system-ui, sans-serif' : 'bold 14px system-ui, sans-serif';
     ctx.fillStyle = '#66bb6a';
-    ctx.fillText('PILOTE AUTO', W - 14, 70);
-    ctx.font = '12px system-ui, sans-serif';
-    ctx.fillText(vol.messageAuto, W - 14, 88);
+    ctx.fillText('PILOTE AUTO', W - 14, y0 + (compact ? 60 : 70));
+    ctx.font = compact ? '11px system-ui, sans-serif' : '12px system-ui, sans-serif';
+    // En compact, le message du pilote passe sur deux lignes si besoin.
+    const msg = vol.messageAuto || '';
+    const largeurDispo = compact ? W - (ZONE_HUD ? ZONE_HUD.x + ZONE_HUD.w + 10 : 190) - 14 : 1e9;
+    if (ctx.measureText(msg).width <= largeurDispo) ctx.fillText(msg, W - 14, y0 + (compact ? 75 : 88));
+    else {
+      const i = msg.lastIndexOf(' ', Math.floor(msg.length / 2) + 4);
+      ctx.fillText(msg.slice(0, i), W - 14, y0 + 75);
+      ctx.fillText(msg.slice(i + 1), W - 14, y0 + 89);
+    }
   }
   ctx.textAlign = 'left';
 }

@@ -493,6 +493,11 @@ for (const el of [canvas, toile]) {
     const bouge = glisser && glisser.bouge;
     glisser = null;
     if (bouge) return;
+    // Petit écran : un appui sur le tableau de bord compact l'agrandit (et inversement).
+    if (etat.ecran === 'vol' && etat.vol && ZONE_HUD) {
+      const z = ZONE_HUD;
+      if (e.clientX >= z.x && e.clientX <= z.x + z.w && e.clientY >= z.y && e.clientY <= z.y + z.h) { etat.vol.hudComplet = !etat.vol.hudComplet; return; }
+    }
     if (etat.ecran === 'nav' && Orbiteur.clicMiniCarte(e.clientX, e.clientY)) return;
     const id = astreSousSouris(e);
     if (id) ouvrirFiche(id);
@@ -632,6 +637,7 @@ function boucle(t) {
   requestAnimationFrame(boucle);
   try {
     image(t);
+    if (typeof Tactile !== 'undefined') Tactile.majImage();
   } catch (e) {
     console.error(e);
     signalerErreur(e);

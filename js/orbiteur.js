@@ -992,7 +992,7 @@ const Orbiteur = {
     if (!a || !a.orbite) return;
     const principal = a.orbite.centre;
     const etendue = a.orbite.a * (1 + a.orbite.e) * 1.35;
-    const L = Math.min(200, Math.max(120, H * 0.3)), x0 = 8, y0 = H - L - 52;
+    const L = Math.min(200, Math.max(110, H * 0.3), W * 0.36), x0 = 8, y0 = H - L - 52;
     const cx = x0 + L / 2, cy = y0 + L / 2 + 8;
     const k = (L / 2 - 14) / etendue;
     this.mini = { x0, y0, L, principal };
@@ -1066,13 +1066,14 @@ const Orbiteur = {
         </span>
         <span class="groupe">🎯 Centrer : <button id="nav-c-orb">Orbiteur</button><button id="nav-c-astre"></button><button id="nav-c-cible" class="cache"></button><button id="nav-vues">👁 Vues…</button><button id="nav-fermer-trajet" class="cache">✕ Trajectoire</button></span>
         <label class="groupe"><input type="checkbox" id="nav-masque"> Grosses lunes seulement</label>
+        <span class="groupe petit-seul"><button id="nav-voir-etat">📊 État</button><button id="nav-voir-actions" class="principal">🎛 Actions</button></span>
         <button id="nav-encyclo">📖 Astres</button>
         <button id="nav-pause">⏸</button>
         <button id="nav-hangar">← Accueil</button>
       </div>
       <div class="panneau gauche" id="nav-etat"></div>
       <div class="panneau droite" id="nav-actions"></div>
-      <div class="aide-nav">Molette : zoom · glisser : déplacer · clic : fiche d’un astre · double-clic : centrer · F : revenir à l’orbiteur · +/− : temps${''}</div>`;
+      <div class="aide-nav">${ECRAN_TACTILE ? 'Un doigt : déplacer · deux doigts : zoomer · toucher un astre : sa fiche' : 'Molette : zoom · glisser : déplacer · clic : fiche d’un astre · double-clic : centrer · F : revenir à l’orbiteur · +/− : temps'}</div>`;
     $('nav-moins').onclick = () => this.changerWarp(-1);
     $('nav-plus').onclick = () => this.changerWarp(1);
     h.querySelectorAll('[data-mode]').forEach((b) => { b.onclick = () => { this.v.mode = b.dataset.mode; this.auto = false; this.avance = false; this.v.manette = 0; this.majHud(true); }; });
@@ -1081,6 +1082,10 @@ const Orbiteur = {
     $('nav-c-astre').onclick = () => { this.trajet = null; this.centrerSur(this.v.orb ? this.v.orb.centre : 'terre'); };
     $('nav-c-cible').onclick = () => { if (this.v.cible) { this.trajet = null; this.centrerSur(this.v.cible); } };
     $('nav-vues').onclick = () => this.ouvrirVues();
+    // Petit écran : les panneaux sont repliés, ces boutons les ouvrent (un seul à la fois).
+    const basculer = (id, autre) => { $(autre).classList.remove('ouvert'); $(id).classList.toggle('ouvert'); };
+    $('nav-voir-etat').onclick = () => basculer('nav-etat', 'nav-actions');
+    $('nav-voir-actions').onclick = () => basculer('nav-actions', 'nav-etat');
     $('nav-fermer-trajet').onclick = () => { this.fermerTrajet(); this.majHud(true); };
     $('nav-encyclo').onclick = () => Infos.ouvrirEncyclopedie();
     $('nav-pause').onclick = () => this.contexte.basculerPause();

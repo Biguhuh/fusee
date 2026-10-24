@@ -3,6 +3,14 @@
 Jeu web en HTML, JavaScript et canvas 2D, sans framework.
 **Jouer en ligne : https://biguhuh.github.io/fusee/** — ou ouvrir `index.html` dans un navigateur.
 
+## Sur téléphone et tablette
+Le jeu détecte l'écran tactile :
+- **Atterrissage** : ⟲ ⟳ pour pivoter, ▲ ▼ pour les gaz (maintenus), 0 / Max, puis Auto, Décoller, Sortir, Robot, Base, ⏪ ⏩ (temps), ⏸, ✕.
+- **Au sol** : ◀ ▶ (maintenus), ⤒ sauter, Ramasser / Analyser / Cueillir, Rover, ⏪ ⏩, Rentrer.
+- **Orbiteur** : un doigt pour déplacer la carte, deux doigts pour zoomer, toucher un astre pour sa fiche ; boutons « 📊 État » et « 🎛 Actions » pour ouvrir les panneaux.
+- Sur petit écran, le tableau de bord est réduit à l'essentiel (les limites n'apparaissent que si elles approchent) ; un appui dessus affiche tout le détail.
+- Portrait et paysage.
+
 ## Votre spationaute
 Au premier lancement, on crée son ou sa spationaute (modifiable depuis l'accueil) :
 - **prénom** (facultatif), utilisé dans les messages ;

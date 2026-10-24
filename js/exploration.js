@@ -466,20 +466,24 @@ class Exploration {
 
     if (this.terre) this.dessinerHudTerre(ctx, W, H);
     else this.dessinerHud(ctx, W, H);
-    ctx.textAlign = 'right'; ctx.font = 'bold 14px system-ui'; ctx.fillStyle = this.warp > 1 ? '#ffca28' : 'rgba(255,255,255,0.7)';
-    ctx.fillText(`Temps ×${this.warp}  (+/−)`, W - 14, 28);
+    const compact = ecranCompact(W, H);
+    ctx.textAlign = 'right'; ctx.font = compact ? 'bold 12px system-ui' : 'bold 14px system-ui'; ctx.fillStyle = this.warp > 1 ? '#ffca28' : 'rgba(255,255,255,0.7)';
+    ctx.fillText(`Temps ×${this.warp}${ECRAN_TACTILE ? '' : '  (+/−)'}`, W - 14, compact ? 58 : 28);
     ctx.textAlign = 'left';
   }
 
   dessinerHudTerre(ctx, W, H) {
+    const compact = ecranCompact(W, H);
+    const y0 = compact ? 44 : 8;
     ctx.fillStyle = 'rgba(0,0,0,0.45)';
-    ctx.fillRect(8, 8, 300, 104);
-    ctx.font = 'bold 15px system-ui'; ctx.fillStyle = '#fff';
-    ctx.fillText('Promenade sur Terre', 16, 30);
-    ctx.font = '13px system-ui';
-    ctx.fillText(`🌸 Fleurs cueillies : ${this.bouquet || 0}`, 16, 54);
-    ctx.fillText(`🍎 Fruits cueillis : ${this.panier || 0}`, 16, 74);
-    ctx.fillText(`🍺 Bières au bar : ${this.bieres}`, 16, 94);
+    ctx.fillRect(8, y0, compact ? 190 : 300, compact ? 80 : 104);
+    ctx.font = compact ? 'bold 13px system-ui' : 'bold 15px system-ui'; ctx.fillStyle = '#fff';
+    ctx.fillText('Promenade sur Terre', 16, y0 + (compact ? 18 : 22));
+    ctx.font = compact ? '12px system-ui' : '13px system-ui';
+    const pasL = compact ? 18 : 20, yl = y0 + (compact ? 38 : 46);
+    ctx.fillText(`🌸 Fleurs : ${this.bouquet || 0}`, 16, yl);
+    ctx.fillText(`🍎 Fruits : ${this.panier || 0}`, 16, yl + pasL);
+    ctx.fillText(`🍺 Bières au bar : ${this.bieres}`, 16, yl + 2 * pasL);
     const proche = this.sites.filter((s) => s.type === 'bar' || (s.type === 'arbre' && s.reste > 0) || (s.type === 'fleur' && !s.cueillie))
       .reduce((m, x) => (!m || Math.abs(x.x - this.p.x) < Math.abs(m.x - this.p.x) ? x : m), null);
     if (proche) {
@@ -487,14 +491,41 @@ class Exploration {
       ctx.font = 'bold 14px system-ui'; ctx.fillStyle = '#ffd54f'; ctx.textAlign = 'center';
       ctx.fillText(`${dx < 0 ? '◀' : '▶'} ${proche.nom} à ${fmt(Math.abs(dx))} m`, W / 2, 30);
     }
-    afficherMessages(ctx, this.messagesVisibles(), W, H - 46);
-    ctx.font = '12px system-ui'; ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.textAlign = 'center';
-    ctx.fillText('←→ / Q D : marcher · ↑ / Z / Espace : sauter · E : cueillir, boire une bière, ou rentrer à la maison · Échap : rentrer', W / 2, H - 14);
+    afficherMessages(ctx, this.messagesVisibles(), W, yMessagesExplo(W, H));
+    if (!ECRAN_TACTILE) {
+      ctx.font = '12px system-ui'; ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.textAlign = 'center';
+      ctx.fillText('←→ / Q D : marcher · ↑ / Z / Espace : sauter · E : cueillir, boire une bière, ou rentrer à la maison · Échap : rentrer', W / 2, H - 14);
+    }
     ctx.textAlign = 'left';
   }
 
   dessinerHud(ctx, W, H) {
     const d = this.def, a = this.astre, c = this.c;
+    const compact = ecranCompact(W, H);
+    const sc = this.science[a.id] || { echantillons: 0, analyses: 0, sites: {} };
+    const fr = this.reserve / d.autonomie;
+    if (compact) {
+      // Petit écran : l'essentiel, et les limites seulement si elles approchent.
+      const l = [];
+      l.push([d.ressource, fmtDuree(this.reserve), fr < 0.2 ? '#ef5350' : '#66bb6a']);
+      l.push([this.type === 'robot' ? 'Robot' : 'Combi.', fmt(this.integrite) + ' %', this.integrite > 60 ? '#66bb6a' : this.integrite > 30 ? '#ffca28' : '#ef5350']);
+      l.push([this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? `${sc.analyses} (+${this.donneesEnAttente})` : `${this.sac.length}/${d.capacite}` + (this.rover ? ` · rover ${this.sacRover.length}/20` : ''), this.donneesEnAttente ? '#ffca28' : '#fff']);
+      l.push(['Module', fmt(Math.abs(this.p.x - this.xFusee)) + ' m', '#fff']);
+      const rp = c.p / d.pressionMax, rt = (c.t + KELVIN) / (d.tempMax + KELVIN), rr = c.rad / d.protection;
+      if (rp > 0.6) l.push(['Pression', fmtP(c.p), couleurRisque(rp)]);
+      if (rt > 0.7) l.push(['Temp.', fmt(c.t) + ' °C', couleurRisque(rt)]);
+      if (rr > 0.7 || this.dose > 20) l.push(['Dose', fmt(this.dose) + ' %', couleurRisque(Math.max(rr, this.dose / 100))]);
+      const larg = Math.min(190, W * 0.52), y0 = 44;
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(6, y0, larg, 26 + l.length * 16);
+      ctx.font = 'bold 12px system-ui'; ctx.fillStyle = '#fff'; ctx.fillText(`${d.nom} · ${a.nom}`, 12, y0 + 16);
+      let yy = y0 + 34;
+      for (const [k, v, coul] of l) {
+        ctx.font = '11px system-ui'; ctx.fillStyle = '#b0bec5'; ctx.fillText(k, 12, yy);
+        ctx.font = 'bold 12px ui-monospace, Consolas, monospace'; ctx.fillStyle = coul; ctx.fillText(v, 74, yy);
+        yy += 16;
+      }
+    } else {
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
     ctx.fillRect(8, 8, 290, 250);
     let y = 28;
@@ -504,7 +535,6 @@ class Exploration {
       y += 18;
     };
     ctx.font = 'bold 15px system-ui'; ctx.fillStyle = '#fff'; ctx.fillText(`${d.nom} sur ${a.nom}`, 16, y); y += 24;
-    const fr = this.reserve / d.autonomie;
     ligne(d.ressource, fmtDuree(this.reserve), fr < 0.2 ? '#ef5350' : '#66bb6a');
     ligne(this.type === 'robot' ? 'État du robot' : 'Combinaison', fmt(this.integrite) + ' %', this.integrite > 60 ? '#66bb6a' : this.integrite > 30 ? '#ffca28' : '#ef5350');
     ligne('Pression', fmtP(c.p) + ' / ' + fmt(d.pressionMax, 1), couleurRisque(c.p / d.pressionMax));
@@ -513,10 +543,10 @@ class Exploration {
     ligne('Dose reçue', fmt(this.dose) + ' %', couleurRisque(this.dose / 100));
     ligne('Gravité', fmtG(c.g));
     ligne('Libération', fmtV(this.vLib));
-    const sc = this.science[a.id] || { echantillons: 0, analyses: 0, sites: {} };
     ligne(this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? `${sc.analyses} envoyées, ${this.donneesEnAttente} en mémoire` : `${this.sac.length} / ${d.capacite}` + (this.rover ? `  rover ${this.sacRover.length} / 20` : ''), this.donneesEnAttente ? '#ffca28' : '#fff');
     ligne('Sites étudiés ici', String(Object.keys(sc.sites || {}).length));
     ligne('Distance module', fmt(Math.abs(this.p.x - this.xFusee)) + ' m');
+    }
 
     // Site le plus proche non étudié
     const libres = this.sites.filter((s) => !this.dejaFait(s));
@@ -531,15 +561,17 @@ class Exploration {
       ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(W / 2 - 100, 44, 200, 14);
       ctx.fillStyle = '#4fc3f7'; ctx.fillRect(W / 2 - 100, 44, 200 * (this.analyse.t / 5), 14);
     }
-    afficherMessages(ctx, this.messagesVisibles(), W, H - 46);
+    afficherMessages(ctx, this.messagesVisibles(), W, yMessagesExplo(W, H));
     if (this.taux > 0) {
-      ctx.font = 'bold 18px system-ui'; ctx.textAlign = 'center';
+      ctx.font = compact ? 'bold 14px system-ui' : 'bold 18px system-ui'; ctx.textAlign = 'center';
       ctx.fillStyle = Math.sin(performance.now() / 150) > 0 ? '#ff1744' : '#fff';
-      ctx.fillText(this.type === 'robot' ? 'LIMITES DU ROBOT DÉPASSÉES' : 'COMBINAISON EN DANGER', W / 2, 80);
+      ctx.fillText(this.type === 'robot' ? 'LIMITES DU ROBOT DÉPASSÉES' : 'COMBINAISON EN DANGER', W / 2, compact ? H * 0.32 : 80);
       ctx.textAlign = 'left';
     }
-    ctx.font = '12px system-ui'; ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.textAlign = 'center';
-    ctx.fillText(`←→ / Q D : ${this.type === 'robot' || this.enRover ? 'rouler' : 'marcher'}${this.saut && !this.enRover ? ' · ↑ / Z / Espace : sauter' : ''}${this.rover ? ` · V : ${this.enRover ? 'descendre du' : 'monter dans le'} rover` : ''} · E : ${this.type === 'robot' ? 'analyser' : 'ramasser'} (ou rentrer près du module) · Échap : rappeler`, W / 2, H - 14);
+    if (!ECRAN_TACTILE) {
+      ctx.font = '12px system-ui'; ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.textAlign = 'center';
+      ctx.fillText(`←→ / Q D : ${this.type === 'robot' || this.enRover ? 'rouler' : 'marcher'}${this.saut && !this.enRover ? ' · ↑ / Z / Espace : sauter' : ''}${this.rover ? ` · V : ${this.enRover ? 'descendre du' : 'monter dans le'} rover` : ''} · E : ${this.type === 'robot' ? 'analyser' : 'ramasser'} (ou rentrer près du module) · Échap : rappeler`, W / 2, H - 14);
+    }
     ctx.textAlign = 'left';
   }
 }
@@ -649,6 +681,9 @@ function dessinerRover(ctx, x, y, s, p, aBord, inclinaison = 0) {
 }
 
 // dessinerSpationaute : voir equipage.js (tenue, carnation, exosquelette).
+
+// Hauteur des messages : au-dessus des boutons tactiles (en bas en portrait).
+function yMessagesExplo(W, H) { return ECRAN_TACTILE ? H - (H > W ? 210 : 70) : H - 46; }
 
 function dessinerRobot(ctx, x, y, s, p, analyse, inclinaison = 0) {
   const L = 1.6 * s, h = 1.3 * s;
