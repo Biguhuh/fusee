@@ -182,6 +182,8 @@ class Exploration {
     const p = this.p, g = this.c.g;
     this.c = conditions(this.astre, p.y);
     this.vol.t += dt;
+    // Le lanceur de retour demandé à la station continue de descendre pendant la sortie.
+    if (this.vol.lanceurRetour && this.vol.lanceurRetour.etat === 'descente') this.vol.descenteLanceur(dt);
 
     // Analyse en cours (robot)
     if (this.analyse) {
@@ -425,6 +427,12 @@ class Exploration {
       if (fx2 > -200 && fx2 < W + 200) dessinerFanion(ctx, fx2, fy2, echelle);
     }
 
+    // Vénus : lanceur de retour en descente ou posé près du module
+    const lr = this.vol.lanceurRetour;
+    if (lr && lr.etat !== 'parti') {
+      const [lx, ly] = versEcran(lr.x, lr.etat === 'pret' ? this.sol(lr.x) : lr.y);
+      if (lx > -200 && lx < W + 200) dessinerLanceurRetour(ctx, lr, lx, ly, echelle);
+    }
     // Drapeaux plantés
     for (const d of drapeauxSur(a.id)) {
       const [dx, dy] = versEcran(d.x, this.sol(d.x));

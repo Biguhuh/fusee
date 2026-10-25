@@ -585,6 +585,12 @@ const Orbiteur = {
     const v = this.v;
     for (const s of v.stations) {
       s.stock = { ...STOCK_VIDE(), ...(s.stock || {}) };
+      // Chantiers de l'atelier terminés
+      for (const c of (s.chantiers || []).filter((x) => v.t >= x.fin)) {
+        s.stock[c.cle] = (s.stock[c.cle] || 0) + 1;
+        this.log(`Atelier de ${s.nom} : ${RECETTES[c.cle].nom.toLowerCase()} terminé, prêt à être envoyé.`);
+      }
+      if (s.chantiers) s.chantiers = s.chantiers.filter((x) => v.t < x.fin);
       if (!s.prochainCargo) s.prochainCargo = v.t + intervalleCargo(s.centre);
       let n = 0;
       while (v.t >= s.prochainCargo && n++ < 50) {
@@ -666,16 +672,26 @@ const Orbiteur = {
     };
   },
 
-  // Atelier d'une station : fabrique un élément avec les matériaux du stock.
+  // Atelier d'une station : fabrique un élément avec les matériaux (et les ergols) du stock.
+  // Les gros éléments (lanceur de retour) demandent un chantier de plusieurs jours.
   fabriquer(stationId, cle) {
     const st = this.v.stations.find((s) => s.id === stationId);
     const r = RECETTES[cle];
     if (!st || !r) return;
     if (st.stock.materiaux < r.materiaux) return this.log(`${st.nom} : pas assez de matériaux pour un(e) ${r.nom.toLowerCase()} (${fmtStock('materiaux', r.materiaux)} nécessaires).`);
-    if ((st.stock[cle] || 0) >= CAPACITES_STATION[cle]) return this.log(`${st.nom} : stock de ${NOMS_STOCK[cle]} plein.`);
+    if (r.ergols && st.stock.ergols < r.ergols) return this.log(`${st.nom} : pas assez d’ergols pour un(e) ${r.nom.toLowerCase()} (${fmtStock('ergols', r.ergols)} nécessaires).`);
+    st.chantiers = st.chantiers || [];
+    const enCours = st.chantiers.filter((c) => c.cle === cle).length;
+    if ((st.stock[cle] || 0) + enCours >= CAPACITES_STATION[cle]) return this.log(`${st.nom} : stock de ${NOMS_STOCK[cle]} plein.`);
     st.stock.materiaux -= r.materiaux;
+    if (r.ergols) st.stock.ergols -= r.ergols;
+    const cout = `${fmtStock('materiaux', r.materiaux)} de matériaux${r.ergols ? ` et ${fmtStock('ergols', r.ergols)} d’ergols` : ''}`;
+    if (r.duree) {
+      st.chantiers.push({ cle, fin: this.v.t + r.duree });
+      return this.log(`Atelier de ${st.nom} : chantier « ${r.nom} » lancé (${cout}). Prêt le ${fmtDate(this.v.t + r.duree)}.`);
+    }
     st.stock[cle] = (st.stock[cle] || 0) + 1;
-    this.log(`Atelier de ${st.nom} : ${r.nom.toLowerCase()} fabriqué(e) avec ${fmtStock('materiaux', r.materiaux)} de matériaux.`);
+    this.log(`Atelier de ${st.nom} : ${r.nom.toLowerCase()} fabriqué(e) avec ${cout}.`);
   },
 
   amarrer() {
@@ -1466,8 +1482,10 @@ const Orbiteur = {
       const k = st.stock;
       d += `<h3>${st.nom}</h3><dl>` + Object.keys(NOMS_STOCK).map((cle) => `<dt>${NOMS_STOCK[cle]}</dt><dd>${fmtStock(cle, k[cle] || 0)}</dd>`).join('') + '</dl>';
       d += `<p class="doux">Ravitaillement courant de la Terre dans ${fmtDuree(st.prochainCargo - v.t)}.</p>`;
-      d += `<p class="doux"><b>Atelier</b> (avec les matériaux du stock) :</p><div class="orientations">` +
-        Object.entries(RECETTES).map(([cle, r]) => `<button data-fab="${cle}" ${k.materiaux < r.materiaux ? 'disabled' : ''}>${r.nom} · ${fmtStock('materiaux', r.materiaux)}</button>`).join('') + '</div>';
+      d += `<p class="doux"><b>Atelier</b> (avec les matériaux et les ergols du stock) :</p><div class="orientations">` +
+        Object.entries(RECETTES).filter(([cle]) => cle !== 'lanceurRetour' || AEROSTAT[st.centre]).map(([cle, r]) =>
+          `<button data-fab="${cle}" ${k.materiaux < r.materiaux || (r.ergols && k.ergols < r.ergols) ? 'disabled' : ''}>${r.nom} · ${fmtStock('materiaux', r.materiaux)}${r.ergols ? ` + ${fmtStock('ergols', r.ergols)} d’ergols` : ''}${r.duree ? ` · ${fmtDuree(r.duree)}` : ''}</button>`).join('') + '</div>';
+      for (const ch of st.chantiers || []) d += `<p class="doux">🔧 Chantier : ${RECETTES[ch.cle].nom}, prêt le ${fmtDate(ch.fin)} (dans ${fmtDuree(ch.fin - v.t)}).</p>`;
     }
     const bases = v.bases.filter((b) => ancetres(b.astre).includes(c.id) || b.astre === c.id);
     if (bases.length) {

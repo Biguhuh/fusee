@@ -136,7 +136,8 @@ function choisirDestination(id) { etat.destination = id; afficherCarte(etat, cho
 function lancer(options = {}) {
   const astre = ASTRES_PAR_ID[etat.destination];
   if (!astre) return;
-  // Vénus : toute fusée emporte le ballon et le lanceur d'ascension pour pouvoir repartir.
+  // Vénus : le module est équipé pour le ballon ; le lanceur de retour sera envoyé par une station.
+  if (AEROSTAT[astre.id] && !options.fournisseurLanceur) options = { ...options, fournisseurLanceur: fournisseurLanceurRetour(astre.id) };
   etat.vol = new Vol(astre, options.fusee || equiperAerostat(assemblerFusee(etat.equipement), astre), options);
   etat.enVoyage = !!options.voyage;
   etat.warp = 1;
@@ -263,10 +264,40 @@ function allerLancement() {
 
 function basesSur(id) { return etat.voyage ? etat.voyage.bases.filter((b) => b.astre === id) : []; }
 
+// Vénus : la station en orbite envoie au sol le lanceur de retour qu'elle a construit à son atelier.
+// En visite rapide (pas de stations), une station de soutien est supposée en orbite.
+function fournisseurLanceurRetour(astreId) {
+  const nom = ASTRES_PAR_ID[astreId].nom;
+  if (!etat.enVoyage) return () => ({ ok: true, texte: 'La station de soutien en orbite envoie le lanceur de retour : capsule sous parachute, 15 km au-dessus du site.' });
+  return () => {
+    const d = lanceurRetourDisponible(etat.voyage, astreId);
+    const recette = RECETTES.lanceurRetour;
+    const cout = `${fmtStock('materiaux', recette.materiaux)} de matériaux, ${fmtStock('ergols', recette.ergols)} d’ergols, ${fmtDuree(recette.duree)}`;
+    if (!d.station) return { ok: false, texte: `Pas de lanceur de retour : il faut une station en orbite de ${nom}, qui le construit à son atelier (${cout}). Sans lui, pas de retour en orbite.` };
+    if (!d.pret) {
+      return { ok: false, texte: d.chantier
+        ? `Le lanceur de retour est en construction à ${d.station.nom} : prêt le ${fmtDate(d.chantier.fin)}. Remontez le temps à l’orbiteur ou patientez.`
+        : `${d.station.nom} n’a pas de lanceur de retour : lancez sa construction à l’atelier (${cout}).` };
+    }
+    d.station.stock.lanceurRetour -= 1;
+    return { ok: true, texte: `${d.station.nom} envoie le lanceur de retour : capsule sous parachute, 15 km au-dessus du site.` };
+  };
+}
+
 function descendre(id) {
   const v = etat.voyage, a = ASTRES_PAR_ID[id];
   const c = concevoirAtterrisseur(a);
   if (!c.ok) return Orbiteur.log(c.raison);
+  // Vénus : sans lanceur de retour prêt en orbite, la descente est un aller simple. On prévient.
+  if (AEROSTAT[id]) {
+    const d = lanceurRetourDisponible(v, id);
+    if (!d.pret) {
+      const pourquoi = !d.station ? `il n’y a pas de station en orbite de ${a.nom} pour le construire`
+        : d.chantier ? `il est en construction à ${d.station.nom} (prêt le ${fmtDate(d.chantier.fin)})`
+          : `${d.station.nom} ne l’a pas encore construit (atelier)`;
+      if (!confirm(`Aucun lanceur de retour n’est prêt : ${pourquoi}.\n\nSans lui, le module ne pourra pas repartir de ${a.nom} tant qu’il n’aura pas été construit et envoyé.\n\nDescendre quand même ?`)) return;
+    }
+  }
   if (v.ergolsAtt < c.fusee.carburant) return Orbiteur.log(`Pas assez d’ergols pour l’atterrisseur (${fmt(v.ergolsAtt / 1000, 1)} t sur ${fmt(c.fusee.carburant / 1000, 1)} t) : ravitaillez à une station.`);
   v.ergolsAtt -= c.fusee.carburant;
   etat.destination = id;

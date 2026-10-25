@@ -50,7 +50,10 @@ Tenue : combinaison de vol bleue de l'ESA sur Terre, scaphandre blanc aux couleu
 - **Rotondité** : en prenant de l'altitude, le sol se courbe (projection exacte sur la sphère, horizon), avec un halo d'atmosphère au bord.
 
 ## Vénus : remontée en ballon
-Repartir du sol de Vénus demanderait ≈ 12,6 km/s : aucun atterrisseur n'en est capable. Comme dans les études de la NASA, le module blindé se pose ; pour repartir (T), un **ballon** emporte le petit lanceur **Aphrodite** (2 étages, ≈ 9 km/s) jusqu'à 54 km (0,7 bar, ≈ 30 °C), où il s'allume vers l'orbite. Le module reste au sol.
+Repartir du sol de Vénus demanderait ≈ 12,6 km/s : aucun atterrisseur n'en est capable. Comme dans les études de la NASA, le module blindé se pose ; pour repartir, un **ballon** emporte le petit lanceur **Aphrodite** (2 étages, ≈ 9 km/s) jusqu'à 54 km (0,7 bar, ≈ 30 °C), où il s'allume vers l'orbite. Le module reste au sol.
+- Le lanceur de retour se construit à l'**atelier d'une station en orbite de Vénus** (20 t de matériaux, 37 t d'ergols, 20 jours de chantier).
+- Une fois posé, **T** le demande à la station : il descend dans une capsule sous parachute (≈ 17 min) et se pose à 30 m du module ; **T** gonfle alors le ballon.
+- Sans lanceur prêt en orbite, le jeu prévient avant la descente (aller simple tant qu'il n'est pas construit). En visite rapide, une station de soutien est supposée en orbite.
 
 ## Missions en temps réel
 Bouton « ⏱ Temps réel » sur l'orbiteur :

@@ -54,7 +54,13 @@ const Tactile = {
         b.push({ zone: 'droite2', label: 'Max', code: 'Space', titre: 'Plein gaz' });
       }
       b.push({ zone: 'actions', label: v.autopilote ? '🤖 Auto ✓' : '🤖 Auto', code: 'KeyL', actif: v.autopilote });
-      if (v.pose && !(v.compteARebours > 0)) b.push({ zone: 'actions', label: v.lancement ? '🚀 Lancer' : '🚀 Décoller', code: 'KeyT', principal: true });
+      if (v.pose && !(v.compteARebours > 0)) {
+        // Vénus : d'abord demander le lanceur de retour à la station, puis gonfler le ballon.
+        const lr = v.lanceurRetour;
+        const venus = v.f.aerostat && !v.ascension;
+        const label = venus ? (!lr ? '📦 Lanceur' : lr.etat === 'descente' ? '⏳ Lanceur' : '🎈 Ballon') : v.lancement ? '🚀 Lancer' : '🚀 Décoller';
+        b.push({ zone: 'actions', label, code: 'KeyT', principal: true });
+      }
       if (v.pose && solide && !v.lancement && !v.promenade) {
         b.push({ zone: 'actions', label: '🧑‍🚀 Sortir', code: 'KeyE' });
         b.push({ zone: 'actions', label: '🛞 Robot', code: 'KeyR' });

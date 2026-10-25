@@ -34,11 +34,11 @@ function masseAscension() {
   const l = LANCEUR_ASCENSION;
   return l.chargeUtile + MASSE_BALLON + l.etages.reduce((s, e) => s + e.masseSeche + e.carburant, 0);
 }
-// Le module de descente emporte le ballon et le lanceur d'ascension (masse en plus, pas de carburant en plus).
+// Le module de descente ne transporte pas le lanceur de retour : une station en orbite le construit
+// (atelier) et l'envoie au sol sous parachute quand on le demande (voir Vol.demanderDecollage).
 function equiperAerostat(f, a) {
   if (!AEROSTAT[a.id] || f.aerostat) return f;
-  const m = masseAscension();
-  return { ...f, aerostat: { ...AEROSTAT[a.id] }, masseSeche: f.masseSeche + m, masseTotale: f.masseTotale + m };
+  return { ...f, aerostat: { ...AEROSTAT[a.id] } };
 }
 function fuseeAscension() {
   const l = LANCEUR_ASCENSION;
@@ -63,7 +63,7 @@ function fuseeDeConception(c, a) {
 }
 
 // Résultats gardés en mémoire, et d'une partie à l'autre (les vols d'essai prennent un peu de temps).
-const VERSION_CONCEPTION = 'v3';   // v3 : rotation progressive (vols d'essai à refaire)
+const VERSION_CONCEPTION = 'v4';   // v4 : le module de Vénus ne transporte plus son lanceur de retour
 const cacheConception = {};
 function concevoirAtterrisseur(a) {
   if (cacheConception[a.id]) return cacheConception[a.id];
@@ -194,13 +194,22 @@ function configurerEtage(f, i) {
 
 // ---------- Stocks des stations ----------
 const CAPACITES_STATION = {
-  carburant: 200000, ergols: 200000, materiaux: 150000, sondes: 10, kits: 4, kitsBase: 3, robots: 4, atterrisseurs: 4, extensions: 4,
+  carburant: 200000, ergols: 200000, materiaux: 150000, sondes: 10, kits: 4, kitsBase: 3, robots: 4, atterrisseurs: 4, extensions: 4, lanceurRetour: 2,
 };
-const STOCK_VIDE = () => ({ carburant: 0, ergols: 0, materiaux: 0, sondes: 0, kits: 0, kitsBase: 0, robots: 0, atterrisseurs: 0, extensions: 0 });
+const STOCK_VIDE = () => ({ carburant: 0, ergols: 0, materiaux: 0, sondes: 0, kits: 0, kitsBase: 0, robots: 0, atterrisseurs: 0, extensions: 0, lanceurRetour: 0 });
 const NOMS_STOCK = {
   carburant: 'carburant', ergols: 'ergols', materiaux: 'matériaux', sondes: 'sondes', kits: 'kits de station',
   kitsBase: 'kits de base', robots: 'robots', atterrisseurs: 'atterrisseurs', extensions: 'extensions de base',
+  lanceurRetour: 'lanceurs de retour',
 };
+
+// Vénus : y a-t-il un lanceur de retour disponible en orbite de cet astre ? Renvoie { station, pret, chantier }.
+function lanceurRetourDisponible(v, astreId) {
+  const st = (v.stations || []).find((s) => s.centre === astreId);
+  if (!st) return { station: null };
+  const chantier = (st.chantiers || []).find((c) => c.cle === 'lanceurRetour');
+  return { station: st, pret: (st.stock.lanceurRetour || 0) > 0, chantier };
+}
 function fmtStock(cle, q) { return ['carburant', 'ergols', 'materiaux'].includes(cle) ? `${fmt(q / 1000, q < 10000 ? 1 : 0)} t` : fmt(q); }
 function decrireContenu(c) { return Object.entries(c).filter(([, q]) => q > 0).map(([k, q]) => `${fmtStock(k, q)} ${NOMS_STOCK[k]}`).join(', '); }
 
@@ -226,6 +235,8 @@ const RECETTES = {
   kitsBase: { nom: 'Kit de base', materiaux: 15000 },
   kits: { nom: 'Kit de station', materiaux: 20000 },
   extensions: { nom: 'Extension de base', materiaux: 12000 },
+  // Vénus : lanceur à deux étages et son ballon, construit en orbite puis envoyé au sol sous parachute.
+  lanceurRetour: { nom: 'Lanceur de retour (ballon + Aphrodite)', materiaux: 20000, ergols: 37000, duree: 20 * JOUR },
 };
 
 // ---------- Ravitaillement courant depuis la Terre ----------
@@ -314,7 +325,8 @@ function descriptionConception(c) {
   const p = (cat) => piece(cat, c.choix[cat]).nom;
   if (c.aerostat) {
     return `module blindé (moteur ${p('moteur')}, réservoir ${p('reservoir')}, coque ${p('coque')}, bouclier ${p('bouclier')}) qui reste au sol ; ` +
-      `remontée : ballon jusqu’à ${fmtAlt(AEROSTAT.venus.alt)}, puis lanceur ${LANCEUR_ASCENSION.nom} à 2 étages (Δv ${fmtV(deltaVAscension())})`;
+      `remontée : lanceur de retour construit par une station en orbite et envoyé au sol sous parachute ` +
+      `(ballon jusqu’à ${fmtAlt(AEROSTAT.venus.alt)}, puis ${LANCEUR_ASCENSION.nom} à 2 étages, Δv ${fmtV(deltaVAscension())})`;
   }
   return `moteur ${p('moteur')}, réservoir ${p('reservoir')}, coque ${p('coque')}, bouclier ${p('bouclier')}, panneau ${p('panneau')} — Δv ${fmtV(c.dv)} pour ${fmtV(c.besoin / 1.2)} nécessaires`;
 }

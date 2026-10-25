@@ -26,6 +26,9 @@ class Vol {
     this.decollageDemande = false;
     this.terrain = creerTerrain(astre);
     this.bases = options.bases || [];
+    // Vénus : qui fournit le lanceur de retour (station en orbite) ; absent pendant les vols d'essai.
+    this.fournisseurLanceur = options.fournisseurLanceur || null;
+    this.lanceurRetour = null;
     // Zone repérée par une sonde : on descend juste au-dessus.
     this.site = options.site || null;
     this.x = this.site ? (this.site.xDescente !== undefined ? this.site.xDescente : this.site.x) : 0;
@@ -115,6 +118,7 @@ class Vol {
     if (this.fin) return;
     const a = this.astre, f = this.f;
     this.t += dt;
+    if (this.lanceurRetour && this.lanceurRetour.etat === 'descente') this.descenteLanceur(dt);
 
     // Compte à rebours sur le pas de tir : les pinces retiennent la fusée pendant l'allumage.
     if (this.compteARebours > 0) {
@@ -497,17 +501,55 @@ class Vol {
       return;
     }
     if (this.compteARebours > 0) return;
+    // Vénus : on ne décolle pas du sol. Il faut d'abord que la station en orbite envoie le lanceur de retour.
+    if (this.f.aerostat && !this.ascension) {
+      const lr = this.lanceurRetour;
+      if (!lr) {
+        if (!this.fournisseurLanceur) {
+          this.lanceurRetour = { etat: 'pret', x: this.x };   // vols d'essai de la conception : lanceur supposé déjà là
+        } else {
+          const rep = this.fournisseurLanceur();
+          this.messageExplo = { texte: rep.texte, vie: 10 };
+          if (!rep.ok) return;
+          // Capsule sous parachute, depuis 15 km au-dessus du site, posée à 30 m du module.
+          const x = this.x + 30;
+          this.lanceurRetour = { etat: 'descente', x, y: this.sol(x) + 15000, vy: -150 };
+          return;
+        }
+      } else if (lr.etat !== 'pret') {
+        this.messageExplo = { texte: `Le lanceur de retour descend encore sous son parachute (${fmtAlt(Math.max(0, lr.y - this.sol(lr.x)))}).`, vie: 4 };
+        return;
+      }
+    }
     this.decollageDemande = true;
     this.autopilote = true;
-    // Vénus : on ne décolle pas du sol, on gonfle le ballon.
+    // Vénus : le ballon se gonfle sur le lanceur, posé à côté du module.
     if (this.f.aerostat && !this.ascension) {
+      this.xModule = this.x;   // le module blindé reste au sol
+      this.x = this.lanceurRetour.x;
+      this.y = this.sol(this.x) + 0.01;
+      this.lanceurRetour.etat = 'parti';
       this.pose = false;
       this.phase = 'ballon';
       this.manette = 0;
-      this.xModule = this.x;   // le module blindé reste au sol
       this.tDecollage = this.t; // la chronologie de la remontée part du gonflage du ballon
       this.noter('Gonflage du ballon : le lanceur Aphrodite quitte le sol');
       this.messageExplo = { texte: `Gonflage du ballon : montée lente vers ${fmtAlt(this.f.aerostat.alt)}, au-dessus de la fournaise. Accélérez le temps (+).`, vie: 9 };
+    }
+  }
+
+  // Capsule du lanceur de retour : entrée freinée par son bouclier, puis parachute (≈ 8 m/s dans l'air épais de Vénus).
+  descenteLanceur(dt) {
+    const lr = this.lanceurRetour;
+    const sol = this.sol(lr.x);
+    const vLimite = lr.y - sol > 8000 ? -60 : -8;      // parachute principal sous 8 km
+    lr.vy += (vLimite - lr.vy) * Math.min(1, dt / 15);
+    lr.y += lr.vy * dt;
+    if (!lr.parachute && lr.y - sol < 8000) { lr.parachute = true; this.messageExplo = { texte: 'Parachute ouvert : le lanceur de retour descend vers le site.', vie: 5 }; }
+    if (lr.y <= sol) {
+      lr.y = sol;
+      lr.etat = 'pret';
+      this.messageExplo = { texte: 'Lanceur de retour posé à 30 m du module. T : gonfler le ballon et repartir.', vie: 10 };
     }
   }
 
@@ -604,6 +646,13 @@ class Vol {
         if (this.lancement) {
           if (this.compteARebours > 0) return `${this.f.nomLanceur} : compte à rebours en cours…`;
           return `${this.f.nomLanceur} sur le pas de tir : T pour lancer le compte à rebours`;
+        }
+        // Vénus : le retour passe par le lanceur que la station envoie au sol.
+        if (this.f.aerostat && !this.ascension) {
+          const lr = this.lanceurRetour;
+          if (!lr) return 'Posé sur Vénus ! T : demander le lanceur de retour à la station en orbite · E : spationaute · R : robot';
+          if (lr.etat === 'descente') return 'Le lanceur de retour descend sous son parachute… (accélérez le temps avec +)';
+          return 'Lanceur de retour posé à côté du module : T pour gonfler le ballon et repartir';
         }
         return this.voyage
           ? 'Posé ! E : spationaute · R : robot · B : construire une base · T : décoller vers l\'orbiteur'
@@ -756,7 +805,10 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
     solY = fuseeY + vol.y * echelle;
   } else {
     const alt = vol.altSol();
-    echelle = echelleCamera(a, alt, W, H);
+    // Vénus : pendant que le lanceur de retour descend, la caméra recule pour le montrer avec le module (jusqu'à 4 km).
+    const lr = vol.lanceurRetour;
+    const altCadre = lr && lr.etat === 'descente' ? Math.max(alt, Math.min(4000, (lr.y - vol.sol(lr.x)) * 1.2)) : alt;
+    echelle = echelleCamera(a, altCadre, W, H);
     fuseeY = H * 0.8 - alt * echelle;
     solY = fuseeY + vol.y * echelle;
   }
@@ -834,6 +886,19 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
   // Fumée et étincelles, puis fusée ou explosion.
   const hPx = vol.f.mega ? Math.max(vol.f.hauteur * echelle, 90) : Math.max(HAUTEUR_MODULE * echelle, gaz ? 60 : 44);
   if (solide) dessinerBases(ctx, vol, W, echelle, fuseeY);
+  // Vénus : lanceur de retour envoyé par la station (capsule sous parachute, puis posé à côté du module).
+  if (solide && vol.lanceurRetour && vol.lanceurRetour.etat !== 'parti') {
+    const lr = vol.lanceurRetour;
+    const sx = W / 2 + (lr.x - vol.x) * echelle, sy = fuseeY + (vol.y - lr.y) * echelle;
+    if (sx > -200 && sx < W + 200 && sy > -400 && sy < H + 200) dessinerLanceurRetour(ctx, lr, sx, sy, Math.max(echelle, 0.6));
+    // Encore trop haut pour être cadré : une flèche en haut de l'écran indique où il arrive.
+    if (lr.etat === 'descente' && sy < 40) {
+      const x = Math.max(30, Math.min(W - 30, sx));
+      ctx.fillStyle = '#ffd54f';
+      ctx.beginPath(); ctx.moveTo(x - 9, 52); ctx.lineTo(x + 9, 52); ctx.lineTo(x, 66); ctx.fill();
+      texteSurFond(ctx, `Lanceur de retour : ${fmtAlt(Math.max(0, lr.y - vol.sol(lr.x)))}`, x, 46, { police: 'bold 12px system-ui, sans-serif', couleur: '#ffd54f' });
+    }
+  }
   // Vénus : le module blindé reste au sol après le départ du ballon.
   if (solide && vol.xModule !== undefined) {
     const sx = W / 2 + (vol.xModule - vol.x) * echelle, sy = fuseeY + (vol.y - vol.sol(vol.xModule)) * echelle;
@@ -1587,6 +1652,42 @@ function dessinerCoiffe(ctx, yb, hc, wc, wHaut, tour) {
     ctx.beginPath(); ctx.moveTo(-wc * 0.12, yt + hc * 0.02); ctx.lineTo(0, yt - hc * 0.35); ctx.lineTo(wc * 0.12, yt + hc * 0.02); ctx.stroke();
     ctx.fillStyle = '#c62828'; ctx.fillRect(-wc * 0.06, yt - hc * 0.5, wc * 0.12, hc * 0.16);
   }
+}
+
+// Lanceur de retour de Vénus. En descente : capsule à bouclier thermique sous un parachute rayé.
+// Posé : le lanceur Aphrodite debout, le ballon replié au sommet. (sx, sy) : point bas ; k : pixels par mètre.
+function dessinerLanceurRetour(ctx, lr, sx, sy, k) {
+  const fa = dessinerBallon.lanceur || (dessinerBallon.lanceur = fuseeAscension());
+  if (lr.etat === 'descente') {
+    const hC = Math.max(14, 5 * k), wC = hC * 1.1;
+    // Capsule : cône, bouclier thermique en bas
+    ctx.fillStyle = '#b0bec5';
+    ctx.beginPath(); ctx.moveTo(sx - wC / 2, sy); ctx.lineTo(sx - wC * 0.18, sy - hC); ctx.lineTo(sx + wC * 0.18, sy - hC); ctx.lineTo(sx + wC / 2, sy); ctx.fill();
+    ctx.fillStyle = '#6d4c41'; ctx.fillRect(sx - wC / 2, sy - hC * 0.12, wC, hC * 0.12);
+    if (lr.parachute) {
+      // Suspentes et voilure
+      const R = hC * 1.6, yc = sy - hC - hC * 2.2;
+      ctx.strokeStyle = 'rgba(230,230,230,0.8)'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (const dx of [-0.9, -0.3, 0.3, 0.9]) { ctx.moveTo(sx + dx * R, yc); ctx.lineTo(sx, sy - hC); }
+      ctx.stroke();
+      for (let i = 0; i < 6; i++) {
+        ctx.fillStyle = i % 2 ? '#ffffff' : '#e64a19';
+        ctx.beginPath(); ctx.moveTo(sx, yc); ctx.arc(sx, yc, R, Math.PI + (i * Math.PI) / 6, Math.PI + ((i + 1) * Math.PI) / 6); ctx.closePath(); ctx.fill();
+      }
+    } else {
+      // Entrée atmosphérique : traînée lumineuse au-dessus de la capsule
+      const g = ctx.createLinearGradient(sx, sy - hC, sx, sy - hC * 5);
+      g.addColorStop(0, 'rgba(255,170,60,0.8)'); g.addColorStop(1, 'rgba(255,170,60,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(sx - wC * 0.3, sy - hC); ctx.lineTo(sx, sy - hC * 5); ctx.lineTo(sx + wC * 0.3, sy - hC); ctx.fill();
+    }
+    return;
+  }
+  // Posé : Aphrodite debout, ballon replié (ballot gris) au sommet.
+  const hL = fa.hauteur * k;
+  dessinerLanceur(ctx, { f: fa, angle: 0, throttle: 0, temp: 20, coiffeLarguee: true }, sx, sy, hL);
+  ctx.fillStyle = '#cfc8b6';
+  ctx.beginPath(); ctx.ellipse(sx, sy - hL - hL * 0.06, hL * 0.09, hL * 0.06, 0, 0, Math.PI * 2); ctx.fill();
 }
 
 // Capsule conique d'équipage (lanceur d'ascension de Vénus).
