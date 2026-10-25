@@ -96,6 +96,7 @@ const Orbiteur = {
     v.orb = null;
     v.echantillonsABord = {};
     v.cible = null;
+    v.equipagePerdu = false;      // la prochaine expédition part avec un nouvel équipage
     return { n, liste };
   },
 

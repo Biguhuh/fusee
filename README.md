@@ -34,6 +34,13 @@ Tenue : combinaison de vol bleue de l'ESA sur Terre, scaphandre blanc aux couleu
   3. **Expédition** : l'orbiteur emporte son atterrisseur. On part vers un astre (pilotage libre, assistant ou planificateur), on se pose, on explore, on remonte.
      - **Vue orbite pour l'amarrage** : une fois l'altitude et la vitesse orbitale atteintes (depuis n'importe quel astre, et aussi au lancement depuis la Terre), on passe en vue orbite, l'astre vu de son pôle Nord tournant à sa vraie période. Le rendez-vous est calculé pour de vrai : périodes orbitales d'après la masse de l'astre et les altitudes, attente de la fenêtre (angle d'avance de la cible), transfert de Hohmann avec ses deux poussées, approche finale, amarrage à l'orbiteur (ou à la station spatiale). Le temps est accéléré, avec son facteur affiché ; Entrée, Espace ou un toucher passent la séquence.
   4. **Retour** : cible Terre, puis « 🏠 Rentrer sur Terre » : la capsule rapporte les échantillons. Une nouvelle méga-fusée relance l'expédition suivante (elle s'amarre à la station terrestre).
+     - **Animation du retour**, avec une trajectoire calculée (traînée, portance, gravité) :
+       - rentrée depuis 120 km à 7,8 km/s : bouclier face à la vitesse, plasma et coupure radio, environ 3 g ;
+       - parachute de stabilisation vers 7 km, trois parachutes principaux à 3 km ;
+       - amerrissage à environ 8 m/s, environ 18 min après l'entrée.
+     - **Avec équipage**, un hélicoptère arrive par le bord de l'écran, se met en stationnaire et hélitreuille le ou la spationaute.
+     - **Si l'équipage a été perdu** (sortie mortelle, atterrisseur détruit) : message « Capsule vide », pas d'hélicoptère ; un navire arrive et hisse la capsule à bord avec sa grue.
+     - Le temps accéléré est affiché ; Entrée, Espace ou un toucher passent la séquence.
   5. **Stations** autour des autres astres : un petit ravitaillement courant arrive régulièrement de la Terre. S'y amarrer prend ce qu'elles ont en stock.
   6. **Repérage par sonde** : une sonde en orbite d'un astre repère une zone pour une base (pente douce, à moins de quelques km du point de descente) et les ressources réelles sur place (glace d'eau, méthane, CO₂…). La descente vise ensuite cette zone (fanion vert).
   7. **Bases au sol** (touche B une fois posé près de la zone repérée, avec une station en orbite) : la construction terrasse le sol à plat. Sans repérage, le jeu refuse : « relief trop accidenté — envoyez une sonde ». La base produit des ergols à partir de la ressource locale, en garde 20 t pour les atterrisseurs et monte le surplus à la station.
@@ -140,7 +147,7 @@ Survoler un astre (carte de l'orbiteur, ou ciel pendant l'atterrissage) affiche 
 - `js/astres.js` : 19 astres détaillés (atmosphères, couleurs, relief)
 - `js/donnees-jpl.js` : données JPL générées · `js/catalogue.js` : catalogue complet, orbites, masses
 - `js/physique.js` : conditions locales et relief · `js/orbites.js` : mécanique orbitale (Kepler, Lambert, sphères d'influence)
-- `js/vol.js` : atterrisseur et lanceurs · `js/kourou.js` : géographie sous la trace au départ de Kourou · `js/amarrage.js` : vue orbite du rendez-vous · `js/rayonnement.js` : doses en surface et blindages · `js/exploration.js` : spationaute et robot · `js/equipage.js` : profil et dessin du ou de la spationaute
+- `js/vol.js` : atterrisseur et lanceurs · `js/kourou.js` : géographie sous la trace au départ de Kourou · `js/amarrage.js` : vue orbite du rendez-vous · `js/retour.js` : retour sur Terre en capsule · `js/rayonnement.js` : doses en surface et blindages · `js/exploration.js` : spationaute et robot · `js/equipage.js` : profil et dessin du ou de la spationaute
 - `js/navigation.js` : planification des manœuvres · `js/orbiteur.js` : écran de l'orbiteur
 - `js/globes.js` : cartes et globes des astres
 - `js/infos.js` : infobulles, fiches, encyclopédie · `js/ecrans.js`, `js/main.js` : écrans et boucle de jeu

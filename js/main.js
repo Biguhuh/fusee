@@ -51,7 +51,7 @@ function montrer(ecran) {
   $('ecran-hangar').classList.toggle('cache', ecran !== 'hangar');
   $('ecran-carte').classList.toggle('cache', ecran !== 'carte');
   $('ecran-resultat').classList.toggle('cache', ecran !== 'resultat');
-  canvas.classList.toggle('cache', ecran !== 'vol' && ecran !== 'explo' && ecran !== 'amarrage');
+  canvas.classList.toggle('cache', ecran !== 'vol' && ecran !== 'explo' && ecran !== 'scene');
   $('ecran-nav').classList.toggle('cache', ecran !== 'nav');
   $('ecran-spatio').classList.toggle('cache', ecran !== 'spatio');
   Infos.infobulle(0, 0, null);
@@ -148,12 +148,21 @@ function lancer(options = {}) {
   montrer('vol');
 }
 
+// Scènes animées (amarrage, retour sur Terre) : un objet avec step(dt), dessiner(ctx, W, H), passer() et fini ;
+// « suite » est appelée à la fin. Entrée, Espace, Échap ou un toucher font passer la scène.
+function jouerScene(obj, suite) {
+  etat.scene = { obj, suite };
+  touches.clear();
+  redim();
+  montrer('scene');
+}
+function passerScene() { if (etat.scene) etat.scene.obj.passer(); }
+
 // Mise en orbite réussie : on passe d'abord en vue orbite pour le rendez-vous et l'amarrage.
 function terminerVol(vol) {
   if (vol.fin.cause === 'orbite' && !vol.amarrageFait) {
     vol.amarrageFait = true;
-    etat.amarrage = new Amarrage(vol.astre, vol.y, cibleAmarrage(vol), tempsCiel(vol), vol.lancement ? 'Expédition' : etat.enVoyage ? 'Atterrisseur' : 'Vous');
-    montrer('amarrage');
+    jouerScene(new Amarrage(vol.astre, vol.y, cibleAmarrage(vol), tempsCiel(vol), vol.lancement ? 'Expédition' : etat.enVoyage ? 'Atterrisseur' : 'Vous'), () => finVol(vol.fin));
     return;
   }
   finVol(vol.fin);
@@ -207,6 +216,7 @@ function finVol(r) {
       Orbiteur.log(`Atterrisseur récupéré en orbite de ${r.astre.nom}${etat.vol.echantillons ? ` avec ${etat.vol.echantillons} échantillon(s)` : ''}.`);
     } else {
       v.atterrisseurs = Math.max(0, v.atterrisseurs - 1);
+      if (!etat.vol.robotSeul) v.equipagePerdu = true;     // l'équipage était à bord de l'atterrisseur
       Orbiteur.log(`Atterrisseur perdu sur ${r.astre.nom}${etat.vol.echantillons ? ' avec ses échantillons' : ''}. Il en reste ${v.atterrisseurs}.`);
     }
     v.visites[a] = { ...(v.visites[a] || {}), pose: r.dejaPose || r.cause === 'pose' };
@@ -389,15 +399,22 @@ function pleinALaBase(vol) {
   vol.messageExplo = { texte: q > 0 ? `Plein fait à la base : ${fmt(q / 1000, 1)} t d’ergols produits sur place.` : 'Base à proximité (pas encore d’ergols en réserve).', vie: 6 };
 }
 
+// Retour sur Terre : rentrée de la capsule, parachutes, amerrissage, puis récupération
+// (hélicoptère pour l'équipage, ou navire à grue si la capsule revient vide).
 function rentrerSurTerre() {
+  const equipage = !etat.voyage.equipagePerdu;
   const res = Orbiteur.rentrerSurTerre();
   sauver(etat);
+  jouerScene(new RetourTerre({ equipage, echantillons: res.n, nom: nomSpatio() }), () => afficherRetourTerre(res, equipage));
+}
+function afficherRetourTerre(res, equipage) {
   const h = $('res-titre');
-  h.textContent = 'Retour sur Terre';
-  h.className = 'succes';
-  $('res-message').textContent = res.n
-    ? `La capsule s’est posée en douceur sous ses parachutes. ${res.n} échantillon${res.n > 1 ? 's' : ''} rapporté${res.n > 1 ? 's' : ''} : ${res.liste}.`
-    : 'La capsule s’est posée en douceur sous ses parachutes. Pas d’échantillon cette fois.';
+  h.textContent = equipage ? 'Retour sur Terre' : 'Retour sur Terre : capsule vide';
+  h.className = equipage ? 'succes' : 'partiel';
+  const ech = res.n ? `${res.n} échantillon${res.n > 1 ? 's' : ''} rapporté${res.n > 1 ? 's' : ''} : ${res.liste}.` : 'Pas d’échantillon cette fois.';
+  $('res-message').textContent = equipage
+    ? `La capsule a amerri sous ses parachutes et l’hélicoptère a hélitreuillé ${nomSpatio()}. ${ech}`
+    : `Capsule vide : l’équipage n’est pas revenu. Un navire a hissé la capsule à bord avec sa grue. ${ech}`;
   $('res-stats').innerHTML = resumeCampagne(etat.voyage).split(' · ').map((x) => `<dt>•</dt><dd style="text-align:left">${x}</dd>`).join('');
   etat.suiteResultat = 'accueil';
   $('vers-hangar').textContent = '← Accueil';
@@ -559,7 +576,7 @@ for (const el of [canvas, toile]) {
     const bouge = glisser && glisser.bouge;
     glisser = null;
     if (bouge) return;
-    if (etat.ecran === 'amarrage') { if (etat.amarrage) etat.amarrage.passer(); return; }
+    if (etat.ecran === 'scene') { passerScene(); return; }
     // Petit écran : un appui sur le tableau de bord compact l'agrandit (et inversement).
     if (etat.ecran === 'vol' && etat.vol && ZONE_HUD) {
       const z = ZONE_HUD;
@@ -571,8 +588,8 @@ for (const el of [canvas, toile]) {
   });
   el.addEventListener('dblclick', (e) => { const id = astreSousSouris(e); if (id && etat.ecran === 'nav') Orbiteur.centrerSur(id); });
 }
-// Vue orbite de l'amarrage : un toucher la fait passer.
-canvas.addEventListener('touchend', (e) => { if (etat.ecran === 'amarrage' && etat.amarrage) { e.preventDefault(); etat.amarrage.passer(); } });
+// Scène animée : un toucher la fait passer.
+canvas.addEventListener('touchend', (e) => { if (etat.ecran === 'scene' && etat.scene) { e.preventDefault(); passerScene(); } });
 toile.addEventListener('wheel', (e) => { e.preventDefault(); Orbiteur.molette(e); }, { passive: false });
 
 // ---------- Clavier ----------
@@ -590,8 +607,8 @@ addEventListener('keydown', (e) => {
   // Espace / Entrée sur un bouton qui a gardé le focus : c'est pour le jeu, pas pour recliquer le bouton.
   if (e.target && e.target.tagName === 'BUTTON' && ['Space', 'Enter'].includes(e.code) && ['vol', 'explo', 'nav'].includes(etat.ecran)) e.preventDefault();
   if (e.code === 'KeyI') { Infos.ouvrirEncyclopedie(); return; }
-  if (etat.ecran === 'amarrage') {
-    if (['Enter', 'Space', 'Escape', 'NumpadEnter'].includes(e.code)) { e.preventDefault(); if (etat.amarrage) etat.amarrage.passer(); }
+  if (etat.ecran === 'scene') {
+    if (['Enter', 'Space', 'Escape', 'NumpadEnter'].includes(e.code)) { e.preventDefault(); passerScene(); }
     if (e.code === 'KeyP') etat.pause = !etat.pause;
     return;
   }
@@ -775,12 +792,12 @@ function image(t) {
       etat.finDepuis += dt;
       if (etat.finDepuis > (v.fin.detruite ? 1.8 : 0.6)) terminerVol(v);
     }
-  } else if (etat.ecran === 'amarrage' && etat.amarrage) {
-    const am = etat.amarrage;
-    if (!etat.pause) am.step(dt);
-    am.dessiner(ctx, canvas.width, canvas.height);
+  } else if (etat.ecran === 'scene' && etat.scene) {
+    const sc = etat.scene;
+    if (!etat.pause) sc.obj.step(dt);
+    sc.obj.dessiner(ctx, canvas.width, canvas.height);
     if (etat.pause && !Infos.estOuverte()) dessinerPause(ctx, canvas.width, canvas.height);
-    if (am.fini) { etat.amarrage = null; finVol(etat.vol.fin); }
+    if (sc.obj.fini) { etat.scene = null; sc.suite(); }
   } else if (etat.ecran === 'explo' && etat.explo) {
     const x = etat.explo;
     if (!etat.pause && !x.fin) {
@@ -798,6 +815,8 @@ function image(t) {
       if (x.type === 'spationaute' && !x.terre) { etat.vol.doseSv = x.doseSv; etat.vol.dose = x.dose; }
       // Une sortie qui tourne mal est notée : l'écran de résultat en parlera, même si la remontée réussit.
       if (x.fin.issue === 'perdu' && !x.terre) (etat.vol.pertes = etat.vol.pertes || []).push({ qui: x.type, texte: x.fin.texte });
+      // Campagne : l'équipage perdu ne reviendra pas (la capsule rentrera vide).
+      if (x.fin.issue === 'perdu' && x.type === 'spationaute' && !x.terre && etat.enVoyage && etat.voyage) etat.voyage.equipagePerdu = true;
       if (etat.voyage && etat.enVoyage) etat.voyage.journal.push({ t: etat.voyage.t, texte: `${etat.vol.astre.nom} : ${x.fin.texte}` });
       etat.explo = null;
       touches.clear();
