@@ -848,7 +848,7 @@ const Orbiteur = {
         const pa = etatAbsolu(a.id, t).r;
         const versSoleil = V.unit(V.mul(pa, -1));
         let lon0;
-        if (ROTATION_H[a.id] || !a.parent) lon0 = longitudeVue(a, t);
+        if (!rotationDe(a).synchrone) lon0 = longitudeVue(a, t);
         else {
           const pp = etatAbsolu(a.parent, t).r;
           lon0 = (Math.atan2(pp[0] - pa[0], -(pp[1] - pa[1])) * 180) / Math.PI;

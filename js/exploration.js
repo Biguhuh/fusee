@@ -400,7 +400,7 @@ class Exploration {
     const yCam = p.y + 2.5;
     const camY = H * 0.55;
     const versEcran = (x, y) => [W / 2 + (x - p.x) * echelle, camY + (yCam - y) * echelle];
-    dessinerFond(ctx, a, this.c, W, H, false);
+    dessinerFond(ctx, a, this.c, W, H, false, tempsCiel(this.vol));
     if (this.terre) dessinerNuages(ctx, W, H, p.x * echelle);
 
     // Terrain (réutilise le rendu de l'atterrissage)
@@ -498,7 +498,7 @@ class Exploration {
     if (this.terre) this.dessinerHudTerre(ctx, W, H);
     else this.dessinerHud(ctx, W, H);
     const compact = ecranCompact(W, H);
-    texteSurFond(ctx, `Temps ×${this.warp}${ECRAN_TACTILE ? '' : '  (+/−)'}`, W - 14, compact ? 58 : 28,
+    texteSurFond(ctx, `Temps ×${this.warp}${this.warp > 1 ? ` (1 s = ${this.warp} s)` : ''}${ECRAN_TACTILE ? '' : '  (+/−)'}`, W - 14, compact ? 58 : 28,
       { police: compact ? 'bold 12px system-ui' : 'bold 14px system-ui', couleur: this.warp > 1 ? '#ffca28' : '#ffffff', align: 'right' });
   }
 

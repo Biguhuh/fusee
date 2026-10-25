@@ -751,7 +751,7 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
   const tremble = (vol.enDegats() && !vol.fin ? 2 + Math.min(6, (vol.taux.pression + vol.taux.chaleur) / 5) : 0) + (vol.secousse > 0 ? 8 * vol.secousse : 0);
   if (tremble > 0) ctx.translate((Math.random() - 0.5) * tremble, (Math.random() - 0.5) * tremble);
 
-  dessinerFond(ctx, a, c, W, H, gaz && vol.y < 0);
+  dessinerFond(ctx, a, c, W, H, gaz && vol.y < 0, tempsCiel(vol));
 
   // Déplacement apparent du décor pendant cette image (pour la poussière et la fumée).
   const ep = Math.max(0.15, Math.min(3, echelle));
@@ -918,7 +918,16 @@ function avancerDebris(vol, e, duree, etage) {
 let ZONES_CIEL = [];
 
 // Ciel, étoiles, planète mère et Soleil (vues d'atterrissage et d'exploration).
-function dessinerFond(ctx, a, c, W, H, sousLesNuages) {
+// Temps du jeu (s) pour le ciel : date de la campagne (ou date de départ en visite rapide) + durée du vol.
+// vol.t avance déjà du temps simulé (facteur de temps compris) : on ne le multiplie jamais une seconde fois.
+function tempsCiel(vol) {
+  const base = typeof etat !== 'undefined' && etat.enVoyage && etat.voyage ? etat.voyage.t : DATE_DEBUT;
+  return base + (vol.t || 0);
+}
+
+// t : temps du jeu (s). Le ciel tourne avec l'astre où l'on se trouve : les étoiles défilent en une
+// rotation propre (3,55 jours pour Europe), la planète d'une lune synchrone reste fixe dans le ciel.
+function dessinerFond(ctx, a, c, W, H, sousLesNuages, t = DATE_DEBUT) {
   ZONES_CIEL = [];
   // Ciel : noir dans le vide, couleur de l'atmosphère quand l'air s'épaissit.
   let tCiel = 0;
@@ -937,9 +946,14 @@ function dessinerFond(ctx, a, c, W, H, sousLesNuages) {
 
   // Étoiles, de moins en moins visibles quand le ciel s'éclaire.
   const visEt = 1 - Math.min(1, tCiel * 1.4);
+  // Rotation de l'astre : angle du ciel (rad). Une rotation complète fait défiler 4 largeurs d'écran
+  // (champ de vue d'environ 90°).
+  const rot = a.type === 'etoile' ? null : rotationDe(a);
+  const angleCiel = rot ? (2 * Math.PI * t) / (rot.heures * 3600) : 0;
   if (visEt > 0.02) {
     ctx.fillStyle = `rgba(255,255,255,${0.85 * visEt})`;
-    for (const e of ETOILES) ctx.fillRect(e.x * W, e.y * H, e.r, e.r);
+    const decal = ((angleCiel / (2 * Math.PI)) * 4) % 1;
+    for (const e of ETOILES) ctx.fillRect((((e.x - decal) % 1) + 1) % 1 * W, e.y * H, e.r, e.r);
   }
 
   // Planète mère dans le ciel (pour les lunes) : taille apparente réelle, au moins 6 px.
@@ -948,12 +962,25 @@ function dessinerFond(ctx, a, c, W, H, sousLesNuages) {
     const angle = 2 * Math.atan(pm.rayonKm / a.orbite.a);           // diamètre apparent (rad)
     const r = Math.max(6, Math.min(Math.min(W, H) * 0.35, (angle / 1.2) * W / 2));
     ctx.globalAlpha = 0.95 * Math.max(0.25, visEt);
-    // Vue de l'équateur, éclairée par le Soleil (dessiné plus à gauche dans le ciel), qui tourne sur elle-même.
-    const xs = W * 0.42, ys = H * 0.13, xp = W * 0.78, yp = H * 0.2;
-    const tRot = performance.now() / 1000 * 600;   // rotation accélérée pour qu'on la voie
-    dessinerGlobe(ctx, pm, xp, yp, pm.id === 'saturne' ? r * 0.6 : r, { vue: 'equateur', lon0: longitudeVue(pm, tRot), lumiere: [xs - xp, ys - yp, Math.hypot(xs - xp, ys - yp) * 0.6], inclinaisonAnneaux: 0.28 });
+    // Où est la planète dans le ciel ? Lune synchrone : toujours au même endroit.
+    // Sinon, elle se lève et se couche au rythme de la rotation de la lune par rapport à son orbite.
+    const periodeOrbiteH = (a.orbite.retro ? -1 : 1) * (360 / a.orbite.n) * 24;
+    let xp = W * 0.78, yp = H * 0.2, visible = true;
+    if (!rot.synchrone) {
+      const th = 2 * Math.PI * t * (1 / (rot.heures * 3600) - 1 / (periodeOrbiteH * 3600));
+      xp = W * 0.5 + W * 0.45 * Math.sin(th);
+      yp = H * 0.55 - H * 0.42 * Math.cos(th);
+      visible = Math.cos(th) > -0.15;
+    }
+    // Face visible : la planète tourne sur elle-même pendant que la lune tourne autour d'elle
+    // (période synodique : ≈ 11,2 h vues depuis Europe pour une rotation de Jupiter de 9,9 h).
+    const lon0 = ((360 * t) / 3600) * (1 / rotationDe(pm).heures - 1 / periodeOrbiteH);
+    const xs = W * 0.42, ys = H * 0.13;
+    if (visible) {
+      dessinerGlobe(ctx, pm, xp, yp, pm.id === 'saturne' ? r * 0.6 : r, { vue: 'equateur', lon0: lon0 % 360, lumiere: [xs - xp, ys - yp, Math.hypot(xs - xp, ys - yp) * 0.6], inclinaisonAnneaux: 0.28 });
+      ZONES_CIEL.push({ x: xp, y: yp, r: Math.max(r, 10), id: pm.id });
+    }
     ctx.globalAlpha = 1;
-    ZONES_CIEL.push({ x: W * 0.78, y: H * 0.2, r: Math.max(r, 10), id: pm.id });
   }
   if (a.type !== 'etoile') {
     const rs = Math.max(2, 14 / Math.sqrt(a.distanceUA));

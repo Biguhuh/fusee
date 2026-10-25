@@ -58,7 +58,12 @@ const Infos = {
       a.type !== 'etoile' ? ['Vitesse orbitale (orbite basse)', fmtV(vitesseOrbitale(a, orbiteurAlt))] : null,
       ['Température', fmt(a.tempSurface) + ' °C' + (a.type === 'gazeuse' ? ' (niveau 1 bar)' : '')],
       a.albedo ? ['Albédo', fmt(a.albedo, 3)] : null,
-      a.rotationH ? ['Rotation', fmtDuree(a.rotationH * 3600)] : null,
+      (() => {
+        const r = rotationDe(a);
+        const duree = fmtDuree(Math.abs(r.heures) * 3600);
+        if (r.synchrone) return ['Rotation', `synchrone : ${duree}, toujours la même face vers ${ASTRES_PAR_ID[a.parent].nom}`];
+        return ['Rotation', `${duree}${r.heures < 0 ? ' (sens rétrograde)' : ''}${r.estimee ? ' (estimée)' : ''}`];
+      })(),
     ])]);
 
     if (a.atm) {

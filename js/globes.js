@@ -285,15 +285,13 @@ function carteAstre(a) {
   return t;
 }
 
-// Rotation propre (heures, négatif = rétrograde). Les lunes sans valeur tournent en synchronisme.
-const ROTATION_H = { soleil: 609, mercure: 1407.6, venus: -5832.5, terre: 23.934, mars: 24.623, jupiter: 9.925, saturne: 10.656, uranus: -17.24, neptune: 16.11, pluton: -153.3 };
-
 // Longitude du méridien tourné vers l'observateur (pôle) ou au centre du disque (équateur), en degrés.
+// t : temps du jeu en secondes. La période vient de rotationDe (catalogue.js), en heures.
 function longitudeVue(a, t, versParent) {
-  const P = ROTATION_H[a.id];
-  if (P) return ((t / 3600 / P) * 360) % 360;
+  const r = rotationDe(a);
   // Rotation synchrone : la même face regarde la planète (longitude 0 vers elle).
-  return versParent || 0;
+  if (r.synchrone) return versParent || 0;
+  return ((t / 3600 / r.heures) * 360) % 360;
 }
 
 // ---------- Globes ----------

@@ -227,6 +227,33 @@ function categorieDe(a) {
 }
 for (const a of ASTRES) a.categorie = categorieDe(a);
 
+// ---------- Rotation propre ----------
+// Périodes en heures (négatif = sens rétrograde). Planètes et Soleil : valeurs de référence.
+// Uranus et Pluton ont l'axe très incliné (98° et 120°) : le jeu, en 2D, ne modélise pas l'inclinaison
+// de l'axe, on les fait donc tourner dans le sens de leurs lunes (qui orbitent dans leur plan équatorial).
+// Pluton et Charon restent ainsi bloqués face à face, comme en réalité.
+const ROTATION_H = { soleil: 609.1, mercure: 1407.6, venus: -5832.5, terre: 23.934, mars: 24.623, jupiter: 9.925, saturne: 10.656, uranus: 17.24, neptune: 16.11, pluton: 153.29 };
+// Lunes dont la rotation n'est pas synchrone, mesurée par les courbes de lumière (h).
+// Hyperion tourne de façon chaotique (≈ 13 jours en moyenne).
+const ROTATION_LUNES_H = {
+  l607: 312, l609: 9.274, l802: 11.594, l506: 7.782, l507: 12.03, l509: 13.16, l511: 10.4, l512: 8.3, l510: 12.78,
+  l717: 6.9, l716: 2.66, l619: 11.92, l620: 18.8, l626: 13.32, l629: 10.19, l624: 21.97, l622: 13.03, l621: 10.69,
+};
+// Rotation d'un astre : { heures (signe = sens), synchrone (même face vers sa planète), estimee }.
+function rotationDe(a) {
+  if (a._rotation) return a._rotation;
+  let r;
+  if (ROTATION_H[a.id]) r = { heures: ROTATION_H[a.id], synchrone: false };
+  else if (ROTATION_LUNES_H[a.id]) r = { heures: ROTATION_LUNES_H[a.id], synchrone: false };
+  else if (a.rotationH) r = { heures: a.rotationH, synchrone: false };
+  else if (a.parent && a.categorie !== 'luneIrreguliere') {
+    // Lune régulière ou majeure : rotation synchrone, un tour par orbite (le sens suit celui de l'orbite).
+    r = { heures: (a.orbite.retro ? -1 : 1) * (360 / a.orbite.n) * 24, synchrone: true };
+  } else r = { heures: 12, synchrone: false, estimee: true };   // petite lune lointaine sans mesure
+  a._rotation = r;
+  return r;
+}
+
 // Vitesses caractéristiques à une altitude donnée (m) : orbitale et de libération, en m/s.
 function vitesseOrbitale(astre, alt) { return Math.sqrt((astre.gm * 1e9) / (astre.rayonKm * 1000 + alt)); }
 function vitesseLiberation(astre, alt) { return Math.SQRT2 * vitesseOrbitale(astre, alt); }

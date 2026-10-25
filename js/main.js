@@ -117,7 +117,8 @@ function animerAccueil() {
       const x = cx + d * Math.cos(ang), y = cy - d * Math.sin(ang);
       const r = Math.max(2.5, Math.log(a.rayonKm / 1000 + 1) * 2.4);
       // Vu du pôle, éclairé depuis le Soleil au centre.
-      dessinerGlobe(c, a, x, y, r, { vue: 'pole', lon0: longitudeVue(a, t), lumiere: [cx - x, cy - y, 0.45 * Math.hypot(cx - x, cy - y)] });
+      // (bandeau en accéléré, 1 s = 20 jours : la vraie rotation ferait clignoter les planètes, on la ralentit)
+      dessinerGlobe(c, a, x, y, r, { vue: 'pole', lon0: (performance.now() / 1000) * 12, lumiere: [cx - x, cy - y, 0.45 * Math.hypot(cx - x, cy - y)] });
     }
     animAccueil = requestAnimationFrame(image);
   };
