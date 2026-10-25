@@ -25,10 +25,58 @@ function demiGrandAxeKm(a) {
   return Math.cbrt(ASTRES_PAR_ID[a.parent].gm / (n * n));
 }
 
+// Dose mortelle pour l'équipage (Sv, reçue en quelques jours).
+const DOSE_MORTELLE = 4;
+
+// Géantes : dose au-dessus des nuages (estimations ; Jupiter : ceintures internes, comme pour la sonde Juno).
+const DOSES_GEANTES = { jupiter: 10, saturne: 0.01, uranus: 0.002, neptune: 0.002 };
+
+// Dose dans l'espace autour de l'astre, sans atmosphère au-dessus (Sv/jour) : { sv, note }.
+// Le Soleil dépend de la distance (dUA) ; les autres valeurs sont gardées en cache.
+function doseEspace(a, dUA) {
+  if (a.type === 'etoile') return { sv: doseCosmique(dUA || 1), note: 'vent solaire, en 1/d²' };
+  if (a._doseEspace) return a._doseEspace;
+  let r;
+  const ref = DOSES_REFERENCE[a.id];
+  if (ref && !a.atm) r = { sv: ref[0], note: ref[2] };
+  else if (DOSES_GEANTES[a.id] !== undefined) r = { sv: DOSES_GEANTES[a.id] + doseCosmique(a.distanceUA), note: a.id === 'jupiter' ? 'ceintures de radiation de Jupiter' : 'rayons cosmiques et ceintures' };
+  else r = doseEspaceEstimee(a);
+  a._doseEspace = r;
+  return r;
+}
+
+// Masse d'air au-dessus d'une altitude (kg/m²) : c'est elle qui arrête les particules.
+function colonneAir(a, alt, c) {
+  if (!a.atm) return 0;
+  c = c || conditions(a, alt);
+  return (c.p * 1e5) / Math.max(0.01, c.g);
+}
+
+// Dose à une altitude (m), sans protection (Sv/jour). c : conditions déjà calculées (facultatif).
+// L'air atténue la dose de l'espace ; pour la Terre et Mars, on retombe sur la dose mesurée au sol.
+function doseLocale(a, alt, c) {
+  const esp = doseEspace(a, c ? c.dUA : undefined).sv;
+  if (!a.atm) return esp;
+  const col = colonneAir(a, alt, c);
+  const ref = DOSES_REFERENCE[a.id];
+  if (ref) {
+    // Dose mesurée au sol : on passe de la dose de l'espace à celle du sol selon la part d'air au-dessus.
+    const k = Math.min(1, col / colonneAir(a, 0));
+    return esp * Math.pow(ref[0] / esp, k);
+  }
+  return Math.max(0.000005, esp * Math.exp(-col / 300));
+}
+
 // Dose en surface : { svJour, source: 'mesure' | 'reference' | 'estimation', note }.
 function doseSurface(a) {
   const ref = DOSES_REFERENCE[a.id];
   if (ref) return { svJour: ref[0], source: ref[1], note: ref[2] };
+  const e = doseEspace(a);
+  const sv = doseLocale(a, 0);
+  return { svJour: sv, source: 'estimation', note: e.note + (a.atm && sv < e.sv * 0.5 ? ', très atténués par l’atmosphère' : '') };
+}
+
+function doseEspaceEstimee(a) {
   let d = doseCosmique(a.distanceUA || 1), note = 'rayons cosmiques et vent solaire';
   // Ceintures de Jupiter (interpolation entre Io, Europe, Ganymède et Callisto, en échelle logarithmique).
   if (a.parent === 'jupiter') {
@@ -51,20 +99,27 @@ function doseSurface(a) {
     const ak = demiGrandAxeKm(a);
     if (ak && ak / ASTRES_PAR_ID.saturne.rayonKm < 10) { d += 0.01; note = 'ceintures de Saturne'; }
   }
-  // Une atmosphère arrête les particules : Mars garde la moitié de la dose lunaire, la Terre ou Titan presque rien.
-  if (a.atm && a.type === 'solide') {
-    const colonne = (a.atm.p0 * 1e5) / (a.g || 1);                // masse d'air au-dessus du sol (kg/m²)
-    d = Math.max(0.000005, d * Math.exp(-colonne / 300));
-    note += ', très atténués par l’atmosphère';
-  }
-  return { svJour: d, source: 'estimation', note };
+  return { sv: d, note };
 }
+
+// Durée (s) avant que l'équipage reçoive une dose mortelle, à ce débit (Sv/jour), à partir d'une dose déjà reçue.
+function tempsAvantDoseMortelle(svJour, dejaRecu = 0) {
+  return svJour > 0 ? Math.max(0, ((DOSE_MORTELLE - dejaRecu) / svJour) * 86400) : Infinity;
+}
+function fmtDureeLongue(s) { return s > 3650 * 86400 ? 'plus de 10 ans' : fmtDuree(s); }
 
 // Affichage d'une dose par jour, en Sv, mSv ou µSv.
 function fmtDose(sv) {
   if (sv >= 1) return `${fmt(sv, sv < 10 ? 1 : 0)} Sv/jour`;
   if (sv >= 0.001) return `${fmt(sv * 1000, sv < 0.01 ? 2 : 1)} mSv/jour`;
   return `${fmt(sv * 1e6, 1)} µSv/jour`;
+}
+
+// Dose cumulée (Sv), en Sv, mSv ou µSv.
+function fmtDoseTotale(sv) {
+  if (sv >= 0.1) return `${fmt(sv, 2)} Sv`;
+  if (sv >= 0.0001) return `${fmt(sv * 1000, 1)} mSv`;
+  return `${fmt(sv * 1e6, 1)} µSv`;
 }
 
 // Blindages des robots. facteur : part de la dose qui atteint l'électronique ;

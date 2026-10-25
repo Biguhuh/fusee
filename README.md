@@ -107,6 +107,10 @@ Soleil, 8 planètes, Pluton, Cérès et 7 gros astéroïdes, et **les 460 lunes 
 - **Spationaute** : marche et saute selon la gravité locale (sauts de plusieurs mètres sur la Lune). 4 h d'oxygène, combinaison limitée à 1,2 bar et 120 °C. Ramasse 6 échantillons (E) et les rapporte à la fusée. Sur les très petites lunes, il reste attaché par un câble : un saut le ferait partir dans l'espace.
 - **Rover** (touche V près de lui) : jusqu'à 3,6 m/s sur la Lune (comme celui d'Apollo), 20 échantillons dans sa caisse.
 - **Robot** : roule, résiste à 100 bar et 480 °C, 8 h de batterie, analyse les sites sur place (E, 5 s).
+- **Rayonnement de l'équipage** : la dose est calculée à chaque altitude, en Sv/jour. C'est la dose de l'espace autour de l'astre, atténuée par l'air au-dessus : sur Terre, 6,6 µSv au sol, environ 320 µSv à 11 km et 1,4 mSv en orbite ; au-dessus des nuages de Jupiter, environ 10 Sv dans les ceintures.
+  - Le panneau anti-vent solaire divise la dose à bord : léger ÷ 5, moyen ÷ 20, lourd ÷ 100, héliosphérique ÷ 1 000.
+  - L'équipage cumule sa dose dans la fusée et pendant les sorties, où la combinaison n'arrête presque rien ; la dose mortelle est de 4 Sv. Exemples : 2 h 40 dehors sur Io, 18 h sur Europe.
+  - Le hangar dit combien de temps l'équipage peut rester à bord et dehors. Le concepteur d'atterrisseur choisit le panneau qui lui laisse au moins 10 jours sur place : lourd pour Io, moyen pour Europe.
 - **Rayonnement et blindage des robots** : chaque astre a sa dose en surface, en Sv/jour. Les valeurs mesurées ou de référence (Terre 6,6 µSv, Lune 1,37 mSv, Mars 0,67 mSv, Io 36 Sv, Europe 5,4 Sv, Ganymède 0,08 Sv, Callisto 0,1 mSv) sont indiquées comme telles ; les autres sont estimées (rayons cosmiques, ceintures de Jupiter et de Saturne, atténuation par l'atmosphère) et la fiche le dit. Avant de larguer un robot, on voit la dose du lieu et on choisit son blindage :
   - **standard** : 50 Gy supportés, sans masse en plus ;
   - **durci** : composants durcis et boîtier en aluminium, 1 000 Gy, dose divisée par 3, +25 kg ;

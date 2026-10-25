@@ -7,7 +7,7 @@
 // g            : gravité de surface (m/s²). Pour les géantes : au niveau 1 bar.
 // tempSurface  : température de surface (°C). Géantes : au niveau 1 bar.
 // vMax         : vitesse d'atterrissage maximale (m/s), selon le terrain.
-// radiationLocale : rayonnement ajouté par une magnétosphère (ceintures de Jupiter).
+// Rayonnement : voir js/rayonnement.js (doses en Sv/jour).
 // atm          : null si pas d'atmosphère, sinon
 //    p0 (bar), rho0 (kg/m³) au niveau de référence (sol ou 1 bar),
 //    H : hauteur d'échelle (km),
@@ -67,7 +67,6 @@ const ASTRES = [
   {
     id: 'jupiter', nom: 'Jupiter', type: 'gazeuse', parent: null,
     distanceUA: 5.203, rayonKm: 69911, g: 24.79, tempSurface: -108, vMax: 0,
-    radiationLocale: 2,
     atm: { p0: 1, rho0: 0.16, H: 27, t0: -108, gradient: 2.0, tHaut: -160 },
     cible: 2,
     depart: { alt: 20000, vitesse: 150 },
@@ -109,7 +108,6 @@ const ASTRES = [
   {
     id: 'ganymede', nom: 'Ganymède', type: 'solide', parent: 'jupiter',
     distanceUA: 5.203, rayonKm: 2634, g: 1.428, tempSurface: -163, vMax: 3,
-    radiationLocale: 1,
     atm: null,
     depart: { alt: 3000, vitesse: 40 },
     couleurs: { sol: '#8f8577', ciel: '#000000', disque: '#8f8577' },
@@ -137,7 +135,6 @@ const ASTRES = [
   {
     id: 'io', nom: 'Io', type: 'solide', parent: 'jupiter',
     distanceUA: 5.203, rayonKm: 1822, g: 1.796, tempSurface: -143, vMax: 3,
-    radiationLocale: 20,
     atm: null,
     depart: { alt: 3000, vitesse: 45 },
     couleurs: { sol: '#d8c34a', ciel: '#000000', disque: '#e3d25c' },
@@ -156,7 +153,6 @@ const ASTRES = [
   {
     id: 'europe', nom: 'Europe', type: 'solide', parent: 'jupiter',
     distanceUA: 5.203, rayonKm: 1561, g: 1.314, tempSurface: -160, vMax: 3,
-    radiationLocale: 6,
     atm: null,
     depart: { alt: 3000, vitesse: 35 },
     couleurs: { sol: '#c9bfa8', ciel: '#000000', disque: '#d6ccb4' },

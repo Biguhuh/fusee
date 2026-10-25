@@ -9,7 +9,7 @@ const FUSEE_BASE = {
   hauteur: 14,      // m
   pressionMax: 3,   // bar, sans renfort
   tempMax: 150,     // °C, sans bouclier
-  protection: 1.5,  // rayonnement supporté sans panneau (1 = Terre)
+  protection: 1,    // facteur de protection contre le rayonnement sans panneau (la dose à bord est divisée par ce nombre)
 };
 
 const EQUIPEMENTS = {
@@ -64,13 +64,13 @@ const EQUIPEMENTS = {
   },
   panneau: {
     titre: 'Panneau anti-vent solaire',
-    aide: 'Protection contre le rayonnement (1 = niveau de la Terre).',
+    aide: 'Blindage contre le rayonnement : la dose reçue à bord (Sv/jour) est divisée par ce facteur. L’équipage meurt au-delà de 4 Sv.',
     options: [
       { id: 'aucun', nom: 'Aucun', protection: FUSEE_BASE.protection, masse: 0 },
-      { id: 'leger', nom: 'Léger', protection: 8, masse: 100 },
-      { id: 'moyen', nom: 'Moyen', protection: 30, masse: 300 },
-      { id: 'lourd', nom: 'Lourd', protection: 150, masse: 800 },
-      { id: 'helio', nom: 'Héliosphérique', protection: 50000, masse: 2000 },
+      { id: 'leger', nom: 'Léger', protection: 5, masse: 100 },
+      { id: 'moyen', nom: 'Moyen', protection: 20, masse: 300 },
+      { id: 'lourd', nom: 'Lourd', protection: 100, masse: 800 },
+      { id: 'helio', nom: 'Héliosphérique', protection: 1000, masse: 2000 },
     ],
     defaut: 'aucun',
   },

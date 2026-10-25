@@ -100,7 +100,7 @@ const Infos = {
       jeu.push(['Altitude d’orbite basse', fmtAlt(orbiteurAlt)]);
       if (a.relief) jeu.push(['Relief', `collines de ${fmt(a.relief.amplitude)} m, ${a.relief.crateres > 0.5 ? 'nombreux cratères' : a.relief.crateres > 0 ? 'quelques cratères' : 'sans cratères'}`]);
     }
-    if (a.type !== 'etoile') jeu.push(['Rayonnement (1 = Terre)', fmt(conditions(a, 0).rad, 1)]);
+    if (a.type === 'gazeuse') jeu.push(['Dose au-dessus des nuages', `${fmtDose(doseEspace(a).sv)} (estimée : ${doseEspace(a).note})`]);
     if (a.type === 'solide') {
       const d = doseSurface(a);
       jeu.push(['Dose en surface', `${fmtDose(d.svJour)} (${d.source === 'estimation' ? 'estimée' : d.source === 'mesure' ? 'mesurée' : 'valeur de référence'} : ${d.note})`]);

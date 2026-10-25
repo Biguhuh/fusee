@@ -261,10 +261,12 @@ class Vol {
         return this.terminer(tp >= tc ? 'pressurisee' : 'brulee');
       }
     }
-    if (c.rad > f.protection) {
-      this.dose += (c.rad / f.protection - 1) * 5 * dt;
-      if (this.dose >= 100) return this.terminer('irradiee');
-    }
+    // Rayonnement : vraie dose (Sv/jour) à cette altitude, divisée par la protection de la fusée.
+    // L'équipage cumule sa dose (aussi pendant les sorties) ; au-delà de 4 Sv, elle est mortelle.
+    this.svBord = doseLocale(this.astre, this.y, c) / f.protection;
+    this.doseSv = (this.doseSv || 0) + (this.svBord * dt) / 86400;
+    this.dose = (100 * this.doseSv) / DOSE_MORTELLE;
+    if (this.dose >= 100) return this.terminer('irradiee');
   }
 
   contact() {
@@ -634,6 +636,8 @@ class Vol {
       conditions: this.c,
       temp: this.temp,
       dose: this.dose,
+      doseSv: this.doseSv || 0,
+      svBord: this.svBord || 0,
       integrite: this.integrite,
       altitude: this.y,
       vitesse: Math.hypot(this.vx, this.vy),
@@ -2123,10 +2127,11 @@ function dessinerHudCompact(ctx, vol, W, H) {
   const fi = vol.integrite / 100;
   lignes.push(['Coque', fmt(vol.integrite) + ' %', fi > 0.6 ? '#66bb6a' : fi > 0.3 ? '#ffca28' : '#ef5350']);
   // Les limites n'apparaissent que si elles approchent.
-  const fp = c.p / f.pressionMax, ft = (vol.temp + KELVIN) / (f.tempMax + KELVIN), fr = c.rad / f.protection;
+  // Risque de rayonnement : part de la dose mortelle reçue en un jour à ce débit (1 = mortel en un jour).
+  const fp = c.p / f.pressionMax, ft = (vol.temp + KELVIN) / (f.tempMax + KELVIN), fr = Math.max((vol.svBord || 0) / DOSE_MORTELLE, vol.dose / 100);
   if (fp > 0.6 && !gaz) lignes.push(['Pression', fmtP(c.p), couleurRisque(fp)]);
   if (ft > 0.7) lignes.push(['Temp.', fmt(vol.temp) + ' °C', couleurRisque(ft)]);
-  if (fr > 0.7) lignes.push(['Rayonn.', fmt(c.rad, 1), couleurRisque(fr)]);
+  if (fr > 0.25) lignes.push(['Rayonn.', `${fmtDose(vol.svBord || 0)} · ${fmtDoseTotale(vol.doseSv || 0)}`, couleurRisque(fr)]);
   if (a.type === 'gazeuse') lignes.push(['Prélèv.', String((vol.prelevements || []).length), '#4dd0e1']);
   const h = 26 + lignes.length * 16 + 14;
   const y0 = 44;   // sous la ligne de l'objectif
@@ -2221,9 +2226,8 @@ function dessinerHudDetail(ctx, vol, W, H, compact) {
   const twr = vol.twr();
   ligne('Poussée/poids', fmt(twr * vol.throttle, 2) + ' (max ' + fmt(twr, 2) + ')', twr < 1 ? '#ef5350' : '#fff');
 
-  const fr = c.rad / f.protection;
-  ligne('Rayonnement', fmt(c.rad, c.rad < 10 ? 1 : 0) + ' / ' + fmt(f.protection, 1), couleurRisque(fr));
-  ligne('Dose reçue', fmt(vol.dose) + ' %', couleurRisque(vol.dose / 100));
+  ligne('Rayonn. à bord', fmtDose(vol.svBord || 0), couleurRisque((vol.svBord || 0) / DOSE_MORTELLE));
+  ligne('Dose équipage', `${fmtDoseTotale(vol.doseSv || 0)} (${fmt(vol.dose)} % du mortel)`, couleurRisque(vol.dose / 100));
   if (a.type === 'gazeuse') ligne('Prélèvements', String((vol.prelevements || []).length), '#4dd0e1');
   if (compact) { ctx.font = '11px system-ui, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillText('toucher : réduire', x, y + 12); }
 }

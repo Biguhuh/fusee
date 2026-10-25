@@ -63,7 +63,7 @@ function fuseeDeConception(c, a) {
 }
 
 // Résultats gardés en mémoire, et d'une partie à l'autre (les vols d'essai prennent un peu de temps).
-const VERSION_CONCEPTION = 'v4';   // v4 : le module de Vénus ne transporte plus son lanceur de retour
+const VERSION_CONCEPTION = 'v5';   // v5 : panneaux choisis d'après la vraie dose (Sv/jour)
 const cacheConception = {};
 function concevoirAtterrisseur(a) {
   if (cacheConception[a.id]) return cacheConception[a.id];
@@ -88,11 +88,13 @@ function calculerConception(a) {
   const gaz = a.type === 'gazeuse';
   const pMax = gaz ? a.cible * 2.5 : (a.atm ? a.atm.p0 : 0);
   const tMax = gaz ? conditions(a, profondeurPour(a, a.cible)).t + 80 : a.tempSurface + (a.atm ? 60 : 20);
-  const rad = Math.max(conditions(a, 0).rad, conditions(a, a.depart.alt).rad);
+  // Rayonnement : l'équipage doit pouvoir rester au moins 10 jours sur place avant la dose mortelle.
+  const svMax = Math.max(doseLocale(a, 0), doseLocale(a, a.depart.alt));
+  const rad = svMax / (DOSE_MORTELLE / 10);
   const premier = (cat, ok) => EQUIPEMENTS[cat].options.find(ok);
   const coque = premier('coque', (o) => o.pressionMax >= pMax * 1.05);
   const bouclier = premier('bouclier', (o) => o.tempMax >= tMax);
-  const panneau = premier('panneau', (o) => o.protection >= rad * 1.1);
+  const panneau = premier('panneau', (o) => o.protection >= rad);
   if (!coque) return { ok: false, raison: `Aucune coque ne résiste à ${fmtP(pMax)}.` };
   if (!bouclier) return { ok: false, raison: `Aucun bouclier ne résiste à ${fmt(tMax)} °C.` };
   if (!panneau) return { ok: false, raison: 'Aucun panneau ne protège d’un tel rayonnement.' };

@@ -35,9 +35,8 @@ function conditions(astre, alt) {
     // Température d'équilibre d'un corps noir chauffé par le Soleil.
     if (alt >= 0) t = 278.6 / Math.sqrt(dUA) - KELVIN;
   }
-  const rad = 1 / (dUA * dUA) + (astre.radiationLocale || 0);
-
-  return { g, p, rho, t, rad, dUA };
+  // Le rayonnement (Sv/jour) est calculé dans rayonnement.js, à partir de cette distance et de l'air au-dessus.
+  return { g, p, rho, t, dUA };
 }
 
 // ---------- Relief ----------

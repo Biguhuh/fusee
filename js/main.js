@@ -794,6 +794,8 @@ function image(t) {
     if (etat.pause && !Infos.estOuverte()) dessinerPause(ctx, canvas.width, canvas.height);
     if (x.fin) {
       etat.vol.messageExplo = { texte: x.fin.texte, vie: 8 };
+      // La dose de la sortie reste acquise : l'équipage la garde en remontant dans la fusée.
+      if (x.type === 'spationaute' && !x.terre) { etat.vol.doseSv = x.doseSv; etat.vol.dose = x.dose; }
       // Une sortie qui tourne mal est notée : l'écran de résultat en parlera, même si la remontée réussit.
       if (x.fin.issue === 'perdu' && !x.terre) (etat.vol.pertes = etat.vol.pertes || []).push({ qui: x.type, texte: x.fin.texte });
       if (etat.voyage && etat.enVoyage) etat.voyage.journal.push({ t: etat.voyage.t, texte: `${etat.vol.astre.nom} : ${x.fin.texte}` });

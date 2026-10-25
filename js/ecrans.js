@@ -102,7 +102,7 @@ function descriptionPiece(cat, o) {
     case 'reservoir': return `${fmt(o.carburant)} kg de carburant`;
     case 'coque': return `jusqu'à ${fmt(o.pressionMax)} bar`;
     case 'bouclier': return `jusqu'à ${fmt(o.tempMax)} °C`;
-    case 'panneau': return `protection ${fmt(o.protection, 1)}`;
+    case 'panneau': return o.protection > 1 ? `dose à bord ÷ ${fmt(o.protection)}` : 'pas de protection';
   }
   return '';
 }
@@ -152,7 +152,7 @@ function afficherHangar(etat, auChangement) {
     <dt>Poussée/poids Jupiter</dt><dd style="color:${twrJup < 1 ? 'var(--danger)' : 'inherit'}">${fmt(twrJup, 2)}</dd>
     <dt>Pression max</dt><dd>${fmt(f.pressionMax)} bar</dd>
     <dt>Température max</dt><dd>${fmt(f.tempMax)} °C</dd>
-    <dt>Protection rayonnement</dt><dd>${fmt(f.protection, 1)}</dd>`;
+    <dt>Protection rayonnement</dt><dd>dose à bord ÷ ${fmt(f.protection)}</dd>`;
 
   const cv = $('apercu');
   const cx = cv.getContext('2d');
@@ -254,7 +254,8 @@ function verifications(a, f) {
   if (a.type === 'etoile') {
     ajoute('danger', `Température de la photosphère : ${fmt(a.tempSurface)} °C. Aucun bouclier ne tient : vous brûlerez avant d'arriver.`);
     const c = conditions(a, a.depart.alt);
-    ajoute(c.rad > f.protection ? 'danger' : 'alerte', `Rayonnement au départ : ${fmt(c.rad)} (protection ${fmt(f.protection, 1)}), il augmente en 1/d².`);
+    const sv = doseLocale(a, a.depart.alt, c) / f.protection;
+    ajoute(sv > DOSE_MORTELLE ? 'danger' : 'alerte', `Rayonnement au départ : ${fmtDose(sv)} à bord (dose mortelle : ${DOSE_MORTELLE} Sv), il augmente en 1/d².`);
     ajoute(c.t > f.tempMax ? 'danger' : 'alerte', `Chaleur au départ : ${fmt(c.t)} °C (bouclier ${fmt(f.tempMax)} °C).`);
     return res;
   }
@@ -277,8 +278,10 @@ function verifications(a, f) {
     const retour = besoinRetourOrbite(a);
     ajoute(dv < besoin + retour ? 'alerte' : 'ok', `Retour en orbite : ≈ ${fmt(retour)} m/s de plus (vitesse orbitale ${fmtV(vitesseOrbitale(a, altitudeOrbite(a)))}).${dv < besoin + retour ? ' Pas assez pour repartir : prenez un plus gros réservoir.' : ''}`);
   }
-  const rad = conditions(a, 0).rad;
-  ajoute(rad > f.protection ? (rad > f.protection * 3 ? 'danger' : 'alerte') : 'ok', `Rayonnement : ${fmt(rad, 1)} (protection ${fmt(f.protection, 1)}).`);
+  // Rayonnement : combien de temps l'équipage peut rester (dose mortelle 4 Sv), à bord ou dehors.
+  const svSol = doseLocale(a, a.type === 'gazeuse' ? a.depart.alt : 0), svBord = svSol / f.protection;
+  const tBord = tempsAvantDoseMortelle(svBord);
+  ajoute(tBord < 86400 ? 'danger' : tBord < 10 * 86400 ? 'alerte' : 'ok', `Rayonnement ${a.type === 'gazeuse' ? 'à l’arrivée' : 'au sol'} : ${fmtDose(svSol)}, ${fmtDose(svBord)} à bord : dose mortelle (${DOSE_MORTELLE} Sv) en ${fmtDureeLongue(tBord)}${a.type === 'solide' ? `, ${fmtDureeLongue(tempsAvantDoseMortelle(svSol))} en sortie` : ''}.${tBord < 10 * 86400 ? ' Prenez un panneau plus épais.' : ''}`);
   return res;
 }
 
@@ -351,7 +354,7 @@ function texteResultat(r) {
       return ['Pressurisée', 'echec', `La pression extérieure est montée jusqu'à ${fmtP(c.p)} pour une coque prévue pour ${fmt(f.pressionMax)} bar : elle s'est déformée puis a cédé.` +
         (a.type === 'gazeuse' ? (r.carburantRestant <= 0 ? ` Réservoir vide, la sonde a sombré vers le centre de ${a.nom}.` : ` Plus on descend dans ${a.nom}, plus la pression monte.`) : '')];
     case 'irradiee':
-      return ['Irradiée', 'echec', `Le rayonnement (${fmt(c.rad, 1)}, protection ${fmt(f.protection, 1)}) a grillé l'électronique. Il faut un panneau anti-vent solaire plus épais.`];
+      return ['Irradiée', 'echec', `L’équipage a reçu une dose mortelle : ${fmtDoseTotale(r.doseSv || DOSE_MORTELLE)} (${fmtDose(r.svBord || 0)} à bord à la fin, panneau : dose ÷ ${fmt(f.protection)}). Il faut un panneau anti-vent solaire plus épais, ou rester moins longtemps.`];
     case 'pose':
       return [`Réussite : posé sur ${a.nom}`, 'succes', `Contact à ${fmt(i ? i.vv : 0, 1)} m/s.` +
         (i && i.degats > 0 ? ` Atterrissage dur : la coque a perdu ${fmt(i.degats)} %.` : '') +
@@ -405,7 +408,7 @@ function afficherResultat(r) {
     <dt>Intégrité de la coque</dt><dd>${fmt(Math.max(0, r.integrite))} %</dd>
     <dt>Dégâts pression / chaleur / chocs</dt><dd>${fmt(r.degats.pression)} / ${fmt(r.degats.chaleur)} / ${fmt(r.degats.impact)} %</dd>
     <dt>Carburant restant</dt><dd>${fmt(r.carburantRestant)} kg</dd>
-    <dt>Dose de rayonnement</dt><dd>${fmt(Math.min(100, r.dose))} %</dd>`;
+    <dt>Dose de rayonnement (équipage)</dt><dd>${fmtDoseTotale(r.doseSv || 0)} (${fmt(Math.min(100, r.dose))} % de la dose mortelle)</dd>`;
   // Lancement : la chronologie, du compte à rebours à la mise en orbite.
   if (r.fusee && r.fusee.mega && r.chrono && r.chrono.length) {
     $('res-stats').innerHTML = `<dt>Lanceur</dt><dd>${r.fusee.nomLanceur}</dd><dt>Durée de la montée</dt><dd>${fmtDuree(r.chrono[r.chrono.length - 1].t)}</dd>` +
