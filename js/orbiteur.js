@@ -714,6 +714,23 @@ const Orbiteur = {
     }
   },
 
+  // En orbite de la planète d'origine, tout est disponible sans infrastructure : l'orbiteur refait son plein
+  // (carburant, ergols, sondes, kits, robots, atterrisseurs) jusqu'au chargement d'une expédition neuve.
+  pleinDepuisOrigine() {
+    const v = this.v, o = planeteOrigine();
+    if (!v.orb || v.orb.centre !== o.id) return this.log(`Il faut être en orbite de ${o.nom} pour faire le plein depuis ${SYSTEME.nomOrigine}.`);
+    const pris = [];
+    const remplir = (cle, max, nom, kg) => { const q = Math.max(0, max - (v[cle] || 0)); if (q > 0) { v[cle] = max; pris.push(kg ? `${fmt(q / 1000, 1)} t ${nom}` : `${fmt(q)} ${nom}`); } };
+    remplir('carburant', ORBITEUR.carburantMax, 'de carburant', true);
+    remplir('ergolsAtt', ORBITEUR.ergolsAtt, 'd’ergols', true);
+    remplir('sondes', ORBITEUR.sondes, 'sondes');
+    remplir('kits', ORBITEUR.kits, 'kits de station');
+    remplir('kitsBase', ORBITEUR.kitsBase, 'kits de base');
+    remplir('robots', ORBITEUR.robots, 'robots');
+    remplir('atterrisseurs', ORBITEUR.atterrisseurs, 'atterrisseurs');
+    this.log(pris.length ? `Plein fait depuis ${SYSTEME.nomOrigine}, sans station ni base : ${pris.join(', ')}.` : 'L’orbiteur est déjà plein.');
+  },
+
   // Agrandir une station d'un niveau avec une extension de station en stock (assemblage en orbite).
   agrandirStation(stationId) {
     const st = this.v.stations.find((s) => s.id === stationId);
@@ -1574,6 +1591,7 @@ const Orbiteur = {
     d += '<h3>Actions</h3><div class="actions-nav">';
     const fermee = this.orbiteFermee();
     if (estOrigine(c.id) && fermee) d += `<button id="nav-rentrer" class="principal">🏠 Rentrer sur ${SYSTEME.origineSans} (capsule)</button>`;
+    if (estOrigine(c.id) && fermee) d += `<button id="nav-plein-origine">🌍 Faire le plein depuis ${SYSTEME.nomOrigine} (gratuit)</button>`;
     d += `<button id="nav-depart">🌌 Quitter le ${SYSTEME.nom}</button>`;
     if (this.peutDescendre()) {
       // L'atterrisseur est conçu pour l'astre : on ne descend que si l'on peut repartir.
@@ -1645,6 +1663,7 @@ const Orbiteur = {
     bind('nav-robot', () => this.ouvrirLargageRobot(o.centre));
     bind('nav-rentrer', () => this.contexte.rentrer());
     bind('nav-depart', () => Depart.ouvrir(this.v));
+    bind('nav-plein-origine', () => { this.pleinDepuisOrigine(); this.majHud(true); });
     bind('nav-logistique', () => ouvrirLogistique(this.v, true));
     bind('nav-amarrer', () => { this.amarrer(); this.majHud(true); });
     bind('nav-station', () => { this.construireStation(); this.majHud(true); });

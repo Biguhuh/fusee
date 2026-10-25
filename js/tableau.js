@@ -41,6 +41,7 @@ function ouvrirLogistique(v, actif) {
     if (mq.pret) besoins.push({ astre: b.astre, texte: `Base ${ASTRES_PAR_ID[b.astre].nom} : ${mq.texte}, à envoyer (tableau de bord de l’astre)` });
   }
   for (const st of v.stations) {
+    if (estOrigine(st.centre)) continue;     // autour de la planète d'origine, rien ne manque jamais
     if ((st.stock.ergols || 0) < 20000) besoins.push({ astre: st.centre, texte: `${st.nom} : peu d’ergols (${fmtStock('ergols', st.stock.ergols || 0)})`, station: st });
     if ((st.stock.materiaux || 0) < 10000) besoins.push({ astre: st.centre, texte: `${st.nom} : peu de matériaux (${fmtStock('materiaux', st.stock.materiaux || 0)})`, station: st });
   }
@@ -83,7 +84,8 @@ function tableauAstre(v, a, actif) {
   const site = (v.sites || {})[a.id];
   if (a.type === 'solide' && !estOrigine(a.id)) sur += ligne('Zone de base', site ? `repérée${site.prod ? ` — ${site.ressource}` : ' — pas de ressource locale'}` : 'non repérée : envoyez une sonde');
   const [res, prod] = ressourceLocale(a);
-  if (a.type === 'solide') sur += ligne('Ressource locale', prod ? `${res} (${fmt(prod / 1000, 1)} t d’ergols par jour et par niveau de base)` : 'aucune connue');
+  if (estOrigine(a.id)) sur += ligne('Ressources', `tout est disponible sur ${SYSTEME.origineSans}, sans base ni extraction : plein gratuit en orbite, ravitos illimités`);
+  else if (a.type === 'solide') sur += ligne('Ressource locale', prod ? `${res} (${fmt(prod / 1000, 1)} t d’ergols par jour et par niveau de base)` : 'aucune connue');
   const bases = v.bases.filter((b) => b.astre === a.id);
   for (const b of bases) {
     const n = b.niveau || 1, mat = productionMateriaux(a, n), manque = manquePourNiveau(v, b);

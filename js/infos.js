@@ -110,7 +110,9 @@ const Infos = {
     sections.push(['Données de jeu', lignes(jeu)]);
 
     // Ce qu'on trouve sur place : ressource exploitable par une base, et échantillons à ramasser ou à analyser.
-    if (a.type === 'solide') {
+    if (estOrigine(a.id)) {
+      sections.push(['Ressources', lignes([['Sur place', `tout est disponible sur ${SYSTEME.origineSans} : pas de base ni d’extraction. En orbite, l’orbiteur fait le plein gratuitement, et les ravitos qui en partent sont illimités.`]])]);
+    } else if (a.type === 'solide') {
       const [res, prod] = ressourceLocale(a);
       const sc = typeof etat !== 'undefined' && etat.science ? etat.science[a.id] : null;
       const rec = recordSaut(a.id);
