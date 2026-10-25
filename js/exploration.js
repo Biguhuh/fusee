@@ -31,6 +31,19 @@ const SITES_GLACE = [['Glace d’eau', 'Glace vieille de plusieurs milliards d�
 const SITES_ROCHE = [['Roche', 'Roche primitive.'], ['Régolithe', 'Poussière d’impacts.'], ['Météorite', 'Fragment métallique tombé du ciel.'], ['Cratère', 'Impact récent.']];
 const SITES_ASTEROIDE = [['Roche carbonée', 'Matière primitive du système solaire.'], ['Métal', 'Fer et nickel.'], ['Régolithe', 'Poussière très fine.']];
 
+// Échantillons qu'on peut trouver sur un astre : [nom, description].
+function typesEchantillons(a) {
+  return SITES_PAR_ASTRE[a.id] || (a.asteroide ? SITES_ASTEROIDE : a.tempSurface < -120 ? SITES_GLACE : SITES_ROCHE);
+}
+
+// Records de saut par astre (gardés avec la partie) : { astreId: { h (m), par, quand } }.
+function recordSaut(astreId) { return (typeof etat !== 'undefined' && etat.sauts && etat.sauts[astreId]) || null; }
+function enregistrerSaut(astreId, h, par) {
+  if (typeof etat === 'undefined') return;
+  etat.sauts = etat.sauts || {};
+  etat.sauts[astreId] = { h, par, quand: new Date().toISOString() };
+}
+
 class Exploration {
   // options.terre : promenade sur Terre ; options.provisions : la campagne (fleurs, fruits, bières).
   constructor(vol, type, science, options = {}) {
@@ -158,8 +171,7 @@ class Exploration {
 
   genererSites() {
     const a = this.astre;
-    let liste = SITES_PAR_ASTRE[a.id];
-    if (!liste) liste = a.asteroide ? SITES_ASTEROIDE : a.tempSurface < -120 ? SITES_GLACE : SITES_ROCHE;
+    const liste = typesEchantillons(a);
     const sites = [];
     for (let k = -40; k <= 40; k++) {
       if (k === 0 || hash2(k, 50) < 0.45) continue;
@@ -168,6 +180,18 @@ class Exploration {
       sites.push({ k, x, nom, texte });
     }
     return sites;
+  }
+
+  // Hauteur d'un saut (du point d'appel au sommet), et record de saut sur cet astre.
+  finSaut(h) {
+    if (h < 0.02) return;
+    this.dernierSaut = h;
+    const rec = recordSaut(this.astre.id);
+    const txt = h < 10 ? `${fmt(h, 2)} m` : fmtAlt(h);
+    if (!rec || h > rec.h) {
+      enregistrerSaut(this.astre.id, h, nomSpatio());
+      this.dire(`🏅 Saut de ${txt} : record sur ${this.astre.nom}${rec ? ` (l’ancien : ${rec.h < 10 ? fmt(rec.h, 2) + ' m' : fmtAlt(rec.h)})` : ''} !`);
+    } else this.dire(`Saut de ${txt} (record sur ${this.astre.nom} : ${rec.h < 10 ? fmt(rec.h, 2) + ' m' : fmtAlt(rec.h)}).`);
   }
 
   dejaFait(site) { const s = this.science[this.astre.id]; return !!(s && s.sites && s.sites[site.k]); }
@@ -243,6 +267,7 @@ class Exploration {
       p.pas += Math.abs(p.vx) * dt;
       if (cmd.saut && this.saut > 0 && !this.enRover) {
         p.vy = this.saut; p.auSol = false;
+        this.sautEnCours = { y0: p.y, max: 0 };          // on mesure la hauteur du saut
         this.poussiere(6);
       }
       if (this.type === 'spationaute' && !this.enRover && Math.abs(p.vx) > 0.05 && Math.floor(p.pas / 0.7) !== Math.floor((p.pas - Math.abs(p.vx) * dt) / 0.7)) {
@@ -259,6 +284,7 @@ class Exploration {
       p.vy -= g * dt;
       p.x += p.vx * dt;
       p.y += p.vy * dt;
+      if (this.sautEnCours) this.sautEnCours.max = Math.max(this.sautEnCours.max, p.y - this.sautEnCours.y0);
       // Câble de sécurité : on ne s'éloigne pas à plus de 30 m de la fusée.
       if (this.cable) {
         const d = Math.hypot(p.x - this.xFusee, p.y - this.sol(this.xFusee));
@@ -275,6 +301,7 @@ class Exploration {
         }
         p.vy = 0; p.auSol = true;
         this.poussiere(8);
+        if (this.sautEnCours) { this.finSaut(this.sautEnCours.max); this.sautEnCours = null; }
       }
     }
 
@@ -594,7 +621,7 @@ class Exploration {
       }
     } else {
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.fillRect(8, 8, 290, 250);
+    ctx.fillRect(8, 8, 290, 272);
     let y = 28;
     const ligne = (k, v, coul = '#fff') => {
       ctx.font = '12px system-ui'; ctx.fillStyle = '#b0bec5'; ctx.fillText(k, 16, y);
@@ -616,6 +643,11 @@ class Exploration {
     }
     ligne('Gravité', fmtG(c.g));
     ligne('Libération', fmtV(this.vLib));
+    if (this.type === 'spationaute') {
+      const rec = recordSaut(a.id);
+      const enl = this.sautEnCours ? this.sautEnCours.max : this.dernierSaut;
+      if (enl || rec) ligne('Saut (record)', `${enl ? fmt(enl, 2) + ' m' : '—'} (${rec ? fmt(rec.h, 2) + ' m' : '—'})`, this.sautEnCours ? '#ffca28' : '#fff');
+    }
     ligne(this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? `${sc.analyses} envoyées, ${this.donneesEnAttente} en mémoire` : `${this.sac.length} / ${d.capacite}` + (this.rover ? `  rover ${this.sacRover.length} / 20` : ''), this.donneesEnAttente ? '#ffca28' : '#fff');
     ligne('Sites étudiés ici', String(Object.keys(sc.sites || {}).length));
     ligne('Distance module', fmt(Math.abs(this.p.x - this.xFusee)) + ' m');

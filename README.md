@@ -70,6 +70,15 @@ Tenue : combinaison de vol bleue de l'ESA sur Terre, scaphandre blanc aux couleu
     - Une mission dure 1, 3 ou 7 jours. Un atterrisseur et ses ergols restent occupés ; le coéquipier prélève un échantillon toutes les 6 h (8 au plus) et encaisse la dose du lieu.
     - L'atterrisseur remonte seul à la fin. Au-delà de 4 Sv cumulés, le coéquipier ne revient pas.
     - On ne rentre sur Terre qu'une fois les missions finies ; la capsule ramène les survivants.
+  - **Robot de prélèvement automatique** (bouton « 🤖 » de l'orbiteur, en orbite d'un astre solide).
+    - Le robot descend seul, avec le blindage choisi, pour 3, 7 ou 30 jours.
+    - Il prélève un échantillon toutes les 12 h (12 au plus), puis lance son conteneur en orbite. L'orbiteur le récupère quand il repasse en orbite de l'astre.
+    - S'il est grillé par le rayonnement avant la fin (un robot standard sur Io : environ 33 h), ses échantillons sont perdus.
+  - **Ressources et échantillons** : chaque fiche d'astre solide dit ce qu'on y trouve :
+    - la ressource locale et sa production par une base, la mine à partir du niveau 2 ;
+    - les types d'échantillons possibles ;
+    - la science déjà faite et le record de saut.
+  - **Records de saut** : la hauteur de chaque saut du spationaute est mesurée (du point d'appel au sommet) et s'affiche pendant le saut. Le record de chaque astre est gardé, avec un message quand on le bat (environ 1,5 m sur la Lune, 0,25 m sur Terre).
   - **Grappe de sondes** (fiche d'un astre qui a des lunes) : plusieurs sondes partent ensemble de l'orbiteur puis se séparent, une par cible (l'astre et ses lunes, les plus grosses d'abord ; celles déjà sondées sont décochées). Chacune repère sa cible en arrivant.
   5. **Quitter le Système solaire** (bouton « 🌌 » de l'orbiteur) : on choisit une étoile proche réelle (Proxima Centauri, Alpha Centauri, Barnard, Lalande 21185, Epsilon Eridani, Tau Ceti, TRAPPIST-1).
      - **Départ réaliste**, avec deux propulsions :

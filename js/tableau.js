@@ -73,7 +73,7 @@ function tableauAstre(v, a, actif) {
   const ligne = (k, val) => `<dt>${k}</dt><dd>${val}</dd>`;
 
   // ---------- Sur place ----------
-  let sur = '';
+  let sur = '', orbConteneurs = '';
   const visite = v.visites[a.id];
   sur += ligne('Exploration', visite && visite.pose ? 'posé ici' : 'jamais posé');
   const ech = (v.echantillonsRapportes || {})[a.id] || 0, aBord = (v.echantillonsABord || {})[a.id] || 0;
@@ -94,10 +94,15 @@ function tableauAstre(v, a, actif) {
   if (!bases.length && a.type === 'solide' && !estOrigine(a.id)) sur += ligne('Base', 'aucune (kit de base + station en orbite + zone repérée)');
   const surPlace = (v.equipe || []).filter((m) => m.etat === 'mission' && m.mission.astre === a.id);
   if (surPlace.length) sur += ligne('🧑‍🚀 Équipe', surPlace.map((m) => `${m.nom} (retour dans ${fmtDuree(m.mission.fin - v.t)})`).join(', '));
+  const robotsIci = (v.robotsAuto || []).filter((r) => r.astre === a.id);
+  if (robotsIci.length) sur += ligne('🤖 Robots de prélèvement', robotsIci.map((r) => `conteneur lancé dans ${fmtDuree(r.fin - v.t)}`).join(', '));
+  const conteneurs = (v.conteneurs || []).filter((c) => c.astre === a.id);
+  if (conteneurs.length) orbConteneurs = conteneurs.map((c) => `${c.n} échantillons`).join(', ');
   sections.push(['📍 Sur place', sur]);
 
   // ---------- En orbite ----------
   let orb = '';
+  if (orbConteneurs) orb += ligne('📦 Conteneurs d’échantillons', `${orbConteneurs} — l’orbiteur les récupère en passant en orbite`);
   if (v.orb && v.orb.centre === a.id) orb += ligne('🚀 Orbiteur', `ici — ${fmt(v.carburant / 1000, 1)} t de carburant, ${fmt(v.ergolsAtt / 1000, 1)} t d’ergols atterrisseur`);
   const stations = v.stations.filter((s) => s.centre === a.id);
   for (const st of stations) {

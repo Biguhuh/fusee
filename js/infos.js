@@ -109,6 +109,21 @@ const Infos = {
     jeu.push(['Début de descente', fmtAlt(a.depart.alt) + ', ' + fmtV(a.depart.vitesse) + ' ↓']);
     sections.push(['Données de jeu', lignes(jeu)]);
 
+    // Ce qu'on trouve sur place : ressource exploitable par une base, et échantillons à ramasser ou à analyser.
+    if (a.type === 'solide') {
+      const [res, prod] = ressourceLocale(a);
+      const sc = typeof etat !== 'undefined' && etat.science ? etat.science[a.id] : null;
+      const rec = recordSaut(a.id);
+      const l = [
+        ['Ressource locale', prod ? `${res} → ${fmt(prod / 1000, 1)} t d’ergols par jour (base niveau 1)` : 'aucune ressource exploitable connue'],
+        ['Mine (base niveau 2+)', productionMateriaux(a, 2) ? `matériaux : ${fmt(productionMateriaux(a, 2) / 1000, 1)} t par jour au niveau 2` : 'pas de mine'],
+      ];
+      if (sc && (sc.echantillons || sc.analyses)) l.push(['Science faite', `${sc.echantillons || 0} échantillons ramassés, ${sc.analyses || 0} analyses`]);
+      if (rec) l.push(['Record de saut', `${rec.h < 10 ? fmt(rec.h, 2) + ' m' : fmtAlt(rec.h)} (${rec.par})`]);
+      const types = typesEchantillons(a).map(([nom, texte]) => `<dt>${nom}</dt><dd>${texte}</dd>`).join('');
+      sections.push(['Ressources et échantillons', lignes(l) + `<dt><b>Échantillons possibles</b></dt><dd></dd>${types}`]);
+    }
+
     const enfants = (ENFANTS[a.id] || []).filter((c) => !this.contexte.masque() || c.grosse);
     if (enfants.length) {
       sections.push([`Satellites (${(ENFANTS[a.id] || []).length})`,

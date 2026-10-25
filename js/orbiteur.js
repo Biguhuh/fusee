@@ -1623,6 +1623,8 @@ const Orbiteur = {
     this.ecrirePanneau($('nav-actions'), d);
     $('nav-actions').querySelectorAll('[data-fab]').forEach((b) => { b.onclick = () => { this.fabriquer(st.id, b.dataset.fab); this.majHud(true); }; });
     $('nav-actions').querySelectorAll('[data-mission]').forEach((b) => { b.onclick = () => ouvrirMission(v, b.dataset.mission, (t) => this.log(t), () => this.majHud(true)); });
+    const bRobotAuto = $('nav-robot-auto');
+    if (bRobotAuto) bRobotAuto.onclick = () => ouvrirRobotAuto(v, (t) => this.log(t), () => this.majHud(true));
     const bRavito = $('nav-ravito');
     if (bRavito) bRavito.onclick = () => this.ouvrirRavito();
     const bind = (id, f) => { const b = $(id); if (b) b.onclick = f; };
