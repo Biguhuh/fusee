@@ -767,7 +767,7 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
   const tremble = (vol.enDegats() && !vol.fin ? 2 + Math.min(6, (vol.taux.pression + vol.taux.chaleur) / 5) : 0) + (vol.secousse > 0 ? 8 * vol.secousse : 0);
   if (tremble > 0) ctx.translate((Math.random() - 0.5) * tremble, (Math.random() - 0.5) * tremble);
 
-  dessinerFond(ctx, a, c, W, H, gaz && vol.y < 0, tempsCiel(vol));
+  dessinerFond(ctx, a, c, W, H, gaz && vol.y < 0, tempsCiel(vol), vol);
 
   // Déplacement apparent du décor pendant cette image (pour la poussière et la fumée).
   const ep = Math.max(0.15, Math.min(3, echelle));
@@ -941,13 +941,56 @@ function tempsCiel(vol) {
   return base + (vol.t || 0);
 }
 
-// t : temps du jeu (s). Le ciel tourne avec l'astre où l'on se trouve : les étoiles défilent en une
-// rotation propre (3,55 jours pour Europe), la planète d'une lune synchrone reste fixe dans le ciel.
-function dessinerFond(ctx, a, c, W, H, sousLesNuages, t = DATE_DEBUT) {
+// ---------- Ciel vu de la surface ----------
+// Le jeu est en 2D : le ciel est la demi-voûte du plan des orbites, au-dessus de l'horizon.
+// α = angle depuis le zénith (négatif à gauche = est, où les astres se lèvent ; positif à droite = ouest).
+// Le zénith tourne avec l'astre (rotationDe) : un astre vu sous la direction ψ est à α = φ − ψ.
+let LUMIERE_SOL = 1;   // éclairage du sol par le Soleil (1 : plein jour, 0 : nuit), utilisé par dessinerTerrain
+
+function zenithCiel(a, t, porteur) {
+  const rot = rotationDe(a);
+  const pos = etatAbsolu(a.id, t).r;
+  if (!porteur.ciel) {
+    // Lieu de la mission : sur une lune, la face tournée vers sa planète (α = +35°, visible toute la visite) ;
+    // ailleurs, on arrive le matin (Soleil à α = −30°).
+    let psi, alpha;
+    if (a.parent) { const pp = etatAbsolu(a.parent, t).r; psi = Math.atan2(pp[1] - pos[1], pp[0] - pos[0]); alpha = 35 * DEG; }
+    else { psi = Math.atan2(-pos[1], -pos[0]); alpha = -30 * DEG; }
+    porteur.ciel = { t0: t, phi0: psi + alpha };
+  }
+  return porteur.ciel.phi0 + (2 * Math.PI * (t - porteur.ciel.t0)) / (rot.heures * 3600);
+}
+const angleDansPi = (x) => { x %= 2 * Math.PI; if (x > Math.PI) x -= 2 * Math.PI; if (x < -Math.PI) x += 2 * Math.PI; return x; };
+
+// t : temps du jeu (s) ; porteur : objet qui garde le lieu de la mission (le vol). Renvoie l'éclairage (0 à 1).
+// Positions réelles des astres à cet instant, tailles apparentes réelles, phases, jour et nuit, éclipses.
+function dessinerFond(ctx, a, c, W, H, sousLesNuages, t = DATE_DEBUT, porteur = {}) {
   ZONES_CIEL = [];
-  // Ciel : noir dans le vide, couleur de l'atmosphère quand l'air s'épaissit.
+  const vide = a.type === 'etoile';
+  // Où est le Soleil ? Élévation au-dessus de l'horizon → jour, crépuscule ou nuit.
+  let phi = 0, pos = [0, 0], alphaSoleil = 0, jour = 1, kAng = W / (140 * DEG);
+  const posCiel = (al) => ({ x: W / 2 + Math.sin(al) * W * 0.55, y: H * 0.62 - Math.cos(al) * H * 0.55, visible: Math.cos(al) > -0.08 });
+  if (!vide) {
+    phi = zenithCiel(a, t, porteur);
+    pos = etatAbsolu(a.id, t).r;
+    alphaSoleil = angleDansPi(phi - Math.atan2(-pos[1], -pos[0]));
+    const elev = Math.PI / 2 - Math.abs(alphaSoleil);
+    const u = Math.max(0, Math.min(1, (elev + 6 * DEG) / (12 * DEG)));   // crépuscule de −6° à +6°
+    jour = u * u * (3 - 2 * u);
+    // Éclipse : la planète d'une lune passe devant le Soleil.
+    if (a.parent) {
+      const pp = etatAbsolu(a.parent, t).r, dp = V.sub(pp, pos), distP = V.norm(dp);
+      const rP = Math.asin(Math.min(1, ASTRES_PAR_ID[a.parent].rayonKm / distP));
+      const rS = Math.asin(Math.min(1, ASTRES_PAR_ID.soleil.rayonKm / V.norm(pos)));
+      const ecart = Math.abs(angleDansPi(Math.atan2(dp[1], dp[0]) - Math.atan2(-pos[1], -pos[0])));
+      const couvert = Math.max(0, Math.min(1, (rP + rS - ecart) / (2 * rS)));
+      if (couvert > 0 && distP < V.norm(pos)) { jour *= 1 - 0.9 * couvert; porteur.eclipse = couvert; } else porteur.eclipse = 0;
+    }
+  }
+  LUMIERE_SOL = vide ? 1 : 0.3 + 0.7 * jour;
+  // Ciel : noir dans le vide ou la nuit, couleur de l'atmosphère quand l'air s'épaissit et qu'il fait jour.
   let tCiel = 0;
-  if (a.atm && a.type !== 'etoile') tCiel = Math.min(1, Math.sqrt(c.p / 0.3));
+  if (a.atm && !vide) tCiel = Math.min(1, Math.sqrt(c.p / 0.3)) * jour;
   let ciel = melanger('#02030a', a.couleurs.ciel, tCiel);
   if (sousLesNuages) {
     const prof = Math.min(1, Math.log(c.p) / Math.log(200));
@@ -960,66 +1003,71 @@ function dessinerFond(ctx, a, c, W, H, sousLesNuages, t = DATE_DEBUT) {
   ctx.fillStyle = ciel;
   ctx.fillRect(-10, -10, W + 20, H + 20);
 
-  // Étoiles, de moins en moins visibles quand le ciel s'éclaire.
+  // Étoiles : visibles dans le vide et la nuit, effacées par un ciel de jour. Elles défilent avec la rotation
+  // de l'astre (une rotation complète fait défiler 4 largeurs d'écran).
   const visEt = 1 - Math.min(1, tCiel * 1.4);
-  // Rotation de l'astre : angle du ciel (rad). Une rotation complète fait défiler 4 largeurs d'écran
-  // (champ de vue d'environ 90°).
-  const rot = a.type === 'etoile' ? null : rotationDe(a);
-  const angleCiel = rot ? (2 * Math.PI * t) / (rot.heures * 3600) : 0;
-  if (visEt > 0.02) {
+  if (visEt > 0.02 && !vide) {
     ctx.fillStyle = `rgba(255,255,255,${0.85 * visEt})`;
-    const decal = ((angleCiel / (2 * Math.PI)) * 4) % 1;
+    const decal = ((phi / (2 * Math.PI)) * 4) % 1;
     for (const e of ETOILES) ctx.fillRect((((e.x - decal) % 1) + 1) % 1 * W, e.y * H, e.r, e.r);
   }
+  if (vide) return 1;
 
-  // Planète mère dans le ciel (pour les lunes) : taille apparente réelle, au moins 6 px.
-  if (a.parent && ASTRES_PAR_ID[a.parent] && a.orbite) {
-    const pm = ASTRES_PAR_ID[a.parent];
-    const angle = 2 * Math.atan(pm.rayonKm / a.orbite.a);           // diamètre apparent (rad)
-    const r = Math.max(6, Math.min(Math.min(W, H) * 0.35, (angle / 1.2) * W / 2));
-    ctx.globalAlpha = 0.95 * Math.max(0.25, visEt);
-    // Où est la planète dans le ciel ? Lune synchrone : toujours au même endroit.
-    // Sinon, elle se lève et se couche au rythme de la rotation de la lune par rapport à son orbite.
-    const periodeOrbiteH = (a.orbite.retro ? -1 : 1) * (360 / a.orbite.n) * 24;
-    let xp = W * 0.78, yp = H * 0.2, visible = true;
-    if (!rot.synchrone) {
-      const th = 2 * Math.PI * t * (1 / (rot.heures * 3600) - 1 / (periodeOrbiteH * 3600));
-      xp = W * 0.5 + W * 0.45 * Math.sin(th);
-      yp = H * 0.55 - H * 0.42 * Math.cos(th);
-      visible = Math.cos(th) > -0.15;
-    }
-    // Face visible : la planète tourne sur elle-même pendant que la lune tourne autour d'elle
-    // (période synodique : ≈ 11,2 h vues depuis Europe pour une rotation de Jupiter de 9,9 h).
-    const lon0 = ((360 * t) / 3600) * (1 / rotationDe(pm).heures - 1 / periodeOrbiteH);
-    const xs = W * 0.42, ys = H * 0.13;
-    if (visible) {
-      dessinerGlobe(ctx, pm, xp, yp, pm.id === 'saturne' ? r * 0.6 : r, { vue: 'equateur', lon0: lon0 % 360, lumiere: [xs - xp, ys - yp, Math.hypot(xs - xp, ys - yp) * 0.6], inclinaisonAnneaux: 0.28 });
-      ZONES_CIEL.push({ x: xp, y: yp, r: Math.max(r, 10), id: pm.id });
+  // Soleil, à sa vraie place et à sa taille apparente (au moins 5 px, avec un halo).
+  const pS = posCiel(alphaSoleil);
+  if (pS.visible && !(porteur.eclipse > 0.98)) {
+    const rS = Math.max(5, Math.asin(ASTRES_PAR_ID.soleil.rayonKm / V.norm(pos)) * kAng);
+    const g = ctx.createRadialGradient(pS.x, pS.y, 0, pS.x, pS.y, rS * 4);
+    g.addColorStop(0, 'rgba(255,250,225,1)'); g.addColorStop(0.25, 'rgba(255,240,200,0.9)'); g.addColorStop(1, 'rgba(255,220,150,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(pS.x, pS.y, rS * 4, 0, Math.PI * 2); ctx.fill();
+    ZONES_CIEL.push({ x: pS.x, y: pS.y, r: Math.max(rS, 10), id: 'soleil' });
+  }
+
+  // Autres astres : planète mère, lunes sœurs, ses propres lunes, et les planètes (points lumineux).
+  const ids = new Set(['mercure', 'venus', 'terre', 'mars', 'jupiter', 'saturne', 'uranus', 'neptune']);
+  if (a.parent) { ids.add(a.parent); for (const s of ENFANTS[a.parent] || []) if (s.rayonKm >= 100) ids.add(s.id); }
+  for (const s of ENFANTS[a.id] || []) if (s.rayonKm >= 5) ids.add(s.id);
+  ids.delete(a.id);
+  const liste = [];
+  for (const id of ids) {
+    const X = ASTRES_PAR_ID[id];
+    const pX = etatAbsolu(id, t).r, d = V.sub(pX, pos), dist = V.norm(d);
+    const psi = Math.atan2(d[1], d[0]);
+    const al = angleDansPi(phi - psi);
+    const p = posCiel(al);
+    if (!p.visible) continue;
+    liste.push({ X, d, dist, psi, al, p, rAng: Math.asin(Math.min(1, X.rayonKm / dist)) });
+  }
+  liste.sort((u, w) => w.dist - u.dist);   // les plus lointains d'abord
+  for (const o of liste) {
+    const { X, d, dist, psi, al, p } = o;
+    let r = o.rAng * kAng;
+    // Phase : direction du Soleil vue depuis l'astre, dans le plan du ciel (latéral) et vers nous (profondeur).
+    const s = V.unit(V.mul(etatAbsolu(X.id, t).r, -1)), dh = V.mul(d, 1 / dist);
+    const lateral = s[0] * -dh[1] + s[1] * dh[0];
+    const versNous = -(s[0] * dh[0] + s[1] * dh[1]);
+    const lumiere = [lateral * -Math.cos(al), lateral * -Math.sin(al), versNous];
+    const eclaire = (1 + versNous) / 2;                        // fraction éclairée vue d'ici
+    ctx.globalAlpha = Math.max(0.3, visEt);
+    if (r >= 2.5) {
+      // Face visible : la planète d'une lune synchrone tourne à la période synodique ; sinon sa propre rotation.
+      let lon0 = longitudeVue(X, t);
+      if (X.id === a.parent && rotationDe(a).synchrone) {
+        const periodeOrbiteH = (a.orbite.retro ? -1 : 1) * (360 / a.orbite.n) * 24;
+        lon0 = (((360 * t) / 3600) * (1 / rotationDe(X).heures - 1 / periodeOrbiteH)) % 360;
+      }
+      dessinerGlobe(ctx, X, p.x, p.y, X.id === 'saturne' ? r * 0.55 : r, { vue: 'equateur', lon0, lumiere, inclinaisonAnneaux: 0.28 });
+    } else {
+      // Point lumineux : plus brillant quand il est plein (phase) et quand il est gros.
+      ctx.globalAlpha = Math.max(0.25, visEt) * (0.35 + 0.65 * eclaire);
+      ctx.fillStyle = melanger(X.couleurs.disque.length === 7 ? X.couleurs.disque : '#cccccc', '#ffffff', 0.5);
+      ctx.beginPath(); ctx.arc(p.x, p.y, X.parent ? 1.4 : 1.8, 0, Math.PI * 2); ctx.fill();
+      r = 1.8;
     }
     ctx.globalAlpha = 1;
+    ZONES_CIEL.push({ x: p.x, y: p.y, r: Math.max(r, 8), id: X.id });
   }
-  if (a.type !== 'etoile') {
-    const rs = Math.max(2, 14 / Math.sqrt(a.distanceUA));
-    ctx.fillStyle = 'rgba(255,240,200,0.9)';
-    ctx.beginPath(); ctx.arc(W * 0.42, H * 0.13, rs, 0, Math.PI * 2); ctx.fill();
-    ZONES_CIEL.push({ x: W * 0.42, y: H * 0.13, r: Math.max(rs, 10), id: 'soleil' });
-  }
-  // Lunes sœurs visibles (les plus grosses), petits points.
-  if (a.parent) {
-    const soeurs = (ENFANTS[a.parent] || []).filter((s) => s.id !== a.id && s.rayonKm > 200).slice(0, 4);
-    soeurs.forEach((s, i) => {
-      const x = W * (0.45 + 0.1 * i), y = H * (0.08 + 0.05 * (i % 2));
-      ctx.fillStyle = s.couleurs.disque;
-      ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fill();
-      ZONES_CIEL.push({ x, y, r: 9, id: s.id });
-    });
-  }
-  // Planète d'origine vue depuis une planète : la Terre depuis Mars ou Vénus, etc. (petit point bleu).
-  if (!a.parent && a.id !== 'terre' && a.type !== 'etoile') {
-    ctx.fillStyle = '#4f8fe0';
-    ctx.beginPath(); ctx.arc(W * 0.3, H * 0.07, 2, 0, Math.PI * 2); ctx.fill();
-    ZONES_CIEL.push({ x: W * 0.3, y: H * 0.07, r: 9, id: 'terre' });
-  }
+  return jour;
 }
 
 function astreDuCielSous(x, y) {
@@ -1074,8 +1122,9 @@ function dessinerTerrain(ctx, vol, W, H, echelle, fuseeY) {
     ctx.restore();
   }
   const g = ctx.createLinearGradient(0, haut, 0, H);
-  g.addColorStop(0, a.couleurs.sol);
-  g.addColorStop(1, assombrir(a.couleurs.sol, 0.45));
+  // La nuit (ou pendant une éclipse), le sol est moins éclairé : LUMIERE_SOL vient du calcul du ciel.
+  g.addColorStop(0, assombrir(a.couleurs.sol, LUMIERE_SOL));
+  g.addColorStop(1, assombrir(a.couleurs.sol, 0.45 * LUMIERE_SOL));
   ctx.fillStyle = g;
   ctx.beginPath();
   ctx.moveTo(pts[0][0], H + 10);
@@ -1121,7 +1170,7 @@ function dessinerTerrain(ctx, vol, W, H, echelle, fuseeY) {
         pts.push([sx + (f * 2 - 1) * demi * echelle + (hash(k * 3 + i) - 0.5) * demi * echelle * 0.3, base - haut * bosse * alea]);
       }
       pts.push([sx + demi * echelle, yd]);
-      const couleur = assombrir(a.couleurs.sol, 0.5 + 0.25 * hash(k + 11));
+      const couleur = assombrir(a.couleurs.sol, (0.5 + 0.25 * hash(k + 11)) * LUMIERE_SOL);
       ctx.fillStyle = couleur;
       ctx.beginPath();
       ctx.moveTo(pts[0][0], pts[0][1]);

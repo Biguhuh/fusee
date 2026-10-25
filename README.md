@@ -46,7 +46,7 @@ Tenue : combinaison de vol bleue de l'ESA sur Terre, scaphandre blanc aux couleu
 ## Apparence des astres
 - Chaque astre a sa carte peinte (`js/globes.js`) : continents de la Terre (contours grossiers, déserts, forêts, glaces, nuages), mers de la Lune, Syrtis Major et calottes de Mars, bandes et Grande Tache rouge de Jupiter, hexagone et anneaux de Saturne, Grande Tache sombre de Neptune, volcans d'Io, fractures d'Europe, cœur de Pluton, Japet à deux tons…
 - Sur la carte de l'orbiteur, on voit le système solaire d'au-dessus : les astres sont vus **du pôle Nord**, éclairés par le Soleil, et tournent sur eux-mêmes. Les lunes synchrones montrent toujours la même face à leur planète.
-- Dans le ciel (atterrissage, exploration) : planète vue de l'équateur, éclairée depuis le Soleil.
+- **Ciel réaliste** (atterrissage, exploration), le même calcul pour tous les astres : positions réelles du Soleil, de la planète mère, des lunes sœurs, des lunes de l'astre et des planètes à l'instant simulé ; tailles apparentes réelles ; phases ; lever et coucher selon la rotation de l'astre ; jour, crépuscule et nuit (sol assombri, étoiles visibles) ; éclipse quand la planète passe devant le Soleil. Sur une lune, on se pose sur la face tournée vers sa planète. Exemples : depuis Europe, Jupiter reste fixe et passe par ses phases en 3,55 jours ; depuis Mars, Phobos se lève à l'ouest. Jeu en 2D : l'inclinaison des axes n'est pas modélisée.
 - **Rotondité** : en prenant de l'altitude, le sol se courbe (projection exacte sur la sphère, horizon), avec un halo d'atmosphère au bord.
 
 ## Vénus : remontée en ballon

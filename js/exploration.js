@@ -400,7 +400,7 @@ class Exploration {
     const yCam = p.y + 2.5;
     const camY = H * 0.55;
     const versEcran = (x, y) => [W / 2 + (x - p.x) * echelle, camY + (yCam - y) * echelle];
-    dessinerFond(ctx, a, this.c, W, H, false, tempsCiel(this.vol));
+    dessinerFond(ctx, a, this.c, W, H, false, tempsCiel(this.vol), this.vol);
     if (this.terre) dessinerNuages(ctx, W, H, p.x * echelle);
 
     // Terrain (réutilise le rendu de l'atterrissage)
