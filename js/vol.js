@@ -431,6 +431,8 @@ class Vol {
       this.phase = 'ballon';
       this.manette = 0;
       this.xModule = this.x;   // le module blindé reste au sol
+      this.tDecollage = this.t; // la chronologie de la remontée part du gonflage du ballon
+      this.noter('Gonflage du ballon : le lanceur Aphrodite quitte le sol');
       this.messageExplo = { texte: `Gonflage du ballon : montée lente vers ${fmtAlt(this.f.aerostat.alt)}, au-dessus de la fournaise. Accélérez le temps (+).`, vie: 9 };
     }
   }
@@ -491,7 +493,7 @@ class Vol {
 
   terminer(cause) {
     const detruite = ['ecrasee', 'brulee', 'pressurisee', 'carburant', 'irradiee'].includes(cause);
-    if (this.lancement && cause === 'orbite') this.noter(`Mise en orbite à ${fmtAlt(this.y)}, ${fmtV(Math.abs(this.vx))}`);
+    if ((this.lancement || this.ascension) && cause === 'orbite') this.noter(`Mise en orbite à ${fmtAlt(this.y)}, ${fmtV(Math.abs(this.vx))}`);
     if (this.lancement && detruite) this.noter('Perte du lanceur');
     this.fin = {
       cause, detruite,
@@ -505,6 +507,9 @@ class Vol {
       integrite: this.integrite,
       altitude: this.y,
       vitesse: Math.hypot(this.vx, this.vy),
+      vOrbitale: this.vOrbitale(),            // vitesse circulaire à l'altitude atteinte (pour comparer)
+      lancementTerre: !!this.lancement,       // méga-fusée partie de la Terre (pas la remontée d'un atterrisseur)
+      pertes: this.pertes || [],              // spationaute ou robot perdus pendant une sortie
       dejaPose: !!this.dejaPose,
       chrono: this.chrono || [],
       degats: { ...this.degats },

@@ -716,6 +716,8 @@ function image(t) {
     if (etat.pause && !Infos.estOuverte()) dessinerPause(ctx, canvas.width, canvas.height);
     if (x.fin) {
       etat.vol.messageExplo = { texte: x.fin.texte, vie: 8 };
+      // Une sortie qui tourne mal est notée : l'écran de résultat en parlera, même si la remontée réussit.
+      if (x.fin.issue === 'perdu' && !x.terre) (etat.vol.pertes = etat.vol.pertes || []).push({ qui: x.type, texte: x.fin.texte });
       if (etat.voyage && etat.enVoyage) etat.voyage.journal.push({ t: etat.voyage.t, texte: `${etat.vol.astre.nom} : ${x.fin.texte}` });
       etat.explo = null;
       touches.clear();

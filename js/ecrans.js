@@ -327,8 +327,12 @@ function texteResultat(r) {
       return [`Réussite : posé sur ${a.nom}`, 'succes', `Contact à ${fmt(i ? i.vv : 0, 1)} m/s.` +
         (i && i.degats > 0 ? ` Atterrissage dur : la coque a perdu ${fmt(i.degats)} %.` : '') +
         ' Pour la réussite totale, redécollez et atteignez la vitesse orbitale.'];
-    case 'orbite':
-      return ['Réussite totale : retour en orbite', 'succes', `Posé sur ${a.nom}, puis mis en orbite à ${fmtAlt(Math.max(0, r.altitude))} et ${fmtV(r.vitesse)} : l'orbiteur vous récupère.`];
+    case 'orbite': {
+      // La vitesse est comparée à la vitesse circulaire à cette altitude : le jeu valide l'orbite à 97 %,
+      // l'orbiteur fait l'appoint au rendez-vous.
+      const pct = r.vOrbitale ? ` (${fmt((r.vitesse / r.vOrbitale) * 100)} % de la vitesse orbitale à cette altitude, ${fmtV(r.vOrbitale)} : l’orbiteur fait l’appoint au rendez-vous)` : '';
+      return ['Réussite totale : retour en orbite', 'succes', `Posé sur ${a.nom}, puis mis en orbite à ${fmtAlt(Math.max(0, r.altitude))} et ${fmtV(r.vitesse)}${pct}. L’orbiteur vous récupère.`];
+    }
     case 'liberation':
       return ['Réussite totale : libéré de la gravité', 'succes', `Posé sur ${a.nom}, puis parti à ${fmtV(r.vitesse)}, au-delà de la vitesse de libération : l'orbiteur vous récupère.`];
     case 'plongee':
@@ -339,17 +343,33 @@ function texteResultat(r) {
   return [r.cause, 'partiel', ''];
 }
 
+const minuscule = (t) => t.charAt(0).toLowerCase() + t.slice(1);
+
 function afficherResultat(r) {
   let [titre, classe, message] = texteResultat(r);
   if (r.messageLancement) { titre = 'Lancement réussi'; classe = 'succes'; message = r.messageLancement; }
-  else if (r.fusee && r.fusee.mega) { titre = 'Échec du lancement : ' + titre.toLowerCase(); }
+  // « Échec du lancement » ne concerne que les méga-fusées parties de la Terre
+  // (pas le lanceur de remontée de Vénus, qui a aussi plusieurs étages).
+  else if (r.lancementTerre) { titre = 'Échec du lancement : ' + titre.toLowerCase(); }
+  // Le sort de l'équipage est séparé de celui de l'engin : on dit clairement ce qui s'est passé.
+  const pertes = r.pertes || [];
+  const equipage = pertes.find((p) => p.qui === 'spationaute');
+  const robot = pertes.find((p) => p.qui === 'robot');
+  if (equipage) {
+    if (classe === 'succes') {
+      titre = `Réussite partielle : ${titre.replace(/^Réussite( totale)? : /, '').toLowerCase()}, mais ${nomSpatio()} est perdu${acc()}`;
+      classe = 'partiel';
+    }
+    message += ` Pendant la sortie à la surface : ${minuscule(equipage.texte)}`;
+  }
+  if (robot) message += ` Le robot a été perdu : ${minuscule(robot.texte)}`;
   const h = $('res-titre');
   h.textContent = titre;
   h.className = classe;
   $('res-message').textContent = message;
   $('res-stats').innerHTML = `
     <dt>Destination</dt><dd>${r.astre.nom}</dd>
-    <dt>Durée du vol</dt><dd>${fmt(r.temps)} s</dd>
+    <dt>Durée du vol</dt><dd>${fmtDuree(r.temps)}</dd>
     <dt>Vitesse max</dt><dd>${fmtV(r.stats.vMax)}</dd>
     <dt>Pression max</dt><dd>${fmtP(r.stats.pMax)}</dd>
     <dt>Température coque max</dt><dd>${fmt(r.stats.tMax)} °C</dd>
