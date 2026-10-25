@@ -70,6 +70,7 @@ Tenue : combinaison de vol bleue de l'ESA sur Terre, scaphandre blanc aux couleu
     - Une mission dure 1, 3 ou 7 jours. Un atterrisseur et ses ergols restent occupés ; le coéquipier prélève un échantillon toutes les 6 h (8 au plus) et encaisse la dose du lieu.
     - L'atterrisseur remonte seul à la fin. Au-delà de 4 Sv cumulés, le coéquipier ne revient pas.
     - On ne rentre sur Terre qu'une fois les missions finies ; la capsule ramène les survivants.
+  - **Grappe de sondes** (fiche d'un astre qui a des lunes) : plusieurs sondes partent ensemble de l'orbiteur puis se séparent, une par cible (l'astre et ses lunes, les plus grosses d'abord ; celles déjà sondées sont décochées). Chacune repère sa cible en arrivant.
   5. **Quitter le Système solaire** (bouton « 🌌 » de l'orbiteur) : on choisit une étoile proche réelle (Proxima Centauri, Alpha Centauri, Barnard, Lalande 21185, Epsilon Eridani, Tau Ceti, TRAPPIST-1).
      - **Départ réaliste**, avec deux propulsions :
        - assistances gravitationnelles comme Voyager 1, 17 km/s ;

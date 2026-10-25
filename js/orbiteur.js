@@ -472,6 +472,46 @@ const Orbiteur = {
     this.ouvrirTrajet(id);
   },
 
+  // Grappe de sondes : plusieurs sondes lancées ensemble vers un astre et ses lunes, une par cible
+  // (chacune suit sa propre trajectoire et repère sa cible en arrivant).
+  ouvrirGrappe(centreId) {
+    const v = this.v, p = ASTRES_PAR_ID[centreId];
+    const deja = new Set([...Object.keys(v.sites || {}), ...v.sondesEnVol.map((s) => s.cible)]);
+    const candidats = [p, ...(ENFANTS[p.id] || []).slice().sort((x, y) => y.rayonKm - x.rayonKm)].filter((a) => a.type !== 'etoile').slice(0, 16);
+    const m = $('modale');
+    m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>🛰 Grappe de sondes vers ${p.nom}</h2>
+      <p>Les sondes partent ensemble de l’orbiteur puis se séparent : une par cible. En orbite, chacune cartographie sa cible et repère une zone de base et ses ressources. ${v.sondes} sonde${v.sondes > 1 ? 's' : ''} à bord.</p></div><button class="fermer">✕</button></header>
+      <section>${candidats.map((a, i) => `<label class="choix-ravito"><input type="checkbox" name="grappe" value="${a.id}" ${!deja.has(a.id) && i < v.sondes ? 'checked' : ''}> <b>${a.nom}</b> <span class="doux">— ${fmt(a.rayonKm)} km de rayon${deja.has(a.id) ? ', déjà sondé ou sonde en route' : ''}</span></label>`).join('')}</section>
+      <p id="grappe-info" class="doux"></p>
+      <div class="actions"><span></span><button id="grappe-ok" class="principal">🛰 Lancer la grappe</button></div></div>`;
+    m.classList.remove('cache');
+    m.querySelector('.fermer').onclick = () => Infos.fermer();
+    const choisis = () => [...m.querySelectorAll('input[name=grappe]:checked')].map((i) => i.value);
+    const info = () => {
+      const n = choisis().length;
+      $('grappe-info').textContent = n > v.sondes ? `Pas assez de sondes : ${n} cibles pour ${v.sondes} sonde${v.sondes > 1 ? 's' : ''}.` : `${n} sonde${n > 1 ? 's' : ''} pour ${n} cible${n > 1 ? 's' : ''}.`;
+      $('grappe-ok').disabled = !n || n > v.sondes;
+    };
+    m.querySelectorAll('input').forEach((i) => { i.onchange = info; });
+    info();
+    $('grappe-ok').onclick = () => {
+      const ids = choisis();
+      Infos.fermer();
+      this.lancerGrappe(ids);
+    };
+  },
+  lancerGrappe(ids) {
+    const v = this.v;
+    const n = Math.min(ids.length, v.sondes);
+    for (const id of ids.slice(0, n)) {
+      const c = ASTRES_PAR_ID[id];
+      v.sondes--;
+      v.sondesEnVol.push({ id: 'p' + Date.now() + id, nom: `Sonde ${v.sondesEnVol.length + 1} → ${c.nom}`, cible: id, centre: v.orb.centre, r: v.orb.r.slice(), v: v.orb.v.slice(), transfert: null, etat: 'vol', tLancement: v.t, grappe: true });
+    }
+    this.log(`Grappe de ${n} sonde${n > 1 ? 's' : ''} lancée vers ${ids.slice(0, n).map((id) => ASTRES_PAR_ID[id].nom).join(', ')}.`);
+    this.majHud(true);
+  },
+
   // Ravito : un cargo part de la Terre (ou d'une station) vers une station, sur sa propre trajectoire.
   // contenu : { cle: quantité } ; origineId : la planète d'origine (SYSTEME.origine) ou l'id d'une station.
   lancerCargo(origineId, destId, contenu, nom) {
@@ -801,6 +841,7 @@ const Orbiteur = {
     if (a.type !== 'etoile') l.push({ texte: '🎯 Choisir comme cible', action: () => { this.v.cible = a.id; this.etape = null; this.auto = false; this.majHud(true); } });
     l.push({ texte: '🔭 Centrer la vue', action: () => this.centrerSur(a.id) });
     if (a.type !== 'etoile' && this.v.sondes > 0) l.push({ texte: '🛰 Lancer une sonde', action: () => this.lancerSonde(a.id) });
+    if (a.type !== 'etoile' && this.v.sondes > 1 && (ENFANTS[a.id] || []).length) l.push({ texte: '🛰 Grappe de sondes', action: () => this.ouvrirGrappe(a.id) });
     return l;
   },
 
