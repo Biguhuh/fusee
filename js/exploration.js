@@ -337,23 +337,26 @@ class Exploration {
     this.dire(`Échantillon ramassé : ${site.nom}. ${site.texte}`);
   }
 
-  // Touche F : planter le drapeau (spationaute seulement, pas sur Terre, un drapeau tous les 20 m au plus).
+  // Touche F : planter le drapeau, par le ou la spationaute ou par le robot (avec ou sans équipage, la prise
+  // de possession compte). Pas sur Terre, un drapeau tous les 20 m au plus.
   planterDrapeau() {
     if (this.fin) return;
     if (this.terre) return this.dire('Sur Terre, on garde le drapeau pour les astres.');
-    if (this.type !== 'spationaute') return this.dire('Seul·e le ou la spationaute peut planter le drapeau.');
     if (this.enRover) return this.dire('Descendez du rover (V) pour planter le drapeau.');
-    if (!this.p.auSol) return this.dire('Il faut avoir les pieds au sol pour planter le drapeau.');
+    const robot = this.type === 'robot';
+    if (!this.p.auSol) return this.dire(robot ? 'Le robot doit être au sol pour planter le drapeau.' : 'Il faut avoir les pieds au sol pour planter le drapeau.');
     const liste = (etat.drapeaux[this.astre.id] = etat.drapeaux[this.astre.id] || []);
     if (liste.some((d) => Math.abs(d.x - this.p.x) < 20)) return this.dire('Un drapeau flotte déjà ici.');
-    const x = this.p.x + 1.2 * (this.p.dir || 1);
+    const x = this.p.x + (robot ? 1.6 : 1.2) * (this.p.dir || 1);
     const premier = liste.length === 0;
-    liste.push({ x, par: nomSpatio(), quand: etat.voyage && etat.enVoyage ? etat.voyage.t : null });
+    liste.push({ x, par: robot ? 'robot' : nomSpatio(), robot, quand: etat.voyage && etat.enVoyage ? etat.voyage.t : null });
     sauver(etat);
     this.poussiere(10);
+    if (robot) this.brasDrapeau = 1.5;   // le bras du robot reste sorti un instant
+    const qui = robot ? 'Le robot a planté' : '';
     this.dire(premier
-      ? `🚩 Drapeau des Nations unies et fanion de l’AS Nancy Lorraine plantés sur ${this.astre.nom} : une première !`
-      : `🚩 Un drapeau de plus sur ${this.astre.nom} (${liste.length}).`);
+      ? `🚩 ${robot ? qui + ' le drapeau des Nations unies et le fanion de l’AS Nancy Lorraine' : 'Drapeau des Nations unies et fanion de l’AS Nancy Lorraine plantés'} sur ${this.astre.nom} : une première${robot ? ', sans équipage' : ''} !`
+      : `🚩 ${robot ? qui + ' un drapeau de plus' : 'Un drapeau de plus'} sur ${this.astre.nom} (${liste.length}).`);
   }
 
   terminer(issue, texte) { this.fin = { issue, texte }; }
@@ -486,7 +489,11 @@ class Exploration {
     if (p.auSol) this.inclinaison = this.penteSous(p.x);
     if (this.enRover) dessinerRover(ctx, sx, sy, echelle, p, true, this.inclinaison || 0);
     else if (this.type === 'spationaute') dessinerSpationaute(ctx, sx, sy, echelle, p, this.terre);
-    else dessinerRobot(ctx, sx, sy, echelle, p, this.analyse, this.inclinaison || 0);
+    else {
+      // Le bras sort pendant une analyse, ou un instant après avoir planté le drapeau.
+      if (this.brasDrapeau > 0) this.brasDrapeau -= dt;
+      dessinerRobot(ctx, sx, sy, echelle, p, this.analyse || this.brasDrapeau > 0, this.inclinaison || 0);
+    }
 
     if (this.terre) this.dessinerHudTerre(ctx, W, H);
     else this.dessinerHud(ctx, W, H);
@@ -588,7 +595,7 @@ class Exploration {
       ctx.textAlign = 'left';
     }
     if (!ECRAN_TACTILE) {
-      texteSurFond(ctx, `←→ / Q D : ${this.type === 'robot' || this.enRover ? 'rouler' : 'marcher'}${this.saut && !this.enRover ? ' · ↑ / Z / Espace : sauter' : ''}${this.rover ? ` · V : ${this.enRover ? 'descendre du' : 'monter dans le'} rover` : ''} · E : ${this.type === 'robot' ? 'analyser' : 'ramasser'} (ou rentrer près du module)${this.type === 'spationaute' ? ' · F : planter le drapeau' : ''} · Échap : rappeler`, W / 2, H - 12, { police: '12px system-ui' });
+      texteSurFond(ctx, `←→ / Q D : ${this.type === 'robot' || this.enRover ? 'rouler' : 'marcher'}${this.saut && !this.enRover ? ' · ↑ / Z / Espace : sauter' : ''}${this.rover ? ` · V : ${this.enRover ? 'descendre du' : 'monter dans le'} rover` : ''} · E : ${this.type === 'robot' ? 'analyser' : 'ramasser'} (ou rentrer près du module) · F : planter le drapeau · Échap : rappeler`, W / 2, H - 12, { police: '12px system-ui' });
     }
     ctx.textAlign = 'left';
   }
