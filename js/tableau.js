@@ -66,6 +66,61 @@ function ouvrirLogistique(v, actif) {
   m.querySelectorAll('[data-rav]').forEach((b) => { b.onclick = () => Orbiteur.ouvrirRavito(b.dataset.rav); });
 }
 
+// ---------- Ressources : où miner quoi ----------
+// Familles de ressources, reconnues dans la ressource locale de chaque astre. « Matériaux » : la mine
+// d'une base agrandie (niveau 2 et plus), possible sur tout astre solide.
+const FAMILLES_RESSOURCES = [
+  { id: 'eau', nom: '💧 Glace d’eau', def: 'hydrogène et oxygène pour les ergols', test: (txt) => /eau|cratères|argiles|glace$/.test(txt) },
+  { id: 'methane', nom: '🔥 Méthane', def: 'carburant tout prêt', test: (txt) => /méthane liquide|de méthane/.test(txt) },
+  { id: 'co2', nom: '🌫 CO₂', def: 'transformé en méthane et oxygène avec l’eau du sol', test: (txt) => /CO₂/.test(txt) },
+  { id: 'azote', nom: '❄ Glace d’azote', def: 'gaz de pressurisation et propulseurs froids', test: (txt) => /azote/.test(txt) },
+  { id: 'materiaux', nom: '⛏ Matériaux', def: 'métaux et silicates, par la mine d’une base de niveau 2 et plus', test: null },
+];
+
+// Astres où l'on peut miner une famille de ressources : [{ a, richesse (kg/jour, base niveau 1 ou 2), texte }].
+function astresPourRessource(famille) {
+  const f = FAMILLES_RESSOURCES.find((x) => x.id === famille);
+  const l = [];
+  for (const a of ASTRES) {
+    if (a.type !== 'solide' || estOrigine(a.id)) continue;
+    if (famille === 'materiaux') { l.push({ a, richesse: productionMateriaux(a, 2), texte: 'mine au niveau 2' }); continue; }
+    const [txt, prod] = ressourceLocale(a);
+    if (txt && prod > 0 && f.test(txt)) l.push({ a, richesse: prod, texte: txt });
+  }
+  return l;
+}
+
+function ouvrirRessources(v, famille = 'eau', tout = false) {
+  const m = $('modale');
+  const ici = v.orb ? V.add(etatAbsolu(v.orb.centre, v.t).r, v.orb.r) : etatAbsolu(SYSTEME.origine, v.t).r;
+  const liste = astresPourRessource(famille).map((x) => ({ ...x, d: V.norm(V.sub(etatAbsolu(x.a.id, v.t).r, ici)) }))
+    .sort((p, q) => q.richesse - p.richesse || p.d - q.d);
+  const montrees = tout ? liste : liste.slice(0, 40);
+  const fmtD = (km) => (km > 0.05 * UA_KM ? `${fmt(km / UA_KM, 2)} UA` : `${fmt(km)} km`);
+  const f = FAMILLES_RESSOURCES.find((x) => x.id === famille);
+  m.innerHTML = `<div class="fenetre large"><header class="entete"><div><h2>⛏ Où miner quoi ?</h2>
+    <p>Choisissez une ressource : les astres où une base peut l’exploiter, les plus riches d’abord, puis les plus proches ${v.orb ? 'de l’orbiteur' : `de ${SYSTEME.nomOrigine}`}.</p></div><button class="fermer">✕</button></header>
+    <div class="orientations">${FAMILLES_RESSOURCES.map((x) => `<button data-famille="${x.id}" class="${x.id === famille ? 'principal' : ''}">${x.nom}</button>`).join('')}</div>
+    <p class="doux">${f.nom} : ${f.def}. ${liste.length} astre${liste.length > 1 ? 's' : ''}.</p>
+    <div class="defile"><table class="logistique"><thead><tr><th>Astre</th><th>Ressource</th><th>Richesse</th><th>Distance</th><th></th></tr></thead><tbody>${montrees.map((x) => {
+      const b = baseSur(v, x.a.id);
+      return `<tr><td><button class="lien-astre" data-id="${x.a.id}">${x.a.nom}</button>${b ? ` <span class="doux">🏠 niv. ${b.niveau || 1}</span>` : ''}</td><td>${x.texte}</td><td>${fmt(x.richesse / 1000, 1)} t/jour</td><td>${fmtD(x.d)}</td><td>${v.orb ? `<button data-cible="${x.a.id}" ${v.cible === x.a.id ? 'disabled' : ''}>🎯 Cible</button>` : ''}</td></tr>`;
+    }).join('')}</tbody></table></div>
+    ${!tout && liste.length > montrees.length ? `<p><button id="res-tout">Voir les ${liste.length} astres</button></p>` : ''}</div>`;
+  m.classList.remove('cache');
+  m.querySelector('.fermer').onclick = () => Infos.fermer();
+  m.querySelectorAll('[data-famille]').forEach((b) => { b.onclick = () => ouvrirRessources(v, b.dataset.famille); });
+  const bt = $('res-tout'); if (bt) bt.onclick = () => ouvrirRessources(v, famille, true);
+  m.querySelectorAll('.lien-astre').forEach((b) => { b.onclick = () => Infos.ouvrirFiche(b.dataset.id); });
+  m.querySelectorAll('[data-cible]').forEach((b) => {
+    b.onclick = () => {
+      v.cible = b.dataset.cible; Orbiteur.etape = null; Orbiteur.auto = false;
+      Orbiteur.log(`Nouvelle cible : ${ASTRES_PAR_ID[v.cible].nom} (${f.nom.replace(/^\S+\s/, '')}).`);
+      Infos.fermer(); Orbiteur.majHud(true);
+    };
+  });
+}
+
 // Sections du tableau de bord (HTML) et branchement des boutons. actif : l'orbiteur est ouvert (actions permises).
 function tableauAstre(v, a, actif) {
   if (!v || a.type === 'etoile') return null;

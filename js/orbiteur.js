@@ -1637,7 +1637,7 @@ const Orbiteur = {
     if (v.cible && sondeVers(v, v.cible)) d += `<button disabled title="Une seule sonde par astre">🛰 Sonde déjà envoyée vers ${ASTRES_PAR_ID[v.cible].nom}</button>`;
     else if (v.cible && v.sondes > 0) d += `<button id="nav-sonde">🛰 Sonde vers ${ASTRES_PAR_ID[v.cible].nom} (repérage)</button>`;
     if (v.stations.length) d += `<button id="nav-ravito">📦 Envoyer un ravito</button>`;
-    d += `<button id="nav-logistique">📊 Logistique</button><button id="nav-journal">📜 Journal</button></div>`;
+    d += `<button id="nav-logistique">📊 Logistique</button><button id="nav-ressources">⛏ Où miner quoi ?</button><button id="nav-journal">📜 Journal</button></div>`;
     // Site repéré pour une base sur l'astre courant
     const site = (v.sites || {})[c.id];
     if (c.type === 'solide' && !estOrigine(c.id)) {
@@ -1690,6 +1690,7 @@ const Orbiteur = {
     bind('nav-depart', () => Depart.ouvrir(this.v));
     bind('nav-plein-origine', () => { this.pleinDepuisOrigine(); this.majHud(true); });
     bind('nav-logistique', () => ouvrirLogistique(this.v, true));
+    bind('nav-ressources', () => ouvrirRessources(this.v));
     bind('nav-amarrer', () => { this.amarrer(); this.majHud(true); });
     bind('nav-station', () => { this.construireStation(); this.majHud(true); });
     bind('nav-sonde', () => { this.lancerSonde(v.cible); this.majHud(true); });
