@@ -726,6 +726,22 @@ function assombrir(hex, k) {
   return `rgb(${f((n >> 16) & 255)},${f((n >> 8) & 255)},${f(n & 255)})`;
 }
 
+// Échelle de la caméra (pixels par mètre) pendant un vol au-dessus d'un sol.
+// Près du sol : le sol reste dans le bas de l'écran. En prenant de l'altitude (de 0,2 % à 2 % du rayon
+// de l'astre), la caméra recule progressivement jusqu'à cadrer le sol jusqu'à l'horizon réel :
+// la courbure apparaît alors comme en vrai (horizon abaissé de acos(R / (R + h))), pour tout astre.
+function echelleCamera(a, alt, W, H) {
+  const h = Math.max(alt, 1);
+  const proche = Math.min(3, (0.45 * H) / h);
+  const R = a.rayonKm * 1000;
+  const horizon = R * Math.acos(R / (R + h));            // distance au sol jusqu'à l'horizon
+  const large = Math.min(proche, W / (1.7 * horizon));   // on voit le sol presque jusqu'à l'horizon
+  const x = (Math.log10(h / R) - Math.log10(0.002)) / (Math.log10(0.02) - Math.log10(0.002));
+  const f = Math.max(0, Math.min(1, x));
+  const lisse = f * f * (3 - 2 * f);                     // transition douce
+  return Math.exp((1 - lisse) * Math.log(proche) + lisse * Math.log(large));
+}
+
 function dessinerVol(ctx, vol, W, H, dtReel, warp) {
   if (!(W > 0 && H > 0)) return;   // fenêtre réduite à rien (onglet caché) : rien à dessiner
   const a = vol.astre, c = vol.c;
@@ -740,7 +756,7 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
     solY = fuseeY + vol.y * echelle;
   } else {
     const alt = vol.altSol();
-    echelle = Math.min(3, (0.45 * H) / Math.max(alt, 1));
+    echelle = echelleCamera(a, alt, W, H);
     fuseeY = H * 0.8 - alt * echelle;
     solY = fuseeY + vol.y * echelle;
   }
