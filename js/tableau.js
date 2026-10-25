@@ -49,7 +49,7 @@ function ouvrirLogistique(v, actif) {
     const sts = v.stations.filter((s) => s.centre === a.id);
     const ech = (v.echantillonsRapportes || {})[a.id] || 0;
     const prod = bases.map((b) => { const n = b.niveau || 1; const e = ressourceLocale(a)[1] * n, mt = productionMateriaux(a, n); return `niv. ${n}${e ? ` · ${fmt(e / 1000, 1)} t ergols/j` : ''}${mt ? ` · ${fmt(mt / 1000, 1)} t mat./j` : ''}`; }).join('<br>') || '—';
-    const stock = sts.map((s) => `${s.nom} : ${fmtStock('ergols', s.stock.ergols || 0)} ergols, ${fmtStock('materiaux', s.stock.materiaux || 0)} mat.${(s.chantiers || []).length ? ` · 🔧 ${s.chantiers.length}` : ''}`).join('<br>') || '—';
+    const stock = sts.map((s) => `${s.nom} (niv. ${s.niveau || 1}${s.agrandissement ? ' ⬆' : ''}) : ${fmtStock('ergols', s.stock.ergols || 0)} ergols, ${fmtStock('materiaux', s.stock.materiaux || 0)} mat.${(s.chantiers || []).length ? ` · 🔧 ${s.chantiers.length}` : ''}`).join('<br>') || '—';
     return `<tr><td><button class="lien-astre" data-id="${a.id}">${a.nom}</button></td><td>${v.visites[a.id] && v.visites[a.id].pose ? '✓' : ''}</td><td>${ech || ''}</td><td>${prod}</td><td>${stock}</td></tr>`;
   }).join('');
   const enRoute = [...(v.cargos || []).map((c) => `📦 ${c.nom}`), ...v.sondesEnVol.map((s) => `🛰 ${s.nom} (${s.etat === 'vol' ? 'en route' : 'en orbite'})`)];
@@ -99,8 +99,16 @@ function tableauAstre(v, a, actif) {
   const stations = v.stations.filter((s) => s.centre === a.id);
   for (const st of stations) {
     const k = st.stock;
-    const stock = Object.keys(NOMS_STOCK).filter((c) => k[c]).map((c) => `${NOMS_STOCK[c]} ${fmtStock(c, k[c])} / ${fmtStock(c, CAPACITES_STATION[c])}`).join(' · ') || 'stock vide';
-    orb += `<dt>🛰 ${st.nom}</dt><dd>${stock}</dd>`;
+    const stock = Object.keys(NOMS_STOCK).filter((c) => k[c]).map((c) => `${NOMS_STOCK[c]} ${fmtStock(c, k[c])} / ${fmtStock(c, capaciteStation(st, c))}`).join(' · ') || 'stock vide';
+    const n = st.niveau || 1;
+    orb += `<dt>🛰 ${st.nom}, niveau ${n}</dt><dd>${niveauStation(st).apport}<br>${stock}</dd>`;
+    // Niveau suivant de la station : extension de station en stock, puis assemblage en orbite.
+    let suivant;
+    if (n >= 5) suivant = 'niveau maximal atteint';
+    else if (st.agrandissement) suivant = `assemblage en cours, terminé dans ${fmtDuree(st.agrandissement.fin - v.t)}`;
+    else if ((k.extensionsStation || 0) > 0) suivant = `${NIVEAUX_STATION[n + 1].apport} ${bouton(`agrandir:${st.id}`, `⬆ Agrandir (niveau ${n + 1})`)}`;
+    else suivant = `${NIVEAUX_STATION[n + 1].apport} — il faut 1 extension de station (atelier : ${fmtStock('materiaux', RECETTES.extensionsStation.materiaux)} de matériaux, ou ravito « Extension de station »)`;
+    if (n < 5 || st.agrandissement) orb += `<dt>Niveau ${Math.min(5, n + 1)}</dt><dd>${suivant}</dd>`;
     for (const ch of st.chantiers || []) orb += ligne('🔧 Chantier', `${RECETTES[ch.cle].nom}, prêt dans ${fmtDuree(ch.fin - v.t)}`);
     if (actif) {
       const fab = Object.entries(RECETTES).filter(([cle]) => cle !== 'lanceurRetour' || AEROSTAT[st.centre])
@@ -123,6 +131,7 @@ function tableauAstre(v, a, actif) {
         const [type, p1, p2] = el.dataset.tb.split(':');
         if (type === 'extension') Orbiteur.envoyerExtension(Number(p1));
         if (type === 'fab') Orbiteur.fabriquer(p1, p2);
+        if (type === 'agrandir') Orbiteur.agrandirStation(p1);
         if (type === 'ravito') return Orbiteur.ouvrirRavito(p1);
         Orbiteur.majHud(true);
         rafraichir();

@@ -196,14 +196,30 @@ function configurerEtage(f, i) {
 
 // ---------- Stocks des stations ----------
 const CAPACITES_STATION = {
-  carburant: 200000, ergols: 200000, materiaux: 150000, sondes: 10, kits: 4, kitsBase: 3, robots: 4, atterrisseurs: 4, extensions: 4, lanceurRetour: 2,
+  carburant: 200000, ergols: 200000, materiaux: 150000, sondes: 10, kits: 4, kitsBase: 3, robots: 4, atterrisseurs: 4, extensions: 4, lanceurRetour: 2, extensionsStation: 2,
 };
-const STOCK_VIDE = () => ({ carburant: 0, ergols: 0, materiaux: 0, sondes: 0, kits: 0, kitsBase: 0, robots: 0, atterrisseurs: 0, extensions: 0, lanceurRetour: 0 });
+const STOCK_VIDE = () => ({ carburant: 0, ergols: 0, materiaux: 0, sondes: 0, kits: 0, kitsBase: 0, robots: 0, atterrisseurs: 0, extensions: 0, lanceurRetour: 0, extensionsStation: 0 });
 const NOMS_STOCK = {
   carburant: 'carburant', ergols: 'ergols', materiaux: 'matériaux', sondes: 'sondes', kits: 'kits de station',
   kitsBase: 'kits de base', robots: 'robots', atterrisseurs: 'atterrisseurs', extensions: 'extensions de base',
-  lanceurRetour: 'lanceurs de retour',
+  lanceurRetour: 'lanceurs de retour', extensionsStation: 'extensions de station',
 };
+
+// Niveaux des stations orbitales. Chaque niveau s'obtient avec une extension de station (atelier ou ravito),
+// assemblée en orbite en quelques jours.
+//   stock : multiplie les capacités de stockage ; vitesse : accélère les chantiers de l'atelier ;
+//   ravito : multiplie le ravitaillement courant ; habitat : accueille l'équipe de spationautes ;
+//   interstellaire : chantier du vaisseau de départ vers une autre étoile.
+const NIVEAUX_STATION = {
+  1: { stock: 1, vitesse: 1, ravito: 1, apport: 'amarrage, stock, atelier' },
+  2: { stock: 2, vitesse: 1, ravito: 1, apport: 'stockage doublé' },
+  3: { stock: 2, vitesse: 1.5, ravito: 2, apport: 'chantiers 1,5 fois plus rapides, ravitaillement courant doublé' },
+  4: { stock: 3, vitesse: 1.5, ravito: 2, habitat: true, apport: 'habitat pour l’équipe de spationautes, stockage triplé' },
+  5: { stock: 3, vitesse: 2, ravito: 2, habitat: true, interstellaire: true, apport: 'chantier interstellaire : assemble le vaisseau de départ vers une autre étoile, chantiers 2 fois plus rapides' },
+};
+const DUREE_AGRANDISSEMENT = 10 * JOUR;
+function niveauStation(st) { return NIVEAUX_STATION[st.niveau || 1]; }
+function capaciteStation(st, cle) { return (CAPACITES_STATION[cle] || Infinity) * niveauStation(st).stock; }
 
 // Vénus : y a-t-il un lanceur de retour disponible en orbite de cet astre ? Renvoie { station, pret, chantier }.
 function lanceurRetourDisponible(v, astreId) {
@@ -227,6 +243,10 @@ const CONTENUS_CARGO = {
   },
   ergols: { nom: 'Ergols', description: 'Carburant pour l’orbiteur et ergols pour les atterrisseurs.', contenu: { carburant: 60000, ergols: 60000 } },
   materiaux: { nom: 'Matériaux', description: 'Pour l’atelier de la station : sondes, robots, atterrisseurs, kits.', contenu: { materiaux: 40000, kitsBase: 1 } },
+  extensionStation: {
+    nom: 'Extension de station', description: 'Agrandit la station de destination d’un niveau (plus de stockage, chantiers plus rapides, habitat, puis chantier interstellaire).',
+    contenu: { extensionsStation: 1, materiaux: 10000 },
+  },
 };
 
 // Atelier d'une station : ce qu'on fabrique avec les matériaux (et les ergols) du stock.
@@ -237,6 +257,7 @@ const RECETTES = {
   kitsBase: { nom: 'Kit de base', materiaux: 15000 },
   kits: { nom: 'Kit de station', materiaux: 20000 },
   extensions: { nom: 'Extension de base', materiaux: 12000 },
+  extensionsStation: { nom: 'Extension de station', materiaux: 30000, duree: 5 * JOUR },
   // Vénus : lanceur à deux étages et son ballon, construit en orbite puis envoyé au sol sous parachute.
   lanceurRetour: { nom: 'Lanceur de retour (ballon + Aphrodite)', materiaux: 20000, ergols: 37000, duree: 20 * JOUR },
 };
@@ -255,12 +276,14 @@ function intervalleCargo(centreId) {
 
 function ajouterAuStock(s, contenu) {
   const k = s.stock;
-  for (const [cle, q] of Object.entries(contenu)) k[cle] = Math.min(CAPACITES_STATION[cle] || Infinity, (k[cle] || 0) + q);
+  for (const [cle, q] of Object.entries(contenu)) k[cle] = Math.min(capaciteStation(s, cle), (k[cle] || 0) + q);
 }
 
-// Ravitaillement courant : de quoi vivre et refaire un peu les pleins. Le reste, ce sont les ravitos lancés par le joueur.
+// Ravitaillement courant : de quoi vivre et refaire un peu les pleins (doublé à partir du niveau 3).
+// Le reste, ce sont les ravitos lancés par le joueur.
 function livrerCargo(s) {
-  ajouterAuStock(s, s.terrestre ? { carburant: 30000, ergols: 30000, sondes: 1, kits: 1 } : { carburant: 15000, ergols: 15000, sondes: 1 });
+  const f = niveauStation(s).ravito;
+  ajouterAuStock(s, s.terrestre ? { carburant: 30000 * f, ergols: 30000 * f, sondes: f, kits: 1 } : { carburant: 15000 * f, ergols: 15000 * f, sondes: f });
 }
 
 // ---------- Bases au sol et ressources locales ----------

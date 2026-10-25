@@ -60,6 +60,11 @@ Tenue : combinaison de vol bleue de l'ESA sur Terre, scaphandre blanc aux couleu
     - Ravitos et sondes en route.
 
     Un clic sur un astre ouvre son tableau de bord.
+  - **Niveaux des stations** (1 à 5). Une extension de station (atelier : 30 t de matériaux, ou ravito « Extension de station ») s'assemble en orbite en 10 jours, depuis le tableau de bord de l'astre.
+    - Niveau 2 : stockage doublé.
+    - Niveau 3 : chantiers 1,5 fois plus rapides, ravitaillement courant doublé.
+    - Niveau 4 : habitat pour l'équipe de spationautes, stockage triplé.
+    - Niveau 5 : chantier interstellaire, qui assemble le vaisseau de départ vers une autre étoile ; chantiers 2 fois plus rapides.
   5. **Quitter le Système solaire** (bouton « 🌌 » de l'orbiteur) : on choisit une étoile proche réelle (Proxima Centauri, Alpha Centauri, Barnard, Lalande 21185, Epsilon Eridani, Tau Ceti, TRAPPIST-1).
      - **Départ réaliste**, avec deux propulsions :
        - assistances gravitationnelles comme Voyager 1, 17 km/s ;

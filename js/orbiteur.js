@@ -622,6 +622,12 @@ const Orbiteur = {
         this.log(`Atelier de ${s.nom} : ${RECETTES[c.cle].nom.toLowerCase()} terminé, prêt à être envoyé.`);
       }
       if (s.chantiers) s.chantiers = s.chantiers.filter((x) => v.t < x.fin);
+      // Agrandissement de la station terminé : niveau suivant.
+      if (s.agrandissement && v.t >= s.agrandissement.fin) {
+        s.niveau = Math.min(5, (s.niveau || 1) + 1);
+        delete s.agrandissement;
+        this.log(`${s.nom} agrandie : niveau ${s.niveau} — ${niveauStation(s).apport}.`);
+      }
       if (!s.prochainCargo) s.prochainCargo = v.t + intervalleCargo(s.centre);
       let n = 0;
       while (v.t >= s.prochainCargo && n++ < 50) {
@@ -646,18 +652,31 @@ const Orbiteur = {
       // Ergols (ressource locale) et matériaux (mine), proportionnels au niveau de la base.
       const prod = productionBase(a) * b.niveau * (dt / JOUR);
       const mat = productionMateriaux(a, b.niveau) * (dt / JOUR);
-      if (st && mat > 0) st.stock.materiaux = Math.min(CAPACITES_STATION.materiaux, st.stock.materiaux + mat);
+      if (st && mat > 0) st.stock.materiaux = Math.min(capaciteStation(st, 'materiaux'), st.stock.materiaux + mat);
       b.materiauxTotal = (b.materiauxTotal || 0) + mat;
       // La base garde d'abord 20 t pour les atterrisseurs ; sa navette monte le surplus à la station.
       b.stock = (b.stock || 0) + prod;
       const surplus = b.stock - 20000;
       if (st && surplus > 0) {
-        const monte = Math.min(CAPACITES_STATION.ergols - st.stock.ergols, surplus);
+        const monte = Math.max(0, Math.min(capaciteStation(st, 'ergols') - st.stock.ergols, surplus));
         st.stock.ergols += monte;
         b.stock -= monte;
       }
       b.produitTotal = (b.produitTotal || 0) + prod;
     }
+  },
+
+  // Agrandir une station d'un niveau avec une extension de station en stock (assemblage en orbite).
+  agrandirStation(stationId) {
+    const st = this.v.stations.find((s) => s.id === stationId);
+    if (!st) return;
+    const n = st.niveau || 1;
+    if (n >= 5) return this.log(`${st.nom} est déjà au niveau maximal (5).`);
+    if (st.agrandissement) return this.log(`${st.nom} est déjà en cours d’agrandissement.`);
+    if ((st.stock.extensionsStation || 0) <= 0) return this.log(`${st.nom} n’a pas d’extension de station : fabriquez-en une à l’atelier ou envoyez un ravito « Extension de station ».`);
+    st.stock.extensionsStation -= 1;
+    st.agrandissement = { fin: this.v.t + DUREE_AGRANDISSEMENT };
+    this.log(`${st.nom} : assemblage du niveau ${n + 1} en orbite (${NIVEAUX_STATION[n + 1].apport}), terminé dans ${fmtDuree(DUREE_AGRANDISSEMENT)}.`);
   },
 
   // Une extension arrivée à la station descend à la surface dans un module de descente, qui se pose
@@ -732,13 +751,14 @@ const Orbiteur = {
     if (r.ergols && st.stock.ergols < r.ergols) return this.log(`${st.nom} : pas assez d’ergols pour un(e) ${r.nom.toLowerCase()} (${fmtStock('ergols', r.ergols)} nécessaires).`);
     st.chantiers = st.chantiers || [];
     const enCours = st.chantiers.filter((c) => c.cle === cle).length;
-    if ((st.stock[cle] || 0) + enCours >= CAPACITES_STATION[cle]) return this.log(`${st.nom} : stock de ${NOMS_STOCK[cle]} plein.`);
+    if ((st.stock[cle] || 0) + enCours >= capaciteStation(st, cle)) return this.log(`${st.nom} : stock de ${NOMS_STOCK[cle]} plein.`);
     st.stock.materiaux -= r.materiaux;
     if (r.ergols) st.stock.ergols -= r.ergols;
     const cout = `${fmtStock('materiaux', r.materiaux)} de matériaux${r.ergols ? ` et ${fmtStock('ergols', r.ergols)} d’ergols` : ''}`;
     if (r.duree) {
-      st.chantiers.push({ cle, fin: this.v.t + r.duree });
-      return this.log(`Atelier de ${st.nom} : chantier « ${r.nom} » lancé (${cout}). Prêt le ${fmtDate(this.v.t + r.duree)}.`);
+      const duree = r.duree / niveauStation(st).vitesse;     // chantiers plus rapides dans une grande station
+      st.chantiers.push({ cle, fin: this.v.t + duree });
+      return this.log(`Atelier de ${st.nom} : chantier « ${r.nom} » lancé (${cout}). Prêt le ${fmtDate(this.v.t + duree)}.`);
     }
     st.stock[cle] = (st.stock[cle] || 0) + 1;
     this.log(`Atelier de ${st.nom} : ${r.nom.toLowerCase()} fabriqué(e) avec ${cout}.`);
