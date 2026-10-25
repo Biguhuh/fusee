@@ -51,7 +51,7 @@ function montrer(ecran) {
   $('ecran-hangar').classList.toggle('cache', ecran !== 'hangar');
   $('ecran-carte').classList.toggle('cache', ecran !== 'carte');
   $('ecran-resultat').classList.toggle('cache', ecran !== 'resultat');
-  canvas.classList.toggle('cache', ecran !== 'vol' && ecran !== 'explo');
+  canvas.classList.toggle('cache', ecran !== 'vol' && ecran !== 'explo' && ecran !== 'amarrage');
   $('ecran-nav').classList.toggle('cache', ecran !== 'nav');
   $('ecran-spatio').classList.toggle('cache', ecran !== 'spatio');
   Infos.infobulle(0, 0, null);
@@ -146,6 +146,30 @@ function lancer(options = {}) {
   touches.clear();
   redim();
   montrer('vol');
+}
+
+// Mise en orbite réussie : on passe d'abord en vue orbite pour le rendez-vous et l'amarrage.
+function terminerVol(vol) {
+  if (vol.fin.cause === 'orbite' && !vol.amarrageFait) {
+    vol.amarrageFait = true;
+    etat.amarrage = new Amarrage(vol.astre, vol.y, cibleAmarrage(vol), tempsCiel(vol), vol.lancement ? 'Expédition' : etat.enVoyage ? 'Atterrisseur' : 'Vous');
+    montrer('amarrage');
+    return;
+  }
+  finVol(vol.fin);
+}
+// Ce que l'engin doit rejoindre : la station terrestre (ou l'orbite de travail à 400 km) après un lancement,
+// l'orbiteur après une remontée en campagne ; rien en visite rapide (on fait juste un tour d'orbite).
+function cibleAmarrage(vol) {
+  const voy = etat.voyage, a = vol.astre;
+  const altDe = (r) => (Math.hypot(r[0], r[1]) - a.rayonKm) * 1000;
+  if (vol.lancement) {
+    const st = voy && voy.stations.find((s) => s.centre === 'terre');
+    if (st) return { nom: st.nom, alt: altDe(propager(st.r, st.v, voy.t - st.t0, a.gm).r), vaisseau: true };
+    return { nom: 'l’orbite de travail', alt: 400000, vaisseau: false };
+  }
+  if (etat.enVoyage && voy && voy.orb && voy.orb.centre === a.id) return { nom: 'l’orbiteur', alt: altDe(voy.orb.r), vaisseau: true };
+  return null;
 }
 
 function finVol(r) {
@@ -530,6 +554,7 @@ for (const el of [canvas, toile]) {
     const bouge = glisser && glisser.bouge;
     glisser = null;
     if (bouge) return;
+    if (etat.ecran === 'amarrage') { if (etat.amarrage) etat.amarrage.passer(); return; }
     // Petit écran : un appui sur le tableau de bord compact l'agrandit (et inversement).
     if (etat.ecran === 'vol' && etat.vol && ZONE_HUD) {
       const z = ZONE_HUD;
@@ -541,6 +566,8 @@ for (const el of [canvas, toile]) {
   });
   el.addEventListener('dblclick', (e) => { const id = astreSousSouris(e); if (id && etat.ecran === 'nav') Orbiteur.centrerSur(id); });
 }
+// Vue orbite de l'amarrage : un toucher la fait passer.
+canvas.addEventListener('touchend', (e) => { if (etat.ecran === 'amarrage' && etat.amarrage) { e.preventDefault(); etat.amarrage.passer(); } });
 toile.addEventListener('wheel', (e) => { e.preventDefault(); Orbiteur.molette(e); }, { passive: false });
 
 // ---------- Clavier ----------
@@ -558,6 +585,11 @@ addEventListener('keydown', (e) => {
   // Espace / Entrée sur un bouton qui a gardé le focus : c'est pour le jeu, pas pour recliquer le bouton.
   if (e.target && e.target.tagName === 'BUTTON' && ['Space', 'Enter'].includes(e.code) && ['vol', 'explo', 'nav'].includes(etat.ecran)) e.preventDefault();
   if (e.code === 'KeyI') { Infos.ouvrirEncyclopedie(); return; }
+  if (etat.ecran === 'amarrage') {
+    if (['Enter', 'Space', 'Escape', 'NumpadEnter'].includes(e.code)) { e.preventDefault(); if (etat.amarrage) etat.amarrage.passer(); }
+    if (e.code === 'KeyP') etat.pause = !etat.pause;
+    return;
+  }
   if (etat.ecran === 'nav') {
     if (CODES_JEU.includes(e.code)) e.preventDefault();
     if (e.code === 'KeyP') etat.pause = !etat.pause;
@@ -736,8 +768,14 @@ function image(t) {
     if (etat.pause && !Infos.estOuverte()) dessinerPause(ctx, canvas.width, canvas.height);
     if (v.fin) {
       etat.finDepuis += dt;
-      if (etat.finDepuis > (v.fin.detruite ? 1.8 : 0.6)) finVol(v.fin);
+      if (etat.finDepuis > (v.fin.detruite ? 1.8 : 0.6)) terminerVol(v);
     }
+  } else if (etat.ecran === 'amarrage' && etat.amarrage) {
+    const am = etat.amarrage;
+    if (!etat.pause) am.step(dt);
+    am.dessiner(ctx, canvas.width, canvas.height);
+    if (etat.pause && !Infos.estOuverte()) dessinerPause(ctx, canvas.width, canvas.height);
+    if (am.fini) { etat.amarrage = null; finVol(etat.vol.fin); }
   } else if (etat.ecran === 'explo' && etat.explo) {
     const x = etat.explo;
     if (!etat.pause && !x.fin) {
