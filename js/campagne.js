@@ -287,6 +287,15 @@ function productionBase(a) { return ressourceLocale(a)[1]; }
 // Matériaux tirés du sol (métaux du régolithe, silicates…) : seulement avec une base agrandie (niveau 2 et plus).
 function productionMateriaux(a, niveau) { return a.type === 'solide' && niveau >= 2 ? 500 * (niveau - 1) : 0; } // kg par jour
 
+// Module qui descend une extension de la station à la base : il se pose et devient le niveau suivant.
+function moduleExtension(a) {
+  if (a.id === 'venus') return { nom: 'Ballon-module', duree: 6 * 3600, description: 'capsule blindée, bouclier thermique puis ballon gonflé à 55 km, qui s’amarre à l’aérostat' };
+  if (a.type !== 'solide') return { nom: 'Module-sonde', duree: 4 * 3600, description: 'module flottant amarré à la base' };
+  if (a.atm && a.atm.p0 > 0.5) return { nom: 'Module à parachute', duree: 3 * 3600, description: 'bouclier thermique, parachutes puis rétrofusées' };
+  if (a.atm && a.atm.p0 > 0.001) return { nom: 'Module de descente', duree: 2 * 3600, description: 'bouclier thermique, parachute supersonique puis rétrofusées' };
+  return { nom: 'Module de descente', duree: 1.5 * 3600, description: 'freinage aux rétrofusées jusqu’au sol, à côté de la base' };
+}
+
 // Zone pour une base : un tronçon de 120 m en pente douce (moins de 8°, moins de 6 m de dénivelé),
 // le plus près possible du point de descente. La construction terrasse ensuite le terrain.
 function chercherZonePlate(a) {

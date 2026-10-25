@@ -606,11 +606,11 @@ const Orbiteur = {
       const a = ASTRES_PAR_ID[b.astre];
       b.niveau = b.niveau || 1;
       const st = v.stations.find((s) => s.centre === b.astre);
-      // Les extensions livrées à la station descendent agrandir la base (niveau 5 au plus).
-      if (st && st.stock.extensions > 0 && b.niveau < 5) {
-        st.stock.extensions--;
-        b.niveau++;
-        this.log(`Base ${a.nom} agrandie : niveau ${b.niveau}${b.niveau === 2 ? ' — la mine de matériaux démarre' : ''}.`);
+      // Extension envoyée de la station : le module de descente se pose à la base et devient le niveau suivant.
+      if (b.descente && v.t >= b.descente.fin) {
+        b.niveau = Math.min(5, b.niveau + 1);
+        delete b.descente;
+        this.log(`${moduleExtension(a).nom} posé à la base ${a.nom} : il s’est déployé et ne repartira pas. Base niveau ${b.niveau}${b.niveau === 2 ? ' — la mine de matériaux démarre' : ''}.`);
       }
       // Ergols (ressource locale) et matériaux (mine), proportionnels au niveau de la base.
       const prod = productionBase(a) * b.niveau * (dt / JOUR);
@@ -627,6 +627,23 @@ const Orbiteur = {
       }
       b.produitTotal = (b.produitTotal || 0) + prod;
     }
+  },
+
+  // Une extension arrivée à la station descend à la surface dans un module de descente, qui se pose
+  // à la base et se déploie en niveau supérieur (il ne repart pas).
+  envoyerExtension(baseIndex) {
+    const v = this.v, b = v.bases[baseIndex];
+    if (!b) return;
+    const a = ASTRES_PAR_ID[b.astre];
+    const st = v.stations.find((s) => s.centre === b.astre);
+    if (!st) return this.log(`Pas de station en orbite de ${a.nom} pour envoyer une extension.`);
+    if ((b.niveau || 1) >= 5) return this.log(`La base ${a.nom} est déjà au niveau maximal (5).`);
+    if (b.descente) return this.log(`Un module de descente est déjà en route vers la base ${a.nom}.`);
+    if ((st.stock.extensions || 0) <= 0) return this.log(`${st.nom} n’a pas d’extension de base en stock : envoyez un ravito « Extension de base » ou fabriquez-en une à l’atelier.`);
+    st.stock.extensions -= 1;
+    const m = moduleExtension(a);
+    b.descente = { fin: v.t + m.duree };
+    this.log(`${st.nom} envoie une extension vers la base ${a.nom} : ${m.description}. Posé dans ${fmtDuree(m.duree)}.`);
   },
 
   // Fenêtre « Envoyer un ravito » : départ, destination, contenu.
@@ -1492,7 +1509,12 @@ const Orbiteur = {
       d += '<h3>Bases</h3><ul class="sondes">' + bases.map((b) => {
         const a = ASTRES_PAR_ID[b.astre]; const [res, p] = ressourceLocale(a); const n = b.niveau || 1;
         const mat = productionMateriaux(a, n);
-        return `<li>Base ${a.nom}, niveau ${n} — ${p ? `${res} : ${fmt((p * n) / 1000, 1)} t/jour` : 'pas de ressource locale'}${mat ? `, matériaux ${fmt(mat / 1000, 1)} t/jour` : ''} ; ${fmt((b.stock || 0) / 1000, 1)} t au sol</li>`;
+        // Extension disponible à la station de cet astre : on peut la faire descendre à la base.
+        const stB = v.stations.find((s) => s.centre === b.astre);
+        let ext = '';
+        if (b.descente) ext = `<br><span class="doux">⬇ ${moduleExtension(a).nom} en descente : posé dans ${fmtDuree(b.descente.fin - v.t)} (niveau ${n + 1}).</span>`;
+        else if (n < 5 && stB && stB.stock.extensions > 0) ext = `<br><button data-extension="${v.bases.indexOf(b)}">⬇ Envoyer l’extension à la base (niveau ${n + 1})</button>`;
+        return `<li>Base ${a.nom}, niveau ${n} — ${p ? `${res} : ${fmt((p * n) / 1000, 1)} t/jour` : 'pas de ressource locale'}${mat ? `, matériaux ${fmt(mat / 1000, 1)} t/jour` : ''} ; ${fmt((b.stock || 0) / 1000, 1)} t au sol${ext}</li>`;
       }).join('') + '</ul>';
     }
     const cargos = v.cargos || [];
@@ -1515,6 +1537,7 @@ const Orbiteur = {
     bind('nav-sonde', () => { this.lancerSonde(v.cible); this.majHud(true); });
     bind('nav-journal', () => this.contexte.journal());
     bind('nav-rappel', () => this.ouvrirTempsReel());
+    $('nav-actions').querySelectorAll('[data-extension]').forEach((b) => { b.onclick = () => { this.envoyerExtension(Number(b.dataset.extension)); this.majHud(true); }; });
   },
 
   touche(e) {

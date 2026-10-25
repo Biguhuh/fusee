@@ -37,7 +37,7 @@ Tenue : combinaison de vol bleue de l'ESA sur Terre, scaphandre blanc aux couleu
   7. **Bases au sol** (touche B une fois posé près de la zone repérée, avec une station en orbite) : la construction terrasse le sol à plat. Sans repérage, le jeu refuse : « relief trop accidenté — envoyez une sonde ». La base produit des ergols à partir de la ressource locale, en garde 20 t pour les atterrisseurs et monte le surplus à la station.
   8. **Ravitos** (📦 dans l'orbiteur) : on choisit le départ (la Terre, ou une station qui fournit le contenu de son stock), la destination et le contenu :
      - *Kit d'expédition* : de quoi repartir plus loin (carburant, ergols, atterrisseurs, sondes, kits, robots) ;
-     - *Extension de base* : la base grandit (niveau 1 à 5) ; dès le niveau 2, une mine produit des matériaux ;
+     - *Extension de base* : livrée à la station en orbite, elle descend ensuite à la surface (bouton « ⬇ Envoyer l’extension à la base » dans la liste des bases) dans un module adapté à l’astre (rétrofusées sans air, bouclier et parachute avec atmosphère, ballon-module sur Vénus). Le module se pose, se déploie et ne repart pas : la base gagne un niveau (1 à 5) ; dès le niveau 2, une mine produit des matériaux ;
      - *Ergols*, *Matériaux*.
      Le cargo vole sur sa propre trajectoire réaliste (visible sur la carte) et livre au stock de la station.
   9. **Atelier** des stations : fabrique sondes, robots, atterrisseurs, kits de base, kits de station et extensions avec les matériaux. On avance ainsi d'orbite en orbite, avec des bases locales et des ravitos venus de la Terre ou d'autres bases, jusqu'au fond du système solaire.
