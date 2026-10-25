@@ -1173,7 +1173,10 @@ function dessinerTerrain(ctx, vol, W, H, echelle, fuseeY) {
     for (let sx = -pas; sx <= W + pas; sx += pas) { const wx = vol.x + (sx - W / 2) / echelle; pts.push([sx, ecranY(wx), wx]); }
   } else {
     // Au-delà de l'horizon (angle acos(R / (R + h))), le sol est caché par la courbure.
-    const thetaH = Math.acos(Math.min(1, R / (R + alt + 1)));
+    // L'horizon se calcule depuis la caméra, pas depuis l'engin : quand la caméra recule (lanceur de retour
+    // de Vénus qui descend), l'engin posé ne verrait que 3 km, et les bords de l'écran restaient sans sol.
+    const altVue = Math.max(alt, H / echelle);
+    const thetaH = Math.acos(Math.min(1, R / (R + altVue + 1)));
     const thetaEcran = Math.asin(Math.min(1, (W / 2 + 40) / echelle / R));
     const th = Math.min(thetaH, thetaEcran);
     const n = Math.ceil(W / pas);
