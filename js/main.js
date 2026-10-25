@@ -637,7 +637,12 @@ $('accueil-campagne').onclick = () => $('voyage-nouveau').click();
 $('accueil-reprendre').onclick = ouvrirReprise;
 $('accueil-visite').onclick = allerCarte;
 $('accueil-hangar').onclick = allerHangar;
-$('accueil-promenade').onclick = promenadeSurTerre;
+// « Se promener » : la Terre, ou un objet du ciel lointain observé de loin (puis retour à la liste).
+const CONTEXTE_PROMENADE = {
+  terre: () => promenadeSurTerre(),
+  observer: (o) => jouerScene(new Observation(o), () => { allerAccueil(); ouvrirPromenade(CONTEXTE_PROMENADE); }),
+};
+$('accueil-promenade').onclick = () => ouvrirPromenade(CONTEXTE_PROMENADE);
 $('accueil-spatio').onclick = () => afficherCreationSpatio(allerAccueil);
 $('exporter').onclick = () => { exporterSauvegarde(etat); $('sauvegarde-info').textContent = 'Fichier téléchargé.'; };
 $('importer').onclick = () => $('fichier-sauvegarde').click();
@@ -680,7 +685,11 @@ for (const el of [canvas, toile]) {
     const bouge = glisser && glisser.bouge;
     glisser = null;
     if (bouge) return;
-    if (etat.ecran === 'scene') { passerScene(); return; }
+    if (etat.ecran === 'scene') {
+      if (etat.scene && etat.scene.obj.clic && etat.scene.obj.clic(e.clientX, e.clientY)) return;   // boutons de la scène (zoom)
+      passerScene();
+      return;
+    }
     // Petit écran : un appui sur le tableau de bord compact l'agrandit (et inversement).
     if (etat.ecran === 'vol' && etat.vol && ZONE_HUD) {
       const z = ZONE_HUD;
@@ -693,7 +702,14 @@ for (const el of [canvas, toile]) {
   el.addEventListener('dblclick', (e) => { const id = astreSousSouris(e); if (id && etat.ecran === 'nav') Orbiteur.centrerSur(id); });
 }
 // Scène animée : un toucher la fait passer.
-canvas.addEventListener('touchend', (e) => { if (etat.ecran === 'scene' && etat.scene) { e.preventDefault(); passerScene(); } });
+canvas.addEventListener('touchend', (e) => {
+  if (etat.ecran !== 'scene' || !etat.scene) return;
+  e.preventDefault();
+  const tc = e.changedTouches && e.changedTouches[0];
+  if (tc && etat.scene.obj.clic && etat.scene.obj.clic(tc.clientX, tc.clientY)) return;
+  passerScene();
+});
+canvas.addEventListener('wheel', (e) => { if (etat.ecran === 'scene' && etat.scene && etat.scene.obj.molette) { e.preventDefault(); etat.scene.obj.molette(e); } }, { passive: false });
 toile.addEventListener('wheel', (e) => { e.preventDefault(); Orbiteur.molette(e); }, { passive: false });
 
 // ---------- Clavier ----------
@@ -713,6 +729,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyI') { Infos.ouvrirEncyclopedie(); return; }
   if (etat.ecran === 'scene') {
     if (['Enter', 'Space', 'Escape', 'NumpadEnter'].includes(e.code)) { e.preventDefault(); passerScene(); }
+    else if (etat.scene && etat.scene.obj.touche) etat.scene.obj.touche(e);     // zoom de l'observation
     if (e.code === 'KeyP') etat.pause = !etat.pause;
     return;
   }

@@ -22,6 +22,19 @@ Au premier lancement, on crée son ou sa spationaute (modifiable depuis l'accuei
 Tenue : combinaison de vol bleue de l'ESA sur Terre, scaphandre blanc aux couleurs de l'ESA sur les astres (visage visible derrière la visière).
 
 ## Façons de jouer
+- **Se promener** (accueil) :
+  - la Terre (fleurs, fruits, Bar de l'Espace) ;
+  - 52 objets du ciel lointain, hors Système solaire, qu'on observe de loin sans atterrir. Chacun a son nom, sa distance réelle, un rendu dessiné et animé (zoom à la molette, avec + / − ou avec les boutons) et une courte explication. Les tailles ne sont pas à l'échelle.
+
+  Les objets, par famille :
+  - **Étoiles de tous types et de tous âges** : naines rouge, jaunes (jeune, adulte, jumelle du Soleil) et orange, bleues massives, géante, supergéante et hypergéante rouges, variable lumineuse bleue, Wolf-Rayet, céphéide, proto-étoile, naines brunes.
+  - **Étoiles mortes et compactes** : naine blanche, étoile à neutrons, pulsar, pulsar milliseconde, magnétar.
+  - **Étoiles doubles et multiples** : transfert de masse, binaire à éclipses (avec sa courbe de lumière), double large, nova récurrente, triple, sextuple, double pulsar, fusion de trous noirs avec ses ondes gravitationnelles.
+  - **Trous noirs et objets extrêmes** : Cygnus X-1, trou noir dormant avec lentille gravitationnelle, Sagittarius A*, M87*, quasar.
+  - **Explosions et restes** : supernova, nébuleuse du Crabe, Cassiopée A, kilonova, sursaut gamma.
+  - **Nébuleuses** : planétaires, Orion, Piliers de la Création, Carène.
+  - **Amas et galaxies** : Pléiades, Oméga du Centaure, Voie lactée vue de loin, Grand Nuage de Magellan, Andromède, Antennes.
+  - **Exoplanètes** : 51 Pegasi b, HD 189733 b, TRAPPIST-1.
 - **Mission directe** (hangar → carte) : on choisit un astre, la fusée arrive au-dessus, on se pose (ou on plonge), puis on repart en orbite. Le bouton « ⚙ Équiper pour se poser et repartir » choisit les pièces qui le permettent.
 - **Campagne** (hangar → « Commencer la campagne ») : tout part de la Terre.
   1. **Centre de lancement** : tout part de la Terre, avec la fusée qui correspond à la destination.
