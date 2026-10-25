@@ -1755,14 +1755,34 @@ const ECRAN_TACTILE = typeof matchMedia === 'function' && (matchMedia('(pointer:
 function ecranCompact(W, H) { return W < 720 || H < 520; }
 let ZONE_HUD = null;   // rectangle du tableau de bord quand il est compact (pour l'appui)
 
+// Géantes gazeuses (pas de sol) : position par rapport au niveau 1 bar, et objectif de la plongée.
+function infoPlongee(vol, court) {
+  const a = vol.astre, alt = vol.y;
+  const position = court
+    ? `${alt < 0 ? '−' : '+'}${fmtAlt(Math.abs(alt))} / 1 bar`
+    : `${fmtAlt(Math.abs(alt))} ${alt < 0 ? 'sous le' : 'au-dessus du'} niveau 1 bar`;
+  const atteint = vol.phase === 'remontee' || (vol.prelevements || []).some((p) => p.niveau >= a.cible);
+  const objectif = atteint
+    ? (court ? `1 bar (${fmt(a.cible, 1)} ✓)` : `remonter au niveau 1 bar (${fmt(a.cible, 1)} bar atteints ✓)`)
+    : (court ? `${fmt(a.cible, 1)} bar, puis 1 bar` : `descendre à ${fmt(a.cible, 1)} bar, puis remonter à 1 bar`);
+  return { position, objectif, atteint };
+}
+
 function dessinerHudCompact(ctx, vol, W, H) {
   const a = vol.astre, c = vol.c, f = vol.f;
-  const larg = Math.min(176, W * 0.48);
+  const larg = a.type === 'gazeuse' ? Math.min(218, W * 0.6) : Math.min(176, W * 0.48);
   const lignes = [];
   const alt = vol.altSol();
   const proche = a.type === 'solide' && alt < 2000;
   const vv = -vol.vy;
-  lignes.push(['Alt.', fmtAlt(alt), '#fff']);
+  const gaz = a.type === 'gazeuse';
+  if (gaz) {
+    // Plongée : pression et objectif toujours affichés, position par rapport au niveau 1 bar.
+    const ip = infoPlongee(vol, true);
+    lignes.push(['Pression', fmtP(c.p), couleurRisque(c.p / f.pressionMax)]);
+    lignes.push(['Position', ip.position, '#fff']);
+    lignes.push(['Objectif', ip.objectif, ip.atteint ? '#66bb6a' : '#ffd54f']);
+  } else lignes.push(['Alt.', fmtAlt(alt), '#fff']);
   lignes.push(['V vert.', (vv >= 0 ? '↓ ' : '↑ ') + fmtV(Math.abs(vv)), proche ? (vv > a.vMax ? '#ef5350' : '#66bb6a') : '#fff']);
   lignes.push(['V horiz.', fmtV(Math.abs(vol.vx)), proche && Math.abs(vol.vx) > a.vMax ? '#ef5350' : '#fff']);
   const fc = vol.carburant / f.carburant;
@@ -1771,7 +1791,7 @@ function dessinerHudCompact(ctx, vol, W, H) {
   lignes.push(['Coque', fmt(vol.integrite) + ' %', fi > 0.6 ? '#66bb6a' : fi > 0.3 ? '#ffca28' : '#ef5350']);
   // Les limites n'apparaissent que si elles approchent.
   const fp = c.p / f.pressionMax, ft = (vol.temp + KELVIN) / (f.tempMax + KELVIN), fr = c.rad / f.protection;
-  if (fp > 0.6) lignes.push(['Pression', fmtP(c.p), couleurRisque(fp)]);
+  if (fp > 0.6 && !gaz) lignes.push(['Pression', fmtP(c.p), couleurRisque(fp)]);
   if (ft > 0.7) lignes.push(['Temp.', fmt(vol.temp) + ' °C', couleurRisque(ft)]);
   if (fr > 0.7) lignes.push(['Rayonn.', fmt(c.rad, 1), couleurRisque(fr)]);
   if (a.type === 'gazeuse') lignes.push(['Prélèv.', String((vol.prelevements || []).length), '#4dd0e1']);
@@ -1806,7 +1826,7 @@ function dessinerHudDetail(ctx, vol, W, H, compact) {
   const x = 14, larg = compact ? Math.min(250, W - 40) : 250;
   let y = 14;
   ctx.fillStyle = compact ? 'rgba(0,0,0,0.8)' : 'rgba(0,0,0,0.55)';
-  const hPanneau = a.type === 'solide' ? 434 : a.type === 'etoile' ? 380 : 416;
+  const hPanneau = a.type === 'solide' ? 434 : a.type === 'etoile' ? 380 : 470;
   ctx.fillRect(8, 8, larg + 12, hPanneau);
   ZONE_HUD = compact ? { x: 8, y: 8, w: larg + 12, h: hPanneau } : null;
   ctx.font = 'bold 15px system-ui, sans-serif';
@@ -1825,7 +1845,13 @@ function dessinerHudDetail(ctx, vol, W, H, compact) {
   };
 
   const alt = vol.altSol();
-  ligne(a.type === 'solide' ? 'Altitude (sol)' : 'Altitude', fmtAlt(alt) + (a.type === 'gazeuse' ? ' (1 bar)' : ''));
+  if (a.type === 'gazeuse') {
+    // Plongée : position par rapport au niveau 1 bar (en dessous, l'altitude est négative), et objectif.
+    const ip = infoPlongee(vol, false);
+    ligne('Pression', fmtP(c.p), '#4dd0e1');
+    ligne('Position', ip.position);
+    ligne('Objectif', ip.objectif, ip.atteint ? '#66bb6a' : '#ffd54f');
+  } else ligne(a.type === 'solide' ? 'Altitude (sol)' : 'Altitude', fmtAlt(alt));
   const vv = -vol.vy;
   const proche = a.type === 'solide' && alt < 2000;
   ligne('Vitesse vert.', (vv >= 0 ? '↓ ' : '↑ ') + fmtV(Math.abs(vv)), proche ? (vv > a.vMax ? '#ef5350' : '#66bb6a') : '#fff');
