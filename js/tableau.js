@@ -91,6 +91,8 @@ function tableauAstre(v, a, actif) {
     sur += `<dt>Niveau ${Math.min(5, n + 1)}</dt><dd>${manque.texte} ${manque.pret ? bouton(`extension:${idx}`, '⬇ Envoyer l’extension') : ''}</dd>`;
   }
   if (!bases.length && a.type === 'solide' && !estOrigine(a.id)) sur += ligne('Base', 'aucune (kit de base + station en orbite + zone repérée)');
+  const surPlace = (v.equipe || []).filter((m) => m.etat === 'mission' && m.mission.astre === a.id);
+  if (surPlace.length) sur += ligne('🧑‍🚀 Équipe', surPlace.map((m) => `${m.nom} (retour dans ${fmtDuree(m.mission.fin - v.t)})`).join(', '));
   sections.push(['📍 Sur place', sur]);
 
   // ---------- En orbite ----------
@@ -109,6 +111,7 @@ function tableauAstre(v, a, actif) {
     else if ((k.extensionsStation || 0) > 0) suivant = `${NIVEAUX_STATION[n + 1].apport} ${bouton(`agrandir:${st.id}`, `⬆ Agrandir (niveau ${n + 1})`)}`;
     else suivant = `${NIVEAUX_STATION[n + 1].apport} — il faut 1 extension de station (atelier : ${fmtStock('materiaux', RECETTES.extensionsStation.materiaux)} de matériaux, ou ravito « Extension de station »)`;
     if (n < 5 || st.agrandissement) orb += `<dt>Niveau ${Math.min(5, n + 1)}</dt><dd>${suivant}</dd>`;
+    if (niveauStation(st).habitat && v.equipe) orb += `<dt>Habitat</dt><dd>équipe ${survivants(v).length}/${capaciteEquipe(v)} ${v.equipe.length < capaciteEquipe(v) ? bouton('recruter', '🧑‍🚀 Accueillir une recrue') : ''}</dd>`;
     for (const ch of st.chantiers || []) orb += ligne('🔧 Chantier', `${RECETTES[ch.cle].nom}, prêt dans ${fmtDuree(ch.fin - v.t)}`);
     if (actif) {
       const fab = Object.entries(RECETTES).filter(([cle]) => cle !== 'lanceurRetour' || AEROSTAT[st.centre])
@@ -132,6 +135,7 @@ function tableauAstre(v, a, actif) {
         if (type === 'extension') Orbiteur.envoyerExtension(Number(p1));
         if (type === 'fab') Orbiteur.fabriquer(p1, p2);
         if (type === 'agrandir') Orbiteur.agrandirStation(p1);
+        if (type === 'recruter') recruter(v, (t) => Orbiteur.log(t));
         if (type === 'ravito') return Orbiteur.ouvrirRavito(p1);
         Orbiteur.majHud(true);
         rafraichir();

@@ -65,6 +65,11 @@ Tenue : combinaison de vol bleue de l'ESA sur Terre, scaphandre blanc aux couleu
     - Niveau 3 : chantiers 1,5 fois plus rapides, ravitaillement courant doublé.
     - Niveau 4 : habitat pour l'équipe de spationautes, stockage triplé.
     - Niveau 5 : chantier interstellaire, qui assemble le vaisseau de départ vers une autre étoile ; chantiers 2 fois plus rapides.
+  - **Équipe de spationautes** : 4 par expédition (vous et 3 coéquipiers), jusqu'à 8 avec une station de niveau 4 (bouton « Accueillir une recrue »).
+    - Le ou la spationaute du joueur reste simulé en détail. Les coéquipiers partent en mission « de fond » depuis l'orbiteur (bouton « 🧑‍🚀 Mission »), ce qui ne coûte rien au navigateur.
+    - Une mission dure 1, 3 ou 7 jours. Un atterrisseur et ses ergols restent occupés ; le coéquipier prélève un échantillon toutes les 6 h (8 au plus) et encaisse la dose du lieu.
+    - L'atterrisseur remonte seul à la fin. Au-delà de 4 Sv cumulés, le coéquipier ne revient pas.
+    - On ne rentre sur Terre qu'une fois les missions finies ; la capsule ramène les survivants.
   5. **Quitter le Système solaire** (bouton « 🌌 » de l'orbiteur) : on choisit une étoile proche réelle (Proxima Centauri, Alpha Centauri, Barnard, Lalande 21185, Epsilon Eridani, Tau Ceti, TRAPPIST-1).
      - **Départ réaliste**, avec deux propulsions :
        - assistances gravitationnelles comme Voyager 1, 17 km/s ;

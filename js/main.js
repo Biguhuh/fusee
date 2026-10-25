@@ -35,6 +35,8 @@ function migrerVoyage(v) {
   // Système stellaire de la partie (les parties d'avant n'en avaient pas : le Système solaire).
   m.systeme = m.systeme || 'solaire';
   choisirSysteme(m.systeme);
+  // Expédition d'avant l'équipe : on lui en donne une.
+  if (m.orb && !m.equipe) initialiserEquipe(m);
   return m;
 }
 const canvas = $('vol');
@@ -408,18 +410,25 @@ function pleinALaBase(vol) {
 // Retour sur Terre : rentrée de la capsule, parachutes, amerrissage, puis récupération
 // (hélicoptère pour l'équipage, ou navire à grue si la capsule revient vide).
 function rentrerSurTerre() {
-  const equipage = !etat.voyage.equipagePerdu;
+  const v = etat.voyage;
+  // On attend le retour des coéquipiers partis en mission.
+  const enCours = missionsEnCours(v);
+  if (enCours.length) return Orbiteur.log(`Retour impossible : ${enCours.map((m) => `${m.nom} (sur ${ASTRES_PAR_ID[m.mission.astre].nom}, retour dans ${fmtDuree(m.mission.fin - v.t)})`).join(', ')} encore en mission.`);
+  // Survivants de l'équipe (sans équipe : le ou la spationaute du joueur, s'il est vivant).
+  const vivants = v.equipe ? survivants(v).map((m) => m.nom) : (v.equipagePerdu ? [] : [nomSpatio()]);
+  const equipage = vivants.length > 0;
+  const nom = vivants.length > 1 ? `${vivants.slice(0, -1).join(', ')} et ${vivants[vivants.length - 1]}` : (vivants[0] || nomSpatio());
   const res = Orbiteur.rentrerSurTerre();
   sauver(etat);
-  jouerScene(new RetourTerre({ equipage, echantillons: res.n, nom: nomSpatio() }), () => afficherRetourTerre(res, equipage));
+  jouerScene(new RetourTerre({ equipage, echantillons: res.n, nom }), () => afficherRetourTerre(res, equipage, nom));
 }
-function afficherRetourTerre(res, equipage) {
+function afficherRetourTerre(res, equipage, nom = nomSpatio()) {
   const h = $('res-titre');
   h.textContent = equipage ? 'Retour sur Terre' : 'Retour sur Terre : capsule vide';
   h.className = equipage ? 'succes' : 'partiel';
   const ech = res.n ? `${res.n} échantillon${res.n > 1 ? 's' : ''} rapporté${res.n > 1 ? 's' : ''} : ${res.liste}.` : 'Pas d’échantillon cette fois.';
   $('res-message').textContent = equipage
-    ? `La capsule a amerri sous ses parachutes et l’hélicoptère a hélitreuillé ${nomSpatio()}. ${ech}`
+    ? `La capsule a amerri sous ses parachutes et l’hélicoptère a hélitreuillé ${nom}. ${ech}`
     : `Capsule vide : l’équipage n’est pas revenu. Un navire a hissé la capsule à bord avec sa grue. ${ech}`;
   $('res-stats').innerHTML = resumeCampagne(etat.voyage).split(' · ').map((x) => `<dt>•</dt><dd style="text-align:left">${x}</dd>`).join('');
   etat.suiteResultat = 'accueil';

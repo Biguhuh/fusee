@@ -49,6 +49,7 @@ const Orbiteur = {
     const origine = planeteOrigine();
     const r0 = origine.rayonKm + 400;
     v.orb = { centre: origine.id, r: [r0, 0], v: [0, Math.sqrt(origine.gm / r0)], transfert: null };
+    initialiserEquipe(v);
     const station = v.stations.find((s) => s.centre === origine.id);
     if (station) { const e = this.etatStation(station); v.orb.r = e.r; v.orb.v = e.v; }
     Object.assign(v, {
@@ -614,6 +615,7 @@ const Orbiteur = {
   // Cargos venus de la Terre et production des bases au sol.
   mettreAJourLogistique() {
     const v = this.v;
+    if (v.equipe) mettreAJourEquipe(v, (t) => this.log(t));
     for (const s of v.stations) {
       s.stock = { ...STOCK_VIDE(), ...(s.stock || {}) };
       // Chantiers de l'atelier terminés
@@ -1572,12 +1574,14 @@ const Orbiteur = {
         return `<li>Base ${a.nom}, niveau ${n} — ${p ? `${res} : ${fmt((p * n) / 1000, 1)} t/jour` : 'pas de ressource locale'}${mat ? `, matériaux ${fmt(mat / 1000, 1)} t/jour` : ''} ; ${fmt((b.stock || 0) / 1000, 1)} t au sol${ext}</li>`;
       }).join('') + '</ul>';
     }
+    d += htmlEquipe(v);
     const cargos = v.cargos || [];
     if (cargos.length) d += '<h3>Ravitos en route</h3><ul class="sondes">' + cargos.map((s) => `<li>${s.nom} (parti il y a ${fmtDuree(v.t - s.tLancement)})</li>`).join('') + '</ul>';
     const sondes = v.sondesEnVol;
     if (sondes.length) d += '<h3>Sondes</h3><ul class="sondes">' + sondes.map((s) => `<li>${s.nom} — ${s.etat === 'vol' ? 'en route' : 'en orbite'}</li>`).join('') + '</ul>';
     this.ecrirePanneau($('nav-actions'), d);
     $('nav-actions').querySelectorAll('[data-fab]').forEach((b) => { b.onclick = () => { this.fabriquer(st.id, b.dataset.fab); this.majHud(true); }; });
+    $('nav-actions').querySelectorAll('[data-mission]').forEach((b) => { b.onclick = () => ouvrirMission(v, b.dataset.mission, (t) => this.log(t), () => this.majHud(true)); });
     const bRavito = $('nav-ravito');
     if (bRavito) bRavito.onclick = () => this.ouvrirRavito();
     const bind = (id, f) => { const b = $(id); if (b) b.onclick = f; };
