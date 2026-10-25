@@ -539,10 +539,12 @@ const Orbiteur = {
     v.cargos = v.cargos || [];
     const origine = estOrigine(origineId) ? SYSTEME.nomOrigine : v.stations.find((s) => s.id === origineId).nom;
     const id = 'c' + Date.now();
-    v.cargos.push({
-      id, nom: `${nom} → ${dest.nom}`, type: 'cargo', cible: dest.centre, dest: destId, contenu,
+    const cargo = {
+      id, nom: `${nom} → ${dest.nom}`, type: 'cargo', cible: dest.centre, dest: destId, contenu, origine,
       centre: depart.centre, r: depart.r.slice(), v: depart.v.slice(), transfert: null, etat: 'vol', tLancement: v.t,
-    });
+    };
+    v.cargos.push(cargo);
+    this.arriveePrevue(cargo);
     this.log(`Cargo « ${nom} » lancé depuis ${origine} vers ${dest.nom} : ${decrireContenu(contenu)}.`);
     this.ouvrirTrajet(id);
   },
@@ -606,6 +608,14 @@ const Orbiteur = {
         if (e.attenteEvenement && s.tSonde > e.tExec + 1) s.etape = null;
       }
     }
+  },
+
+  // Date d'arrivée prévue d'un cargo (même calcul que la trajectoire affichée), gardée sur le cargo.
+  arriveePrevue(c) {
+    if (c.tArrivee === undefined) {
+      try { const p = this.planTrajet(c); c.tArrivee = p.fin === 'arrivee' ? p.tFin : null; } catch (e) { c.tArrivee = null; }
+    }
+    return c.tArrivee;
   },
 
   // Cargo arrivé : son contenu rejoint le stock de la station.
@@ -772,6 +782,7 @@ const Orbiteur = {
     m.innerHTML = `
       <div class="fenetre">
         <header class="entete"><div><h2>📦 Envoyer un ravito</h2><p>Le cargo part sur sa propre trajectoire et livre son contenu au stock de la station de destination. Depuis une station, il emporte ce qu’elle a en stock.</p></div><button class="fermer">✕</button></header>
+        <div id="rav-en-route" class="encart"></div>
         <div class="sections">
           <section><h3>Départ</h3><select id="rav-origine">${options(origines)}</select>
             <h3 style="margin-top:12px">Destination</h3><select id="rav-dest">${options(dests)}</select></section>
@@ -794,7 +805,21 @@ const Orbiteur = {
       }
       $('rav-info').textContent = t;
       $('rav-lancer').disabled = !!t;
+      // Cargos déjà en route vers cette destination : contenu, provenance, temps restant.
+      const st = v.stations.find((s) => s.id === d);
+      const enRoute = (v.cargos || []).filter((c) => c.dest === d);
+      $('rav-en-route').innerHTML = `<b>En route vers ${st ? st.nom : '—'}</b> : ` + (enRoute.length ? `<ul class="sondes">${enRoute.map((c) => {
+        const ta = this.arriveePrevue(c);
+        return `<li>${decrireContenu(c.contenu)} — depuis ${c.origine || '?'} — ${ta ? (ta > v.t ? `arrive dans ${fmtDuree(ta - v.t)}` : 'arrive bientôt') : 'arrivée inconnue'}</li>`;
+      }).join('')}</ul>` : '<span class="doux">aucun cargo.</span>');
+      // On mémorise la sélection pour la prochaine ouverture.
+      v.dernierRavito = { origine: o, dest: d, contenu: m.querySelector('input[name=rav-contenu]:checked').value };
     };
+    // On repart de la dernière sélection (sauf destination demandée explicitement).
+    const der = v.dernierRavito || {};
+    if (der.origine && [...$('rav-origine').options].some((op) => op.value === der.origine)) $('rav-origine').value = der.origine;
+    if (der.dest && v.stations.some((s) => s.id === der.dest)) $('rav-dest').value = der.dest;
+    if (der.contenu && CONTENUS_CARGO[der.contenu]) m.querySelector(`input[name=rav-contenu][value="${der.contenu}"]`).checked = true;
     if (destId && v.stations.some((s) => s.id === destId)) $('rav-dest').value = destId;
     m.querySelectorAll('select, input').forEach((e) => { e.onchange = info; });
     info();
