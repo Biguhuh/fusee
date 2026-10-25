@@ -25,6 +25,9 @@ class Vol {
     this.altOrbite = altitudeOrbite(astre);
     this.decollageDemande = false;
     this.terrain = creerTerrain(astre);
+    // Lancement depuis la Terre : départ de Kourou, la vraie géographie défile sous la fusée.
+    this.geo = !!options.lancement && astre.id === 'terre';
+    if (this.geo) this.terrain = terrainKourou(this.terrain);
     this.bases = options.bases || [];
     // Vénus : qui fournit le lanceur de retour (station en orbite) ; absent pendant les vols d'essai.
     this.fournisseurLanceur = options.fournisseurLanceur || null;
@@ -497,7 +500,7 @@ class Vol {
     if (!this.pose || this.fin) return;
     if (this.lancement && this.compteARebours === undefined) {
       this.compteARebours = 10;
-      this.noter('Compte à rebours : T−10 s');
+      this.noter(this.geo ? 'Centre spatial guyanais, Kourou — compte à rebours : T−10 s' : 'Compte à rebours : T−10 s');
       return;
     }
     if (this.compteARebours > 0) return;
@@ -594,6 +597,17 @@ class Vol {
     const v = Math.hypot(this.vx, this.vy);
     const q = 0.5 * this.c.rho * v * v;
     this.qMax = Math.max(this.qMax || 0, q);
+    // Survol : on annonce chaque région traversée, et la prochaine côte au-dessus de la mer.
+    if (this.geo) {
+      const g = geoKourou(this.x);
+      if (g.nom !== this.geoNom) {
+        if (this.geoNom) {
+          const p = prochainChangementKourou(this.x);
+          this.noter(g.type === 'ocean' && p ? `Survol : ${g.nom} — prochaine côte : ${p.nom}, à ${fmt(p.distance / 1000)} km` : `Survol : ${g.nom}`);
+        }
+        this.geoNom = g.nom;
+      }
+    }
     if (!this.maxQAnnonce && this.qMax > 5000 && q < 0.9 * this.qMax) {
       this.maxQAnnonce = true;
       this.noter(`Max Q : pression aérodynamique maximale (${fmt(this.qMax / 1000)} kPa) à ${fmtAlt(this.y)}`);
@@ -1152,7 +1166,7 @@ function dessinerTerrain(ctx, vol, W, H, echelle, fuseeY) {
   const alt = Math.max(0, vol.y - vol.sol(vol.x));
   const courbe = (W / 2 / echelle) * (W / 2 / echelle) / (2 * R) * echelle > 0.5;   // flèche visible (> 0,5 px) ?
   if (!courbe) {
-    for (let sx = -pas; sx <= W + pas; sx += pas) pts.push([sx, ecranY(vol.x + (sx - W / 2) / echelle)]);
+    for (let sx = -pas; sx <= W + pas; sx += pas) { const wx = vol.x + (sx - W / 2) / echelle; pts.push([sx, ecranY(wx), wx]); }
   } else {
     // Au-delà de l'horizon (angle acos(R / (R + h))), le sol est caché par la courbure.
     const thetaH = Math.acos(Math.min(1, R / (R + alt + 1)));
@@ -1165,11 +1179,11 @@ function dessinerTerrain(ctx, vol, W, H, echelle, fuseeY) {
       const r = R + vol.sol(wx);
       const sx = W / 2 + r * Math.sin(theta) * echelle;
       const sy = fuseeY + (vol.y - (r * Math.cos(theta) - R)) * echelle;
-      pts.push([sx, sy]);
+      pts.push([sx, sy, wx]);
     }
     // Bords : on ferme vers le bas de l'écran le long du limbe.
-    pts.unshift([pts[0][0], H + 10]);
-    pts.push([pts[pts.length - 1][0], H + 10]);
+    pts.unshift([pts[0][0], H + 10, pts[0][2]]);
+    pts.push([pts[pts.length - 1][0], H + 10, pts[pts.length - 1][2]]);
   }
 
   // Sol, plus sombre en profondeur.
@@ -1197,6 +1211,7 @@ function dessinerTerrain(ctx, vol, W, H, echelle, fuseeY) {
   ctx.lineTo(W + pas, H + 10);
   ctx.closePath();
   ctx.fill();
+  if (vol.geo) dessinerGeoKourou(ctx, vol, pts, haut, W, H, alt);
 
   // Pentes éclairées d'un côté, ombrées de l'autre.
   ctx.lineWidth = 2;
@@ -1216,6 +1231,7 @@ function dessinerTerrain(ctx, vol, W, H, echelle, fuseeY) {
       const h = hash(k);
       if (h < 0.55) continue;
       const wx = k * pasR + hash(k + 3) * pasR;
+      if (vol.geo && geoKourou(wx).type === 'ocean') continue;            // pas de rochers en mer
       const tailleM = 0.5 + Math.pow(hash(k + 7), 2) * 3;                 // m
       const demi = tailleM * 1.3;                                         // demi-largeur (m)
       const sx = W / 2 + (wx - vol.x) * echelle;
@@ -1271,6 +1287,56 @@ function dessinerTerrain(ctx, vol, W, H, echelle, fuseeY) {
     ctx.setLineDash([]);
     ctx.beginPath(); ctx.moveTo(sx, sy - 8); ctx.lineTo(sx, sy - 22); ctx.stroke();
   }
+}
+
+// Départ de Kourou : forêt, savane, montagnes et mers sous la trace, avec leur nom vu d'altitude.
+function dessinerGeoKourou(ctx, vol, pts, haut, W, H, alt) {
+  const geo = pts.map((p) => geoKourou(p[2]));
+  const remplir = (debut, fin, couleur) => {
+    const g = ctx.createLinearGradient(0, haut, 0, H);
+    g.addColorStop(0, assombrir(couleur, LUMIERE_SOL));
+    g.addColorStop(1, assombrir(couleur, 0.45 * LUMIERE_SOL));
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(pts[debut][0], H + 10);
+    for (let k = debut; k <= fin; k++) ctx.lineTo(pts[k][0], pts[k][1]);
+    ctx.lineTo(pts[fin][0], H + 10);
+    ctx.closePath();
+    ctx.fill();
+  };
+  // Étendues de même nature d'un seul tenant.
+  for (let debut = 0, i = 1; i <= pts.length; i++) {
+    if (i < pts.length && geo[i].type === geo[debut].type) continue;
+    remplir(debut, Math.min(i, pts.length - 1), COULEURS_GEO[geo[debut].type]);
+    // Reflet du ciel à la surface de la mer.
+    if (geo[debut].type === 'ocean') {
+      ctx.save();
+      ctx.strokeStyle = `rgba(190,225,255,${0.35 * LUMIERE_SOL})`; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let k = debut; k <= Math.min(i, pts.length - 1); k++) { if (k === debut) ctx.moveTo(pts[k][0], pts[k][1]); else ctx.lineTo(pts[k][0], pts[k][1]); }
+      ctx.stroke();
+      ctx.restore();
+    }
+    debut = i;
+  }
+  // Noms des régions, une fois assez haut pour embrasser le paysage.
+  if (alt < 8000) return;
+  ctx.save();
+  for (let debut = 0, i = 1; i <= pts.length; i++) {
+    if (i < pts.length && geo[i].nom === geo[debut].nom) continue;
+    const fin = Math.min(i, pts.length - 1);
+    // Partie visible de l'étendue : le nom reste à l'écran.
+    const xa = Math.max(pts[debut][0], 0), xb = Math.min(pts[fin][0], W);
+    if (xb - xa > 110) {
+      let m = debut;
+      while (m < fin && pts[m][0] < (xa + xb) / 2) m++;
+      const nom = geo[debut].nom;
+      texteSurFond(ctx, nom.charAt(0).toUpperCase() + nom.slice(1), pts[m][0], Math.min(H - 12, pts[m][1] + 22),
+        { police: '12px system-ui, sans-serif', couleur: geo[debut].type === 'ocean' ? '#bfe0ff' : '#e8f0d0' });
+    }
+    debut = i;
+  }
+  ctx.restore();
 }
 
 // Fumée quand la coque est abîmée, étincelles quand elle encaisse des dégâts.
