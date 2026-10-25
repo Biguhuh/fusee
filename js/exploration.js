@@ -446,11 +446,7 @@ class Exploration {
       const fait = this.dejaFait(s);
       ctx.fillStyle = fait ? 'rgba(180,180,180,0.6)' : '#ffd54f';
       ctx.beginPath(); ctx.moveTo(sx, sy - 34); ctx.lineTo(sx + 6, sy - 26); ctx.lineTo(sx, sy - 18); ctx.lineTo(sx - 6, sy - 26); ctx.fill();
-      ctx.fillStyle = fait ? 'rgba(200,200,200,0.7)' : '#fff';
-      ctx.font = '12px system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(s.nom + (fait ? ' ✓' : ''), sx, sy - 40);
-      ctx.textAlign = 'left';
+      texteSurFond(ctx, s.nom + (fait ? ' ✓' : ''), sx, sy - 40, { police: '12px system-ui, sans-serif', couleur: fait ? '#cfd8dc' : '#ffffff' });
       // Petit caillou au sol
       ctx.fillStyle = fait ? '#777' : '#bcaaa4';
       ctx.beginPath(); ctx.ellipse(sx, sy - 3, 7, 4, 0, Math.PI, 0); ctx.fill();
@@ -495,15 +491,14 @@ class Exploration {
     if (this.terre) this.dessinerHudTerre(ctx, W, H);
     else this.dessinerHud(ctx, W, H);
     const compact = ecranCompact(W, H);
-    ctx.textAlign = 'right'; ctx.font = compact ? 'bold 12px system-ui' : 'bold 14px system-ui'; ctx.fillStyle = this.warp > 1 ? '#ffca28' : 'rgba(255,255,255,0.7)';
-    ctx.fillText(`Temps ×${this.warp}${ECRAN_TACTILE ? '' : '  (+/−)'}`, W - 14, compact ? 58 : 28);
-    ctx.textAlign = 'left';
+    texteSurFond(ctx, `Temps ×${this.warp}${ECRAN_TACTILE ? '' : '  (+/−)'}`, W - 14, compact ? 58 : 28,
+      { police: compact ? 'bold 12px system-ui' : 'bold 14px system-ui', couleur: this.warp > 1 ? '#ffca28' : '#ffffff', align: 'right' });
   }
 
   dessinerHudTerre(ctx, W, H) {
     const compact = ecranCompact(W, H);
     const y0 = compact ? 44 : 8;
-    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillStyle = 'rgba(0,0,0,0.62)';
     ctx.fillRect(8, y0, compact ? 190 : 300, compact ? 80 : 104);
     ctx.font = compact ? 'bold 13px system-ui' : 'bold 15px system-ui'; ctx.fillStyle = '#fff';
     ctx.fillText('Promenade sur Terre', 16, y0 + (compact ? 18 : 22));
@@ -516,13 +511,11 @@ class Exploration {
       .reduce((m, x) => (!m || Math.abs(x.x - this.p.x) < Math.abs(m.x - this.p.x) ? x : m), null);
     if (proche) {
       const dx = proche.x - this.p.x;
-      ctx.font = 'bold 14px system-ui'; ctx.fillStyle = '#ffd54f'; ctx.textAlign = 'center';
-      ctx.fillText(`${dx < 0 ? '◀' : '▶'} ${proche.nom} à ${fmt(Math.abs(dx))} m`, W / 2, 30);
+      texteSurFond(ctx, `${dx < 0 ? '◀' : '▶'} ${proche.nom} à ${fmt(Math.abs(dx))} m`, W / 2, 30, { police: 'bold 14px system-ui', couleur: '#ffd54f' });
     }
     afficherMessages(ctx, this.messagesVisibles(), W, yMessagesExplo(W, H));
     if (!ECRAN_TACTILE) {
-      ctx.font = '12px system-ui'; ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.textAlign = 'center';
-      ctx.fillText('←→ / Q D : marcher · ↑ / Z / Espace : sauter · E : cueillir, boire une bière, ou rentrer à la maison · Échap : rentrer', W / 2, H - 14);
+      texteSurFond(ctx, '←→ / Q D : marcher · ↑ / Z / Espace : sauter · E : cueillir, boire une bière, ou rentrer à la maison · Échap : rentrer', W / 2, H - 12, { police: '12px system-ui' });
     }
     ctx.textAlign = 'left';
   }
@@ -581,9 +574,7 @@ class Exploration {
     if (libres.length) {
       const s = libres.reduce((m, x) => (Math.abs(x.x - this.p.x) < Math.abs(m.x - this.p.x) ? x : m));
       const dx = s.x - this.p.x;
-      ctx.font = 'bold 14px system-ui'; ctx.fillStyle = '#ffd54f'; ctx.textAlign = 'center';
-      ctx.fillText(`${dx < 0 ? '◀' : '▶'} ${s.nom} à ${fmt(Math.abs(dx))} m`, W / 2, 30);
-      ctx.textAlign = 'left';
+      texteSurFond(ctx, `${dx < 0 ? '◀' : '▶'} ${s.nom} à ${fmt(Math.abs(dx))} m`, W / 2, 30, { police: 'bold 14px system-ui', couleur: '#ffd54f' });
     }
     if (this.analyse) {
       ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(W / 2 - 100, 44, 200, 14);
@@ -597,8 +588,7 @@ class Exploration {
       ctx.textAlign = 'left';
     }
     if (!ECRAN_TACTILE) {
-      ctx.font = '12px system-ui'; ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.textAlign = 'center';
-      ctx.fillText(`←→ / Q D : ${this.type === 'robot' || this.enRover ? 'rouler' : 'marcher'}${this.saut && !this.enRover ? ' · ↑ / Z / Espace : sauter' : ''}${this.rover ? ` · V : ${this.enRover ? 'descendre du' : 'monter dans le'} rover` : ''} · E : ${this.type === 'robot' ? 'analyser' : 'ramasser'} (ou rentrer près du module)${this.type === 'spationaute' ? ' · F : planter le drapeau' : ''} · Échap : rappeler`, W / 2, H - 14);
+      texteSurFond(ctx, `←→ / Q D : ${this.type === 'robot' || this.enRover ? 'rouler' : 'marcher'}${this.saut && !this.enRover ? ' · ↑ / Z / Espace : sauter' : ''}${this.rover ? ` · V : ${this.enRover ? 'descendre du' : 'monter dans le'} rover` : ''} · E : ${this.type === 'robot' ? 'analyser' : 'ramasser'} (ou rentrer près du module)${this.type === 'spationaute' ? ' · F : planter le drapeau' : ''} · Échap : rappeler`, W / 2, H - 12, { police: '12px system-ui' });
     }
     ctx.textAlign = 'left';
   }
@@ -628,8 +618,7 @@ function dessinerModuleRobot(ctx, x, y, s, actif) {
     ctx.strokeStyle = 'rgba(79,195,247,0.8)';
     for (let r = 1; r <= 3; r++) { ctx.beginPath(); ctx.arc(0.6 * s, -2.4 * s, r * 0.35 * s, -1.6, -0.4); ctx.stroke(); }
   }
-  ctx.fillStyle = '#fff'; ctx.font = '12px system-ui'; ctx.textAlign = 'center';
-  ctx.fillText(actif ? 'Module robot — recharge et liaison' : 'Module robot (E à côté : recharger, envoyer les données)', 0, -2.9 * s);
+  texteSurFond(ctx, actif ? 'Module robot — recharge et liaison' : 'Module robot (E à côté : recharger, envoyer les données)', 0, -2.9 * s, { police: '12px system-ui' });
   ctx.textAlign = 'left';
   ctx.restore();
 }
@@ -645,7 +634,7 @@ function dessinerArbre(ctx, x, y, s, a) {
   ctx.fillStyle = coul;
   const pos = [[-1, -4.5], [0.8, -3.6], [-0.2, -2.9], [1.5, -4.4], [-1.6, -3.3]];
   for (let i = 0; i < a.reste + 2 && i < pos.length; i++) { ctx.beginPath(); ctx.arc(x + pos[i][0] * s, y + pos[i][1] * s, 0.22 * s, 0, Math.PI * 2); ctx.fill(); }
-  ctx.fillStyle = '#fff'; ctx.font = '12px system-ui'; ctx.textAlign = 'center'; ctx.fillText(a.nom, x, y - 6.4 * s); ctx.textAlign = 'left';
+  texteSurFond(ctx, a.nom, x, y - 6.4 * s, { police: '12px system-ui' });
 }
 function dessinerFleur(ctx, x, y, s, f) {
   const coul = { Coquelicot: '#e53935', Marguerite: '#ffffff', Tournesol: '#fdd835', Lavande: '#9575cd', Bleuet: '#1e88e5', Rose: '#ec407a' }[f.nom] || '#fff';
@@ -663,15 +652,14 @@ function dessinerBar(ctx, x, y, s) {
   ctx.fillStyle = '#ffe082'; ctx.fillRect(x - 3.8 * s, y - 3.2 * s, 2.2 * s, 1.5 * s); ctx.fillRect(x + 1.6 * s, y - 3.2 * s, 2.2 * s, 1.5 * s);
   ctx.fillStyle = '#4e342e'; ctx.fillRect(x - 0.7 * s, y - 2.4 * s, 1.4 * s, 2.4 * s);
   ctx.fillStyle = '#1b5e20'; ctx.fillRect(x - 3 * s, y - 5.2 * s, 6 * s, 0.9 * s);
-  ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.max(11, 0.55 * s)}px system-ui`; ctx.textAlign = 'center';
-  ctx.fillText('🍺 Bar de l’Espace', x, y - 4.55 * s); ctx.textAlign = 'left';
+  texteSurFond(ctx, '🍺 Bar de l’Espace', x, y - 4.55 * s, { police: `bold ${Math.max(11, 0.55 * s)}px system-ui` });
 }
 function dessinerMaison(ctx, x, y, s) {
   ctx.fillStyle = '#eceff1'; ctx.fillRect(x - 3 * s, y - 3 * s, 6 * s, 3 * s);
   ctx.fillStyle = '#c62828'; ctx.beginPath(); ctx.moveTo(x - 3.5 * s, y - 3 * s); ctx.lineTo(x, y - 5 * s); ctx.lineTo(x + 3.5 * s, y - 3 * s); ctx.fill();
   ctx.fillStyle = '#4fc3f7'; ctx.fillRect(x - 2.2 * s, y - 2.3 * s, 1.2 * s, 1 * s);
   ctx.fillStyle = '#6d4c41'; ctx.fillRect(x + 0.8 * s, y - 2 * s, 1 * s, 2 * s);
-  ctx.fillStyle = '#fff'; ctx.font = '12px system-ui'; ctx.textAlign = 'center'; ctx.fillText('Maison (E pour rentrer)', x, y - 5.4 * s); ctx.textAlign = 'left';
+  texteSurFond(ctx, 'Maison (E pour rentrer)', x, y - 5.4 * s, { police: '12px system-ui' });
 }
 function dessinerNuages(ctx, W, H, decalage) {
   ctx.fillStyle = 'rgba(255,255,255,0.85)';

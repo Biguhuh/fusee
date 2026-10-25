@@ -1575,9 +1575,7 @@ function dessinerFanion(ctx, x, y, s) {
   ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - 6 * s); ctx.stroke();
   ctx.fillStyle = '#66bb6a';
   ctx.beginPath(); ctx.moveTo(x, y - 6 * s); ctx.lineTo(x + 3.5 * s, y - 5 * s); ctx.lineTo(x, y - 4 * s); ctx.fill();
-  ctx.fillStyle = '#c8e6c9'; ctx.font = `${Math.min(15, Math.max(11, 1.6 * s))}px system-ui, sans-serif`; ctx.textAlign = 'center';
-  ctx.fillText('Zone de base repérée par la sonde', x, y - 7 * s);
-  ctx.textAlign = 'left';
+  texteSurFond(ctx, 'Zone de base repérée par la sonde', x, y - 7 * s, { police: `${Math.min(15, Math.max(11, 1.6 * s))}px system-ui, sans-serif`, couleur: '#c8e6c9' });
 }
 
 // Base au sol : chaque élément est posé sur le terrain à son propre endroit, sur une dalle.
@@ -1643,6 +1641,25 @@ function dessinerExplosion(ctx, ex, x, y, dt) {
 }
 
 // Messages empilés en bas de l'écran (le plus récent en bas). Un message trop long passe sur deux lignes.
+// Texte posé sur un bandeau sombre : lisible sur n'importe quel fond (ciel clair, herbe, sol gris…).
+// Texte clair sur fond noir à 62 % : contraste supérieur à 4,5 pour 1 même sur un fond très clair.
+function texteSurFond(ctx, texte, x, y, options = {}) {
+  ctx.save();
+  if (options.police) ctx.font = options.police;
+  const align = options.align || 'center';
+  ctx.textAlign = align;
+  ctx.textBaseline = 'alphabetic';
+  const w = ctx.measureText(texte).width;
+  const m = /(\d+(?:\.\d+)?)px/.exec(ctx.font);
+  const taille = m ? parseFloat(m[1]) : 12;
+  const x0 = align === 'center' ? x - w / 2 : align === 'right' ? x - w : x;
+  ctx.fillStyle = 'rgba(0,0,0,0.62)';
+  ctx.beginPath(); ctx.roundRect(x0 - 6, y - taille - 1, w + 12, taille + 8, 6); ctx.fill();
+  ctx.fillStyle = options.couleur || '#ffffff';
+  ctx.fillText(texte, x, y);
+  ctx.restore();
+}
+
 function afficherMessages(ctx, textes, W, yBas) {
   ctx.save();
   const petit = W < 720;
@@ -1932,9 +1949,8 @@ function dessinerHudSuite(ctx, vol, W, H, warp, compact, twr) {
 
   // Aide commandes (clavier seulement : sur écran tactile, ce sont les boutons)
   if (!ECRAN_TACTILE) {
-    ctx.font = '12px system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.75)';
-    ctx.fillText('↑↓ / Z S : gaz · X couper · Espace plein gaz · ←→ / Q D : orienter · L pilote auto · +/− temps · P pause · Échap quitter', W / 2, H - 14);
+    texteSurFond(ctx, '↑↓ / Z S : gaz · X couper · Espace plein gaz · ←→ / Q D : orienter · L pilote auto · +/− temps · P pause · Échap quitter', W / 2, H - 12, { police: '12px system-ui, sans-serif' });
+    ctx.textAlign = 'center';
   }
 
   // Temps et pilote automatique
