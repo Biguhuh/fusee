@@ -14,6 +14,7 @@ function envoyerTouche(code, type) {
 const Tactile = {
   el: null,
   cle: '',
+  manuelJusqua: 0,   // instant (ms) jusqu'auquel les commandes manuelles restent visibles en mode auto
   enfoncees: new Map(),   // pointerId → code maintenu
 
   init() {
@@ -24,6 +25,8 @@ const Tactile = {
     document.body.appendChild(this.el);
     // Un doigt qui sort de l'écran ou une interruption relâche tout.
     addEventListener('blur', () => this.toutRelacher());
+    // En mode auto, toucher l'écran de vol fait réapparaître les commandes manuelles quelques secondes.
+    $('vol').addEventListener('pointerdown', () => { if (etat.vol && etat.vol.autopilote) this.manuelJusqua = performance.now() + 5000; });
     this.carteAuDoigt();
   },
 
@@ -39,12 +42,17 @@ const Tactile = {
     if (etat.ecran === 'vol' && etat.vol && !etat.vol.fin) {
       const v = etat.vol;
       const solide = v.astre.type === 'solide';
-      b.push({ zone: 'gauche', label: '⟲', code: 'ArrowLeft', maintenu: true, titre: 'Pivoter à gauche' });
-      b.push({ zone: 'gauche', label: '⟳', code: 'ArrowRight', maintenu: true, titre: 'Pivoter à droite' });
-      b.push({ zone: 'droite', label: '▲', code: 'ArrowUp', maintenu: true, titre: 'Plus de gaz' });
-      b.push({ zone: 'droite', label: '▼', code: 'ArrowDown', maintenu: true, titre: 'Moins de gaz' });
-      b.push({ zone: 'droite2', label: '0', code: 'KeyX', titre: 'Couper les gaz' });
-      b.push({ zone: 'droite2', label: 'Max', code: 'Space', titre: 'Plein gaz' });
+      // Pilote automatique : les commandes manuelles disparaissent pour libérer l'écran.
+      // Un toucher de l'écran les fait revenir 5 s ; en toucher une reprend la main (le pilote se coupe).
+      const manuel = !v.autopilote || performance.now() < this.manuelJusqua;
+      if (manuel) {
+        b.push({ zone: 'gauche', label: '⟲', code: 'ArrowLeft', maintenu: true, titre: 'Pivoter à gauche' });
+        b.push({ zone: 'gauche', label: '⟳', code: 'ArrowRight', maintenu: true, titre: 'Pivoter à droite' });
+        b.push({ zone: 'droite', label: '▲', code: 'ArrowUp', maintenu: true, titre: 'Plus de gaz' });
+        b.push({ zone: 'droite', label: '▼', code: 'ArrowDown', maintenu: true, titre: 'Moins de gaz' });
+        b.push({ zone: 'droite2', label: '0', code: 'KeyX', titre: 'Couper les gaz' });
+        b.push({ zone: 'droite2', label: 'Max', code: 'Space', titre: 'Plein gaz' });
+      }
       b.push({ zone: 'actions', label: v.autopilote ? '🤖 Auto ✓' : '🤖 Auto', code: 'KeyL', actif: v.autopilote });
       if (v.pose && !(v.compteARebours > 0)) b.push({ zone: 'actions', label: v.lancement ? '🚀 Lancer' : '🚀 Décoller', code: 'KeyT', principal: true });
       if (v.pose && solide && !v.lancement && !v.promenade) {
@@ -82,6 +90,8 @@ const Tactile = {
     this.toutRelacher();
     this.el.innerHTML = '';
     this.el.classList.toggle('cache', !liste.length);
+    // Sans commandes manuelles (mode auto), le bandeau descend tout en bas de l'écran.
+    this.el.classList.toggle('sans-manuel', !liste.some((x) => x.zone === 'gauche' || x.zone === 'droite'));
     const zones = {};
     for (const nom of ['gauche', 'droite', 'droite2', 'actions']) {
       zones[nom] = document.createElement('div');
