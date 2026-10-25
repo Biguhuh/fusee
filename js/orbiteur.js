@@ -720,6 +720,19 @@ const Orbiteur = {
     lignes.forEach((l, i) => { ctx.fillStyle = tr.marques[i].t < t ? '#78909c' : '#dfe8ff'; ctx.fillText(l, x0 + 12, y0 + 36 + i * 17); });
   },
 
+  // Catégories d'astres masquées sur la carte (mémorisées dans ce navigateur).
+  categoriesCachees() {
+    if (!this._cachees) {
+      try { this._cachees = new Set(JSON.parse(localStorage.getItem('fusee-categories-cachees')) || []); } catch (e) { this._cachees = new Set(); }
+    }
+    return this._cachees;
+  },
+  basculerCategorie(k) {
+    const c = this.categoriesCachees();
+    if (c.has(k)) c.delete(k); else c.add(k);
+    try { localStorage.setItem('fusee-categories-cachees', JSON.stringify([...c])); } catch (e) { /* ignoré */ }
+  },
+
   // Fenêtre « Vues » : tout ce qu'on peut regarder.
   ouvrirVues() {
     const v = this.v, m = $('modale');
@@ -738,10 +751,14 @@ const Orbiteur = {
             bouton('obj:' + o.id, 'Suivre') + (o.etat === 'vol' ? bouton('trajet:' + o.id, 'Trajectoire', true) : ''))).join(''))}
           ${section('Stations', v.stations.map((s) => ligne(`🛰 ${s.nom}`, bouton('obj:' + s.id, 'Suivre'))).join(''))}
           ${section('Bases', v.bases.map((b) => ligne(`🏠 Base sur ${ASTRES_PAR_ID[b.astre].nom} (niveau ${b.niveau || 1})`, bouton('astre:' + b.astre, 'Centrer'))).join(''))}
+          ${section('Astres affichés sur la carte', Object.entries(CATEGORIES).map(([k, c]) =>
+            `<label class="ligne-vue"><span>${c.icone} ${c.nom} <small class="doux">${ASTRES.filter((a) => a.categorie === k).length}</small></span><input type="checkbox" data-cat="${k}" ${this.categoriesCachees().has(k) ? '' : 'checked'}></label>`).join('') +
+            '<p class="doux">La cible et l’astre autour duquel on tourne restent toujours visibles.</p>')}
         </div>
       </div>`;
     m.classList.remove('cache');
     m.querySelector('.fermer').onclick = () => Infos.fermer();
+    m.querySelectorAll('input[data-cat]').forEach((c) => { c.onchange = () => this.basculerCategorie(c.dataset.cat); });
     m.querySelectorAll('[data-vue]').forEach((b) => {
       b.onclick = () => {
         const [genre, id] = b.dataset.vue.split(':');
@@ -780,8 +797,12 @@ const Orbiteur = {
     }
 
     // Orbites et astres
+    // Catégories cachées par le joueur (fenêtre Vues) ; on garde toujours la cible, l'astre survolé et le centre de la vue.
+    const cachees = this.categoriesCachees();
+    const montre = (a) => !cachees.has(a.categorie) || a.id === v.cible || a.id === v.orb.centre || a.id === this.cam.focus;
     const diag = Math.hypot(W, H);
     for (const a of ASTRES) {
+      if (!montre(a)) continue;
       if (a.orbite && (!masque || a.grosse || a.id === v.cible || a.id === v.orb.centre)) {
         const o = a.orbite;
         const rp = o.a * s;
@@ -805,6 +826,7 @@ const Orbiteur = {
       }
     }
     for (const a of ASTRES) {
+      if (!montre(a)) continue;
       if (a.orbite) {
         if (masque && !a.grosse && a.id !== v.cible && a.id !== v.orb.centre) continue;
         if (a.orbite.a * s < 3 && a.id !== this.cam.focus) continue;

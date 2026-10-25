@@ -208,6 +208,19 @@ dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .lien-astre { padding: 4px 8px; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px; }
 .lien-astre small { color: var(--doux); }
 .pastille { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+/* Catégories : filtres de l'encyclopédie, choix de vue, catégorie en tête de fiche */
+.filtres-cat { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.filtre-cat { padding: 4px 10px; font-size: 12.5px; border-radius: 999px; }
+.filtre-cat small { color: var(--doux); margin-left: 2px; }
+.filtre-cat.choisi, .groupe-vue button.choisi { border-color: var(--accent); background: #2a1810; }
+.groupe-vue { display: inline-flex; gap: 0; }
+.groupe-vue button { border-radius: 0; padding: 8px 12px; }
+.groupe-vue button:first-child { border-radius: 8px 0 0 8px; }
+.groupe-vue button:last-child { border-radius: 0 8px 8px 0; }
+.categorie-fiche { color: var(--texte); }
+.mode-carte { margin-bottom: 10px; }
+.titre-categorie { font-size: 12px; font-weight: 600; color: var(--doux); text-align: center; max-width: 110px; padding-bottom: 4px; border-bottom: 1px dashed var(--bord); }
+.arbre section p.doux { margin: 0 0 8px; font-size: 12.5px; }
 .choix-ravito { display: block; padding: 8px; border-radius: 8px; margin-bottom: 6px; cursor: pointer; font-size: 13.5px; }
 .choix-ravito:hover { background: rgba(255,255,255,0.04); }
 .fenetre select { width: 100%; font: inherit; padding: 8px; border-radius: 8px; border: 1px solid var(--bord); background: #0b1020; color: var(--texte); }

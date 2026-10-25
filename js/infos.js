@@ -11,12 +11,10 @@ const Infos = {
     basculerMasque: () => {},
   },
 
+  // Catégorie lisible, avec la planète pour les lunes : « Lune irrégulière de Jupiter ».
   typeAstre(a) {
-    if (a.type === 'etoile') return 'Étoile';
-    if (a.naine) return 'Planète naine';
-    if (a.asteroide) return 'Astéroïde';
-    if (!a.parent) return a.type === 'gazeuse' ? 'Planète géante' : 'Planète';
-    return 'Lune de ' + ASTRES_PAR_ID[a.parent].nom;
+    const c = CATEGORIES[a.categorie];
+    return `${c.icone} ${c.nom}${a.parent ? ' de ' + ASTRES_PAR_ID[a.parent].nom : ''}`;
   },
 
   // ---------- Infobulle ----------
@@ -42,6 +40,7 @@ const Infos = {
     sections.push(['Identité', lignes([
       ['Nom', a.nom],
       ['Catégorie', this.typeAstre(a)],
+      ['Définition', CATEGORIES[a.categorie].def],
       a.nomJpl && a.nomJpl !== a.nom ? ['Nom international', a.nomJpl.replace(/_/g, ' ')] : null,
       a.codeJpl ? ['Code NASA/JPL', a.codeJpl] : null,
       a.numero ? ['Numéro d’astéroïde', a.numero] : null,
@@ -120,7 +119,7 @@ const Infos = {
         <header class="entete">
           <img class="globe-fiche" src="${imageAstre(a, 48)}" alt="">
 
-          <div><h2>${a.nom}</h2><p>${this.typeAstre(a)}${a.note ? ' — ' + a.note : ''}</p></div>
+          <div><h2>${a.nom}</h2><p><b class="categorie-fiche">${this.typeAstre(a)}</b> · ${CATEGORIES[a.categorie].def}</p>${a.note ? `<p>${a.note}</p>` : ''}</div>
           <button class="fermer" title="Fermer">✕</button>
         </header>
         <div class="barre">
@@ -153,9 +152,11 @@ const Infos = {
         </header>
         <div class="barre">
           <input id="recherche" type="search" placeholder="Rechercher un astre…" value="${filtre}">
+          <span class="groupe-vue"><button data-mode-encyclo="systeme">Par système</button><button data-mode-encyclo="categorie">Par catégorie</button></span>
           <label><input type="checkbox" id="masque" ${this.contexte.masque() ? 'checked' : ''}> Seulement les lunes de plus de 100 km</label>
           <button id="bouton-pause">${pause ? '▶ Reprendre le mouvement' : '⏸ Mettre en pause'}</button>
         </div>
+        <div class="filtres-cat" id="filtres-cat"></div>
         <div id="arbre" class="arbre"></div>
       </div>`;
     m.classList.remove('cache');
@@ -167,27 +168,56 @@ const Infos = {
     const rech = m.querySelector('#recherche');
     m.querySelector('#masque').onchange = () => { this.contexte.basculerMasque(); this.remplirArbre(rech.value); };
     rech.oninput = () => this.remplirArbre(rech.value);
+    m.querySelectorAll('[data-mode-encyclo]').forEach((b) => {
+      b.onclick = () => { this.modeEncyclo = b.dataset.modeEncyclo; this.remplirArbre(rech.value); };
+    });
     this.remplirArbre(filtre);
     rech.focus();
   },
 
+  modeEncyclo: 'systeme',
+  catFiltre: new Set(),   // catégories cochées ; vide = toutes
+
   remplirArbre(filtre) {
     const f = filtre.trim().toLowerCase();
     const masque = this.contexte.masque();
-    const visible = (a) => (!masque || a.grosse) && (!f || a.nom.toLowerCase().includes(f) || (a.nomJpl || '').toLowerCase().includes(f));
-    const bouton = (a) => `<button class="lien-astre" data-id="${a.id}"><span class="pastille" style="background:${a.couleurs.disque}"></span>${a.nom}<small>${fmt(a.rayonKm, a.rayonKm < 10 ? 1 : 0)} km</small></button>`;
+    const cats = this.catFiltre;
+    const correspond = (a) => (!masque || a.grosse) && (!f || a.nom.toLowerCase().includes(f) || (a.nomJpl || '').toLowerCase().includes(f));
+    const visible = (a) => correspond(a) && (!cats.size || cats.has(a.categorie));
+    const bouton = (a) => `<button class="lien-astre" data-id="${a.id}" title="${CATEGORIES[a.categorie].nom}"><span class="pastille" style="background:${a.couleurs.disque}"></span>${a.nom}<small>${fmt(a.rayonKm, a.rayonKm < 10 ? 1 : 0)} km</small></button>`;
+    // Boutons de mode et filtres par catégorie (avec le nombre d'astres qui correspondent à la recherche).
+    document.querySelectorAll('[data-mode-encyclo]').forEach((b) => b.classList.toggle('choisi', b.dataset.modeEncyclo === this.modeEncyclo));
+    const zoneFiltres = $('filtres-cat');
+    zoneFiltres.innerHTML = Object.entries(CATEGORIES).map(([k, c]) => {
+      const n = ASTRES.filter((a) => a.categorie === k && correspond(a)).length;
+      return `<button class="filtre-cat ${cats.has(k) ? 'choisi' : ''}" data-cat="${k}" ${n ? '' : 'disabled'}>${c.icone} ${c.nom} <small>${n}</small></button>`;
+    }).join('') + (cats.size ? '<button class="filtre-cat" data-cat="">✕ Toutes</button>' : '');
+    zoneFiltres.querySelectorAll('[data-cat]').forEach((b) => {
+      b.onclick = () => {
+        const k = b.dataset.cat;
+        if (!k) cats.clear(); else if (cats.has(k)) cats.delete(k); else cats.add(k);
+        this.remplirArbre($('recherche').value);
+      };
+    });
     const groupes = [];
-    groupes.push(['Étoile', [ASTRES_PAR_ID.soleil]]);
-    for (const pid of ['mercure', 'venus', 'terre', 'mars', 'jupiter', 'saturne', 'uranus', 'neptune', 'pluton']) {
-      const p = ASTRES_PAR_ID[pid];
-      const lunes = (ENFANTS[pid] || []).slice().sort((x, y) => y.rayonKm - x.rayonKm);
-      groupes.push([p.nom + (lunes.length > 1 ? ` et ses ${lunes.length} lunes` : lunes.length ? ' et sa lune' : ''), [p, ...lunes]]);
+    if (this.modeEncyclo === 'categorie') {
+      for (const [k, c] of Object.entries(CATEGORIES)) {
+        const liste = ASTRES.filter((a) => a.categorie === k).sort((x, y) => y.rayonKm - x.rayonKm);
+        groupes.push([`${c.icone} ${c.nom}`, liste, c.def]);
+      }
+    } else {
+      groupes.push(['Étoile', [ASTRES_PAR_ID.soleil]]);
+      for (const pid of ['mercure', 'venus', 'terre', 'mars', 'jupiter', 'saturne', 'uranus', 'neptune', 'pluton']) {
+        const p = ASTRES_PAR_ID[pid];
+        const lunes = (ENFANTS[pid] || []).slice().sort((x, y) => y.rayonKm - x.rayonKm);
+        groupes.push([p.nom + (lunes.length > 1 ? ` et ses ${lunes.length} lunes` : lunes.length ? ' et sa lune' : ''), [p, ...lunes]]);
+      }
+      groupes.push(['Ceinture d’astéroïdes', ASTRES.filter((a) => a.asteroide)]);
     }
-    groupes.push(['Ceinture d’astéroïdes', ASTRES.filter((a) => a.asteroide)]);
-    const html = groupes.map(([titre, liste]) => {
+    const html = groupes.map(([titre, liste, def]) => {
       const l = liste.filter(visible);
       if (!l.length) return '';
-      return `<section><h3>${titre}</h3><div class="liste-lunes">${l.map(bouton).join('')}</div></section>`;
+      return `<section><h3>${titre} <small class="doux">${l.length}</small></h3>${def ? `<p class="doux">${def}</p>` : ''}<div class="liste-lunes">${l.map(bouton).join('')}</div></section>`;
     }).join('');
     const arbre = $('arbre');
     arbre.innerHTML = html || '<p class="doux">Aucun astre ne correspond.</p>';

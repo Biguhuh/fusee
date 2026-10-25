@@ -199,6 +199,34 @@ for (const a of ASTRES) {
 const ENFANTS = {};
 for (const a of ASTRES) if (a.orbite) (ENFANTS[a.orbite.centre] = ENFANTS[a.orbite.centre] || []).push(a);
 
+// ---------- Catégories ----------
+// Ordre d'affichage, nom, icône et définition courte (affichée dans la fiche).
+const CATEGORIES = {
+  etoile: { nom: 'Étoile', icone: '☀️', def: 'Boule de gaz qui produit sa propre lumière par fusion nucléaire.' },
+  tellurique: { nom: 'Planète tellurique', icone: '🌍', def: 'Planète rocheuse, avec une surface solide, proche du Soleil.' },
+  gazeuse: { nom: 'Géante gazeuse', icone: '🪐', def: 'Planète géante faite surtout d’hydrogène et d’hélium, sans surface solide.' },
+  glaces: { nom: 'Géante de glaces', icone: '🧊', def: 'Planète géante formée surtout d’eau, d’ammoniac et de méthane (les « glaces »), sous une atmosphère d’hydrogène.' },
+  naine: { nom: 'Planète naine', icone: '⚪', def: 'Assez massive pour être ronde, mais elle n’a pas fait le ménage sur son orbite.' },
+  luneMajeure: { nom: 'Lune majeure', icone: '🌕', def: 'Satellite assez gros (plus de 190 km de rayon) pour être à peu près rond.' },
+  luneReguliere: { nom: 'Petite lune régulière', icone: '🌘', def: 'Petit satellite né avec sa planète : orbite proche, presque circulaire, dans le sens de rotation.' },
+  luneIrreguliere: { nom: 'Lune irrégulière', icone: '🪨', def: 'Objet capturé par sa planète : orbite lointaine, inclinée ou très allongée, souvent rétrograde.' },
+  asteroide: { nom: 'Astéroïde', icone: '☄️', def: 'Petit corps rocheux ou métallique qui tourne autour du Soleil, ici dans la ceinture principale.' },
+};
+// Catégorie calculée à partir des données (type, orbite, inclinaison, sens, taille).
+function categorieDe(a) {
+  if (a.type === 'etoile') return 'etoile';
+  if (a.naine) return 'naine';
+  if (a.asteroide) return 'asteroide';
+  if (!a.parent) return a.id === 'uranus' || a.id === 'neptune' ? 'glaces' : a.type === 'gazeuse' ? 'gazeuse' : 'tellurique';
+  if (a.rayonKm >= 190) return 'luneMajeure';   // Mimas (198 km) est le plus petit astre rond connu
+  // Irrégulière : rétrograde, très inclinée, très allongée, ou loin dans la sphère d'influence de sa planète.
+  const o = a.orbite, p = ASTRES_PAR_ID[a.parent];
+  const loin = p && p.soi < Infinity && o.a > 0.08 * p.soi;
+  if (o.retro || (a.inclinaison || 0) > 30 || o.e > 0.3 || loin) return 'luneIrreguliere';
+  return 'luneReguliere';
+}
+for (const a of ASTRES) a.categorie = categorieDe(a);
+
 // Vitesses caractéristiques à une altitude donnée (m) : orbitale et de libération, en m/s.
 function vitesseOrbitale(astre, alt) { return Math.sqrt((astre.gm * 1e9) / (astre.rayonKm * 1000 + alt)); }
 function vitesseLiberation(astre, alt) { return Math.SQRT2 * vitesseOrbitale(astre, alt); }

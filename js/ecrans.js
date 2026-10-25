@@ -196,17 +196,46 @@ function afficherCarte(etat, choisir) {
     b.onclick = () => choisir(id);
     return b;
   };
-  for (const [pid, lunes] of ORDRE_CARTE) {
-    const col = document.createElement('div');
-    col.className = 'colonne';
-    col.appendChild(bouton(pid));
-    if (lunes.length) {
-      const l = document.createElement('div');
-      l.className = 'lunes';
-      lunes.forEach((id) => l.appendChild(bouton(id)));
-      col.appendChild(l);
+  // Choix de rangement : par système (planète et ses lunes) ou par catégorie.
+  let choixMode = $('mode-carte');
+  if (!choixMode) {
+    choixMode = document.createElement('div');
+    choixMode.id = 'mode-carte';
+    choixMode.className = 'groupe-vue mode-carte';
+    sys.parentElement.insertBefore(choixMode, sys);
+  }
+  const mode = etat.modeCarte || 'systeme';
+  choixMode.innerHTML = `<button data-mode="systeme" class="${mode === 'systeme' ? 'choisi' : ''}">Par système</button><button data-mode="categorie" class="${mode === 'categorie' ? 'choisi' : ''}">Par catégorie</button>`;
+  choixMode.querySelectorAll('button').forEach((b) => { b.onclick = () => { etat.modeCarte = b.dataset.mode; afficherCarte(etat, choisir); }; });
+
+  if (mode === 'categorie') {
+    const destinations = ORDRE_CARTE.flatMap(([p, l]) => [p, ...l]);
+    for (const [k, c] of Object.entries(CATEGORIES)) {
+      const ids = destinations.filter((id) => ASTRES_PAR_ID[id].categorie === k);
+      if (!ids.length) continue;
+      const col = document.createElement('div');
+      col.className = 'colonne';
+      const titre = document.createElement('div');
+      titre.className = 'titre-categorie';
+      titre.textContent = `${c.icone} ${c.nom}`;
+      titre.title = c.def;
+      col.appendChild(titre);
+      ids.forEach((id) => col.appendChild(bouton(id)));
+      sys.appendChild(col);
     }
-    sys.appendChild(col);
+  } else {
+    for (const [pid, lunes] of ORDRE_CARTE) {
+      const col = document.createElement('div');
+      col.className = 'colonne';
+      col.appendChild(bouton(pid));
+      if (lunes.length) {
+        const l = document.createElement('div');
+        l.className = 'lunes';
+        lunes.forEach((id) => l.appendChild(bouton(id)));
+        col.appendChild(l);
+      }
+      sys.appendChild(col);
+    }
   }
   afficherFiche(etat);
 }
