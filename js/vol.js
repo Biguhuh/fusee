@@ -1665,6 +1665,20 @@ function texteSurFond(ctx, texte, x, y, options = {}) {
   ctx.restore();
 }
 
+// Haut des boutons tactiles situés dans la moitié basse de l'écran (le bandeau a pu être déplacé ou passer sur deux lignes).
+function H_ECRAN() { return innerHeight; }
+function bordHautBoutons(W, H) {
+  const el = document.getElementById('tactile');
+  if (!el || el.classList.contains('cache')) return H;
+  let haut = H;
+  for (const z of el.querySelectorAll('.zone-tactile')) {
+    if (!z.children.length) continue;
+    const r = z.getBoundingClientRect();
+    if (r.height && r.top > H * 0.45 && r.top < haut) haut = r.top;
+  }
+  return haut;
+}
+
 function afficherMessages(ctx, textes, W, yBas) {
   ctx.save();
   const petit = W < 720;
@@ -1683,13 +1697,15 @@ function afficherMessages(ctx, textes, W, yBas) {
     if (l) lignes.push(l);
     return lignes;
   };
-  const blocs = textes.map(couper);
-  let y = yBas;
+  // 3 lignes au plus par message : au-delà, on coupe avec « … » pour ne pas envahir l'écran.
+  const blocs = textes.map(couper).map((l) => (l.length > 3 ? [l[0], l[1], l[2].replace(/\s*\S*$/, '') + ' …'] : l));
+  // Sur écran tactile, les messages se rangent juste au-dessus des boutons, là où ils sont vraiment.
+  let y = Math.min(yBas, bordHautBoutons(W, H_ECRAN()) - 10);
   for (let b = blocs.length - 1; b >= 0; b--) {
     const lignes = blocs[b];
     const tw = Math.min(W - 20, Math.max(...lignes.map((l) => ctx.measureText(l).width)));
     const hb = lignes.length * interligne + 8;
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
     ctx.fillRect(W / 2 - tw / 2 - 12, y - hb + 6, tw + 24, hb);
     ctx.fillStyle = b === blocs.length - 1 ? '#ffd54f' : 'rgba(255,213,79,0.75)';
     lignes.forEach((l, k) => ctx.fillText(l, W / 2, y - (lignes.length - 1 - k) * interligne));

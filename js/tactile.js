@@ -88,6 +88,7 @@ const Tactile = {
       zones[nom].className = 'zone-tactile ' + nom;
       this.el.appendChild(zones[nom]);
     }
+    if (liste.some((x) => x.zone === 'actions')) this.poignee(zones.actions);
     for (const x of liste) {
       const bt = document.createElement('button');
       bt.type = 'button';
@@ -120,6 +121,52 @@ const Tactile = {
       bt.addEventListener('contextmenu', (e) => e.preventDefault());
       zones[x.zone].appendChild(bt);
     }
+  },
+
+  // Bandeau des actions (temps, pause, sortir…) : une poignée ⠿ pour le déplacer en glissant,
+  // ou le replier d'un appui. Position et état mémorisés dans ce navigateur.
+  bandeau: (() => { try { return JSON.parse(localStorage.getItem('fusee-bandeau')) || { dx: 0, dy: 0, replie: false }; } catch (e) { return { dx: 0, dy: 0, replie: false }; } })(),
+  sauverBandeau() { try { localStorage.setItem('fusee-bandeau', JSON.stringify(this.bandeau)); } catch (e) { /* ignoré */ } },
+  poignee(zone) {
+    const b = this.bandeau;
+    const appliquer = () => {
+      zone.style.transform = `translate(${b.dx}px, ${b.dy}px)`;
+      zone.classList.toggle('replie', !!b.replie);
+      p.textContent = b.replie ? '⠿ ▸' : '⠿';
+      p.setAttribute('aria-label', b.replie ? 'Déplier le bandeau (glisser pour déplacer)' : 'Replier le bandeau (glisser pour déplacer)');
+    };
+    const p = document.createElement('button');
+    p.type = 'button';
+    p.className = 'poignee';
+    zone.appendChild(p);
+    let depart = null;
+    p.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      try { p.setPointerCapture(e.pointerId); } catch (err) { /* sans capture */ }
+      depart = { x: e.clientX, y: e.clientY, dx: b.dx, dy: b.dy, bouge: false };
+    });
+    p.addEventListener('pointermove', (e) => {
+      if (!depart) return;
+      const mx = e.clientX - depart.x, my = e.clientY - depart.y;
+      if (Math.hypot(mx, my) > 6) depart.bouge = true;
+      if (!depart.bouge) return;
+      // On reste dans l'écran.
+      const r = zone.getBoundingClientRect();
+      const baseX = r.left - b.dx, baseY = r.top - b.dy;
+      b.dx = Math.max(-baseX, Math.min(innerWidth - r.width - baseX, depart.dx + mx));
+      b.dy = Math.max(-baseY + 40, Math.min(innerHeight - r.height - baseY, depart.dy + my));
+      appliquer();
+    });
+    const fin = () => {
+      if (!depart) return;
+      if (!depart.bouge) b.replie = !b.replie;   // simple appui : replier / déplier
+      depart = null;
+      appliquer();
+      this.sauverBandeau();
+    };
+    p.addEventListener('pointerup', fin);
+    p.addEventListener('pointercancel', fin);
+    appliquer();
   },
 
   // Carte de l'orbiteur : glisser à un doigt, pincer à deux doigts.

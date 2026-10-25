@@ -275,6 +275,9 @@ pre.erreur { white-space: pre-wrap; background: #1a0d0d; border: 1px solid #5a23
 .zone-tactile.droite2 button { min-width: 50px; min-height: 50px; font-size: 15px; }
 .zone-tactile.actions { left: 8px; right: 8px; bottom: 150px; justify-content: center; flex-wrap: wrap; gap: 6px; }
 .zone-tactile.actions button { min-width: 44px; min-height: 44px; font-size: 15px; padding: 4px 10px; }
+/* Poignée du bandeau : glisser pour le déplacer, toucher pour le replier. */
+.zone-tactile.actions button.poignee { min-width: 36px; padding: 4px 6px; font-size: 18px; letter-spacing: -2px; background: rgba(255,255,255,0.12); cursor: grab; }
+.zone-tactile.actions.replie button:not(.poignee) { display: none; }
 /* Paysage : les boutons d'action passent entre les deux groupes du bas. */
 @media (orientation: landscape) {
   .zone-tactile.actions { left: 160px; right: 170px; bottom: 12px; }
