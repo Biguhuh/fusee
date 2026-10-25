@@ -653,6 +653,7 @@ function assombrir(hex, k) {
 }
 
 function dessinerVol(ctx, vol, W, H, dtReel, warp) {
+  if (!(W > 0 && H > 0)) return;   // fenêtre réduite à rien (onglet caché) : rien à dessiner
   const a = vol.astre, c = vol.c;
   const gaz = a.type === 'gazeuse';
   const solide = a.type === 'solide';
@@ -758,13 +759,17 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
     if (sx > -200 && sx < W + 200 && sy > -50) dessinerTour(ctx, sx, sy, echelle, vol.f.etages[0].hauteur);
   }
   // Étage largué qui retombe
+  // Échelle d'affichage de la fusée (agrandie quand la caméra est très reculée, pour qu'on la voie) :
+  // les débris sont placés par rapport à elle à cette même échelle, sinon ils semblent collés à la fusée.
+  const kVisu = hPx / vol.f.hauteur;
   if (vol.etageLargue && dtReel > 0) {
     const e = vol.etageLargue;
-    const h = dtReel * warp;
-    e.t += h; e.vy -= c.g * h; e.x += e.vx * h; e.y += e.vy * h; e.angle += 0.05 * h;
-    const sx = W / 2 + (e.x - vol.x) * echelle, sy = fuseeY + (vol.y - e.y) * echelle;
+    // L'étage vide n'a plus de poussée : gravité (à son altitude) et frottement de l'air seulement.
+    avancerDebris(vol, e, dtReel * warp, vol.f.etages[e.etage]);
+    e.angle += 0.05 * dtReel * warp;
+    const sx = W / 2 + (e.x - vol.x) * kVisu, sy = fuseeY + (vol.y - e.y) * kVisu;
     if (e.t < 120 && sx > -300 && sx < W + 300 && sy > -300 && sy < H + 300) {
-      const kk = hPx / vol.f.hauteur, hh = e.h * kk;
+      const kk = kVisu, hh = e.h * kk;
       const et = vol.f.etages[e.etage];
       ctx.save(); ctx.translate(sx, sy); ctx.rotate(e.angle);
       // L'étage vide est juste sous la fusée : on le dessine vers le bas depuis son sommet.
@@ -775,10 +780,9 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
   // Demi-coiffes qui s'écartent et retombent
   if (vol.coiffeDebris && dtReel > 0) {
     const e = vol.coiffeDebris, ch = vol.f.charge;
-    const h = dtReel * warp;
-    e.t += h; e.vy -= c.g * h; e.x += e.vx * h; e.y += e.vy * h;
-    const kk = hPx / vol.f.hauteur;
-    const sx = W / 2 + (e.x - vol.x) * echelle, sy = fuseeY + (vol.y - e.y) * echelle;
+    avancerDebris(vol, e, dtReel * warp, null);
+    const kk = kVisu;
+    const sx = W / 2 + (e.x - vol.x) * kk, sy = fuseeY + (vol.y - e.y) * kk;
     if (e.t < 60) {
       const hc = ch.hauteur * kk, wc = ch.largeur * kk, ecart = Math.min(e.t, 20) * 1.5 * kk;
       ctx.save(); ctx.translate(sx, sy); ctx.rotate(e.angle); ctx.translate(0, -(vol.f.hauteur - ch.hauteur) * kk);
@@ -813,6 +817,27 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
   }
 
   dessinerHUD(ctx, vol, W, H, warp);
+}
+
+// Débris (étage vide, demi-coiffes) : mouvement balistique, comme la fusée mais sans poussée.
+// Gravité à leur altitude (moins l'effet centrifuge), frottement de l'air selon leur masse et leur section.
+function avancerDebris(vol, e, duree, etage) {
+  const a = vol.astre, R = a.rayonKm * 1000;
+  const masse = etage ? etage.masseSeche : 1500;
+  const section = etage ? Math.PI * Math.pow((etage.largeur || 4) / 2, 2) : 20;
+  let reste = duree;
+  while (reste > 0) {
+    const h = Math.min(0.5, reste);
+    const c = conditions(a, Math.max(0, e.y));
+    e.vy += (-c.g + (e.vx * e.vx) / (R + e.y)) * h;
+    const v = Math.hypot(e.vx, e.vy);
+    if (c.rho > 0 && v > 0) {
+      const k = (0.5 * c.rho * 0.9 * section * v / masse) * h;   // semi-implicite, stable
+      e.vx /= 1 + k; e.vy /= 1 + k;
+    }
+    e.x += e.vx * h; e.y += e.vy * h;
+    e.t += h; reste -= h;
+  }
 }
 
 // Astres visibles dans le ciel, pour l'infobulle au survol : [{ x, y, r, id }].
