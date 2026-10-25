@@ -41,6 +41,13 @@ Tenue : combinaison de vol bleue de l'ESA sur Terre, scaphandre blanc aux couleu
      - **Avec équipage**, un hélicoptère arrive par le bord de l'écran, se met en stationnaire et hélitreuille le ou la spationaute.
      - **Si l'équipage a été perdu** (sortie mortelle, atterrisseur détruit) : message « Capsule vide », pas d'hélicoptère ; un navire arrive et hisse la capsule à bord avec sa grue.
      - Le temps accéléré est affiché ; Entrée, Espace ou un toucher passent la séquence.
+  - **Reprendre d'où l'on veut** : le bouton « Reprendre » propose plusieurs points de départ :
+    - là où l'on était ;
+    - en orbite à l'une de ses stations ;
+    - au sol près de l'une de ses bases (l'atterrisseur y est garé, l'orbiteur attend en orbite pour le rendez-vous) ;
+    - ou depuis la Terre (centre de lancement).
+
+    Sans expédition en cours, une nouvelle expédition prend le départ au point choisi.
   5. **Quitter le Système solaire** (bouton « 🌌 » de l'orbiteur) : on choisit une étoile proche réelle (Proxima Centauri, Alpha Centauri, Barnard, Lalande 21185, Epsilon Eridani, Tau Ceti, TRAPPIST-1).
      - **Départ réaliste**, avec deux propulsions :
        - assistances gravitationnelles comme Voyager 1, 17 km/s ;

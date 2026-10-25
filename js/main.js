@@ -473,6 +473,62 @@ function allerNavigation() {
   sauver(etat);
 }
 
+// ---------- Reprendre la campagne d'où l'on veut ----------
+// Là où l'on était, en orbite à une station, au sol près d'une base (l'atterrisseur y est garé),
+// ou depuis la Terre (centre de lancement). Sans station ni base, on reprend directement.
+function ouvrirReprise() {
+  const v = etat.voyage;
+  if (!v || v.fin) return allerNavigation();
+  const basesOk = v.bases.filter((b) => !AEROSTAT[b.astre] && ASTRES_PAR_ID[b.astre]);
+  if (!v.stations.length && !basesOk.length) return allerNavigation();
+  const choix = [];
+  if (v.orb) choix.push(['ici', `▶ Là où vous étiez`, `en orbite de ${ASTRES_PAR_ID[v.orb.centre].nom}`]);
+  for (const s of v.stations) choix.push(['station:' + s.id, `🛰 ${s.nom}`, `en orbite de ${ASTRES_PAR_ID[s.centre].nom}, amarré à la station`]);
+  for (const b of basesOk) choix.push(['base:' + v.bases.indexOf(b), `🏠 Base ${ASTRES_PAR_ID[b.astre].nom}, niveau ${b.niveau || 1}`, `au sol, l’atterrisseur garé à côté ; l’orbiteur attend en orbite`]);
+  choix.push(['terre', `🚀 Depuis ${SYSTEME.nomOrigine}`, v.orb ? 'centre de lancement (l’expédition en cours reste où elle est)' : 'centre de lancement, nouvelle méga-fusée']);
+  const m = $('modale');
+  m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>▶ Reprendre la campagne</h2><p>Choisissez d’où repartir.</p></div><button class="fermer">✕</button></header>
+    <section>${choix.map(([id, nom, detail], i) => `<label class="choix-ravito"><input type="radio" name="reprise" value="${id}" ${i === 0 ? 'checked' : ''}> <b>${nom}</b><br><span class="doux">${detail}</span></label>`).join('')}</section>
+    <div class="actions"><span></span><button id="reprise-ok" class="principal">▶ Jouer d’ici</button></div></div>`;
+  m.classList.remove('cache');
+  m.querySelector('.fermer').onclick = () => Infos.fermer();
+  $('reprise-ok').onclick = () => {
+    const id = m.querySelector('input[name=reprise]:checked').value;
+    Infos.fermer();
+    reprendreDepuis(id);
+  };
+}
+
+// Place l'expédition au point choisi, puis lance le jeu de là.
+function reprendreDepuis(id) {
+  const v = etat.voyage;
+  if (id === 'ici') return allerNavigation();
+  if (id === 'terre') return allerLancement();
+  Orbiteur.charger(v);
+  if (!v.orb) Orbiteur.demarrerExpedition();        // nouvelle expédition, montée à bord à la station ou à la base
+  Orbiteur.camPlacee = false;
+  if (id.startsWith('station:')) {
+    const st = v.stations.find((s) => s.id === id.slice(8));
+    const e = Orbiteur.etatStation(st);
+    v.orb = { centre: st.centre, r: e.r, v: e.v, transfert: null };
+    v.cible = null;
+    Orbiteur.log(`Reprise à ${st.nom}, en orbite de ${ASTRES_PAR_ID[st.centre].nom}.`);
+    return allerNavigation();
+  }
+  // Base : l'orbiteur attend en orbite (à la station s'il y en a une), l'atterrisseur est posé à côté de la base.
+  const b = v.bases[Number(id.slice(5))], a = ASTRES_PAR_ID[b.astre];
+  const st = v.stations.find((s) => s.centre === a.id);
+  if (st) { const e = Orbiteur.etatStation(st); v.orb = { centre: a.id, r: e.r, v: e.v, transfert: null }; }
+  else { const r0 = a.rayonKm + Math.max(100, altitudeOrbite(a) / 1000 + 50); v.orb = { centre: a.id, r: [r0, 0], v: [0, Math.sqrt(a.gm / r0)], transfert: null }; }
+  v.cible = null;
+  const c = concevoirAtterrisseur(a);
+  if (!c.ok) { Orbiteur.log(c.raison); return allerNavigation(); }
+  Orbiteur.log(`Reprise à la base ${a.nom} (niveau ${b.niveau || 1}) : l’atterrisseur est posé à côté.`);
+  sauver(etat);
+  etat.destination = a.id;
+  lancer({ voyage: true, fusee: c.fusee, bases: basesSur(a.id), site: { x: b.x, xDescente: b.x - 90 }, depuisSol: true });
+}
+
 // Départ réaliste vers une autre étoile : la campagne s'arrête là, avec ses dates d'arrivée.
 function terminerParDepart(info) {
   const v = etat.voyage;
@@ -529,7 +585,7 @@ $('voyage-nouveau').onclick = () => {
   sauver(etat);
   allerNavigation();
 };
-$('voyage-reprendre').onclick = allerNavigation;
+$('voyage-reprendre').onclick = ouvrirReprise;
 $('promenade').onclick = promenadeSurTerre;
 
 // ---------- Informations ----------
@@ -565,7 +621,7 @@ $('vers-hangar').onclick = () => {
 };
 $('rejouer').onclick = () => (etat.vol && etat.vol.lancement ? lancerMegaFusee() : rejouerVisite());
 $('accueil-campagne').onclick = () => $('voyage-nouveau').click();
-$('accueil-reprendre').onclick = allerNavigation;
+$('accueil-reprendre').onclick = ouvrirReprise;
 $('accueil-visite').onclick = allerCarte;
 $('accueil-hangar').onclick = allerHangar;
 $('accueil-promenade').onclick = promenadeSurTerre;
