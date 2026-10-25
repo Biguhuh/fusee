@@ -677,8 +677,8 @@ const Orbiteur = {
     this.log(`${st.nom} envoie une extension vers la base ${a.nom} : ${m.description}. Posé dans ${fmtDuree(m.duree)}.`);
   },
 
-  // Fenêtre « Envoyer un ravito » : départ, destination, contenu.
-  ouvrirRavito() {
+  // Fenêtre « Envoyer un ravito » : départ, destination, contenu. destId : destination présélectionnée.
+  ouvrirRavito(destId) {
     const v = this.v;
     const m = $('modale');
     const options = (liste) => liste.map(([val, txt]) => `<option value="${val}">${txt}</option>`).join('');
@@ -711,6 +711,7 @@ const Orbiteur = {
       $('rav-info').textContent = t;
       $('rav-lancer').disabled = !!t;
     };
+    if (destId && v.stations.some((s) => s.id === destId)) $('rav-dest').value = destId;
     m.querySelectorAll('select, input').forEach((e) => { e.onchange = info; });
     info();
     $('rav-lancer').onclick = () => {

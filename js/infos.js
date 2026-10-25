@@ -120,7 +120,9 @@ const Infos = {
 
   ouvrirFiche(id) {
     const a = ASTRES_PAR_ID[id];
-    const sections = this.donnees(a);
+    // Pendant la campagne : tableau de bord de l'astre (sur place, en orbite) en tête de la fiche.
+    const tableau = this.contexte.tableau ? this.contexte.tableau(a) : null;
+    const sections = [...(tableau ? tableau.sections : []), ...this.donnees(a)];
     const actions = this.contexte.actions(a);
     const pause = this.contexte.estEnPause();
     const m = $('modale');
@@ -148,6 +150,7 @@ const Infos = {
     m.querySelector('#bouton-encyclo').onclick = () => this.ouvrirEncyclopedie();
     m.querySelectorAll('[data-action]').forEach((b) => { b.onclick = () => { this.fermer(); actions[+b.dataset.action].action(); }; });
     m.querySelectorAll('.lien-astre').forEach((b) => { b.onclick = () => this.ouvrirFiche(b.dataset.id); });
+    if (tableau) tableau.brancher(m, () => this.ouvrirFiche(id));
   },
 
   // ---------- Encyclopédie ----------

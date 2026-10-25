@@ -48,6 +48,11 @@ Tenue : combinaison de vol bleue de l'ESA sur Terre, scaphandre blanc aux couleu
     - ou depuis la Terre (centre de lancement).
 
     Sans expédition en cours, une nouvelle expédition prend le départ au point choisi.
+  - **Tableau de bord de l'astre** : pendant la campagne, la fiche d'un astre commence par deux sections.
+    - **« Sur place »** : exploration, échantillons rapportés, drapeaux, zone de base repérée, ressource locale, chaque base avec son niveau, ses productions d'ergols et de matériaux, son stock, et ce qui manque pour le niveau suivant.
+    - **« En orbite »** : l'orbiteur s'il est là, chaque station avec son stock et ses capacités, ses chantiers, son atelier, les sondes et les ravitos attendus.
+
+    Depuis l'orbiteur, on agit directement depuis la fiche : envoyer l'extension à la base, fabriquer à l'atelier, envoyer un ravito vers la station.
   5. **Quitter le Système solaire** (bouton « 🌌 » de l'orbiteur) : on choisit une étoile proche réelle (Proxima Centauri, Alpha Centauri, Barnard, Lalande 21185, Epsilon Eridani, Tau Ceti, TRAPPIST-1).
      - **Départ réaliste**, avec deux propulsions :
        - assistances gravitationnelles comme Voyager 1, 17 km/s ;

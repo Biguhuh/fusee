@@ -602,6 +602,8 @@ Infos.contexte = {
     }
     return l;
   },
+  // Tableau de bord de l'astre pendant la campagne (actions seulement quand l'orbiteur est ouvert).
+  tableau: (a) => (etat.voyage && !etat.voyage.fin ? tableauAstre(etat.voyage, a, etat.ecran === 'nav' && Orbiteur.v === etat.voyage) : null),
   surFermeture: () => {},
 };
 
