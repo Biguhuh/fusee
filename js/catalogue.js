@@ -210,7 +210,7 @@ const CATEGORIES = {
   naine: { nom: 'Planète naine', icone: '⚪', def: 'Assez massive pour être ronde, mais elle n’a pas fait le ménage sur son orbite.' },
   luneMajeure: { nom: 'Lune majeure', icone: '🌕', def: 'Satellite assez gros (plus de 190 km de rayon) pour être à peu près rond.' },
   luneReguliere: { nom: 'Petite lune régulière', icone: '🌘', def: 'Petit satellite né avec sa planète : orbite proche, presque circulaire, dans le sens de rotation.' },
-  luneIrreguliere: { nom: 'Lune irrégulière', icone: '🪨', def: 'Objet capturé par sa planète : orbite lointaine, inclinée ou très allongée, souvent rétrograde.' },
+  luneIrreguliere: { nom: 'Lune irrégulière', icone: '🌑', def: 'Objet capturé par sa planète : orbite lointaine, inclinée ou très allongée, souvent rétrograde.' },
   asteroide: { nom: 'Astéroïde', icone: '☄️', def: 'Petit corps rocheux ou métallique qui tourne autour du Soleil, ici dans la ceinture principale.' },
 };
 // Catégorie calculée à partir des données (type, orbite, inclinaison, sens, taille).

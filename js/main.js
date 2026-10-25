@@ -141,7 +141,12 @@ function resumeCampagne(v) {
     (v.provisions.fleurs + v.provisions.fruits ? ` · à emporter : ${v.provisions.fleurs} fleurs, ${v.provisions.fruits} fruits` : '');
 }
 function allerCarte() { afficherCarte(etat, choisirDestination); montrer('carte'); }
-function choisirDestination(id) { etat.destination = id; afficherCarte(etat, choisirDestination); }
+function choisirDestination(id) {
+  etat.destination = id;
+  afficherCarte(etat, choisirDestination);
+  // Téléphone : la fiche et le bouton « Lancer » sont sous la carte, on y descend.
+  if (innerWidth < 700) $('fiche').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 
 function lancer(options = {}) {
   const astre = ASTRES_PAR_ID[etat.destination];

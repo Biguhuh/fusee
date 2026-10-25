@@ -570,14 +570,15 @@ class Observation {
     ecrire(true);
     ctx.restore();
     // Boutons de zoom
-    const bw = 42;
-    this.boutons = [{ x: W - 14 - bw, y: H - 70 - bw, w: bw, h: bw, f: 1.3, t: '+' }, { x: W - 14 - bw, y: H - 60, w: bw, h: bw, f: 1 / 1.3, t: '−' }];
+    // Boutons de zoom au-dessus de la ligne d'aide (plus grands sur un écran tactile).
+    const bw = compact ? 48 : 42, bas = H - 34;
+    this.boutons = [{ x: W - 14 - bw, y: bas - 2 * bw - 10, w: bw, h: bw, f: 1.3, t: '+' }, { x: W - 14 - bw, y: bas - bw, w: bw, h: bw, f: 1 / 1.3, t: '−' }];
     for (const b of this.boutons) {
       ctx.fillStyle = 'rgba(20,30,50,0.85)'; ctx.beginPath(); ctx.roundRect(b.x, b.y, b.w, b.h, 8); ctx.fill();
       ctx.fillStyle = '#fff'; ctx.font = '600 22px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(b.t, b.x + b.w / 2, b.y + b.h / 2 + 1);
     }
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    texteSurFond(ctx, 'Échap, Entrée ou toucher : revenir · molette, + / − : zoom · tailles non à l’échelle', W / 2, H - 14, { police: '12px system-ui, sans-serif', couleur: '#8fa3b8' });
+    texteSurFond(ctx, compact ? 'Toucher : revenir · + / − : zoom · pas à l’échelle' : 'Échap, Entrée ou toucher : revenir · molette, + / − : zoom · tailles non à l’échelle', W / 2, H - 14, { police: '12px system-ui, sans-serif', couleur: '#8fa3b8' });
   }
 }
 

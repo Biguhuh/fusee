@@ -63,7 +63,7 @@ const Tactile = {
       }
       if (v.pose && solide && !v.lancement && !v.promenade) {
         b.push({ zone: 'actions', label: '🧑‍🚀 Sortir', code: 'KeyE' });
-        b.push({ zone: 'actions', label: '🛞 Robot', code: 'KeyR' });
+        b.push({ zone: 'actions', label: '🤖 Robot', code: 'KeyR' });
         if (etat.enVoyage && etat.voyage && baseSur(etat.voyage, v.astre.id)) b.push({ zone: 'actions', label: '🏗 Base ✓', code: 'KeyB', desactive: 'Base déjà installée sur cet astre' });
         else if (etat.enVoyage) b.push({ zone: 'actions', label: '🏗 Base', code: 'KeyB' });
         if (!v.voyage) b.push({ zone: 'actions', label: '✓ Terminer', code: 'Enter' });
@@ -76,9 +76,10 @@ const Tactile = {
       b.push({ zone: 'gauche', label: '◀', code: 'ArrowLeft', maintenu: true, titre: 'Gauche' });
       b.push({ zone: 'gauche', label: '▶', code: 'ArrowRight', maintenu: true, titre: 'Droite' });
       if (x.saut && !x.enRover) b.push({ zone: 'droite', label: '⤒', code: 'ArrowUp', maintenu: true, titre: 'Sauter' });
-      const action = x.terre ? '🌸 Cueillir' : x.type === 'robot' ? '🔬 Analyser' : '🪨 Ramasser';
+      // Émojis anciens seulement : 🪨 et 🛞 (récents) s'affichent en carré vide sur beaucoup de téléphones.
+      const action = x.terre ? '🌸 Cueillir' : x.type === 'robot' ? '🔬 Analyser' : '🤲 Ramasser';
       b.push({ zone: 'droite', label: action, code: 'KeyE', principal: true, large: true });
-      if (x.rover) b.push({ zone: 'actions', label: x.enRover ? '🚶 Descendre' : '🛞 Rover', code: 'KeyV' });
+      if (x.rover) b.push({ zone: 'actions', label: x.enRover ? '🚶 Descendre' : '🚙 Rover', code: 'KeyV' });
       if (!x.terre && !x.enRover) b.push({ zone: 'actions', label: '🚩', code: 'KeyF', titre: 'Planter le drapeau' });
       temps('actions');
       b.push({ zone: 'actions', label: etat.pause ? '▶' : '⏸', code: 'KeyP' });

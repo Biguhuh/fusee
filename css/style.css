@@ -330,3 +330,13 @@ pre.erreur { white-space: pre-wrap; background: #1a0d0d; border: 1px solid #5a23
   .fenetre { padding: 12px; }
   .sections { grid-template-columns: 1fr; }
 }
+/* Écrans tactiles : des cibles assez grandes pour un doigt (≈ 36 px de haut au moins). */
+@media (pointer: coarse) {
+  #hud-nav button { min-height: 36px; }
+  .choix-ravito { padding: 10px 8px; }
+  .liste-lunes button, .cartes-ciel .carte-ciel { min-height: 40px; }
+}
+/* Téléphone : la carte de la visite rapide passe sur plusieurs rangées au lieu de défiler de côté. */
+@media (max-width: 600px) {
+  .systeme { flex-wrap: wrap; justify-content: center; overflow-x: visible; row-gap: 18px; }
+}
