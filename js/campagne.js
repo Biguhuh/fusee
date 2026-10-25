@@ -63,7 +63,7 @@ function fuseeDeConception(c, a) {
 }
 
 // Résultats gardés en mémoire, et d'une partie à l'autre (les vols d'essai prennent un peu de temps).
-const VERSION_CONCEPTION = 'v2';
+const VERSION_CONCEPTION = 'v3';   // v3 : rotation progressive (vols d'essai à refaire)
 const cacheConception = {};
 function concevoirAtterrisseur(a) {
   if (cacheConception[a.id]) return cacheConception[a.id];

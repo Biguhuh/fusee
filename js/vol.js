@@ -3,7 +3,11 @@
 // Repère : x horizontal (m), y = altitude (m) par rapport au niveau moyen du sol
 // (ou au niveau 1 bar des géantes). angle = 0 quand la fusée pointe vers le haut.
 
-const VITESSE_ROTATION = 1.6;  // rad/s
+// Grands lanceurs : bascule initiale du virage gravitationnel (rad). 17° : montée assez plate pour
+// économiser le carburant (Hercule arrive en orbite avec ≈ 37 t de réserve), échauffement modéré.
+let BASCULE_LANCEUR = 0.3;
+// Rapproche une valeur d'une cible, d'au plus « pas » (pour lisser vitesses et rotations).
+function approcher(x, cible, pas) { return x < cible ? Math.min(cible, x + pas) : Math.max(cible, x - pas); }
 const INCLINAISON_MAX = 15;    // degrés : inclinaison de la fusée et pente du sol supportées à l'atterrissage
 const MARGE_RUPTURE = 0.5;     // au-delà de +50 % des limites d'atterrissage, c'est le crash direct
 
@@ -63,6 +67,28 @@ class Vol {
   }
 
   masse() { return this.f.masseSeche + this.carburant; }
+  // Rotation : vitesse et accélération angulaires maximales selon l'engin.
+  // Un grand lanceur pivote lentement (≈ 3,4°/s au plus, ≈ 1°/s en vrai pendant le virage),
+  // un module d'atterrissage léger beaucoup plus vite (≈ 40°/s).
+  rotationMax() {
+    return this.f.mega ? { w: 0.06, acc: 0.03 } : { w: 0.7, acc: 1.4 };
+  }
+  // Pilote automatique : tourne vers un angle en accélérant puis en freinant à temps
+  // (profil « accélérer, freiner »), sans à-coup ni dépassement.
+  orienterVers(angleCible, dt) {
+    const { w, acc } = this.rotationMax();
+    let dA = angleCible - this.angle;
+    if (dA > Math.PI) dA -= 2 * Math.PI;
+    if (dA < -Math.PI) dA += 2 * Math.PI;
+    // Vitesse à laquelle on peut encore s'arrêter pile sur la cible.
+    const wVoulu = Math.sign(dA) * Math.min(w, Math.sqrt(2 * acc * Math.abs(dA)));
+    this.omega = approcher(this.omega || 0, wVoulu, acc * dt);
+    // Pas de dépassement à cause du pas de temps.
+    const pas = this.omega * dt;
+    this.angle += Math.abs(pas) > Math.abs(dA) ? dA : pas;
+    if (Math.abs(pas) > Math.abs(dA)) this.omega = 0;
+    return dA;
+  }
   twr() { return this.f.poussee / (this.masse() * this.c.g); }
   // Sol, terrassé à plat sous les bases (raccord en douceur entre 110 et 140 m du centre).
   sol(x) {
@@ -112,9 +138,14 @@ class Vol {
     }
 
     if (this.autopilote) this.pilotage(dt);
+    else if (this.pose) this.omega = 0;
     else {
-      if (cmd.gauche) this.angle -= VITESSE_ROTATION * dt;
-      if (cmd.droite) this.angle += VITESSE_ROTATION * dt;
+      // Commande manuelle : la rotation prend de la vitesse progressivement, et s'arrête de même
+      // quand on lâche (les petits moteurs de contrôle d'attitude freinent la rotation).
+      const { w, acc } = this.rotationMax();
+      const cible = cmd.gauche ? -w : cmd.droite ? w : 0;
+      this.omega = approcher(this.omega || 0, cible, acc * dt);
+      this.angle += this.omega * dt;
     }
     if (this.angle > Math.PI) this.angle -= 2 * Math.PI;
     if (this.angle < -Math.PI) this.angle += 2 * Math.PI;
@@ -145,6 +176,8 @@ class Vol {
     const ay = F * Math.cos(this.angle) / m - c.g + (this.vx * this.vx) / (a.rayonKm * 1000 + this.y);
 
     if (this.pose) {
+      // Posé : le module bascule doucement jusqu'à reposer sur la pente.
+      if (this.angleRepos !== undefined && !this.decollageDemande) this.angle = approcher(this.angle, this.angleRepos, 1.2 * dt);
       if (ay <= 0) {
         this.vx = 0; this.vy = 0;
         this.dangers(c, 0, dt);
@@ -256,7 +289,8 @@ class Vol {
     }
     this.pose = true;
     this.vx = 0; this.vy = 0;
-    this.angle = penteRad;     // la fusée repose sur la pente
+    this.angleRepos = penteRad; // la fusée va se poser sur la pente (en douceur, voir step)
+    this.omega = 0;
     this.phase = 'au sol';
     this.manette = 0;
     this.dejaPose = true;
@@ -325,6 +359,8 @@ class Vol {
           this.messageAuto = twr < 1 ? 'poussée insuffisante pour monter !' : 'remontée vers le niveau 1 bar';
           break;
         }
+        // Les grands lanceurs pivotent lentement : il leur faut un guidage qui n'exige jamais de virage brusque.
+        if (this.f.mega) return this.pilotageLanceur(dt, alt, twr);
         return this.pilotageMiseEnOrbite(dt, alt, twr);
       }
       case 'plongee': {
@@ -348,12 +384,51 @@ class Vol {
     let angleCible = Fy > 0 || Fx !== 0 ? Math.atan2(Fx, Math.max(Fy, 1e-6)) : 0;
     angleCible = Math.max(-inclinaisonMax, Math.min(inclinaisonMax, angleCible));
     if (this.pose) angleCible = 0;
-    const dA = angleCible - this.angle;
-    this.angle += Math.max(-VITESSE_ROTATION * dt, Math.min(VITESSE_ROTATION * dt, dA));
+    const dA = this.orienterVers(angleCible, dt);
     let th = Math.hypot(Fx, Fy) / this.f.poussee;
     if (Fy <= 0) th = 0;
     if (Math.abs(dA) > 0.4) th *= 0.3;   // pas de pleine poussée tant qu'on est mal orienté
     this.manette = Math.max(0, Math.min(1, th));
+  }
+
+  // Guidage des grands lanceurs, comme les vraies fusées :
+  // 1. montée verticale jusqu'à 1 km ;
+  // 2. virage gravitationnel : petite bascule, puis la fusée suit sa propre vitesse (peu de frottement, pas d'à-coup) ;
+  // 3. hors de l'atmosphère : pleine poussée, la part verticale est calculée pour arriver à l'altitude d'orbite
+  //    au moment où la vitesse horizontale est atteinte. L'angle visé évolue lentement, sans aller-retour.
+  pilotageLanceur(dt, alt, twr) {
+    const a = this.astre, m = this.masse(), F = this.f.poussee;
+    const aT = F / m;                                   // accélération à pleine poussée
+    const vO = vitesseOrbitale(a, this.altOrbite);
+    const sens = this.vx < -1 ? -1 : 1;
+    const gEff = this.gEffective();
+    const trajectoire = Math.atan2(Math.abs(this.vx), Math.max(1, this.vy));   // inclinaison de la vitesse (0 = vers le haut)
+    let angleCible, th = 1;
+    const dense = this.c.rho > 0.003;
+    if (alt < 1000 && this.vy < 150) {
+      angleCible = 0;
+      this.messageAuto = 'montée verticale';
+    } else if (dense && trajectoire < 1.25) {
+      // Bascule progressive entre 1 et 4 km, puis on suit la vitesse (virage gravitationnel).
+      const bascule = Math.min(BASCULE_LANCEUR, Math.max(0, (alt - 1000) / 3000) * BASCULE_LANCEUR);
+      angleCible = sens * Math.max(trajectoire, bascule);
+      this.messageAuto = 'virage gravitationnel';
+    } else {
+      const resteH = Math.max(0, vO * 1.005 - Math.abs(this.vx));
+      const tgo = Math.max(8, resteH / Math.max(0.3, aT));
+      const dz = this.altOrbite * 1.02 - this.y;
+      const vyVoulu = Math.max(-150, Math.min(600, (1.6 * dz) / tgo));
+      let ay = (vyVoulu - this.vy) / 25 + gEff;
+      ay = Math.max(-0.3 * aT, Math.min(0.97 * aT, ay));
+      const ax = Math.sqrt(Math.max(0, aT * aT - ay * ay));
+      angleCible = Math.atan2(sens * ax, ay);
+      // On réduit la poussée en approchant de la vitesse orbitale, pour ne pas la dépasser.
+      th = Math.min(1, resteH / (aT * 3) + 0.08);
+      this.messageAuto = `mise en orbite : encore ${fmt(resteH)} m/s`;
+    }
+    this.orienterVers(angleCible, dt);
+    this.manette = Math.max(0, Math.min(1, th));
+    if (twr < 1) this.messageAuto = 'poussée insuffisante pour décoller !';
   }
 
   // Montée vers l'orbite : on grimpe d'abord, puis on bascule vers l'horizontale
@@ -387,8 +462,7 @@ class Vol {
     }
     let angleCible = Math.atan2(Fx, Fy);
     if (alt < 30) angleCible = Math.max(-0.1, Math.min(0.1, angleCible));
-    const dA = angleCible - this.angle;
-    this.angle += Math.max(-VITESSE_ROTATION * dt, Math.min(VITESSE_ROTATION * dt, dA));
+    const dA = this.orienterVers(angleCible, dt);
     let th = Math.hypot(Fx, Fy) / Fmax;
     if (Math.abs(dA) > 0.4) th *= 0.3;
     this.manette = Math.max(0, Math.min(1, th));
