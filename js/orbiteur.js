@@ -519,23 +519,48 @@ const Orbiteur = {
 
   // Ravito : un cargo part de la Terre (ou d'une station) vers une station, sur sa propre trajectoire.
   // contenu : { cle: quantité } ; origineId : la planète d'origine (SYSTEME.origine) ou l'id d'une station.
+  // Point de départ d'un cargo : la station terrestre (ou l'orbite basse de la planète d'origine), ou une station.
+  departCargo(origineId) {
+    const v = this.v;
+    if (estOrigine(origineId)) {
+      const st = v.stations.find((s) => s.terrestre);
+      const o = planeteOrigine();
+      if (st) return this.etatStation(st);
+      const r0 = o.rayonKm + 400;
+      return { centre: o.id, r: [0, -r0], v: [Math.sqrt(o.gm / r0), 0] };
+    }
+    const st = v.stations.find((s) => s.id === origineId);
+    return st ? this.etatStation(st) : null;
+  },
+
+  // Durée prévue d'un ravito (s), attente de la fenêtre de tir comprise : même calcul que la trajectoire affichée.
+  // Gardée en cache pour la journée de jeu (le contenu ne change pas la trajectoire).
+  estimerRavito(origineId, destId) {
+    const v = this.v, dest = v.stations.find((s) => s.id === destId);
+    if (!dest) return null;
+    this.cacheRavito = this.cacheRavito || new Map();
+    const cle = `${origineId}|${destId}|${Math.floor(v.t / JOUR)}`;
+    if (this.cacheRavito.has(cle)) return this.cacheRavito.get(cle);
+    const d = this.departCargo(origineId);
+    let duree = null;
+    if (d) {
+      try { const p = this.planTrajet({ ...d, transfert: null, cible: dest.centre }); duree = p.fin === 'arrivee' ? p.tFin - p.t0 : null; } catch (e) { duree = null; }
+    }
+    this.cacheRavito.set(cle, duree);
+    return duree;
+  },
+
   lancerCargo(origineId, destId, contenu, nom) {
     const v = this.v;
     const dest = v.stations.find((s) => s.id === destId);
     if (!dest) return this.log('Station de destination introuvable.');
-    let depart;
-    if (estOrigine(origineId)) {
-      const st = v.stations.find((s) => s.terrestre);
-      const o = planeteOrigine();
-      if (st) depart = this.etatStation(st);
-      else { const r0 = o.rayonKm + 400; depart = { centre: o.id, r: [0, -r0], v: [Math.sqrt(o.gm / r0), 0] }; }
-    } else {
+    if (!estOrigine(origineId)) {
       const st = v.stations.find((s) => s.id === origineId);
       if (!st) return this.log('Station de départ introuvable.');
       for (const [cle, q] of Object.entries(contenu)) if ((st.stock[cle] || 0) < q) return this.log(`${st.nom} n’a pas assez de ${NOMS_STOCK[cle]} pour ce cargo.`);
       for (const [cle, q] of Object.entries(contenu)) st.stock[cle] -= q;
-      depart = this.etatStation(st);
     }
+    const depart = this.departCargo(origineId);
     v.cargos = v.cargos || [];
     const origine = estOrigine(origineId) ? SYSTEME.nomOrigine : v.stations.find((s) => s.id === origineId).nom;
     const id = 'c' + Date.now();
@@ -771,61 +796,96 @@ const Orbiteur = {
     this.log(`${st.nom} envoie une extension vers la base ${a.nom} : ${m.description}. Posé dans ${fmtDuree(m.duree)}.`);
   },
 
-  // Fenêtre « Envoyer un ravito » : départ, destination, contenu. destId : destination présélectionnée.
+  // Fenêtre « Ravitaillement » : on part du besoin, pas de l'origine.
+  //   1. ce qu'il faut et où (par défaut : la station de l'astre où se trouve l'orbiteur) ;
+  //   2. le jeu calcule, pour chaque source possible (la planète d'origine, chaque station qui a le stock),
+  //      le temps d'arrivée réel (attente de la fenêtre de tir comprise) et propose la plus rapide en premier.
+  // destId : destination présélectionnée.
   ouvrirRavito(destId) {
     const v = this.v;
     const m = $('modale');
-    const options = (liste) => liste.map(([val, txt]) => `<option value="${val}">${txt}</option>`).join('');
     const nomO = SYSTEME.nomOrigine.charAt(0).toUpperCase() + SYSTEME.nomOrigine.slice(1);
-    const origines = [[SYSTEME.origine, `${nomO} (lanceur cargo)`], ...v.stations.map((s) => [s.id, s.nom])];
     const dests = v.stations.map((s) => [s.id, `${s.nom} (${ASTRES_PAR_ID[s.centre].nom})`]);
     m.innerHTML = `
       <div class="fenetre">
-        <header class="entete"><div><h2>📦 Envoyer un ravito</h2><p>Le cargo part sur sa propre trajectoire et livre son contenu au stock de la station de destination. Depuis une station, il emporte ce qu’elle a en stock.</p></div><button class="fermer">✕</button></header>
-        <div id="rav-en-route" class="encart"></div>
+        <header class="entete"><div><h2>📦 Ravitaillement</h2><p>Dites de quoi vous avez besoin et où : le jeu propose la source qui arrivera le plus vite. Le cargo part sur sa propre trajectoire ; depuis une station, il emporte ce qu’elle a en stock.</p></div><button class="fermer">✕</button></header>
         <div class="sections">
-          <section><h3>Départ</h3><select id="rav-origine">${options(origines)}</select>
-            <h3 style="margin-top:12px">Destination</h3><select id="rav-dest">${options(dests)}</select></section>
-          <section><h3>Contenu</h3>${Object.entries(CONTENUS_CARGO).map(([k, c], i) => `<label class="choix-ravito"><input type="radio" name="rav-contenu" value="${k}" ${i === 0 ? 'checked' : ''}> <b>${c.nom}</b><br><span class="doux">${c.description}<br>${decrireContenu(c.contenu)}</span></label>`).join('')}</section>
+          <section><h3>1. De quoi avez-vous besoin ?</h3>${Object.entries(CONTENUS_CARGO).map(([k, c], i) => `<label class="choix-ravito"><input type="radio" name="rav-contenu" value="${k}" ${i === 0 ? 'checked' : ''}> <b>${c.nom}</b><br><span class="doux">${c.description}<br>${decrireContenu(c.contenu)}</span></label>`).join('')}
+            <h3 style="margin-top:12px">Livré à</h3><select id="rav-dest">${dests.map(([val, txt]) => `<option value="${val}">${txt}</option>`).join('')}</select>
+            <div id="rav-en-route" class="encart"></div></section>
+          <section><h3>2. D’où l’envoyer ?</h3><div id="rav-sources"></div><p id="rav-info" class="doux"></p></section>
         </div>
-        <p id="rav-info" class="doux"></p>
         <div class="actions"><span></span><button id="rav-lancer" class="principal">🚀 Lancer le cargo</button></div>
       </div>`;
     m.classList.remove('cache');
-    m.querySelector('.fermer').onclick = () => Infos.fermer();
-    const info = () => {
-      const o = $('rav-origine').value, d = $('rav-dest').value;
-      const c = CONTENUS_CARGO[m.querySelector('input[name=rav-contenu]:checked').value].contenu;
-      let t = '';
-      if (o === d) t = 'Choisissez une destination différente du départ.';
-      else if (!estOrigine(o)) {
-        const st = v.stations.find((s) => s.id === o);
-        const manque = Object.entries(c).filter(([k, q]) => (st.stock[k] || 0) < q).map(([k]) => NOMS_STOCK[k]);
-        if (manque.length) t = `${st.nom} n’a pas assez de : ${manque.join(', ')}.`;
+    m.querySelector('.fermer').onclick = () => { this.calculRavito = null; Infos.fermer(); };
+    let origineChoisie = null, choixManuel = false;   // tant qu'on ne choisit pas soi-même, on suit la plus rapide
+    const contenuChoisi = () => m.querySelector('input[name=rav-contenu]:checked').value;
+    const memoriser = () => { v.dernierRavito = { origine: origineChoisie, dest: $('rav-dest').value, contenu: contenuChoisi() }; };
+    // Sources classées par temps d'arrivée ; les durées se calculent une par une pour ne pas figer la fenêtre.
+    const sources = () => {
+      const d = $('rav-dest').value, c = CONTENUS_CARGO[contenuChoisi()].contenu;
+      const l = [{ id: SYSTEME.origine, nom: `${nomO} (lanceur cargo, stock illimité)`, ok: true }];
+      for (const s of v.stations) {
+        if (s.id === d || estOrigine(s.centre)) continue;    // la station de la planète d'origine, c'est la source « origine »
+        const manque = Object.entries(c).filter(([k, q]) => (s.stock[k] || 0) < q).map(([k]) => NOMS_STOCK[k]);
+        l.push({ id: s.id, nom: s.nom, ok: !manque.length, manque });
       }
-      $('rav-info').textContent = t;
-      $('rav-lancer').disabled = !!t;
+      return l;
+    };
+    const afficherSources = (liste) => {
+      const possibles = liste.filter((s) => s.ok).sort((p, q) => (p.duree ?? Infinity) - (q.duree ?? Infinity));
+      const imposs = liste.filter((s) => !s.ok);
+      if (!choixManuel || !possibles.some((s) => s.id === origineChoisie)) origineChoisie = possibles.length ? possibles[0].id : null;
+      $('rav-sources').innerHTML = possibles.map((s, i) => `<label class="choix-ravito"><input type="radio" name="rav-source" value="${s.id}" ${s.id === origineChoisie ? 'checked' : ''}>
+          <b>${s.nom}</b>${i === 0 && s.duree != null ? ' <span class="doux">(la plus rapide)</span>' : ''}<br><span class="doux">${s.duree === undefined ? 'calcul du trajet…' : s.duree === null ? 'pas de trajectoire trouvée' : `arrive dans ${fmtDuree(s.duree)}`}</span></label>`).join('') +
+        (imposs.length ? `<p class="doux">Pas assez de stock : ${imposs.map((s) => `${s.nom} (${s.manque.join(', ')})`).join(' ; ')}.</p>` : '');
+      m.querySelectorAll('input[name=rav-source]').forEach((i) => { i.onchange = () => { origineChoisie = i.value; choixManuel = true; memoriser(); }; });
+      $('rav-lancer').disabled = !origineChoisie;
+      $('rav-info').textContent = origineChoisie ? '' : 'Aucune source possible.';
+    };
+    const calculer = () => {
+      const d = $('rav-dest').value;
+      const liste = sources();
+      const jeton = {};
+      this.calculRavito = jeton;
+      afficherSources(liste);
+      const suivante = () => {
+        if (this.calculRavito !== jeton) return;            // la sélection a changé, ou la fenêtre est fermée
+        const s = liste.find((x) => x.ok && x.duree === undefined);
+        if (!s) return;
+        s.duree = this.estimerRavito(s.id, d);
+        afficherSources(liste);
+        setTimeout(suivante, 0);
+      };
+      setTimeout(suivante, 0);
+    };
+    const enRoute = () => {
       // Cargos déjà en route vers cette destination : contenu, provenance, temps restant.
-      const st = v.stations.find((s) => s.id === d);
-      const enRoute = (v.cargos || []).filter((c) => c.dest === d);
-      $('rav-en-route').innerHTML = `<b>En route vers ${st ? st.nom : '—'}</b> : ` + (enRoute.length ? `<ul class="sondes">${enRoute.map((c) => {
+      const d = $('rav-dest').value, st = v.stations.find((s) => s.id === d);
+      const liste = (v.cargos || []).filter((c) => c.dest === d);
+      $('rav-en-route').innerHTML = `<b>Déjà en route vers ${st ? st.nom : '—'}</b> : ` + (liste.length ? `<ul class="sondes">${liste.map((c) => {
         const ta = this.arriveePrevue(c);
         return `<li>${decrireContenu(c.contenu)} — depuis ${c.origine || '?'} — ${ta ? (ta > v.t ? `arrive dans ${fmtDuree(ta - v.t)}` : 'arrive bientôt') : 'arrivée inconnue'}</li>`;
       }).join('')}</ul>` : '<span class="doux">aucun cargo.</span>');
-      // On mémorise la sélection pour la prochaine ouverture.
-      v.dernierRavito = { origine: o, dest: d, contenu: m.querySelector('input[name=rav-contenu]:checked').value };
     };
-    // On repart de la dernière sélection (sauf destination demandée explicitement).
+    // Sélection de départ : la dernière, sinon la station de l'astre où se trouve l'orbiteur ; une destination demandée l'emporte.
     const der = v.dernierRavito || {};
-    if (der.origine && [...$('rav-origine').options].some((op) => op.value === der.origine)) $('rav-origine').value = der.origine;
+    const stIci = v.orb ? stationSur(v, v.orb.centre) : null;
     if (der.dest && v.stations.some((s) => s.id === der.dest)) $('rav-dest').value = der.dest;
+    else if (stIci) $('rav-dest').value = stIci.id;
     if (der.contenu && CONTENUS_CARGO[der.contenu]) m.querySelector(`input[name=rav-contenu][value="${der.contenu}"]`).checked = true;
     if (destId && v.stations.some((s) => s.id === destId)) $('rav-dest').value = destId;
-    m.querySelectorAll('select, input').forEach((e) => { e.onchange = info; });
-    info();
+    const changement = () => { origineChoisie = null; choixManuel = false; enRoute(); calculer(); memoriser(); };
+    m.querySelectorAll('input[name=rav-contenu]').forEach((i) => { i.onchange = changement; });
+    $('rav-dest').onchange = changement;
+    enRoute(); calculer();
     $('rav-lancer').onclick = () => {
-      const k = m.querySelector('input[name=rav-contenu]:checked').value;
-      this.lancerCargo($('rav-origine').value, $('rav-dest').value, { ...CONTENUS_CARGO[k].contenu }, CONTENUS_CARGO[k].nom);
+      if (!origineChoisie) return;
+      const k = contenuChoisi();
+      memoriser();
+      this.calculRavito = null;
+      this.lancerCargo(origineChoisie, $('rav-dest').value, { ...CONTENUS_CARGO[k].contenu }, CONTENUS_CARGO[k].nom);
       Infos.fermer();
       this.majHud(true);
     };
