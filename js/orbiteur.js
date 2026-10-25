@@ -1015,6 +1015,7 @@ const Orbiteur = {
 
   // ---------- Rendu ----------
   dessiner(ctx, W, H) {
+    if (!this.v || !this.v.orb) return;            // expédition terminée (orbiteur perdu ou rentré)
     const v = this.v, t = v.t, s = this.cam.echelle;
     const focus = this.positionVue();
     const cam = V.add(focus, this.cam.decal);

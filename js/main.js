@@ -784,7 +784,9 @@ function boucle(t) {
   }
 }
 function signalerErreur(e) {
-  const texte = `${e && e.message} — ${(e && e.stack || '').split('\n').slice(1, 3).join(' ').trim()}`;
+  // Les 3 premiers appels de la pile (Chrome commence par une ligne « Error: … », Firefox directement par l'appel fautif).
+  const pile = (e && e.stack || '').split('\n').filter((l) => l.trim() && !/^\w*Error\b/.test(l.trim()));
+  const texte = `${e && e.message} — ${pile.slice(0, 3).join(' ').trim()}`;
   const date = etat.voyage ? fmtDate(etat.voyage.t) : '';
   try { localStorage.setItem('fusee-derniere-erreur', JSON.stringify({ texte, date, quand: new Date().toISOString(), ecran: etat.ecran })); } catch (x) { /* ignoré */ }
   etat.pause = true;
@@ -862,6 +864,9 @@ function image(t) {
     }
   } else if (etat.ecran === 'nav' && etat.voyage && etat.voyage.orb) {
     Orbiteur.mettreAJour(dt, etat.pause);
+    // La mise à jour a pu mettre fin à l'expédition (orbiteur écrasé) et ouvrir l'écran de résultat :
+    // plus rien à dessiner ici.
+    if (etat.ecran !== 'nav' || !etat.voyage || !etat.voyage.orb) return;
     Orbiteur.dessiner(ctxNav, toile.width, toile.height);
     if (etat.pause && !Infos.estOuverte()) dessinerPause(ctxNav, toile.width, toile.height);
     Orbiteur.majHud(false);
