@@ -266,6 +266,7 @@ function avancerVaisseau(vs, t, dt, evenements, arret = false) {
       if (arret) return 'changement';
     }
   }
+  if (evenements) evenements.tFin = tc;   // instant réellement atteint (utile si le calcul est interrompu)
   return n >= 4000 ? 'incomplet' : null;
 }
 

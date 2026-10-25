@@ -52,6 +52,13 @@ Tenue : combinaison de vol bleue de l'ESA sur Terre, scaphandre blanc aux couleu
 ## Vénus : remontée en ballon
 Repartir du sol de Vénus demanderait ≈ 12,6 km/s : aucun atterrisseur n'en est capable. Comme dans les études de la NASA, le module blindé se pose ; pour repartir (T), un **ballon** emporte le petit lanceur **Aphrodite** (2 étages, ≈ 9 km/s) jusqu'à 54 km (0,7 bar, ≈ 30 °C), où il s'allume vers l'orbite. Le module reste au sol.
 
+## Missions en temps réel
+Bouton « ⏱ Temps réel » sur l'orbiteur :
+- le temps de la mission suit l'horloge, avec un facteur choisi (vrai temps, ×60, ×600, ×3 600, ×86 400), **même navigateur fermé** : à la réouverture, la simulation rattrape l'instant présent et résume ce qui s'est passé pendant l'absence ;
+- si une manœuvre n'est pas faite à temps : **« la fusée attend »** (le temps s'arrête à la manœuvre) ou **« manœuvre ratée »** (la mission continue, le jeu recalcule la prochaine occasion et en donne la date) ;
+- chaque manœuvre ou événement à venir a son **heure réelle**, avec **📅 Ajouter à l'agenda** (fichier .ics pour Android, iPhone, Outlook, rappel 5 min avant), un lien **Google Agenda** et une phrase à copier ;
+- un site sans serveur ne peut pas envoyer de notification : le rappel passe par l'agenda. La partie est dans ce navigateur (export / import pour la déplacer).
+
 ## Sauvegarde
 - Enregistrée dans le navigateur (localStorage, pas de cookie), toutes les 5 secondes.
 - Accueil : « ⬇ Télécharger la sauvegarde » (fichier .json) et « ⬆ Charger une sauvegarde ». Le fichier chargé est vérifié et nettoyé (jamais exécuté, taille limitée, textes sans balises) ; l'ancienne partie est gardée de côté.

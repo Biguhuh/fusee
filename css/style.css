@@ -219,6 +219,11 @@ dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .groupe-vue button:last-child { border-radius: 0 8px 8px 0; }
 .categorie-fiche { color: var(--texte); }
 .mode-carte { margin-bottom: 10px; }
+/* Missions en temps réel */
+.heure-reelle { margin: 6px 0; font-size: 12.5px; color: #ffd54f; }
+.agenda { margin-top: 12px; background: rgba(255,213,79,0.06); border: 1px solid rgba(255,213,79,0.35); border-radius: 10px; padding: 10px 12px; }
+.agenda h3 { margin: 0 0 6px; font-size: 14px; }
+.boutons-agenda { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .titre-categorie { font-size: 12px; font-weight: 600; color: var(--doux); text-align: center; max-width: 110px; padding-bottom: 4px; border-bottom: 1px dashed var(--bord); }
 .arbre section p.doux { margin: 0 0 8px; font-size: 12.5px; }
 .choix-ravito { display: block; padding: 8px; border-radius: 8px; margin-bottom: 6px; cursor: pointer; font-size: 13.5px; }

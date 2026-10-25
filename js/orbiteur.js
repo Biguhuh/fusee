@@ -134,18 +134,29 @@ const Orbiteur = {
 
   // ---------- Simulation ----------
   mettreAJour(dtReel, enPause) {
-    if (!this.v || enPause) return;
-    const v = this.v;
+    if (!this.v || !this.v.orb) return;
+    // Mission en temps réel : le temps du jeu suit l'horloge (voir mettreAJourTempsReel).
+    if (this.v.tempsReel && this.v.tempsReel.actif) return this.mettreAJourTempsReel(enPause);
+    if (enPause) return;
     const warp = this.warpEffectif();
     this.warpAffiche = warp;
-    let dt = dtReel * warp;
+    this.avancer(dtReel * warp, false);
+  },
 
-    // Assistant / planificateur : on ne dépasse pas l'instant de la prochaine manœuvre.
-    if (v.mode !== 'libre' && v.cible && this.etape && this.etape.dv && !this.etape.attenteEvenement && this.etape.tExec > v.t) {
+  // Fait avancer la simulation de dt secondes de jeu. tempsReel : appel du mode temps réel (pas de ×1 forcé).
+  avancer(dt, tempsReel) {
+    const v = this.v;
+    // Assistant / planificateur : on ne dépasse pas l'instant de la prochaine manœuvre
+    // (sauf en temps réel avec l'option « manœuvre ratée », où la mission continue sans l'attendre).
+    const ratee = tempsReel && v.tempsReel.option === 'ratee' && !this.auto;
+    if (!ratee && v.mode !== 'libre' && v.cible && this.etape && this.etape.dv && !this.etape.attenteEvenement && this.etape.tExec > v.t) {
       if (v.t + dt >= this.etape.tExec) {
         dt = this.etape.tExec - v.t;
         // Assistant : on s'arrête à ×1 pour laisser le joueur exécuter la manœuvre.
-        if (!this.auto) { v.warp = 1; this.avance = false; this.log('Manœuvre prête : « ' + this.etape.texte + ' ».'); }
+        if (!this.auto) {
+          if (!tempsReel) { v.warp = 1; this.avance = false; }
+          this.log('Manœuvre prête : « ' + this.etape.texte + ' ».');
+        }
       }
     }
 
@@ -167,7 +178,8 @@ const Orbiteur = {
       const ev = [];
       const res = avancerVaisseau(v.orb, v.t, dt, ev, true);
       // Au changement de sphère d'influence, on s'arrête là pour cette image (le reste du temps est perdu).
-      v.t = res === 'changement' ? ev[ev.length - 1].t : v.t + dt;
+      // Calcul interrompu (trop de petits pas) : l'horloge ne va pas plus loin que le vaisseau.
+      v.t = res === 'changement' ? ev[ev.length - 1].t : res === 'incomplet' ? ev.tFin : v.t + dt;
       for (const e of ev) {
         if (e.type === 'entree') this.log(`Entrée dans la sphère d’influence de ${ASTRES_PAR_ID[e.vers].nom}.`);
         if (e.type === 'sortie') this.log(`Sortie de la sphère d’influence de ${ASTRES_PAR_ID[e.de].nom}.`);
@@ -179,6 +191,172 @@ const Orbiteur = {
     this.mettreAJourSondes(dt);
     this.mettreAJourLogistique();
     this.piloteAuto();
+  },
+
+  // ---------- Missions en temps réel ----------
+  // Le temps du jeu suit l'horloge : tJeu = departJeu + (maintenant − departReel) × facteur.
+  // Même navigateur fermé : à la réouverture, la simulation rattrape l'instant présent.
+  // « Geler » le temps (pause, manœuvre attendue) revient à décaler le point de départ : tout le calendrier
+  // des manœuvres suivantes se décale d'autant.
+  cibleTempsReel(maintenant = Date.now()) {
+    const tr = this.v.tempsReel;
+    return tr.departJeu + ((maintenant - tr.departReel) / 1000) * tr.facteur;
+  },
+  gelerTempsReel() {
+    const tr = this.v.tempsReel;
+    tr.departJeu = this.v.t;
+    tr.departReel = Date.now();
+  },
+  // Heure réelle (ms) à laquelle arrivera un instant du jeu.
+  heureReelle(tJeu) {
+    const tr = this.v.tempsReel;
+    return tr.departReel + ((tJeu - tr.departJeu) / tr.facteur) * 1000;
+  },
+  // Manœuvre en attente du joueur (assistant) : l'instant est atteint mais elle n'est pas exécutée.
+  manoeuvreEnAttente() {
+    const v = this.v, e = this.etape;
+    return v.mode === 'assistant' && !this.auto && e && e.dv && !e.attenteEvenement && v.t >= e.tExec - 1e-3;
+  },
+  // Option « manœuvre ratée » : passé le délai de grâce (2 minutes réelles), on recalcule la prochaine occasion.
+  verifierManoeuvreRatee() {
+    const v = this.v, tr = v.tempsReel, e = this.etape;
+    if (tr.option !== 'ratee' || this.auto || !e || !e.dv || e.attenteEvenement) return;
+    const grace = Math.max(60, 120 * tr.facteur);
+    if (v.t <= e.tExec + grace) return;
+    const prevue = e.tExec, texte = e.texte;
+    this.etape = null;
+    const suivante = v.cible ? prochaineEtape(v.orb, v.t, v.cible) : null;
+    this.etape = suivante;
+    let msg = `Manœuvre ratée : « ${texte.split(' : ')[0]} », prévue le ${fmtDate(prevue)}.`;
+    if (suivante && suivante.dv) msg += ` Prochaine occasion : ${fmtDate(suivante.tExec)} (heure réelle : ${fmtHeureReelle(this.heureReelle(suivante.tExec))}).`;
+    this.log(msg);
+  },
+  // Avance jusqu'à l'instant visé, par morceaux, dans un budget de temps de calcul (ms).
+  rattraper(cible, budget) {
+    const v = this.v, tr = v.tempsReel, t0 = performance.now();
+    while (v.orb && v.t < cible - 1e-3 && performance.now() - t0 < budget) {
+      if (tr.option === 'attend' && this.manoeuvreEnAttente()) return 'attente';
+      const reste = cible - v.t;
+      this.avancer(Math.min(reste, Math.max(600, Math.min(86400, reste / 50))), true);
+      this.verifierManoeuvreRatee();
+    }
+    if (tr.option === 'attend' && v.orb && this.manoeuvreEnAttente()) return 'attente';
+    return v.t >= cible - 1e-3 ? 'fini' : 'encore';
+  },
+  mettreAJourTempsReel(enPause) {
+    const v = this.v, tr = v.tempsReel;
+    this.warpAffiche = tr.facteur;
+    if (enPause) { this.gelerTempsReel(); return; }
+    tr.vuLe = Date.now();   // dernière fois que la partie était ouverte (pour le résumé d'absence)
+    const etatRattrapage = this.rattraper(this.cibleTempsReel(), 25);
+    // « La fusée attend » : le temps reste suspendu à la manœuvre tant que le joueur ne l'a pas faite.
+    this.attenteManoeuvre = etatRattrapage === 'attente';
+    if (this.attenteManoeuvre) this.gelerTempsReel();
+  },
+  // À l'ouverture de l'orbiteur : on rattrape tout le temps écoulé, puis on résume ce qui s'est passé.
+  rattraperAbsence() {
+    const v = this.v, tr = v.tempsReel;
+    if (!tr || !tr.actif || !v.orb) return;
+    const debutJournal = v.journal.length, tAvant = v.t, maintenant = Date.now();
+    const absentReel = maintenant - (tr.vuLe || maintenant);
+    const res = this.rattraper(this.cibleTempsReel(maintenant), 4000);
+    if (res === 'attente') { this.attenteManoeuvre = true; this.gelerTempsReel(); }
+    tr.vuLe = Date.now();
+    const nouveautes = v.journal.slice(debutJournal);
+    // Rien à dire si l'on revient tout de suite et que rien n'a bougé.
+    if (v.t - tAvant < 1 && !nouveautes.length && absentReel < 60000) return;
+    const m = $('modale');
+    m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>⏱ Pendant votre absence</h2>
+      <p>${absentReel > 0 ? `Absence de ${fmtDuree(absentReel / 1000)} (temps réel). ` : ''}Temps de mission écoulé : ${fmtDuree(v.t - tAvant)} — nous sommes le ${fmtDate(v.t)}.</p></div><button class="fermer">✕</button></header>
+      ${res === 'attente' ? `<p class="objectif">La fusée vous attend : la manœuvre « ${this.etape.texte} » est prête depuis le ${fmtDate(this.etape.tExec)}. Exécutez-la pour reprendre.</p>` : ''}
+      ${res === 'encore' ? '<p class="doux">L’absence était longue : la fin du rattrapage se poursuit en arrière-plan.</p>' : ''}
+      ${nouveautes.length ? `<ul class="journal">${nouveautes.slice(-15).map((j) => `<li><b>${fmtDate(j.t, false)}</b> · ${j.texte}</li>`).join('')}</ul>` : '<p class="doux">Rien de notable.</p>'}
+      <div class="actions"><span></span><button class="principal fermer2">Continuer</button></div></div>`;
+    m.classList.remove('cache');
+    m.querySelector('.fermer').onclick = () => Infos.fermer();
+    m.querySelector('.fermer2').onclick = () => Infos.fermer();
+  },
+  activerTempsReel(facteur, option) {
+    const v = this.v;
+    v.tempsReel = { actif: true, facteur, option, departJeu: v.t, departReel: Date.now(), vuLe: Date.now() };
+    this.avance = false;
+    this.log(`Mission en temps réel : ×${fmtNombre(facteur, 0)} (1 s réelle = ${fmtDuree(facteur)} de mission), ${option === 'attend' ? 'la fusée attend les manœuvres' : 'les manœuvres manquées sont ratées'}.`);
+  },
+  desactiverTempsReel() {
+    const v = this.v;
+    if (v.tempsReel) v.tempsReel.actif = false;
+    v.warp = 1;
+    this.attenteManoeuvre = false;
+    this.log('Mission en temps réel arrêtée : vous reprenez la main sur le temps.');
+  },
+
+  // Fenêtre « Temps réel » : réglages, prochaine manœuvre à l'heure réelle, agenda.
+  ouvrirTempsReel() {
+    const v = this.v, tr = v.tempsReel || {}, m = $('modale');
+    const facteurs = [[1, 'Vrai temps (×1)'], [60, '×60 : 1 min réelle = 1 h'], [600, '×600 : 1 min = 10 h'], [3600, '×3 600 : 1 s = 1 h'], [86400, '×86 400 : 1 s = 1 jour']];
+    const actif = tr.actif;
+    const e = this.etape;
+    // Prochaine manœuvre, ou prochain événement attendu (sortie de sphère d'influence, arrivée…) :
+    // la manœuvre suivante n'est calculée qu'à ce moment-là, mais on peut déjà mettre un rappel.
+    const prochaine = actif && e && (e.dv || e.attenteEvenement) && e.type !== 'fini' && e.tExec > v.t ? e : null;
+    m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>⏱ Mission en temps réel</h2>
+      <p>Le temps de la mission suit l’horloge, même quand le navigateur est fermé. Le jeu donne la date et l’heure réelles des manœuvres : mettez un rappel, revenez faire la manœuvre, puis repartez. En temps réel, ce sont l’assistant et le planificateur qui préparent les manœuvres.</p></div><button class="fermer">✕</button></header>
+      <div class="sections">
+        <section><h3>Écoulement du temps</h3>${facteurs.map(([f, t]) => `<label class="choix-ravito"><input type="radio" name="tr-facteur" value="${f}" ${(tr.facteur || 3600) === f ? 'checked' : ''}> ${t}</label>`).join('')}</section>
+        <section><h3>Si une manœuvre n’est pas faite à temps</h3>
+          <label class="choix-ravito"><input type="radio" name="tr-option" value="attend" ${tr.option !== 'ratee' ? 'checked' : ''}> <b>La fusée attend</b><br><span class="doux">Le temps s’arrête à l’heure de la manœuvre jusqu’à votre retour.</span></label>
+          <label class="choix-ravito"><input type="radio" name="tr-option" value="ratee" ${tr.option === 'ratee' ? 'checked' : ''}> <b>Manœuvre ratée</b><br><span class="doux">La mission continue ; le jeu recalcule la prochaine occasion (prochaine orbite, ou prochaine fenêtre de tir) et vous la donne.</span></label>
+        </section>
+      </div>
+      ${prochaine ? this.blocAgenda(prochaine) : actif ? '<p class="doux">Pas de manœuvre programmée pour l’instant (choisissez une cible et le mode Assistant).</p>' : ''}
+      <div class="actions">${actif ? '<button id="tr-arreter">⏹ Arrêter le temps réel</button>' : '<span></span>'}<button id="tr-valider" class="principal">${actif ? '✓ Appliquer' : '▶ Lancer en temps réel'}</button></div></div>`;
+    m.classList.remove('cache');
+    m.querySelector('.fermer').onclick = () => Infos.fermer();
+    if (prochaine) this.brancherAgenda(m, prochaine);
+    const arreter = $('tr-arreter');
+    if (arreter) arreter.onclick = () => { this.desactiverTempsReel(); Infos.fermer(); this.majHud(true); };
+    $('tr-valider').onclick = () => {
+      const f = Number(m.querySelector('input[name=tr-facteur]:checked').value);
+      const o = m.querySelector('input[name=tr-option]:checked').value;
+      if (actif) {
+        // Changer de facteur en cours de route : on repart de maintenant, les heures réelles sont recalculées.
+        this.gelerTempsReel();
+        v.tempsReel.facteur = f; v.tempsReel.option = o;
+        this.log(`Temps réel : ×${fmtNombre(f, 0)}, ${o === 'attend' ? 'la fusée attend' : 'manœuvres ratées si manquées'}. Heures des manœuvres recalculées.`);
+      } else this.activerTempsReel(f, o);
+      Infos.fermer();
+      this.majHud(true);
+    };
+  },
+
+  // Agenda : heure réelle de la manœuvre, fichier .ics (Android, iPhone, Outlook), lien Google Agenda, texte à copier.
+  blocAgenda(e) {
+    const quand = this.heureReelle(e.tExec);
+    return `<section class="agenda"><h3>⏰ ${e.attenteEvenement ? 'Prochain événement' : 'Prochaine manœuvre'}</h3>
+      <p><b>${e.texte}</b><br>Heure réelle : <b>${fmtHeureReelle(quand)}</b> · instant de mission : ${fmtDate(e.tExec)} (dans ${fmtDuree(Math.max(0, e.tExec - this.v.t))} de mission)</p>
+      ${e.attenteEvenement ? '<p class="doux">La manœuvre suivante sera calculée à ce moment-là : revenez pour la découvrir.</p>' : ''}
+      <div class="boutons-agenda"><button id="ag-ics">📅 Ajouter à l’agenda (.ics)</button><button id="ag-google">Google Agenda</button><button id="ag-copier">📋 Copier le rappel</button></div>
+      <p id="ag-info" class="doux"></p></section>`;
+  },
+  brancherAgenda(racine, e) {
+    const quand = this.heureReelle(e.tExec);
+    const titre = `La fusée de l’espace : ${e.texte.split(' : ')[0]}`;
+    const details = `${e.texte}. Instant de mission : ${fmtDate(e.tExec)}. Reprendre la partie : ${location.origin}${location.pathname}`;
+    racine.querySelector('#ag-ics').onclick = () => {
+      telechargerIcs(titre, details, quand);
+      racine.querySelector('#ag-info').textContent = 'Fichier téléchargé : ouvrez-le avec l’application Agenda du téléphone.';
+    };
+    racine.querySelector('#ag-google').onclick = () => {
+      const fmt = (ms) => new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+      const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(titre)}&dates=${fmt(quand)}/${fmt(quand + 10 * 60000)}&details=${encodeURIComponent(details)}`;
+      window.open(url, '_blank', 'noopener');
+    };
+    racine.querySelector('#ag-copier').onclick = () => {
+      const texte = `Fusée : ${e.texte.split(' : ')[0].toLowerCase()}, ${fmtHeureReelle(quand)}`;
+      (navigator.clipboard ? navigator.clipboard.writeText(texte) : Promise.reject()).then(
+        () => { racine.querySelector('#ag-info').textContent = `Copié : « ${texte} »`; },
+        () => { racine.querySelector('#ag-info').textContent = texte; });
+    };
   },
 
   directionPoussee() {
@@ -1089,6 +1267,7 @@ const Orbiteur = {
         <span class="groupe">🎯 Centrer : <button id="nav-c-orb">Orbiteur</button><button id="nav-c-astre"></button><button id="nav-c-cible" class="cache"></button><button id="nav-vues">👁 Vues…</button><button id="nav-fermer-trajet" class="cache">✕ Trajectoire</button></span>
         <label class="groupe"><input type="checkbox" id="nav-masque"> Grosses lunes seulement</label>
         <span class="groupe petit-seul"><button id="nav-voir-etat">📊 État</button><button id="nav-voir-actions" class="principal">🎛 Actions</button></span>
+        <button id="nav-tr" title="Mission en temps réel : le temps suit l’horloge, même navigateur fermé">⏱ Temps réel</button>
         <button id="nav-encyclo">📖 Astres</button>
         <button id="nav-pause">⏸</button>
         <button id="nav-hangar">← Accueil</button>
@@ -1104,6 +1283,7 @@ const Orbiteur = {
     $('nav-c-astre').onclick = () => { this.trajet = null; this.centrerSur(this.v.orb ? this.v.orb.centre : 'terre'); };
     $('nav-c-cible').onclick = () => { if (this.v.cible) { this.trajet = null; this.centrerSur(this.v.cible); } };
     $('nav-vues').onclick = () => this.ouvrirVues();
+    $('nav-tr').onclick = () => this.ouvrirTempsReel();
     // Petit écran : les panneaux sont repliés, ces boutons les ouvrent (un seul à la fois).
     const basculer = (id, autre) => { $(autre).classList.remove('ouvert'); $(id).classList.toggle('ouvert'); };
     $('nav-voir-etat').onclick = () => basculer('nav-etat', 'nav-actions');
@@ -1135,6 +1315,8 @@ const Orbiteur = {
   },
 
   changerWarp(sens) {
+    // En temps réel, le facteur se règle dans la fenêtre « Temps réel » (les heures des manœuvres en dépendent).
+    if (this.v.tempsReel && this.v.tempsReel.actif) return this.ouvrirTempsReel();
     this.avance = false;   // le joueur reprend la main sur le temps
     const i = PALIERS_NAV.indexOf(this.v.warp);
     this.v.warp = PALIERS_NAV[Math.max(0, Math.min(PALIERS_NAV.length - 1, (i < 0 ? 0 : i) + sens))];
@@ -1186,7 +1368,10 @@ const Orbiteur = {
     for (const id of ['nav-etat', 'nav-actions']) { $(id).style.top = hb + 'px'; $(id).style.maxHeight = `calc(100vh - ${hb + 40}px)`; }
     // Le panneau de gauche laisse la place à la mini-carte en bas.
     $('nav-etat').style.maxHeight = `calc(100vh - ${hb + Math.min(200, Math.max(120, innerHeight * 0.3)) + 70}px)`;
-    $('nav-warp').textContent = `×${fmtNombre(w, 0)} (1 s = ${fmtDuree(w)})`;
+    const direct = v.tempsReel && v.tempsReel.actif;
+    $('nav-warp').textContent = direct ? `⏱ En direct ×${fmtNombre(v.tempsReel.facteur, 0)} (1 s = ${fmtDuree(v.tempsReel.facteur)})` : `×${fmtNombre(w, 0)} (1 s = ${fmtDuree(w)})`;
+    $('nav-tr').textContent = direct ? (this.attenteManoeuvre ? '⏸ En attente' : '⏱ En direct') : '⏱ Temps réel';
+    $('nav-tr').classList.toggle('choisi', !!direct);
     $('nav-masque').checked = this.contexte.masque();
     $('nav-c-astre').textContent = c.nom;
     $('nav-c-cible').classList.toggle('cache', !v.cible || v.cible === o.centre);
@@ -1232,8 +1417,14 @@ const Orbiteur = {
       if (v.mode !== 'libre') {
         const e = this.etape || (this.etape = prochaineEtape(o, v.t, v.cible));
         d += `<ol class="plan"><li class="actuelle">${e.texte}${e.tExec > v.t + 1 ? ` <span class="doux">(dans ${fmtDuree(e.tExec - v.t)})</span>` : ''}</li>${(e.reste || []).map((x) => `<li>${x}</li>`).join('')}</ol>`;
+        const enDirect = v.tempsReel && v.tempsReel.actif;
         if (v.mode === 'assistant' && e.type !== 'fini' && e.type !== 'impossible') {
-          if (e.tExec > v.t + 1 || e.attenteEvenement) d += `<button id="nav-avancer" class="principal">${this.avance ? '⏸ Arrêter' : '⏩ Avancer jusqu’à l’étape'}</button>`;
+          // En temps réel, pas d'avance rapide : l'heure réelle de la manœuvre et un rappel d'agenda.
+          if (enDirect && (e.dv || e.attenteEvenement) && e.tExec > v.t + 1) {
+            d += `<p class="heure-reelle">⏰ ${e.attenteEvenement ? 'Prévu le' : 'À faire le'} <b>${fmtHeureReelle(this.heureReelle(e.tExec))}</b> (heure réelle)</p><button id="nav-rappel">📅 Mettre un rappel</button>`;
+          }
+          if (enDirect && this.attenteManoeuvre) d += '<p class="objectif">⏸ La fusée vous attend : le temps est suspendu jusqu’à la manœuvre.</p>';
+          if (!enDirect && (e.tExec > v.t + 1 || e.attenteEvenement)) d += `<button id="nav-avancer" class="principal">${this.avance ? '⏸ Arrêter' : '⏩ Avancer jusqu’à l’étape'}</button>`;
           if (e.dv && e.tExec <= v.t + 1) d += `<button id="nav-executer" class="principal">🔥 Exécuter la manœuvre</button>`;
         }
         if (v.mode === 'planificateur' && e.type !== 'fini') d += `<button id="nav-auto" class="principal">${this.auto ? '⏸ Arrêter le voyage' : `🚀 Aller à ${cb.nom}`}</button>`;
@@ -1305,6 +1496,7 @@ const Orbiteur = {
     bind('nav-station', () => { this.construireStation(); this.majHud(true); });
     bind('nav-sonde', () => { this.lancerSonde(v.cible); this.majHud(true); });
     bind('nav-journal', () => this.contexte.journal());
+    bind('nav-rappel', () => this.ouvrirTempsReel());
   },
 
   touche(e) {
@@ -1329,6 +1521,33 @@ const Orbiteur = {
     this.cam.echelle = Math.max(1e-10, Math.min(5, this.cam.echelle * f));
   },
 };
+
+// Heure réelle lisible : « dimanche 26 octobre à 14 h 32 » (avec l'année si ce n'est pas cette année).
+function fmtHeureReelle(ms) {
+  const d = new Date(ms), maintenant = new Date();
+  const opts = { weekday: 'long', day: 'numeric', month: 'long' };
+  if (d.getFullYear() !== maintenant.getFullYear()) opts.year = 'numeric';
+  const h = String(d.getHours()).padStart(2, '0'), mi = String(d.getMinutes()).padStart(2, '0');
+  return `${d.toLocaleDateString('fr-FR', opts)} à ${h} h ${mi}`;
+}
+
+// Fichier d'agenda (.ics) : le téléphone l'ouvre dans son application Agenda. Rappel 5 minutes avant.
+function telechargerIcs(titre, details, debutMs) {
+  const f = (ms) => new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  const echap = (t) => t.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+  const ics = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//La fusee de l espace//FR', 'CALSCALE:GREGORIAN', 'BEGIN:VEVENT',
+    `UID:fusee-${debutMs}-${Math.random().toString(36).slice(2)}@biguhuh.github.io`, `DTSTAMP:${f(Date.now())}`,
+    `DTSTART:${f(debutMs)}`, `DTEND:${f(debutMs + 10 * 60000)}`, `SUMMARY:${echap(titre)}`, `DESCRIPTION:${echap(details)}`,
+    'BEGIN:VALARM', 'TRIGGER:-PT5M', 'ACTION:DISPLAY', `DESCRIPTION:${echap(titre)}`, 'END:VALARM',
+    'END:VEVENT', 'END:VCALENDAR',
+  ].join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
+  a.download = 'manoeuvre-fusee.ics';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
 
 // Station spatiale vue de dessus : poutre centrale, quatre ailes de panneaux solaires,
 // modules habitables au centre et radiateurs. taille : demi-envergure en pixels.

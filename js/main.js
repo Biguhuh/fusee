@@ -384,6 +384,9 @@ function allerNavigation() {
   etat.pause = false;
   redim();
   montrer('nav');
+  // Mission en temps réel : la simulation rattrape le temps écoulé depuis la dernière visite, puis le résume.
+  Orbiteur.rattraperAbsence();
+  sauver(etat);
 }
 
 Orbiteur.contexte = {
