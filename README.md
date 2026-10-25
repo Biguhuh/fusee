@@ -77,6 +77,14 @@ Tenue : combinaison de vol bleue de l'ESA sur Terre, scaphandre blanc aux couleu
        - poussée de l'orbiteur seule : tous ses ergols brûlés d'où il est, en profitant de la vitesse acquise (environ 65 km/s depuis l'orbite terrestre).
      - Le jeu donne la durée du voyage (environ 20 000 ans pour Proxima avec l'orbiteur), la date d'arrivée en temps de jeu et dans la vraie vie, et le temps qu'il faudrait au temps accéléré maximal. C'est la fin de la partie : un bilan s'affiche et la campagne ne se reprend plus.
      - Le départ « science-fiction » (propulsions avancées) viendra ensuite.
+     - **Liste avant de partir**, dans la fenêtre de départ et dans « Logistique ». Elle compte ce qui est à la plus grande station et à bord de l'orbiteur, et dit ce qui manque :
+       - une station de niveau 5 ;
+       - 3 kits de base, 2 kits de station, 4 atterrisseurs, 2 lanceurs de retour, 6 robots, 6 sondes ;
+       - 200 t d'ergols, 300 t de matériaux ;
+       - une équipe de 4 ;
+       - une grappe de sondes vers le système visé.
+
+       Elle est obligatoire pour s'installer dans un autre système (départ science-fiction) ; un départ réaliste part avec ce qu'il a.
   5. **Stations** autour des autres astres : un petit ravitaillement courant arrive régulièrement de la Terre. S'y amarrer prend ce qu'elles ont en stock.
   6. **Repérage par sonde** : une sonde en orbite d'un astre repère une zone pour une base (pente douce, à moins de quelques km du point de descente) et les ressources réelles sur place (glace d'eau, méthane, CO₂…). La descente vise ensuite cette zone (fanion vert).
   7. **Bases au sol** (touche B une fois posé près de la zone repérée, avec une station en orbite) : la construction terrasse le sol à plat. Sans repérage, le jeu refuse : « relief trop accidenté — envoyez une sonde ». La base produit des ergols à partir de la ressource locale, en garde 20 t pour les atterrisseurs et monte le surplus à la station.

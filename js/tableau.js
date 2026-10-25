@@ -57,6 +57,7 @@ function ouvrirLogistique(v, actif) {
     <p>Production totale des bases : <b>${fmt(ergolsJour / 1000, 1)} t d’ergols</b> et <b>${fmt(matJour / 1000, 1)} t de matériaux</b> par jour. ${v.stations.length} station${v.stations.length > 1 ? 's' : ''}, ${v.bases.length} base${v.bases.length > 1 ? 's' : ''}.</p></div><button class="fermer">✕</button></header>
     <section><h3>Astres</h3>${astres.length ? `<div class="defile"><table class="logistique"><thead><tr><th>Astre</th><th>Posé</th><th>Échant.</th><th>Bases</th><th>Stations</th></tr></thead><tbody>${lignes}</tbody></table></div>` : '<p class="doux">Aucun astre exploré ni équipé pour l’instant.</p>'}</section>
     <section><h3>À faire pour progresser</h3>${besoins.length ? `<ul class="sondes">${besoins.map((b, i) => `<li>${b.texte} ${actif && b.station ? `<button data-rav="${b.station.id}">📦 Ravito</button>` : ''}</li>`).join('')}</ul>` : '<p class="doux">Rien d’urgent.</p>'}</section>
+    <section><h3>Avant de quitter le ${SYSTEME.nom}</h3>${htmlListeDepart(v)}</section>
     <section><h3>En route</h3>${enRoute.length ? `<ul class="sondes">${enRoute.map((t) => `<li>${t}</li>`).join('')}</ul>` : '<p class="doux">Rien en route.</p>'}</section></div>`;
   m.classList.remove('cache');
   m.querySelector('.fermer').onclick = () => Infos.fermer();

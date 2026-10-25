@@ -60,6 +60,38 @@ function estimationVoyage(etoile, vitesse, tJeu) {
   return { duree, ans, arriveeJeu, arriveeVraie, auTempsMax: duree / 1e8 };
 }
 
+// ---------- Liste avant de quitter le système ----------
+// De quoi s'installer dans un autre système : on arrive par l'extérieur, sans ravitaillement possible.
+// Le chargement se compte à la plus grande station (celle qui assemble le vaisseau) et à bord de l'orbiteur.
+const CHARGEMENT_DEPART = [
+  ['kitsBase', 3, 'kits de base'], ['kits', 2, 'kits de station'], ['atterrisseurs', 4, 'atterrisseurs'],
+  ['lanceurRetour', 2, 'lanceurs de retour'], ['robots', 6, 'robots'], ['sondes', 6, 'sondes (une grappe)'],
+  ['ergols', 200000, 'ergols'], ['materiaux', 300000, 'matériaux'],
+];
+function stationDeDepart(v) {
+  return v.stations.slice().sort((a, b) => (b.niveau || 1) - (a.niveau || 1))[0] || null;
+}
+function verifierDepart(v) {
+  const st = stationDeDepart(v), k = st ? st.stock : {};
+  const aBord = { kitsBase: v.kitsBase, kits: v.kits, atterrisseurs: v.atterrisseurs, robots: v.robots, sondes: v.sondes, ergols: v.ergolsAtt, lanceurRetour: 0, materiaux: 0 };
+  const items = [];
+  items.push({ nom: 'Station de niveau 5 (chantier interstellaire)', ok: !!st && (st.niveau || 1) >= 5, detail: st ? `${st.nom} : niveau ${st.niveau || 1}` : 'aucune station' });
+  for (const [cle, besoin, nom] of CHARGEMENT_DEPART) {
+    const a = (k[cle] || 0) + (aBord[cle] || 0);
+    items.push({ nom: `${fmtStock(cle, besoin)} ${nom}`, ok: a >= besoin, detail: `${fmtStock(cle, a)}${st ? ` (à ${st.nom} et à bord)` : ' à bord'}` });
+  }
+  const vivants = v.equipe ? survivants(v).length : (v.equipagePerdu ? 0 : 1);
+  items.push({ nom: `Équipe de ${TAILLE_EQUIPE} spationautes`, ok: vivants >= TAILLE_EQUIPE, detail: `${vivants} en vie` });
+  items.push({ nom: 'Grappe de sondes envoyée vers le système visé, planète de base choisie', ok: false, detail: 'avec le départ science-fiction (prochaine étape)' });
+  return items;
+}
+function htmlListeDepart(v) {
+  const items = verifierDepart(v);
+  const n = items.filter((i) => i.ok).length;
+  return `<p class="doux">${n} sur ${items.length} prêts. Obligatoire pour s’installer dans un autre système (départ science-fiction) ; un départ réaliste part avec ce qu’il a.</p><ul class="liste-depart">${
+    items.map((i) => `<li class="${i.ok ? 'ok' : 'manque'}">${i.ok ? '✅' : '⬜'} <b>${i.nom}</b> <span class="doux">— ${i.detail}</span></li>`).join('')}</ul>`;
+}
+
 const Depart = {
   contexte: null,      // { terminer(info) } fourni par main.js
 
@@ -86,6 +118,7 @@ const Depart = {
         </section>
       </div>
       <div id="dep-resume" class="encart"></div>
+      <details class="encart"><summary><b>Avant de partir : liste de chargement</b></summary>${htmlListeDepart(v)}</details>
       <div class="actions"><button id="dep-annuler">Annuler</button><button id="dep-partir" class="principal">🌌 Partir (fin du jeu)</button></div></div>`;
     m.classList.remove('cache');
     const lire = () => {

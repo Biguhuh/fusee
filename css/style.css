@@ -231,6 +231,10 @@ dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .encart { margin: 10px 0; padding: 10px 14px; border: 1px solid var(--bord); border-radius: 10px; background: rgba(120,170,255,0.06); font-size: 14px; }
 .encart p { margin: 4px 0; }
 .defile { overflow-x: auto; }
+.liste-depart { list-style: none; padding: 0; margin: 6px 0; font-size: 13.5px; }
+.liste-depart li { padding: 3px 0; }
+.liste-depart li.manque b { color: var(--texte); opacity: 0.85; }
+details.encart summary { cursor: pointer; }
 table.logistique { width: 100%; border-collapse: collapse; font-size: 13px; }
 table.logistique th, table.logistique td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--bord); vertical-align: top; }
 table.logistique th { color: var(--doux, #9fb0c8); font-weight: 600; }
