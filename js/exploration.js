@@ -106,10 +106,13 @@ class Exploration {
     if (!proche) return this.dire('Approchez-vous d’une fleur, d’un arbre fruitier ou du bar.');
     const c = this.campagne;
     if (proche.type === 'bar') {
+      // Le barman sert 3 bières au plus ; au-delà, il refuse et rien n'est compté.
+      if (this.bieres >= BIERES_MAX) return this.dire(`🍺 Le barman refuse : ${this.bieres} bières, ça suffit, il y a un lancement demain !`);
       this.bieres++;
       if (c) c.bieres = (c.bieres || 0) + 1;
       return this.dire(this.bieres === 1 ? '🍺 Une bière bien fraîche au Bar de l’Espace. Introuvable là-haut !'
-        : this.bieres < 4 ? `🍺 ${this.bieres}e bière… la démarche devient incertaine.` : '🍺 Le barman refuse : il y a un lancement demain !');
+        : this.bieres < BIERES_MAX ? `🍺 ${this.bieres}e bière… la démarche devient incertaine.`
+          : `🍺 ${this.bieres}e bière, la dernière : le barman ne vous en servira plus.`);
     }
     if (proche.type === 'arbre') {
       if (proche.reste <= 0) return this.dire(`${proche.nom} : plus de fruits à portée.`);
@@ -706,6 +709,9 @@ function dessinerRover(ctx, x, y, s, p, aBord, inclinaison = 0) {
 }
 
 // dessinerSpationaute : voir equipage.js (tenue, carnation, exosquelette).
+
+// Bar de l'Espace : nombre de bières que le barman accepte de servir.
+const BIERES_MAX = 3;
 
 // Hauteur des messages : au-dessus des boutons tactiles (en bas en portrait).
 function yMessagesExplo(W, H) { return ECRAN_TACTILE ? H - (H > W ? 210 : 70) : H - 46; }
