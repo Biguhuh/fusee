@@ -690,6 +690,7 @@ for (const el of [canvas, toile]) {
       passerScene();
       return;
     }
+    if ((etat.ecran === 'vol' || etat.ecran === 'explo') && clicFanion(e.clientX, e.clientY)) return;   // croix du fanion
     // Petit écran : un appui sur le tableau de bord compact l'agrandit (et inversement).
     if (etat.ecran === 'vol' && etat.vol && ZONE_HUD) {
       const z = ZONE_HUD;
@@ -703,6 +704,8 @@ for (const el of [canvas, toile]) {
 }
 // Scène animée : un toucher la fait passer.
 canvas.addEventListener('touchend', (e) => {
+  const t0 = e.changedTouches && e.changedTouches[0];
+  if ((etat.ecran === 'vol' || etat.ecran === 'explo') && t0 && clicFanion(t0.clientX, t0.clientY)) { e.preventDefault(); return; }
   if (etat.ecran !== 'scene' || !etat.scene) return;
   e.preventDefault();
   const tc = e.changedTouches && e.changedTouches[0];

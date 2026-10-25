@@ -680,6 +680,7 @@ class Vol {
         : `Mise en orbite : ${fmtAlt(this.altOrbite)} d'altitude et ${fmtV(vitesseOrbitale(a, this.altOrbite))} à l'horizontale`;
       case 'plongee': return `Pas de sol : plongez jusqu'à ${fmt(a.cible, 1)} bar (prélèvements automatiques), puis remontez`;
       case 'approche': return 'Approchez le Soleil… si vous pouvez';
+      case 'ballon': return `Montée en ballon vers ${fmtAlt(this.f.aerostat ? this.f.aerostat.alt : 54000)} : le lanceur s’allumera dans les nuages (accélérez avec +)`;
     }
     return '';
   }
@@ -1866,7 +1867,7 @@ function dessinerBases(ctx, vol, W, echelle, fuseeY) {
     dessinerBase(ctx, sx, (dx) => ecranY(b.x + dx), Math.max(echelle, 0.4), b.niveau || 1, productionBase(vol.astre) > 0);
   }
   // Zone repérée par une sonde, pas encore construite : un fanion vert.
-  if (vol.site && !vol.bases.some((b) => Math.abs(b.x - vol.site.x) < 500)) dessinerFanion(ctx, W / 2 + (vol.site.x - vol.x) * echelle, ecranY(vol.site.x), Math.max(echelle, 0.4));
+  if (vol.site && !vol.bases.some((b) => Math.abs(b.x - vol.site.x) < 500)) dessinerFanion(ctx, W / 2 + (vol.site.x - vol.x) * echelle, ecranY(vol.site.x), Math.max(echelle, 0.4), vol);
   // Drapeaux plantés lors des visites précédentes
   for (const d of drapeauxSur(vol.astre.id)) {
     const sx = W / 2 + (d.x - vol.x) * echelle;
@@ -1940,12 +1941,39 @@ function dessinerDrapeauPlante(ctx, x, y, s, air) {
   ctx.restore();
 }
 
-function dessinerFanion(ctx, x, y, s) {
+// Fanion de la zone repérée par la sonde. Son texte s'efface seul au bout de 8 s, ou avec sa petite croix.
+// porteur : l'objet qui garde l'état d'affichage (le vol), partagé avec l'exploration.
+let ZONE_FANION = null;
+const DUREE_TEXTE_FANION = 8000;   // ms
+function dessinerFanion(ctx, x, y, s, porteur) {
   ctx.strokeStyle = '#eceff1'; ctx.lineWidth = Math.max(1.5, 0.2 * s);
   ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - 6 * s); ctx.stroke();
   ctx.fillStyle = '#66bb6a';
   ctx.beginPath(); ctx.moveTo(x, y - 6 * s); ctx.lineTo(x + 3.5 * s, y - 5 * s); ctx.lineTo(x, y - 4 * s); ctx.fill();
-  texteSurFond(ctx, 'Zone de base repérée par la sonde', x, y - 7 * s, { police: `${Math.min(15, Math.max(11, 1.6 * s))}px system-ui, sans-serif`, couleur: '#c8e6c9' });
+  const p = porteur || {};
+  if (p.fanionFerme) return;
+  const maintenant = performance.now();
+  if (!p.fanionDebut) p.fanionDebut = maintenant;
+  if (maintenant - p.fanionDebut > DUREE_TEXTE_FANION) { p.fanionFerme = true; return; }
+  const taille = Math.min(15, Math.max(11, 1.6 * s));
+  const police = `${taille}px system-ui, sans-serif`, texte = 'Zone de base repérée par la sonde';
+  texteSurFond(ctx, texte, x, y - 7 * s, { police, couleur: '#c8e6c9' });
+  // Petite croix pour fermer à la main.
+  ctx.save(); ctx.font = police;
+  const w = ctx.measureText(texte).width;
+  const cx = x + w / 2 + 16, cy = y - 7 * s - taille / 2 + 2, r = 9;
+  ctx.fillStyle = 'rgba(0,0,0,0.62)'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 2 * Math.PI); ctx.fill();
+  ctx.strokeStyle = '#c8e6c9'; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(cx - 3.5, cy - 3.5); ctx.lineTo(cx + 3.5, cy + 3.5); ctx.moveTo(cx + 3.5, cy - 3.5); ctx.lineTo(cx - 3.5, cy + 3.5); ctx.stroke();
+  ctx.restore();
+  ZONE_FANION = { x: cx - r - 4, y: cy - r - 4, w: 2 * r + 8, h: 2 * r + 8, porteur: p, t: maintenant };
+}
+// Clic ou toucher sur la croix du fanion : renvoie true s'il l'a fermé.
+function clicFanion(x, y) {
+  const z = ZONE_FANION;
+  if (!z || performance.now() - z.t > 500) return false;
+  if (x >= z.x && x <= z.x + z.w && y >= z.y && y <= z.y + z.h) { z.porteur.fanionFerme = true; ZONE_FANION = null; return true; }
+  return false;
 }
 
 // Base au sol : chaque élément est posé sur le terrain à son propre endroit, sur une dalle.
@@ -2338,7 +2366,8 @@ function dessinerHudSuite(ctx, vol, W, H, warp, compact, twr) {
   // Objectif (en compact : sur toute la largeur en haut, police réduite, deux lignes au plus)
   ctx.textAlign = 'center';
   const txt = vol.objectifTexte();
-  if (!compact) {
+  // Pas d'objectif : pas de bandeau (un texte vide laissait un petit carré sombre en haut au centre).
+  if (!txt) { /* rien */ } else if (!compact) {
     ctx.font = 'bold 16px system-ui, sans-serif';
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
     const tw = ctx.measureText(txt).width;

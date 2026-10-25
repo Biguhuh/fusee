@@ -481,7 +481,7 @@ class Exploration {
     // Zone de base repérée par une sonde
     if (this.vol.site && !(this.vol.bases || []).some((b) => Math.abs(b.x - this.vol.site.x) < 500)) {
       const [fx2, fy2] = versEcran(this.vol.site.x, this.sol(this.vol.site.x));
-      if (fx2 > -200 && fx2 < W + 200) dessinerFanion(ctx, fx2, fy2, echelle);
+      if (fx2 > -200 && fx2 < W + 200) dessinerFanion(ctx, fx2, fy2, echelle, this.vol);
     }
 
     // Vénus : lanceur de retour en descente ou posé près du module
