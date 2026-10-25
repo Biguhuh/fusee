@@ -1090,6 +1090,25 @@ const Orbiteur = {
     $('nav-encyclo').onclick = () => Infos.ouvrirEncyclopedie();
     $('nav-pause').onclick = () => this.contexte.basculerPause();
     $('nav-hangar').onclick = () => this.contexte.hangar();
+    // Panneaux tout neufs : on oublie leur ancien contenu.
+    this.cachePanneaux = {};
+    // Appui en cours sur l'interface : on ne la redessine pas sous le doigt (voir ecrirePanneau).
+    // (écouteurs posés une seule fois : #hud-nav reste le même élément d'une expédition à l'autre)
+    if (!this.ecoutesHud) {
+      this.ecoutesHud = true;
+      h.addEventListener('pointerdown', () => { this.pointeurBas = true; });
+      addEventListener('pointerup', () => { this.pointeurBas = false; }, true);
+      addEventListener('pointercancel', () => { this.pointeurBas = false; }, true);
+      // Retour visuel immédiat sur chaque bouton, puis on lui retire le focus :
+      // sinon Espace ou Entrée, utilisés par le jeu, « recliqueraient » ce bouton.
+      h.addEventListener('click', (e) => {
+        const b = e.target.closest('button');
+        if (!b) return;
+        b.classList.add('clique');
+        setTimeout(() => b.classList.remove('clique'), 250);
+        b.blur();
+      });
+    }
     this.majHud(true);
   },
 
@@ -1119,6 +1138,17 @@ const Orbiteur = {
     if (v.stations.length < 2) return 'Construisez une station autour d’un autre astre : elle sera ravitaillée depuis la Terre.';
     if (!v.bases.length) return 'Posez-vous sous une de vos stations et construisez une base (touche B une fois posé).';
     return '';
+  },
+
+  // Réécrit un panneau seulement si son contenu a changé, et jamais pendant qu'on appuie dessus :
+  // remplacer un bouton entre l'appui et le relâchement fait perdre le clic (bouton qui « ne répond pas »).
+  ecrirePanneau(el, html) {
+    this.cachePanneaux = this.cachePanneaux || {};
+    if (this.cachePanneaux[el.id] === html) return false;
+    if (this.pointeurBas) return false;
+    el.innerHTML = html;
+    this.cachePanneaux[el.id] = html;
+    return true;
   },
 
   majHud(force) {
@@ -1167,7 +1197,7 @@ const Orbiteur = {
         <div class="manette"><span>Gaz ${fmt(v.manette * 100)} %</span><div class="barre-gaz"><div style="width:${v.manette * 100}%"></div></div></div>
         <p class="doux">Z/S ou ↑↓ : gaz · X : couper · 1-6 : orientation. Temps limité à ×1 000 pendant la poussée.</p>`;
     }
-    $('nav-etat').innerHTML = html;
+    this.ecrirePanneau($('nav-etat'), html);
     $('nav-etat').querySelectorAll('[data-ori]').forEach((b) => { b.onclick = () => { v.orientation = b.dataset.ori; this.majHud(true); }; });
 
     // Panneau de droite : objectif, cible, plan, actions
@@ -1238,7 +1268,7 @@ const Orbiteur = {
     if (cargos.length) d += '<h3>Ravitos en route</h3><ul class="sondes">' + cargos.map((s) => `<li>${s.nom} (parti il y a ${fmtDuree(v.t - s.tLancement)})</li>`).join('') + '</ul>';
     const sondes = v.sondesEnVol;
     if (sondes.length) d += '<h3>Sondes</h3><ul class="sondes">' + sondes.map((s) => `<li>${s.nom} — ${s.etat === 'vol' ? 'en route' : 'en orbite'}</li>`).join('') + '</ul>';
-    $('nav-actions').innerHTML = d;
+    this.ecrirePanneau($('nav-actions'), d);
     $('nav-actions').querySelectorAll('[data-fab]').forEach((b) => { b.onclick = () => { this.fabriquer(st.id, b.dataset.fab); this.majHud(true); }; });
     const bRavito = $('nav-ravito');
     if (bRavito) bRavito.onclick = () => this.ouvrirRavito();

@@ -296,7 +296,9 @@ function larguerRobot(id) {
 
 function construireBase() {
   const v = etat.voyage, vol = etat.vol;
-  if (!vol || !vol.pose || !etat.enVoyage) return;
+  if (!vol) return;
+  if (!etat.enVoyage) return (vol.messageExplo = { texte: 'Les bases se construisent pendant l’exploration du système solaire (campagne), pas en visite rapide.', vie: 5 });
+  if (!vol.pose) return (vol.messageExplo = { texte: 'Construire une base (B) : il faut d’abord être posé.', vie: 4 });
   const a = vol.astre;
   if (!v.stations.some((s) => s.centre === a.id)) return (vol.messageExplo = { texte: `Il faut d’abord une station en orbite de ${a.nom} pour ravitailler la base.`, vie: 6 });
   if (v.kitsBase <= 0) return (vol.messageExplo = { texte: 'Plus de kit de base à bord (un ravito « Kit d’expédition » ou l’atelier d’une station en fournit).', vie: 6 });
@@ -518,6 +520,8 @@ addEventListener('keydown', (e) => {
     return;
   }
   if (e.target && e.target.tagName === 'INPUT') return;
+  // Espace / Entrée sur un bouton qui a gardé le focus : c'est pour le jeu, pas pour recliquer le bouton.
+  if (e.target && e.target.tagName === 'BUTTON' && ['Space', 'Enter'].includes(e.code) && ['vol', 'explo', 'nav'].includes(etat.ecran)) e.preventDefault();
   if (e.code === 'KeyI') { Infos.ouvrirEncyclopedie(); return; }
   if (etat.ecran === 'nav') {
     if (CODES_JEU.includes(e.code)) e.preventDefault();
@@ -558,9 +562,20 @@ addEventListener('keydown', (e) => {
   }
   if (e.code === 'KeyX') v.manette = 0;
   if (e.code === 'Space') v.manette = 1;
-  if (e.code === 'KeyL') { v.autopilote = !v.autopilote; v.cibleX = null; v.tCible = -1; }
-  if (e.code === 'KeyT') v.demanderDecollage();
+  // Chaque touche répond : elle agit, ou un message dit pourquoi elle ne peut pas agir maintenant.
+  const refus = (texte) => { v.messageExplo = { texte, vie: 4 }; };
+  if (e.code === 'KeyL') {
+    v.autopilote = !v.autopilote; v.cibleX = null; v.tCible = -1;
+    refus(v.autopilote ? 'Pilote automatique activé.' : 'Pilote automatique coupé : vous avez les commandes.');
+  }
+  if (e.code === 'KeyT') {
+    if (v.pose) v.demanderDecollage();
+    else refus('Décollage (T) : il faut d’abord être posé.');
+  }
   if (e.code === 'KeyB') construireBase();
+  if ((e.code === 'KeyE' || e.code === 'KeyR') && !(v.pose && v.astre.type === 'solide')) {
+    refus(v.astre.type !== 'solide' ? 'Pas de sol ici : ni spationaute ni robot ne peuvent sortir.' : `${e.code === 'KeyE' ? 'Sortir le spationaute' : 'Sortir le robot'} : il faut d’abord être posé.`);
+  }
   if ((e.code === 'KeyE' || e.code === 'KeyR') && v.pose && v.astre.type === 'solide') {
     etat.explo = new Exploration(v, e.code === 'KeyE' ? 'spationaute' : 'robot', etat.science);
     touches.clear();

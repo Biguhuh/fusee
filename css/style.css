@@ -150,6 +150,9 @@ dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 #hud-nav > * { pointer-events: auto; }
 #hud-nav button { padding: 6px 10px; font-size: 13px; }
 #hud-nav button.choisi { border-color: var(--accent); background: #2a1810; }
+/* Retour visuel immédiat : le bouton s'enfonce à l'appui et clignote une fois pris en compte. */
+#hud-nav button:active { transform: scale(0.96); }
+#hud-nav button.clique { box-shadow: 0 0 0 2px var(--accent) inset; filter: brightness(1.35); }
 .barre-haut {
   position: absolute; top: 8px; left: 8px; right: 8px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
   background: rgba(10, 14, 26, 0.85); border: 1px solid var(--bord); border-radius: 10px; padding: 6px 10px;
