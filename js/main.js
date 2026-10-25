@@ -78,10 +78,14 @@ function astresAVisiter() { return ASTRES.filter((a) => a.type !== 'etoile' && !
 
 function allerAccueil() {
   const v = etat.voyage;
-  $('accueil-reprendre').classList.toggle('cache', !v);
+  // Campagne terminée par un départ vers une autre étoile : on ne la reprend plus.
+  $('accueil-reprendre').classList.toggle('cache', !v || !!v.fin);
   $('accueil-reprendre').textContent = v && v.orb ? '▶ Reprendre l’expédition' : '▶ Reprendre (lancer une expédition)';
   $('accueil-campagne').textContent = v ? '↺ Nouvelle campagne' : '🛰 Commencer';
-  if (v) {
+  if (v && v.fin) {
+    const f = v.fin;
+    $('progres-accueil').innerHTML = `<b>Campagne terminée.</b> Partie en ${f.anneeDepart} vers ${f.nomEtoile} (${fmt(f.distanceAL, 2)} années-lumière) à ${fmt(f.vitesse, 1)} km/s : arrivée vers ${fmtAnnee(f.arriveeJeu)} (temps de jeu), vers ${fmtAnnee(f.arriveeVraie)} dans la vraie vie.`;
+  } else if (v) {
     const vus = Object.keys(v.visites).filter((id) => v.visites[id].pose && ASTRES_PAR_ID[id]);
     const nPrinc = SYSTEME.objectifs.filter((id) => vus.includes(id)).length;
     $('progres-accueil').innerHTML = `Progression : <b>${vus.length} astre${vus.length > 1 ? 's' : ''} visité${vus.length > 1 ? 's' : ''}</b> sur ${astresAVisiter().length} (dont ${nPrinc} des ${SYSTEME.objectifs.length} principaux). ` + resumeCampagne(v);
@@ -454,6 +458,7 @@ function promenadeSurTerre() {
 // ---------- Voyage (orbiteur) ----------
 function allerNavigation() {
   if (!etat.voyage) etat.voyage = Orbiteur.nouveauVoyage();
+  if (etat.voyage.fin) return allerAccueil();      // campagne terminée (départ vers une autre étoile)
   // Pas d'expédition en cours : tout part de la Terre, depuis le centre de lancement.
   if (!etat.voyage.orb) return allerLancement();
   Orbiteur.charger(etat.voyage);
@@ -467,6 +472,34 @@ function allerNavigation() {
   Orbiteur.rattraperAbsence();
   sauver(etat);
 }
+
+// Départ réaliste vers une autre étoile : la campagne s'arrête là, avec ses dates d'arrivée.
+function terminerParDepart(info) {
+  const v = etat.voyage;
+  v.fin = info;
+  Orbiteur.log(`Départ pour ${info.nomEtoile} (${fmt(info.distanceAL, 2)} années-lumière) à ${fmt(info.vitesse, 1)} km/s : ${info.nomProfil.toLowerCase()}. Arrivée vers ${fmtAnnee(info.arriveeJeu)}.`);
+  sauver(etat);
+  const h = $('res-titre');
+  h.textContent = `En route vers ${info.nomEtoile}`;
+  h.className = 'succes';
+  $('res-message').textContent = `L’expédition a quitté le ${SYSTEME.nom} en ${info.anneeDepart}. À ${fmt(info.vitesse, 1)} km/s, les ${fmt(info.distanceAL, 2)} années-lumière prendront ${fmtDureeAnnees(info.ans)}. Fin de la partie.`;
+  const vus = Object.keys(v.visites).filter((id) => v.visites[id].pose && ASTRES_PAR_ID[id]).length;
+  const ech = Object.values(v.echantillonsRapportes || {}).reduce((s, k) => s + k, 0);
+  $('res-stats').innerHTML = `
+    <dt>Destination</dt><dd>${info.nomEtoile}, ${fmt(info.distanceAL, 2)} années-lumière</dd>
+    <dt>Propulsion</dt><dd>${info.nomProfil} (${fmt(info.vitesse, 1)} km/s)</dd>
+    <dt>Durée du voyage</dt><dd>${fmtDureeAnnees(info.ans)}</dd>
+    <dt>Arrivée (temps de jeu)</dt><dd>vers ${fmtAnnee(info.arriveeJeu)}</dd>
+    <dt>Arrivée (vraie vie)</dt><dd>vers ${fmtAnnee(info.arriveeVraie)}</dd>
+    <dt>Astres visités</dt><dd>${vus}</dd>
+    <dt>Échantillons rapportés</dt><dd>${ech}</dd>
+    <dt>Stations / bases</dt><dd>${v.stations.length} / ${v.bases.length}</dd>`;
+  etat.suiteResultat = 'accueil';
+  $('vers-hangar').textContent = '← Accueil';
+  $('rejouer').classList.add('cache');
+  montrer('resultat');
+}
+Depart.contexte = { terminer: (info) => terminerParDepart(info) };
 
 Orbiteur.contexte = {
   equipement: () => etat.equipement,

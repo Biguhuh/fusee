@@ -1502,6 +1502,7 @@ const Orbiteur = {
     d += '<h3>Actions</h3><div class="actions-nav">';
     const fermee = this.orbiteFermee();
     if (estOrigine(c.id) && fermee) d += `<button id="nav-rentrer" class="principal">🏠 Rentrer sur ${SYSTEME.origineSans} (capsule)</button>`;
+    d += `<button id="nav-depart">🌌 Quitter le ${SYSTEME.nom}</button>`;
     if (this.peutDescendre()) {
       // L'atterrisseur est conçu pour l'astre : on ne descend que si l'on peut repartir.
       const conc = this.conceptionPour(c);
@@ -1564,6 +1565,7 @@ const Orbiteur = {
     bind('nav-descendre', () => this.contexte.descendre(o.centre));
     bind('nav-robot', () => this.ouvrirLargageRobot(o.centre));
     bind('nav-rentrer', () => this.contexte.rentrer());
+    bind('nav-depart', () => Depart.ouvrir(this.v));
     bind('nav-amarrer', () => { this.amarrer(); this.majHud(true); });
     bind('nav-station', () => { this.construireStation(); this.majHud(true); });
     bind('nav-sonde', () => { this.lancerSonde(v.cible); this.majHud(true); });

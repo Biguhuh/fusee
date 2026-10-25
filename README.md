@@ -41,6 +41,12 @@ Tenue : combinaison de vol bleue de l'ESA sur Terre, scaphandre blanc aux couleu
      - **Avec équipage**, un hélicoptère arrive par le bord de l'écran, se met en stationnaire et hélitreuille le ou la spationaute.
      - **Si l'équipage a été perdu** (sortie mortelle, atterrisseur détruit) : message « Capsule vide », pas d'hélicoptère ; un navire arrive et hisse la capsule à bord avec sa grue.
      - Le temps accéléré est affiché ; Entrée, Espace ou un toucher passent la séquence.
+  5. **Quitter le Système solaire** (bouton « 🌌 » de l'orbiteur) : on choisit une étoile proche réelle (Proxima Centauri, Alpha Centauri, Barnard, Lalande 21185, Epsilon Eridani, Tau Ceti, TRAPPIST-1).
+     - **Départ réaliste**, avec deux propulsions :
+       - assistances gravitationnelles comme Voyager 1, 17 km/s ;
+       - poussée de l'orbiteur seule : tous ses ergols brûlés d'où il est, en profitant de la vitesse acquise (environ 65 km/s depuis l'orbite terrestre).
+     - Le jeu donne la durée du voyage (environ 20 000 ans pour Proxima avec l'orbiteur), la date d'arrivée en temps de jeu et dans la vraie vie, et le temps qu'il faudrait au temps accéléré maximal. C'est la fin de la partie : un bilan s'affiche et la campagne ne se reprend plus.
+     - Le départ « science-fiction » (propulsions avancées) viendra ensuite.
   5. **Stations** autour des autres astres : un petit ravitaillement courant arrive régulièrement de la Terre. S'y amarrer prend ce qu'elles ont en stock.
   6. **Repérage par sonde** : une sonde en orbite d'un astre repère une zone pour une base (pente douce, à moins de quelques km du point de descente) et les ressources réelles sur place (glace d'eau, méthane, CO₂…). La descente vise ensuite cette zone (fanion vert).
   7. **Bases au sol** (touche B une fois posé près de la zone repérée, avec une station en orbite) : la construction terrasse le sol à plat. Sans repérage, le jeu refuse : « relief trop accidenté — envoyez une sonde ». La base produit des ergols à partir de la ressource locale, en garde 20 t pour les atterrisseurs et monte le surplus à la station.
@@ -148,7 +154,7 @@ Survoler un astre (carte de l'orbiteur, ou ciel pendant l'atterrissage) affiche 
 - `js/donnees-jpl.js` : données JPL générées · `js/catalogue.js` : catalogue complet, orbites, masses
 - `js/physique.js` : conditions locales et relief · `js/orbites.js` : mécanique orbitale (Kepler, Lambert, sphères d'influence)
 - `js/systemes.js` : systèmes stellaires. Le jeu tourne dans un système à la fois (`SYSTEME`) : étoile racine et sa luminosité, planète d'origine de la campagne, planètes, carte. La lumière, la température et le rayonnement passent par le flux de l'étoile hôte (`fluxStellaire`), et le départ, les ravitos et le retour passent par la planète d'origine. Le Système solaire est le premier système ; un autre se décrira avec les mêmes champs.
-- `js/vol.js` : atterrisseur et lanceurs · `js/kourou.js` : géographie sous la trace au départ de Kourou · `js/amarrage.js` : vue orbite du rendez-vous · `js/retour.js` : retour sur Terre en capsule · `js/rayonnement.js` : doses en surface et blindages · `js/exploration.js` : spationaute et robot · `js/equipage.js` : profil et dessin du ou de la spationaute
+- `js/vol.js` : atterrisseur et lanceurs · `js/kourou.js` : géographie sous la trace au départ de Kourou · `js/amarrage.js` : vue orbite du rendez-vous · `js/retour.js` : retour sur Terre en capsule · `js/depart.js` : départ vers une autre étoile · `js/rayonnement.js` : doses en surface et blindages · `js/exploration.js` : spationaute et robot · `js/equipage.js` : profil et dessin du ou de la spationaute
 - `js/navigation.js` : planification des manœuvres · `js/orbiteur.js` : écran de l'orbiteur
 - `js/globes.js` : cartes et globes des astres
 - `js/infos.js` : infobulles, fiches, encyclopédie · `js/ecrans.js`, `js/main.js` : écrans et boucle de jeu
