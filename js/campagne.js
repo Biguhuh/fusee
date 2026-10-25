@@ -205,6 +205,50 @@ const NOMS_STOCK = {
   lanceurRetour: 'lanceurs de retour', extensionsStation: 'extensions de station',
 };
 
+// Une seule station, une seule base et une seule sonde par astre.
+function stationSur(v, astreId) { return v.stations.find((s) => s.centre === astreId) || null; }
+function baseSur(v, astreId) { return v.bases.find((b) => b.astre === astreId) || null; }
+function sondeVers(v, astreId) { return v.sondesEnVol.find((s) => s.cible === astreId) || null; }
+
+// Anciennes parties : fusionne les doublons (deux stations ou deux bases sur le même astre, deux sondes vers la même cible).
+// On garde le plus haut niveau, les stocks s'additionnent (dans la limite des capacités), les ravitos sont redirigés,
+// les sondes en trop reviennent à bord de l'orbiteur. Renvoie la liste des fusions faites (pour le journal).
+function fusionnerDoublons(v) {
+  const notes = [];
+  const garder = (liste, cle) => {
+    const par = new Map();
+    for (const o of liste) { const k = o[cle]; if (!par.has(k)) par.set(k, []); par.get(k).push(o); }
+    return [...par.values()].filter((g) => g.length > 1);
+  };
+  for (const g of garder(v.stations, 'centre')) {
+    g.sort((a, b) => (b.niveau || 1) - (a.niveau || 1));
+    const [k, ...autres] = g;
+    for (const s of autres) {
+      for (const [cle, q] of Object.entries(s.stock || {})) k.stock[cle] = Math.min(capaciteStation(k, cle), (k.stock[cle] || 0) + q);
+      k.chantiers = [...(k.chantiers || []), ...(s.chantiers || [])];
+      k.terrestre = k.terrestre || s.terrestre;
+      for (const c of v.cargos || []) if (c.dest === s.id) c.dest = k.id;
+    }
+    v.stations = v.stations.filter((s) => !autres.includes(s));
+    notes.push(`${autres.length + 1} stations en orbite de ${ASTRES_PAR_ID[k.centre].nom} regroupées en une seule (${k.nom}).`);
+  }
+  for (const g of garder(v.bases, 'astre')) {
+    g.sort((a, b) => (b.niveau || 1) - (a.niveau || 1));
+    const [k, ...autres] = g;
+    for (const b of autres) k.stock = (k.stock || 0) + (b.stock || 0);
+    v.bases = v.bases.filter((b) => !autres.includes(b));
+    notes.push(`${autres.length + 1} bases sur ${ASTRES_PAR_ID[k.astre].nom} regroupées en une seule (niveau ${k.niveau || 1}).`);
+  }
+  for (const g of garder(v.sondesEnVol, 'cible')) {
+    g.sort((a, b) => (b.etat === 'orbite') - (a.etat === 'orbite'));
+    const autres = g.slice(1);
+    v.sondesEnVol = v.sondesEnVol.filter((s) => !autres.includes(s));
+    if (v.orb) v.sondes = (v.sondes || 0) + autres.length;
+    notes.push(`${autres.length} sonde${autres.length > 1 ? 's' : ''} en double vers ${ASTRES_PAR_ID[g[0].cible].nom}${v.orb ? ' revenue(s) à bord' : ' retirée(s)'}.`);
+  }
+  return notes;
+}
+
 // Niveaux des stations orbitales. Chaque niveau s'obtient avec une extension de station (atelier ou ravito),
 // assemblée en orbite en quelques jours.
 //   stock : multiplie les capacités de stockage ; vitesse : accélère les chantiers de l'atelier ;

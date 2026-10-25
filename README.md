@@ -79,6 +79,7 @@ Tenue : combinaison de vol bleue de l'ESA sur Terre, scaphandre blanc aux couleu
     - les types d'échantillons possibles ;
     - la science déjà faite et le record de saut.
   - **Records de saut** : la hauteur de chaque saut du spationaute est mesurée (du point d'appel au sommet) et s'affiche pendant le saut. Le record de chaque astre est gardé, avec un message quand on le bat (environ 1,5 m sur la Lune, 0,25 m sur Terre).
+  - **Une seule station, une seule base et une seule sonde par astre.** Les boutons sont grisés avec la raison (« Station déjà installée sur cet astre », « Sonde déjà envoyée », « Base ✓ »). Les anciennes parties qui avaient des doublons sont fusionnées au chargement : on garde le plus haut niveau, les stocks s'additionnent, les ravitos sont redirigés, les sondes en trop reviennent à bord. Le journal le signale.
   - **Grappe de sondes** (fiche d'un astre qui a des lunes) : plusieurs sondes partent ensemble de l'orbiteur puis se séparent, une par cible (l'astre et ses lunes, les plus grosses d'abord ; celles déjà sondées sont décochées). Chacune repère sa cible en arrivant.
   5. **Quitter le Système solaire** (bouton « 🌌 » de l'orbiteur) : on choisit une étoile proche réelle (Proxima Centauri, Alpha Centauri, Barnard, Lalande 21185, Epsilon Eridani, Tau Ceti, TRAPPIST-1).
      - **Départ réaliste**, avec deux propulsions :

@@ -152,7 +152,7 @@ const Infos = {
         <div class="barre">
           <button id="bouton-pause">${pause ? '▶ Reprendre le mouvement' : '⏸ Mettre en pause'}</button>
           <button id="bouton-encyclo">📖 Tous les astres</button>
-          ${actions.map((x, i) => `<button class="principal" data-action="${i}">${x.texte}</button>`).join('')}
+          ${actions.map((x, i) => (x.desactive ? `<button disabled title="${x.desactive}">${x.texte}</button>` : `<button class="principal" data-action="${i}">${x.texte}</button>`)).join('')}
         </div>
         <div class="sections">${sections.map(([t, c]) => `<section><h3>${t}</h3><dl>${c}</dl></section>`).join('')}</div>
       </div>`;

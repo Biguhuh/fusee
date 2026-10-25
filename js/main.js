@@ -37,6 +37,8 @@ function migrerVoyage(v) {
   choisirSysteme(m.systeme);
   // Expédition d'avant l'équipe : on lui en donne une.
   if (m.orb && !m.equipe) initialiserEquipe(m);
+  // Une seule station, base et sonde par astre : les doublons des anciennes parties sont fusionnés.
+  for (const texte of fusionnerDoublons(m)) m.journal.push({ t: m.t, texte });
   return m;
 }
 const canvas = $('vol');
@@ -381,7 +383,7 @@ function construireBase() {
   const a = vol.astre;
   if (!v.stations.some((s) => s.centre === a.id)) return (vol.messageExplo = { texte: `Il faut d’abord une station en orbite de ${a.nom} pour ravitailler la base.`, vie: 6 });
   if (v.kitsBase <= 0) return (vol.messageExplo = { texte: 'Plus de kit de base à bord (un ravito « Kit d’expédition » ou l’atelier d’une station en fournit).', vie: 6 });
-  if (v.bases.some((b) => b.astre === a.id && Math.abs(b.x - vol.x) < 2000)) return (vol.messageExplo = { texte: 'Il y a déjà une base ici.', vie: 5 });
+  if (baseSur(v, a.id)) return (vol.messageExplo = { texte: `Base déjà installée sur ${a.nom} : une seule base par astre.`, vie: 6 });
   // Une base a besoin d'un terrain plat, repéré par une sonde.
   const site = (v.sites || {})[a.id];
   if (!site) return (vol.messageExplo = { texte: `Impossible de construire une base ici : le relief est trop accidenté. Conseil : remontez en orbite et envoyez une sonde vers ${a.nom}, elle repérera une zone compatible.`, vie: 10 });

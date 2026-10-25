@@ -64,7 +64,8 @@ const Tactile = {
       if (v.pose && solide && !v.lancement && !v.promenade) {
         b.push({ zone: 'actions', label: '🧑‍🚀 Sortir', code: 'KeyE' });
         b.push({ zone: 'actions', label: '🛞 Robot', code: 'KeyR' });
-        if (etat.enVoyage) b.push({ zone: 'actions', label: '🏗 Base', code: 'KeyB' });
+        if (etat.enVoyage && etat.voyage && baseSur(etat.voyage, v.astre.id)) b.push({ zone: 'actions', label: '🏗 Base ✓', code: 'KeyB', desactive: 'Base déjà installée sur cet astre' });
+        else if (etat.enVoyage) b.push({ zone: 'actions', label: '🏗 Base', code: 'KeyB' });
         if (!v.voyage) b.push({ zone: 'actions', label: '✓ Terminer', code: 'Enter' });
       }
       temps('actions');
@@ -112,6 +113,7 @@ const Tactile = {
       if (x.titre) bt.setAttribute('aria-label', x.titre);
       if (x.actif) bt.classList.add('actif');
       if (x.principal) bt.classList.add('principal');
+      if (x.desactive) { bt.disabled = true; bt.title = x.desactive; }
       if (x.large) bt.classList.add('large');
       bt.addEventListener('pointerdown', (e) => {
         e.preventDefault();

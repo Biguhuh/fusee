@@ -462,8 +462,9 @@ const Orbiteur = {
   // ---------- Sondes ----------
   lancerSonde(cibleId) {
     const v = this.v;
-    if (v.sondes <= 0) return this.log('Plus de sonde à bord.');
     const c = ASTRES_PAR_ID[cibleId];
+    if (sondeVers(v, cibleId)) return this.log(`Sonde déjà envoyée vers ${c.nom} : une seule sonde par astre.`);
+    if (v.sondes <= 0) return this.log('Plus de sonde à bord.');
     v.sondes--;
     const n = v.sondesEnVol.length + 1;
     const id = 'p' + Date.now();
@@ -476,12 +477,13 @@ const Orbiteur = {
   // (chacune suit sa propre trajectoire et repère sa cible en arrivant).
   ouvrirGrappe(centreId) {
     const v = this.v, p = ASTRES_PAR_ID[centreId];
-    const deja = new Set([...Object.keys(v.sites || {}), ...v.sondesEnVol.map((s) => s.cible)]);
+    // Une seule sonde par astre : les astres qui en ont déjà une sont grisés.
+    const deja = new Set(v.sondesEnVol.map((s) => s.cible));
     const candidats = [p, ...(ENFANTS[p.id] || []).slice().sort((x, y) => y.rayonKm - x.rayonKm)].filter((a) => a.type !== 'etoile').slice(0, 16);
     const m = $('modale');
     m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>🛰 Grappe de sondes vers ${p.nom}</h2>
       <p>Les sondes partent ensemble de l’orbiteur puis se séparent : une par cible. En orbite, chacune cartographie sa cible et repère une zone de base et ses ressources. ${v.sondes} sonde${v.sondes > 1 ? 's' : ''} à bord.</p></div><button class="fermer">✕</button></header>
-      <section>${candidats.map((a, i) => `<label class="choix-ravito"><input type="checkbox" name="grappe" value="${a.id}" ${!deja.has(a.id) && i < v.sondes ? 'checked' : ''}> <b>${a.nom}</b> <span class="doux">— ${fmt(a.rayonKm)} km de rayon${deja.has(a.id) ? ', déjà sondé ou sonde en route' : ''}</span></label>`).join('')}</section>
+      <section>${candidats.map((a) => `<label class="choix-ravito"><input type="checkbox" name="grappe" value="${a.id}" ${deja.has(a.id) ? 'disabled' : ''}> <b>${a.nom}</b> <span class="doux">— ${fmt(a.rayonKm)} km de rayon${deja.has(a.id) ? ' · sonde déjà envoyée (une par astre)' : ''}</span></label>`).join('')}</section>
       <p id="grappe-info" class="doux"></p>
       <div class="actions"><span></span><button id="grappe-ok" class="principal">🛰 Lancer la grappe</button></div></div>`;
     m.classList.remove('cache');
@@ -492,6 +494,8 @@ const Orbiteur = {
       $('grappe-info').textContent = n > v.sondes ? `Pas assez de sondes : ${n} cibles pour ${v.sondes} sonde${v.sondes > 1 ? 's' : ''}.` : `${n} sonde${n > 1 ? 's' : ''} pour ${n} cible${n > 1 ? 's' : ''}.`;
       $('grappe-ok').disabled = !n || n > v.sondes;
     };
+    // Présélection : les cibles libres, les plus grosses d'abord, dans la limite des sondes à bord.
+    [...m.querySelectorAll('input[name=grappe]:not([disabled])')].slice(0, v.sondes).forEach((i) => { i.checked = true; });
     m.querySelectorAll('input').forEach((i) => { i.onchange = info; });
     info();
     $('grappe-ok').onclick = () => {
@@ -502,6 +506,7 @@ const Orbiteur = {
   },
   lancerGrappe(ids) {
     const v = this.v;
+    ids = ids.filter((id) => !sondeVers(v, id));      // une seule sonde par astre
     const n = Math.min(ids.length, v.sondes);
     for (const id of ids.slice(0, n)) {
       const c = ASTRES_PAR_ID[id];
@@ -637,6 +642,7 @@ const Orbiteur = {
   },
   construireStation() {
     const v = this.v, c = ASTRES_PAR_ID[v.orb.centre];
+    if (stationSur(v, c.id)) return this.log(`Station déjà installée en orbite de ${c.nom} : une seule station par astre.`);
     if (v.kits <= 0) return this.log('Plus de kit de station à bord (la station terrestre en reçoit de la Terre).');
     if (!this.orbiteFermee()) return this.log('Il faut être en orbite fermée pour construire une station.');
     v.kits--;
@@ -840,8 +846,9 @@ const Orbiteur = {
     const l = [];
     if (a.type !== 'etoile') l.push({ texte: '🎯 Choisir comme cible', action: () => { this.v.cible = a.id; this.etape = null; this.auto = false; this.majHud(true); } });
     l.push({ texte: '🔭 Centrer la vue', action: () => this.centrerSur(a.id) });
-    if (a.type !== 'etoile' && this.v.sondes > 0) l.push({ texte: '🛰 Lancer une sonde', action: () => this.lancerSonde(a.id) });
-    if (a.type !== 'etoile' && this.v.sondes > 1 && (ENFANTS[a.id] || []).length) l.push({ texte: '🛰 Grappe de sondes', action: () => this.ouvrirGrappe(a.id) });
+    if (a.type !== 'etoile' && sondeVers(this.v, a.id)) l.push({ texte: '🛰 Sonde déjà envoyée', desactive: 'Une seule sonde par astre' });
+    else if (a.type !== 'etoile' && this.v.sondes > 0) l.push({ texte: '🛰 Lancer une sonde', action: () => this.lancerSonde(a.id) });
+    if (a.type !== 'etoile' && this.v.sondes > 0 && (ENFANTS[a.id] || []).length) l.push({ texte: '🛰 Grappe de sondes', action: () => this.ouvrirGrappe(a.id) });
     return l;
   },
 
@@ -1581,8 +1588,11 @@ const Orbiteur = {
     }
     const st = this.stationIci();
     if (st) d += `<button id="nav-amarrer">⚓ S’amarrer à ${st.nom}</button>`;
-    if (v.kits > 0 && fermee && c.type !== 'etoile') d += `<button id="nav-station" ${!st && estOrigine(c.id) ? 'class="principal"' : ''}>🏗 Construire une station ici</button>`;
-    if (v.cible && v.sondes > 0) d += `<button id="nav-sonde">🛰 Sonde vers ${ASTRES_PAR_ID[v.cible].nom} (repérage)</button>`;
+    // Une seule station et une seule sonde par astre : bouton grisé avec la raison.
+    if (st && c.type !== 'etoile') d += `<button disabled title="Une seule station par astre">🏗 Station déjà installée sur cet astre</button>`;
+    else if (v.kits > 0 && fermee && c.type !== 'etoile') d += `<button id="nav-station" ${estOrigine(c.id) ? 'class="principal"' : ''}>🏗 Construire une station ici</button>`;
+    if (v.cible && sondeVers(v, v.cible)) d += `<button disabled title="Une seule sonde par astre">🛰 Sonde déjà envoyée vers ${ASTRES_PAR_ID[v.cible].nom}</button>`;
+    else if (v.cible && v.sondes > 0) d += `<button id="nav-sonde">🛰 Sonde vers ${ASTRES_PAR_ID[v.cible].nom} (repérage)</button>`;
     if (v.stations.length) d += `<button id="nav-ravito">📦 Envoyer un ravito</button>`;
     d += `<button id="nav-logistique">📊 Logistique</button><button id="nav-journal">📜 Journal</button></div>`;
     // Site repéré pour une base sur l'astre courant
