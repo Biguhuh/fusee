@@ -11,13 +11,57 @@ function manquePourNiveau(v, b) {
   const st = v.stations.find((s) => s.centre === b.astre);
   if (!st) return { texte: `il faut une station en orbite de ${a.nom} pour recevoir l’extension`, pret: false };
   if ((st.stock.extensions || 0) > 0) return { texte: `extension prête à ${st.nom}`, pret: true, station: st };
-  const r = RECETTES.extension;
-  const enChantier = (st.chantiers || []).some((c) => c.cle === 'extension');
+  const r = RECETTES.extensions;
+  const enChantier = (st.chantiers || []).some((c) => c.cle === 'extensions');
   return {
     texte: enChantier ? `extension en fabrication à ${st.nom}`
       : `1 extension de base à ${st.nom} : ravito « Extension de base », ou atelier (${fmtStock('materiaux', r.materiaux)} de matériaux, ${fmtStock('materiaux', st.stock.materiaux || 0)} en stock)`,
     pret: false, station: st,
   };
+}
+
+// ---------- Logistique : récapitulatif de toute l'exploration ----------
+// Astres visités ou équipés, bases et productions, stations et stocks, chantiers, ravitos et sondes en route,
+// et ce qui manque pour faire progresser chaque base. Un clic sur un astre ouvre son tableau de bord.
+function ouvrirLogistique(v, actif) {
+  const m = $('modale');
+  const ids = new Set([...Object.keys(v.visites).filter((id) => v.visites[id].pose), ...v.bases.map((b) => b.astre), ...v.stations.map((s) => s.centre),
+    ...Object.keys(v.echantillonsRapportes || {})]);
+  const astres = [...ids].map((id) => ASTRES_PAR_ID[id]).filter(Boolean).sort((x, y) => (x.distanceUA || 0) - (y.distanceUA || 0));
+  let ergolsJour = 0, matJour = 0;
+  for (const b of v.bases) {
+    const a = ASTRES_PAR_ID[b.astre], n = b.niveau || 1;
+    ergolsJour += ressourceLocale(a)[1] * n;
+    matJour += productionMateriaux(a, n);
+  }
+  const besoins = [];
+  for (const b of v.bases) {
+    const mq = manquePourNiveau(v, b);
+    if ((b.niveau || 1) < 5 && !mq.pret && !b.descente) besoins.push({ astre: b.astre, texte: `Base ${ASTRES_PAR_ID[b.astre].nom} → niveau ${(b.niveau || 1) + 1} : ${mq.texte}`, station: mq.station });
+    if (mq.pret) besoins.push({ astre: b.astre, texte: `Base ${ASTRES_PAR_ID[b.astre].nom} : ${mq.texte}, à envoyer (tableau de bord de l’astre)` });
+  }
+  for (const st of v.stations) {
+    if ((st.stock.ergols || 0) < 20000) besoins.push({ astre: st.centre, texte: `${st.nom} : peu d’ergols (${fmtStock('ergols', st.stock.ergols || 0)})`, station: st });
+    if ((st.stock.materiaux || 0) < 10000) besoins.push({ astre: st.centre, texte: `${st.nom} : peu de matériaux (${fmtStock('materiaux', st.stock.materiaux || 0)})`, station: st });
+  }
+  const lignes = astres.map((a) => {
+    const bases = v.bases.filter((b) => b.astre === a.id);
+    const sts = v.stations.filter((s) => s.centre === a.id);
+    const ech = (v.echantillonsRapportes || {})[a.id] || 0;
+    const prod = bases.map((b) => { const n = b.niveau || 1; const e = ressourceLocale(a)[1] * n, mt = productionMateriaux(a, n); return `niv. ${n}${e ? ` · ${fmt(e / 1000, 1)} t ergols/j` : ''}${mt ? ` · ${fmt(mt / 1000, 1)} t mat./j` : ''}`; }).join('<br>') || '—';
+    const stock = sts.map((s) => `${s.nom} : ${fmtStock('ergols', s.stock.ergols || 0)} ergols, ${fmtStock('materiaux', s.stock.materiaux || 0)} mat.${(s.chantiers || []).length ? ` · 🔧 ${s.chantiers.length}` : ''}`).join('<br>') || '—';
+    return `<tr><td><button class="lien-astre" data-id="${a.id}">${a.nom}</button></td><td>${v.visites[a.id] && v.visites[a.id].pose ? '✓' : ''}</td><td>${ech || ''}</td><td>${prod}</td><td>${stock}</td></tr>`;
+  }).join('');
+  const enRoute = [...(v.cargos || []).map((c) => `📦 ${c.nom}`), ...v.sondesEnVol.map((s) => `🛰 ${s.nom} (${s.etat === 'vol' ? 'en route' : 'en orbite'})`)];
+  m.innerHTML = `<div class="fenetre large"><header class="entete"><div><h2>📊 Logistique de l’exploration</h2>
+    <p>Production totale des bases : <b>${fmt(ergolsJour / 1000, 1)} t d’ergols</b> et <b>${fmt(matJour / 1000, 1)} t de matériaux</b> par jour. ${v.stations.length} station${v.stations.length > 1 ? 's' : ''}, ${v.bases.length} base${v.bases.length > 1 ? 's' : ''}.</p></div><button class="fermer">✕</button></header>
+    <section><h3>Astres</h3>${astres.length ? `<div class="defile"><table class="logistique"><thead><tr><th>Astre</th><th>Posé</th><th>Échant.</th><th>Bases</th><th>Stations</th></tr></thead><tbody>${lignes}</tbody></table></div>` : '<p class="doux">Aucun astre exploré ni équipé pour l’instant.</p>'}</section>
+    <section><h3>À faire pour progresser</h3>${besoins.length ? `<ul class="sondes">${besoins.map((b, i) => `<li>${b.texte} ${actif && b.station ? `<button data-rav="${b.station.id}">📦 Ravito</button>` : ''}</li>`).join('')}</ul>` : '<p class="doux">Rien d’urgent.</p>'}</section>
+    <section><h3>En route</h3>${enRoute.length ? `<ul class="sondes">${enRoute.map((t) => `<li>${t}</li>`).join('')}</ul>` : '<p class="doux">Rien en route.</p>'}</section></div>`;
+  m.classList.remove('cache');
+  m.querySelector('.fermer').onclick = () => Infos.fermer();
+  m.querySelectorAll('.lien-astre').forEach((b) => { b.onclick = () => Infos.ouvrirFiche(b.dataset.id); });
+  m.querySelectorAll('[data-rav]').forEach((b) => { b.onclick = () => Orbiteur.ouvrirRavito(b.dataset.rav); });
 }
 
 // Sections du tableau de bord (HTML) et branchement des boutons. actif : l'orbiteur est ouvert (actions permises).

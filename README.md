@@ -53,6 +53,13 @@ Tenue : combinaison de vol bleue de l'ESA sur Terre, scaphandre blanc aux couleu
     - **« En orbite »** : l'orbiteur s'il est là, chaque station avec son stock et ses capacités, ses chantiers, son atelier, les sondes et les ravitos attendus.
 
     Depuis l'orbiteur, on agit directement depuis la fiche : envoyer l'extension à la base, fabriquer à l'atelier, envoyer un ravito vers la station.
+  - **Logistique** (bouton « 📊 » de l'orbiteur) : le récapitulatif de l'exploration.
+    - Production totale des bases (ergols et matériaux par jour).
+    - Chaque astre visité ou équipé : posé, échantillons, bases et productions, stations et stocks, chantiers.
+    - « À faire pour progresser » : ce qui manque à chaque base pour le niveau suivant, et les stations à court d'ergols ou de matériaux, avec un bouton « 📦 Ravito » vers la bonne station.
+    - Ravitos et sondes en route.
+
+    Un clic sur un astre ouvre son tableau de bord.
   5. **Quitter le Système solaire** (bouton « 🌌 » de l'orbiteur) : on choisit une étoile proche réelle (Proxima Centauri, Alpha Centauri, Barnard, Lalande 21185, Epsilon Eridani, Tau Ceti, TRAPPIST-1).
      - **Départ réaliste**, avec deux propulsions :
        - assistances gravitationnelles comme Voyager 1, 17 km/s ;

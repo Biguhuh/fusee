@@ -230,6 +230,10 @@ dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .choix-ravito:hover { background: rgba(255,255,255,0.04); }
 .encart { margin: 10px 0; padding: 10px 14px; border: 1px solid var(--bord); border-radius: 10px; background: rgba(120,170,255,0.06); font-size: 14px; }
 .encart p { margin: 4px 0; }
+.defile { overflow-x: auto; }
+table.logistique { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.logistique th, table.logistique td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--bord); vertical-align: top; }
+table.logistique th { color: var(--doux, #9fb0c8); font-weight: 600; }
 .actions-tb { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
 .actions-tb button, dd > button[data-tb] { font-size: 12px; padding: 4px 8px; }
 .fenetre select { width: 100%; font: inherit; padding: 8px; border-radius: 8px; border: 1px solid var(--bord); background: #0b1020; color: var(--texte); }

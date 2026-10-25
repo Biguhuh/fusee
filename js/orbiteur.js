@@ -1521,7 +1521,7 @@ const Orbiteur = {
     if (v.kits > 0 && fermee && c.type !== 'etoile') d += `<button id="nav-station" ${!st && estOrigine(c.id) ? 'class="principal"' : ''}>🏗 Construire une station ici</button>`;
     if (v.cible && v.sondes > 0) d += `<button id="nav-sonde">🛰 Sonde vers ${ASTRES_PAR_ID[v.cible].nom} (repérage)</button>`;
     if (v.stations.length) d += `<button id="nav-ravito">📦 Envoyer un ravito</button>`;
-    d += `<button id="nav-journal">📜 Journal</button></div>`;
+    d += `<button id="nav-logistique">📊 Logistique</button><button id="nav-journal">📜 Journal</button></div>`;
     // Site repéré pour une base sur l'astre courant
     const site = (v.sites || {})[c.id];
     if (c.type === 'solide' && !estOrigine(c.id)) {
@@ -1568,6 +1568,7 @@ const Orbiteur = {
     bind('nav-robot', () => this.ouvrirLargageRobot(o.centre));
     bind('nav-rentrer', () => this.contexte.rentrer());
     bind('nav-depart', () => Depart.ouvrir(this.v));
+    bind('nav-logistique', () => ouvrirLogistique(this.v, true));
     bind('nav-amarrer', () => { this.amarrer(); this.majHud(true); });
     bind('nav-station', () => { this.construireStation(); this.majHud(true); });
     bind('nav-sonde', () => { this.lancerSonde(v.cible); this.majHud(true); });
