@@ -32,11 +32,12 @@ function conditions(astre, alt) {
   let dUA = astre.distanceUA;
   if (astre.type === 'etoile') {
     dUA = (R + alt) / UA_M;
-    // Température d'équilibre d'un corps noir chauffé par le Soleil.
-    if (alt >= 0) t = 278.6 / Math.sqrt(dUA) - KELVIN;
+    // Température d'équilibre d'un corps noir chauffé par l'étoile (278,6 K pour le flux reçu par la Terre).
+    if (alt >= 0) t = 278.6 * Math.pow(fluxStellaire(dUA), 0.25) - KELVIN;
   }
-  // Le rayonnement (Sv/jour) est calculé dans rayonnement.js, à partir de cette distance et de l'air au-dessus.
-  return { g, p, rho, t, dUA };
+  // flux : lumière de l'étoile hôte reçue ici (1 = la Terre). Le rayonnement (Sv/jour) est calculé
+  // dans rayonnement.js, à partir de ce flux et de l'air au-dessus.
+  return { g, p, rho, t, dUA, flux: fluxStellaire(dUA) };
 }
 
 // ---------- Relief ----------

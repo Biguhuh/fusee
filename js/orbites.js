@@ -69,7 +69,7 @@ function etatAbsolu(id, t) {
 function ancetres(id) {
   const l = [];
   for (let a = ASTRES_PAR_ID[id]; a; a = a.orbite ? ASTRES_PAR_ID[a.orbite.centre] : null) l.push(a.id);
-  return l; // [id, parent, ..., 'soleil']
+  return l; // [id, parent, ..., étoile racine du système]
 }
 
 // ---------- Propagation képlérienne (variables universelles) ----------

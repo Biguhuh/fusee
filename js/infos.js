@@ -84,7 +84,7 @@ const Infos = {
       const periode = (360 / o.n) * JOUR;
       sections.push(['Orbite', lignes([
         ['Tourne autour de', centre.nom],
-        ['Demi-grand axe', fmt(o.a) + ' km' + (o.centre === 'soleil' ? ' (' + fmt(o.a / UA_KM, 3) + ' UA)' : '')],
+        ['Demi-grand axe', fmt(o.a) + ' km' + (centre.type === 'etoile' ? ' (' + fmt(o.a / UA_KM, 3) + ' UA)' : '')],
         ['Excentricité', fmt(o.e, 4)],
         a.inclinaison !== undefined ? ['Inclinaison', fmt(a.inclinaison, 1) + '°'] : null,
         ['Sens', o.retro ? 'rétrograde' : 'direct'],
@@ -216,8 +216,8 @@ const Infos = {
         groupes.push([`${c.icone} ${c.nom}`, liste, c.def]);
       }
     } else {
-      groupes.push(['Étoile', [ASTRES_PAR_ID.soleil]]);
-      for (const pid of ['mercure', 'venus', 'terre', 'mars', 'jupiter', 'saturne', 'uranus', 'neptune', 'pluton']) {
+      groupes.push(['Étoile', [etoileRacine()]]);
+      for (const pid of SYSTEME.principaux) {
         const p = ASTRES_PAR_ID[pid];
         const lunes = (ENFANTS[pid] || []).slice().sort((x, y) => y.rayonKm - x.rayonKm);
         groupes.push([p.nom + (lunes.length > 1 ? ` et ses ${lunes.length} lunes` : lunes.length ? ' et sa lune' : ''), [p, ...lunes]]);

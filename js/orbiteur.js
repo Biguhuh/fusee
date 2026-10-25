@@ -32,6 +32,7 @@ const Orbiteur = {
   nouveauVoyage() {
     return {
       t: DATE_DEBUT,
+      systeme: SYSTEME.id,
       orb: null,
       carburant: 0, ergolsAtt: 0, sondes: 0, kits: 0, kitsBase: 0, robots: 0, atterrisseurs: 0,
       sondesEnVol: [], stations: [], bases: [],
@@ -45,10 +46,10 @@ const Orbiteur = {
   // La méga-fusée a mis l'expédition en orbite basse terrestre : orbiteur + atterrisseur + chargement.
   demarrerExpedition() {
     const v = this.v;
-    const terre = ASTRES_PAR_ID.terre;
-    const r0 = terre.rayonKm + 400;
-    v.orb = { centre: 'terre', r: [r0, 0], v: [0, Math.sqrt(terre.gm / r0)], transfert: null };
-    const station = v.stations.find((s) => s.centre === 'terre');
+    const origine = planeteOrigine();
+    const r0 = origine.rayonKm + 400;
+    v.orb = { centre: origine.id, r: [r0, 0], v: [0, Math.sqrt(origine.gm / r0)], transfert: null };
+    const station = v.stations.find((s) => s.centre === origine.id);
     if (station) { const e = this.etatStation(station); v.orb.r = e.r; v.orb.v = e.v; }
     Object.assign(v, {
       carburant: ORBITEUR.carburantMax, ergolsAtt: ORBITEUR.ergolsAtt, sondes: ORBITEUR.sondes,
@@ -471,16 +472,17 @@ const Orbiteur = {
   },
 
   // Ravito : un cargo part de la Terre (ou d'une station) vers une station, sur sa propre trajectoire.
-  // contenu : { cle: quantité } ; origineId : 'terre' ou l'id d'une station (qui fournit le contenu).
+  // contenu : { cle: quantité } ; origineId : la planète d'origine (SYSTEME.origine) ou l'id d'une station.
   lancerCargo(origineId, destId, contenu, nom) {
     const v = this.v;
     const dest = v.stations.find((s) => s.id === destId);
     if (!dest) return this.log('Station de destination introuvable.');
     let depart;
-    if (origineId === 'terre') {
+    if (estOrigine(origineId)) {
       const st = v.stations.find((s) => s.terrestre);
+      const o = planeteOrigine();
       if (st) depart = this.etatStation(st);
-      else { const r0 = ASTRES_PAR_ID.terre.rayonKm + 400; depart = { centre: 'terre', r: [0, -r0], v: [Math.sqrt(ASTRES_PAR_ID.terre.gm / r0), 0] }; }
+      else { const r0 = o.rayonKm + 400; depart = { centre: o.id, r: [0, -r0], v: [Math.sqrt(o.gm / r0), 0] }; }
     } else {
       const st = v.stations.find((s) => s.id === origineId);
       if (!st) return this.log('Station de départ introuvable.');
@@ -489,7 +491,7 @@ const Orbiteur = {
       depart = this.etatStation(st);
     }
     v.cargos = v.cargos || [];
-    const origine = origineId === 'terre' ? 'la Terre' : v.stations.find((s) => s.id === origineId).nom;
+    const origine = estOrigine(origineId) ? SYSTEME.nomOrigine : v.stations.find((s) => s.id === origineId).nom;
     const id = 'c' + Date.now();
     v.cargos.push({
       id, nom: `${nom} → ${dest.nom}`, type: 'cargo', cible: dest.centre, dest: destId, contenu,
@@ -573,7 +575,7 @@ const Orbiteur = {
     const v = this.v, a = ASTRES_PAR_ID[s.cible];
     v.sites = v.sites || {};
     let texte = `${s.nom} est en orbite : données de ${a.nom} reçues.`;
-    if (a.type === 'solide' && a.id !== 'terre') {
+    if (a.type === 'solide' && !estOrigine(a.id)) {
       const x = chercherZonePlate(a);
       const [ressource, prod] = ressourceLocale(a);
       if (x !== null) {
@@ -598,7 +600,7 @@ const Orbiteur = {
     if (!this.orbiteFermee()) return this.log('Il faut être en orbite fermée pour construire une station.');
     v.kits--;
     const n = v.stations.filter((s) => s.centre === c.id).length;
-    const terrestre = c.id === 'terre' && !v.stations.some((s) => s.terrestre);
+    const terrestre = estOrigine(c.id) && !v.stations.some((s) => s.terrestre);
     const st = {
       id: 's' + Date.now(), nom: terrestre ? 'Station spatiale terrestre' : `Station ${c.nom}${n ? ' ' + (n + 1) : ''}`,
       centre: c.id, r: v.orb.r.slice(), v: v.orb.v.slice(), t0: v.t, terrestre,
@@ -680,7 +682,8 @@ const Orbiteur = {
     const v = this.v;
     const m = $('modale');
     const options = (liste) => liste.map(([val, txt]) => `<option value="${val}">${txt}</option>`).join('');
-    const origines = [['terre', 'La Terre (lanceur cargo)'], ...v.stations.map((s) => [s.id, s.nom])];
+    const nomO = SYSTEME.nomOrigine.charAt(0).toUpperCase() + SYSTEME.nomOrigine.slice(1);
+    const origines = [[SYSTEME.origine, `${nomO} (lanceur cargo)`], ...v.stations.map((s) => [s.id, s.nom])];
     const dests = v.stations.map((s) => [s.id, `${s.nom} (${ASTRES_PAR_ID[s.centre].nom})`]);
     m.innerHTML = `
       <div class="fenetre">
@@ -700,7 +703,7 @@ const Orbiteur = {
       const c = CONTENUS_CARGO[m.querySelector('input[name=rav-contenu]:checked').value].contenu;
       let t = '';
       if (o === d) t = 'Choisissez une destination différente du départ.';
-      else if (o !== 'terre') {
+      else if (!estOrigine(o)) {
         const st = v.stations.find((s) => s.id === o);
         const manque = Object.entries(c).filter(([k, q]) => (st.stock[k] || 0) < q).map(([k]) => NOMS_STOCK[k]);
         if (manque.length) t = `${st.nom} n’a pas assez de : ${manque.join(', ')}.`;
@@ -766,20 +769,20 @@ const Orbiteur = {
   // Peut-on descendre avec l'atterrisseur ?
   peutDescendre() {
     const c = ASTRES_PAR_ID[this.v.orb.centre];
-    return c.type !== 'etoile' && c.id !== 'terre' && this.orbiteFermee() && this.v.atterrisseurs > 0;
+    return c.type !== 'etoile' && !estOrigine(c.id) && this.orbiteFermee() && this.v.atterrisseurs > 0;
   },
 
   // Actions proposées dans la fiche d'un astre.
   actionsPour(a) {
     const l = [];
-    if (a.id !== 'soleil') l.push({ texte: '🎯 Choisir comme cible', action: () => { this.v.cible = a.id; this.etape = null; this.auto = false; this.majHud(true); } });
+    if (a.type !== 'etoile') l.push({ texte: '🎯 Choisir comme cible', action: () => { this.v.cible = a.id; this.etape = null; this.auto = false; this.majHud(true); } });
     l.push({ texte: '🔭 Centrer la vue', action: () => this.centrerSur(a.id) });
-    if (a.id !== 'soleil' && this.v.sondes > 0) l.push({ texte: '🛰 Lancer une sonde', action: () => this.lancerSonde(a.id) });
+    if (a.type !== 'etoile' && this.v.sondes > 0) l.push({ texte: '🛰 Lancer une sonde', action: () => this.lancerSonde(a.id) });
     return l;
   },
 
   centrerSur(id) {
-    if (id === 'orbiteur' && !this.v.orb) id = 'terre';
+    if (id === 'orbiteur' && !this.v.orb) id = SYSTEME.origine;
     this.cam.focus = id;
     this.cam.decal = [0, 0];
     let taille;
@@ -793,7 +796,7 @@ const Orbiteur = {
     } else {
       const a = ASTRES_PAR_ID[id];
       taille = ENFANTS[id] ? Math.max(...ENFANTS[id].filter((c) => c.grosse).map((c) => c.orbite.a), a.rayonKm * 10) * 2.4 : a.rayonKm * 30;
-      if (id === 'soleil') taille = 70 * UA_KM;
+      if (estEtoileRacine(id)) taille = SYSTEME.vueUA * UA_KM;
     }
     this.cam.echelle = Math.min(innerWidth, innerHeight) / taille;
   },
@@ -812,7 +815,7 @@ const Orbiteur = {
   // Position absolue du point de vue, et astre « principal » de la vue (pour la mini-carte).
   positionVue() {
     const f = this.cam.focus, v = this.v;
-    if (f === 'orbiteur') return v.orb ? this.absolu(v.orb) : etatAbsolu('terre', v.t).r;
+    if (f === 'orbiteur') return v.orb ? this.absolu(v.orb) : etatAbsolu(SYSTEME.origine, v.t).r;
     if (f.startsWith('trajet:')) return this.trajet ? this.trajet.centre : [0, 0];
     if (f.startsWith('obj:')) {
       const o = this.objetSuivi(f.slice(4));
@@ -825,9 +828,9 @@ const Orbiteur = {
   },
   astreDeLaVue() {
     const f = this.cam.focus;
-    if (f === 'orbiteur') return this.v.orb ? this.v.orb.centre : 'terre';
-    if (f.startsWith('trajet:')) return 'soleil';
-    if (f.startsWith('obj:')) { const o = this.objetSuivi(f.slice(4)); return o ? o.centre : 'soleil'; }
+    if (f === 'orbiteur') return this.v.orb ? this.v.orb.centre : SYSTEME.origine;
+    if (f.startsWith('trajet:')) return SYSTEME.etoile;
+    if (f.startsWith('obj:')) { const o = this.objetSuivi(f.slice(4)); return o ? o.centre : SYSTEME.etoile; }
     return f;
   },
 
@@ -986,7 +989,7 @@ const Orbiteur = {
         <div class="sections">
           ${section('Expédition', (v.orb ? ligne('🚀 Orbiteur', bouton('astre:orbiteur', 'Suivre', true)) + ligne(`🪐 ${ASTRES_PAR_ID[v.orb.centre].nom} (astre survolé)`, bouton('astre:' + v.orb.centre, 'Centrer')) : '') +
             (v.cible ? ligne(`🎯 ${ASTRES_PAR_ID[v.cible].nom} (cible)`, bouton('astre:' + v.cible, 'Centrer')) : '') +
-            ligne('☀ Tout le système solaire', bouton('astre:soleil', 'Centrer')) + ligne('🌍 Terre', bouton('astre:terre', 'Centrer')))}
+            ligne(`☀ ${SYSTEME.tout}`, bouton('astre:' + SYSTEME.etoile, 'Centrer')) + ligne(`🌍 ${planeteOrigine().nom}`, bouton('astre:' + SYSTEME.origine, 'Centrer')))}
           ${section('Sondes et ravitos en route', enVol.map((o) => ligne(`${o.type === 'cargo' ? '📦' : '🛰'} ${o.nom}${o.etat === 'arrivee' ? ' (en orbite)' : ''}`,
             bouton('obj:' + o.id, 'Suivre') + (o.etat === 'vol' ? bouton('trajet:' + o.id, 'Trajectoire', true) : ''))).join(''))}
           ${section('Stations', v.stations.map((s) => ligne(`🛰 ${s.nom}`, bouton('obj:' + s.id, 'Suivre'))).join(''))}
@@ -1342,7 +1345,7 @@ const Orbiteur = {
     h.querySelectorAll('[data-mode]').forEach((b) => { b.onclick = () => { this.v.mode = b.dataset.mode; this.auto = false; this.avance = false; this.v.manette = 0; this.majHud(true); }; });
     $('nav-masque').onchange = () => this.contexte.basculerMasque();
     $('nav-c-orb').onclick = () => { this.trajet = null; this.centrerSur('orbiteur'); };
-    $('nav-c-astre').onclick = () => { this.trajet = null; this.centrerSur(this.v.orb ? this.v.orb.centre : 'terre'); };
+    $('nav-c-astre').onclick = () => { this.trajet = null; this.centrerSur(this.v.orb ? this.v.orb.centre : SYSTEME.origine); };
     $('nav-c-cible').onclick = () => { if (this.v.cible) { this.trajet = null; this.centrerSur(this.v.cible); } };
     $('nav-vues').onclick = () => this.ouvrirVues();
     $('nav-tr').onclick = () => this.ouvrirTempsReel();
@@ -1398,7 +1401,7 @@ const Orbiteur = {
   // Ce qu'il faut faire ensuite, pour guider le joueur.
   objectif() {
     const v = this.v;
-    if (!v.stations.some((s) => s.terrestre) && v.orb.centre === 'terre') return 'Construisez la station spatiale en orbite terrestre (bouton 🏗).';
+    if (!v.stations.some((s) => s.terrestre) && estOrigine(v.orb.centre)) return 'Construisez la station spatiale en orbite terrestre (bouton 🏗).';
     if (!Object.keys(v.visites).some((id) => v.visites[id].pose)) return 'Choisissez une cible (la Lune ?), allez-y, posez-vous et rapportez des échantillons.';
     if (Object.keys(v.echantillonsABord).length) return 'Échantillons à bord : rentrez sur Terre pour les rapporter (cible Terre, puis 🏠).';
     if (v.stations.length < 2) return 'Construisez une station autour d’un autre astre : elle sera ravitaillée depuis la Terre.';
@@ -1498,7 +1501,7 @@ const Orbiteur = {
     } else d += '<h3>Pas de cible</h3><p class="doux">Cliquez un astre puis « Choisir comme cible ».</p>';
     d += '<h3>Actions</h3><div class="actions-nav">';
     const fermee = this.orbiteFermee();
-    if (c.id === 'terre' && fermee) d += `<button id="nav-rentrer" class="principal">🏠 Rentrer sur Terre (capsule)</button>`;
+    if (estOrigine(c.id) && fermee) d += `<button id="nav-rentrer" class="principal">🏠 Rentrer sur ${SYSTEME.origineSans} (capsule)</button>`;
     if (this.peutDescendre()) {
       // L'atterrisseur est conçu pour l'astre : on ne descend que si l'on peut repartir.
       const conc = this.conceptionPour(c);
@@ -1512,13 +1515,13 @@ const Orbiteur = {
     }
     const st = this.stationIci();
     if (st) d += `<button id="nav-amarrer">⚓ S’amarrer à ${st.nom}</button>`;
-    if (v.kits > 0 && fermee && c.type !== 'etoile') d += `<button id="nav-station" ${!st && c.id === 'terre' ? 'class="principal"' : ''}>🏗 Construire une station ici</button>`;
+    if (v.kits > 0 && fermee && c.type !== 'etoile') d += `<button id="nav-station" ${!st && estOrigine(c.id) ? 'class="principal"' : ''}>🏗 Construire une station ici</button>`;
     if (v.cible && v.sondes > 0) d += `<button id="nav-sonde">🛰 Sonde vers ${ASTRES_PAR_ID[v.cible].nom} (repérage)</button>`;
     if (v.stations.length) d += `<button id="nav-ravito">📦 Envoyer un ravito</button>`;
     d += `<button id="nav-journal">📜 Journal</button></div>`;
     // Site repéré pour une base sur l'astre courant
     const site = (v.sites || {})[c.id];
-    if (c.type === 'solide' && c.id !== 'terre') {
+    if (c.type === 'solide' && !estOrigine(c.id)) {
       d += site
         ? `<p class="doux">🟢 Zone de base repérée${site.prod ? ` — ${site.ressource}` : ' — pas de ressource locale'}. La descente la vise.</p>`
         : `<p class="doux">Aucune zone de base repérée sur ${c.nom} : envoyez une sonde.</p>`;

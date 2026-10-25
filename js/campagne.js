@@ -84,7 +84,7 @@ function concevoirAtterrisseur(a) {
 
 function calculerConception(a) {
   if (a.type === 'etoile') return { ok: false, raison: 'Personne ne se pose sur le Soleil : tout brûle bien avant.' };
-  if (a.id === 'terre') return { ok: false, raison: 'Sur Terre, on rentre à la maison en capsule.' };
+  if (estOrigine(a.id)) return { ok: false, raison: `Sur ${SYSTEME.origineSans}, on rentre à la maison en capsule.` };
   const gaz = a.type === 'gazeuse';
   const pMax = gaz ? a.cible * 2.5 : (a.atm ? a.atm.p0 : 0);
   const tMax = gaz ? conditions(a, profondeurPour(a, a.cible)).t + 80 : a.tempSurface + (a.atm ? 60 : 20);
@@ -241,15 +241,15 @@ const RECETTES = {
   lanceurRetour: { nom: 'Lanceur de retour (ballon + Aphrodite)', materiaux: 20000, ergols: 37000, duree: 20 * JOUR },
 };
 
-// ---------- Ravitaillement courant depuis la Terre ----------
+// ---------- Ravitaillement courant depuis la planète d'origine ----------
 // Petit cargo automatique et régulier ; plus la station est loin, plus le trajet est long.
 function intervalleCargo(centreId) {
-  if (centreId === 'terre') return 30 * JOUR;
+  if (estOrigine(centreId)) return 30 * JOUR;
   const chaine = ancetres(centreId);
   const planete = ASTRES_PAR_ID[chaine[chaine.length - 2]];
-  if (planete.id === 'terre') return 60 * JOUR;          // la Lune
-  const a1 = UA_KM, a2 = planete.orbite.a;
-  const tof = Math.PI * Math.sqrt(Math.pow((a1 + a2) / 2, 3) / GM_SOLEIL);
+  if (estOrigine(planete.id)) return 60 * JOUR;          // une lune de la planète d'origine
+  const a1 = planeteOrigine().orbite.a, a2 = planete.orbite.a;
+  const tof = Math.PI * Math.sqrt(Math.pow((a1 + a2) / 2, 3) / etoileRacine().gm);
   return Math.max(120 * JOUR, tof);
 }
 

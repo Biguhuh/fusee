@@ -147,6 +147,7 @@ Survoler un astre (carte de l'orbiteur, ou ciel pendant l'atterrissage) affiche 
 - `js/astres.js` : 19 astres détaillés (atmosphères, couleurs, relief)
 - `js/donnees-jpl.js` : données JPL générées · `js/catalogue.js` : catalogue complet, orbites, masses
 - `js/physique.js` : conditions locales et relief · `js/orbites.js` : mécanique orbitale (Kepler, Lambert, sphères d'influence)
+- `js/systemes.js` : systèmes stellaires. Le jeu tourne dans un système à la fois (`SYSTEME`) : étoile racine et sa luminosité, planète d'origine de la campagne, planètes, carte. La lumière, la température et le rayonnement passent par le flux de l'étoile hôte (`fluxStellaire`), et le départ, les ravitos et le retour passent par la planète d'origine. Le Système solaire est le premier système ; un autre se décrira avec les mêmes champs.
 - `js/vol.js` : atterrisseur et lanceurs · `js/kourou.js` : géographie sous la trace au départ de Kourou · `js/amarrage.js` : vue orbite du rendez-vous · `js/retour.js` : retour sur Terre en capsule · `js/rayonnement.js` : doses en surface et blindages · `js/exploration.js` : spationaute et robot · `js/equipage.js` : profil et dessin du ou de la spationaute
 - `js/navigation.js` : planification des manœuvres · `js/orbiteur.js` : écran de l'orbiteur
 - `js/globes.js` : cartes et globes des astres

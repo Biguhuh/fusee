@@ -14,8 +14,11 @@ const DOSES_REFERENCE = {
   callisto: [0.0001, 'reference', 'hors des ceintures de Jupiter'],
 };
 
-// Rayons cosmiques et vent solaire sur un sol sans air ni champ magnétique (Sv/jour) : ≈ celui de la Lune.
-function doseCosmique(dUA) { return 0.0011 + 0.0003 / (dUA * dUA); }
+// Rayons cosmiques et vent de l'étoile sur un sol sans air ni champ magnétique (Sv/jour) : ≈ celui de la Lune.
+// flux : lumière de l'étoile hôte reçue (1 = la Terre) ; la part stellaire lui est proportionnelle.
+function doseCosmique(flux) { return 0.0011 + 0.0003 * flux; }
+// Flux reçu par un astre (via sa distance à l'étoile, en UA).
+function fluxAstre(a) { return fluxStellaire(a.distanceUA || 1); }
 
 // Ceintures de Jupiter : dose selon la distance à la planète (rayons joviens), entre les lunes connues.
 const CEINTURES_JUPITER = [[5.9, 36], [9.4, 5.4], [15, 0.5], [26.3, 0.0001]];
@@ -32,14 +35,14 @@ const DOSE_MORTELLE = 4;
 const DOSES_GEANTES = { jupiter: 10, saturne: 0.01, uranus: 0.002, neptune: 0.002 };
 
 // Dose dans l'espace autour de l'astre, sans atmosphère au-dessus (Sv/jour) : { sv, note }.
-// Le Soleil dépend de la distance (dUA) ; les autres valeurs sont gardées en cache.
-function doseEspace(a, dUA) {
-  if (a.type === 'etoile') return { sv: doseCosmique(dUA || 1), note: 'vent solaire, en 1/d²' };
+// L'étoile dépend de la distance (flux reçu) ; les autres valeurs sont gardées en cache.
+function doseEspace(a, flux) {
+  if (a.type === 'etoile') return { sv: doseCosmique(flux || 1), note: 'vent solaire, en 1/d²' };
   if (a._doseEspace) return a._doseEspace;
   let r;
   const ref = DOSES_REFERENCE[a.id];
   if (ref && !a.atm) r = { sv: ref[0], note: ref[2] };
-  else if (DOSES_GEANTES[a.id] !== undefined) r = { sv: DOSES_GEANTES[a.id] + doseCosmique(a.distanceUA), note: a.id === 'jupiter' ? 'ceintures de radiation de Jupiter' : 'rayons cosmiques et ceintures' };
+  else if (DOSES_GEANTES[a.id] !== undefined) r = { sv: DOSES_GEANTES[a.id] + doseCosmique(fluxAstre(a)), note: a.id === 'jupiter' ? 'ceintures de radiation de Jupiter' : 'rayons cosmiques et ceintures' };
   else r = doseEspaceEstimee(a);
   a._doseEspace = r;
   return r;
@@ -55,7 +58,7 @@ function colonneAir(a, alt, c) {
 // Dose à une altitude (m), sans protection (Sv/jour). c : conditions déjà calculées (facultatif).
 // L'air atténue la dose de l'espace ; pour la Terre et Mars, on retombe sur la dose mesurée au sol.
 function doseLocale(a, alt, c) {
-  const esp = doseEspace(a, c ? c.dUA : undefined).sv;
+  const esp = doseEspace(a, c ? c.flux : undefined).sv;
   if (!a.atm) return esp;
   const col = colonneAir(a, alt, c);
   const ref = DOSES_REFERENCE[a.id];
@@ -77,7 +80,7 @@ function doseSurface(a) {
 }
 
 function doseEspaceEstimee(a) {
-  let d = doseCosmique(a.distanceUA || 1), note = 'rayons cosmiques et vent solaire';
+  let d = doseCosmique(fluxAstre(a)), note = 'rayons cosmiques et vent solaire';
   // Ceintures de Jupiter (interpolation entre Io, Europe, Ganymède et Callisto, en échelle logarithmique).
   if (a.parent === 'jupiter') {
     const ak = demiGrandAxeKm(a);

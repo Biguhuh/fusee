@@ -71,7 +71,7 @@ const COULEURS_FAMILLE = {
 function astreGenerique(o) {
   const R = o.rayonKm * 1000;
   const g = (o.gm * 1e9) / (R * R);
-  const tEq = (278.6 / Math.sqrt(o.distanceUA)) * 0.915 - KELVIN;
+  const tEq = 278.6 * Math.pow(fluxStellaire(o.distanceUA), 0.25) * 0.915 - KELVIN;   // équilibre, albédo moyen
   const alt = Math.min(3000, Math.max(300, R * 0.3));
   const base = COULEURS_FAMILLE[o.famille] || '#8a8580';
   const ton = 0.8 + 0.4 * hash2(o.rayonKm * 13.1, 3);
@@ -182,6 +182,7 @@ function fmtNombre(n, dec) { return n.toLocaleString('fr-FR', { maximumFractionD
 
 // ---------- Grandeurs dérivées ----------
 for (const a of ASTRES) {
+  a.systeme = a.systeme || 'solaire';      // tous les astres de ce catalogue sont ceux du Système solaire
   if (!a.gm) a.gm = (a.g * Math.pow(a.rayonKm * 1000, 2)) / 1e9;
   // Les géantes : g au niveau 1 bar déjà donné. Les autres : cohérence g ↔ GM.
   if (a.orbite) {

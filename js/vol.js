@@ -1064,7 +1064,7 @@ function dessinerFond(ctx, a, c, W, H, sousLesNuages, t = DATE_DEBUT, porteur = 
     if (a.parent) {
       const pp = etatAbsolu(a.parent, t).r, dp = V.sub(pp, pos), distP = V.norm(dp);
       const rP = Math.asin(Math.min(1, ASTRES_PAR_ID[a.parent].rayonKm / distP));
-      const rS = Math.asin(Math.min(1, ASTRES_PAR_ID.soleil.rayonKm / V.norm(pos)));
+      const rS = Math.asin(Math.min(1, etoileRacine().rayonKm / V.norm(pos)));
       const ecart = Math.abs(angleDansPi(Math.atan2(dp[1], dp[0]) - Math.atan2(-pos[1], -pos[0])));
       const couvert = Math.max(0, Math.min(1, (rP + rS - ecart) / (2 * rS)));
       if (couvert > 0 && distP < V.norm(pos)) { jour *= 1 - 0.9 * couvert; porteur.eclipse = couvert; } else porteur.eclipse = 0;
@@ -1099,15 +1099,15 @@ function dessinerFond(ctx, a, c, W, H, sousLesNuages, t = DATE_DEBUT, porteur = 
   // Soleil, à sa vraie place et à sa taille apparente (au moins 5 px, avec un halo).
   const pS = posCiel(alphaSoleil);
   if (pS.visible && !(porteur.eclipse > 0.98)) {
-    const rS = Math.max(5, Math.asin(ASTRES_PAR_ID.soleil.rayonKm / V.norm(pos)) * kAng);
+    const rS = Math.max(5, Math.asin(etoileRacine().rayonKm / V.norm(pos)) * kAng);
     const g = ctx.createRadialGradient(pS.x, pS.y, 0, pS.x, pS.y, rS * 4);
     g.addColorStop(0, 'rgba(255,250,225,1)'); g.addColorStop(0.25, 'rgba(255,240,200,0.9)'); g.addColorStop(1, 'rgba(255,220,150,0)');
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(pS.x, pS.y, rS * 4, 0, Math.PI * 2); ctx.fill();
-    ZONES_CIEL.push({ x: pS.x, y: pS.y, r: Math.max(rS, 10), id: 'soleil' });
+    ZONES_CIEL.push({ x: pS.x, y: pS.y, r: Math.max(rS, 10), id: SYSTEME.etoile });
   }
 
   // Autres astres : planète mère, lunes sœurs, ses propres lunes, et les planètes (points lumineux).
-  const ids = new Set(['mercure', 'venus', 'terre', 'mars', 'jupiter', 'saturne', 'uranus', 'neptune']);
+  const ids = new Set(SYSTEME.planetes);
   if (a.parent) { ids.add(a.parent); for (const s of ENFANTS[a.parent] || []) if (s.rayonKm >= 100) ids.add(s.id); }
   for (const s of ENFANTS[a.id] || []) if (s.rayonKm >= 5) ids.add(s.id);
   ids.delete(a.id);

@@ -162,19 +162,7 @@ function afficherHangar(etat, auChangement) {
 }
 
 // ---------- Carte ----------
-const ORDRE_CARTE = [
-  ['soleil', []],
-  ['mercure', []],
-  ['venus', []],
-  ['terre', ['lune']],
-  ['mars', []],
-  ['jupiter', ['io', 'europe', 'ganymede', 'callisto']],
-  ['saturne', ['titan', 'rhea']],
-  ['uranus', ['titania', 'oberon']],
-  ['neptune', ['triton']],
-  ['pluton', ['l901']],
-  ['a1', ['a4', 'a2', 'a10']],   // ceinture d'astéroïdes : Cérès, Vesta, Pallas, Hygie
-];
+// Ordre de la carte : planètes et lunes détaillées du système courant (systemes.js).
 
 function tailleDisque(a) { return Math.round(10 + 9 * Math.log(a.rayonKm / 500)); }
 
@@ -209,7 +197,7 @@ function afficherCarte(etat, choisir) {
   choixMode.querySelectorAll('button').forEach((b) => { b.onclick = () => { etat.modeCarte = b.dataset.mode; afficherCarte(etat, choisir); }; });
 
   if (mode === 'categorie') {
-    const destinations = ORDRE_CARTE.flatMap(([p, l]) => [p, ...l]);
+    const destinations = SYSTEME.carte.flatMap(([p, l]) => [p, ...l]);
     for (const [k, c] of Object.entries(CATEGORIES)) {
       const ids = destinations.filter((id) => ASTRES_PAR_ID[id].categorie === k);
       if (!ids.length) continue;
@@ -224,7 +212,7 @@ function afficherCarte(etat, choisir) {
       sys.appendChild(col);
     }
   } else {
-    for (const [pid, lunes] of ORDRE_CARTE) {
+    for (const [pid, lunes] of SYSTEME.carte) {
       const col = document.createElement('div');
       col.className = 'colonne';
       col.appendChild(bouton(pid));
@@ -306,7 +294,7 @@ function afficherFiche(etat) {
         <dt>Température</dt><dd>${fmt(a.tempSurface)} °C</dd>
         <dt>Surface</dt><dd>${a.surface}</dd>
         ${a.type === 'solide' ? `<dt>Vitesse d'atterrissage max</dt><dd>${a.vMax} m/s</dd>` : ''}
-        <dt>Distance au Soleil</dt><dd>${a.distanceUA ? fmt(a.distanceUA, 2) + ' UA' : '—'}</dd>
+        <dt>Distance ${SYSTEME.distanceA}</dt><dd>${a.distanceUA ? fmt(a.distanceUA, 2) + ' UA' : '—'}</dd>
         <dt>Départ</dt><dd>${fmtAlt(a.depart.alt)}, ${fmtV(a.depart.vitesse)} ↓</dd>
       </dl>
     </div>

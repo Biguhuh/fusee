@@ -32,6 +32,9 @@ function migrerVoyage(v) {
     if (!m.expeditions) m.expeditions = 1;
   }
   delete m.carburantAtt;
+  // Système stellaire de la partie (les parties d'avant n'en avaient pas : le Système solaire).
+  m.systeme = m.systeme || 'solaire';
+  choisirSysteme(m.systeme);
   return m;
 }
 const canvas = $('vol');
@@ -70,9 +73,8 @@ function allerHangar() {
 }
 
 // ---------- Accueil ----------
-// « Aller partout » : les astres où l'on peut se poser (ou plonger), hors Terre et Soleil.
-function astresAVisiter() { return ASTRES.filter((a) => a.type !== 'etoile' && a.id !== 'terre'); }
-const PRINCIPAUX = ['mercure', 'venus', 'mars', 'jupiter', 'saturne', 'uranus', 'neptune', 'pluton', 'lune', 'io', 'europe', 'ganymede', 'callisto', 'titan', 'rhea', 'titania', 'oberon', 'triton', 'a1'];
+// « Aller partout » : les astres où l'on peut se poser (ou plonger), hors planète d'origine et étoile.
+function astresAVisiter() { return ASTRES.filter((a) => a.type !== 'etoile' && !estOrigine(a.id)); }
 
 function allerAccueil() {
   const v = etat.voyage;
@@ -81,8 +83,8 @@ function allerAccueil() {
   $('accueil-campagne').textContent = v ? '↺ Nouvelle campagne' : '🛰 Commencer';
   if (v) {
     const vus = Object.keys(v.visites).filter((id) => v.visites[id].pose && ASTRES_PAR_ID[id]);
-    const nPrinc = PRINCIPAUX.filter((id) => vus.includes(id)).length;
-    $('progres-accueil').innerHTML = `Progression : <b>${vus.length} astre${vus.length > 1 ? 's' : ''} visité${vus.length > 1 ? 's' : ''}</b> sur ${astresAVisiter().length} (dont ${nPrinc} des ${PRINCIPAUX.length} principaux). ` + resumeCampagne(v);
+    const nPrinc = SYSTEME.objectifs.filter((id) => vus.includes(id)).length;
+    $('progres-accueil').innerHTML = `Progression : <b>${vus.length} astre${vus.length > 1 ? 's' : ''} visité${vus.length > 1 ? 's' : ''}</b> sur ${astresAVisiter().length} (dont ${nPrinc} des ${SYSTEME.objectifs.length} principaux). ` + resumeCampagne(v);
   } else $('progres-accueil').innerHTML = '';
   $('spatio-resume').textContent = resumeSpatio();
   montrer('accueil');
@@ -96,7 +98,7 @@ function animerAccueil() {
   const cv = $('ciel-accueil');
   const c = cv.getContext('2d');
   const t0 = performance.now();
-  const ids = ['mercure', 'venus', 'terre', 'mars', 'jupiter', 'saturne', 'uranus', 'neptune'];
+  const ids = SYSTEME.planetes;
   const image = () => {
     if (etat.ecran !== 'accueil') { animAccueil = null; return; }
     const W = (cv.width = cv.clientWidth), H = (cv.height = cv.clientHeight);
@@ -173,7 +175,7 @@ function cibleAmarrage(vol) {
   const voy = etat.voyage, a = vol.astre;
   const altDe = (r) => (Math.hypot(r[0], r[1]) - a.rayonKm) * 1000;
   if (vol.lancement) {
-    const st = voy && voy.stations.find((s) => s.centre === 'terre');
+    const st = voy && voy.stations.find((s) => estOrigine(s.centre));
     if (st) return { nom: st.nom, alt: altDe(propager(st.r, st.v, voy.t - st.t0, a.gm).r), vaisseau: true };
     return { nom: 'l’orbite de travail', alt: 400000, vaisseau: false };
   }
@@ -233,7 +235,7 @@ function finVol(r) {
 function lancerVisite() {
   const a = ASTRES_PAR_ID[etat.destination];
   if (!a) return;
-  if (!$('equip-auto').checked || !(a.type === 'solide' || a.type === 'gazeuse') || a.id === 'terre') {
+  if (!$('equip-auto').checked || !(a.type === 'solide' || a.type === 'gazeuse') || estOrigine(a.id)) {
     etat.fuseeVisite = null;
     return lancer();
   }
@@ -253,7 +255,7 @@ function rejouerVisite() { lancer(etat.fuseeVisite ? { fusee: fuseeDeConception(
 // ---------- Campagne : lancement, descente, robot, retour ----------
 function lancerMegaFusee(type = etat.typeLanceur || 'station') {
   etat.typeLanceur = type;
-  etat.destination = 'terre';
+  etat.destination = SYSTEME.origine;
   lancer({ fusee: megaFusee(type), lancement: true, depuisSol: true, voyage: false });
 }
 
