@@ -335,16 +335,21 @@ function siteDescente(id) {
 }
 
 // Robot largué en aller simple (là où un atterrisseur ne pourrait pas repartir, comme sur Vénus).
-function larguerRobot(id) {
+function larguerRobot(id, blindage) {
   const v = etat.voyage, a = ASTRES_PAR_ID[id];
   if (v.robots <= 0) return Orbiteur.log('Plus de robot à bord.');
   v.robots--;
   etat.destination = id;
+  blindage = blindage || 'standard';
+  // Le blindage alourdit le module de descente : les ergols en plus sont pris sur la réserve de l'atterrisseur.
+  const cout = coutBlindage(a, blindage);
+  if (cout.ergols > v.ergolsAtt) { v.robots++; return Orbiteur.log(`Pas assez d’ergols en réserve pour descendre le blindage ${BLINDAGES_ROBOT[blindage].nom.toLowerCase()} (${fmt(cout.ergols, 0)} kg).`); }
+  v.ergolsAtt -= cout.ergols;
   etat.vol = new Vol(a, assemblerFusee(equipementParDefaut()), { voyage: true, depuisSol: true, bases: basesSur(id), site: siteDescente(id) });
   etat.vol.robotSeul = true;
   etat.enVoyage = true;
-  etat.explo = new Exploration(etat.vol, 'robot', etat.science);
-  Orbiteur.log(`Robot largué sur ${a.nom}.`);
+  etat.explo = new Exploration(etat.vol, 'robot', etat.science, { blindage });
+  Orbiteur.log(`Robot largué sur ${a.nom} (blindage ${BLINDAGES_ROBOT[blindage].nom.toLowerCase()}, rayonnement ${fmtDose(doseSurface(a).svJour)}).`);
   touches.clear();
   redim();
   montrer('explo');
@@ -452,7 +457,7 @@ Orbiteur.contexte = {
   basculerPause: () => { etat.pause = !etat.pause; },
   hangar: () => { sauver(etat); allerAccueil(); },
   descendre: (id) => descendre(id),
-  larguerRobot: (id) => larguerRobot(id),
+  larguerRobot: (id, blindage) => larguerRobot(id, blindage),
   rentrer: () => rentrerSurTerre(),
   finExpedition: (texte) => terminerExpedition(texte),
   journal: () => {
@@ -747,7 +752,7 @@ function signalerErreur(e) {
   $('err-reprendre').onclick = () => { fermer(); etat.pause = false; erreurAffichee = null; };
 }
 function image(t) {
-  const dt = Math.min(0.05, (t - avant) / 1000);
+  const dt = Math.max(0, Math.min(0.05, (t - avant) / 1000));
   avant = t;
   if (etat.ecran === 'vol' && etat.vol) {
     const v = etat.vol;

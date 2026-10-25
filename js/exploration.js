@@ -77,6 +77,13 @@ class Exploration {
     // Robot : ses analyses attendent dans sa mémoire jusqu'au retour à sa base (module robot ou fusée).
     this.moduleRobot = !!vol.robotSeul;
     this.donneesEnAttente = 0;
+    // Robot : son électronique encaisse la vraie dose du lieu (Sv/jour), atténuée par son blindage.
+    this.irradiation = doseSurface(this.astre);
+    if (type === 'robot') {
+      this.blindage = options.blindage || blindageConseille(this.astre);
+      this.doseGy = 0;
+      this.dire(`Rayonnement ici : ${fmtDose(this.irradiation.svJour)}. Blindage ${BLINDAGES_ROBOT[this.blindage].nom.toLowerCase()} : l’électronique tient ${this.vieRestante()}.`);
+    }
   }
 
   // ---------- Promenade sur Terre ----------
@@ -281,9 +288,22 @@ class Exploration {
     const tc = tauxDegats((this.c.t + KELVIN) / (this.def.tempMax + KELVIN) - 1);
     this.taux = tp + tc;
     this.integrite -= (tp + tc) * dt;
-    if (this.c.rad > this.def.protection) this.dose += (this.c.rad / this.def.protection - 1) * 5 * dt;
+    if (this.type === 'robot') {
+      const b = BLINDAGES_ROBOT[this.blindage];
+      this.doseGy += (this.irradiation.svJour * b.facteur * dt) / 86400;
+      this.dose = (100 * this.doseGy) / b.tolerance;            // part de la tolérance de l'électronique déjà encaissée
+    } else if (this.c.rad > this.def.protection) this.dose += (this.c.rad / this.def.protection - 1) * 5 * dt;
     if (this.integrite <= 0) return this.terminer('perdu', tp >= tc ? `La pression (${fmtP(this.c.p)}) a écrasé ${this.type === 'robot' ? 'le robot' : 'la combinaison'}.` : `La chaleur (${fmt(this.c.t)} °C) a eu raison ${this.type === 'robot' ? 'du robot' : 'de la combinaison'}.`);
     if (this.dose >= 100) return this.terminer('perdu', `Le rayonnement a ${this.type === 'robot' ? 'grillé l’électronique du robot' : `été mortel pour ${nomSpatio()}`}.`);
+  }
+
+  // Temps qu'il reste au robot avant que le rayonnement grille son électronique.
+  vieRestante() {
+    const b = BLINDAGES_ROBOT[this.blindage];
+    const parJour = this.irradiation.svJour * b.facteur;
+    if (parJour <= 0) return 'illimitée';
+    const s = ((b.tolerance - this.doseGy) / parJour) * 86400;
+    return s > 3650 * 86400 ? 'plus de 10 ans' : fmtDuree(Math.max(0, s));
   }
 
   siteProche() {
@@ -547,10 +567,11 @@ class Exploration {
       l.push([this.type === 'robot' ? 'Robot' : 'Combi.', fmt(this.integrite) + ' %', this.integrite > 60 ? '#66bb6a' : this.integrite > 30 ? '#ffca28' : '#ef5350']);
       l.push([this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? `${sc.analyses} (+${this.donneesEnAttente})` : `${this.sac.length}/${d.capacite}` + (this.rover ? ` · rover ${this.sacRover.length}/20` : ''), this.donneesEnAttente ? '#ffca28' : '#fff']);
       l.push(['Module', fmt(Math.abs(this.p.x - this.xFusee)) + ' m', '#fff']);
-      const rp = c.p / d.pressionMax, rt = (c.t + KELVIN) / (d.tempMax + KELVIN), rr = c.rad / d.protection;
+      const rp = c.p / d.pressionMax, rt = (c.t + KELVIN) / (d.tempMax + KELVIN), rr = this.type === 'robot' ? 0 : c.rad / d.protection;
       if (rp > 0.6) l.push(['Pression', fmtP(c.p), couleurRisque(rp)]);
       if (rt > 0.7) l.push(['Temp.', fmt(c.t) + ' °C', couleurRisque(rt)]);
-      if (rr > 0.7 || this.dose > 20) l.push(['Dose', fmt(this.dose) + ' %', couleurRisque(Math.max(rr, this.dose / 100))]);
+      if (this.type === 'robot') l.push(['Électron.', `${fmt(Math.max(0, 100 - this.dose))} % · ${this.vieRestante()}`, couleurRisque(this.dose / 100)]);
+      else if (rr > 0.7 || this.dose > 20) l.push(['Dose', fmt(this.dose) + ' %', couleurRisque(Math.max(rr, this.dose / 100))]);
       const larg = Math.min(190, W * 0.52), y0 = 44;
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fillRect(6, y0, larg, 26 + l.length * 16);
@@ -575,8 +596,14 @@ class Exploration {
     ligne(this.type === 'robot' ? 'État du robot' : 'Combinaison', fmt(this.integrite) + ' %', this.integrite > 60 ? '#66bb6a' : this.integrite > 30 ? '#ffca28' : '#ef5350');
     ligne('Pression', fmtP(c.p) + ' / ' + fmt(d.pressionMax, 1), couleurRisque(c.p / d.pressionMax));
     ligne('Température', fmt(c.t) + ' / ' + fmt(d.tempMax) + ' °C', couleurRisque((c.t + KELVIN) / (d.tempMax + KELVIN)));
-    ligne('Rayonnement', fmt(c.rad, 1) + ' / ' + fmt(d.protection), couleurRisque(c.rad / d.protection));
-    ligne('Dose reçue', fmt(this.dose) + ' %', couleurRisque(this.dose / 100));
+    if (this.type === 'robot') {
+      ligne('Rayonnement', fmtDose(this.irradiation.svJour), couleurRisque(this.dose / 100));
+      ligne('Blindage', BLINDAGES_ROBOT[this.blindage].nom);
+      ligne('Électronique', `${fmt(Math.max(0, 100 - this.dose))} % · ${this.vieRestante()}`, couleurRisque(this.dose / 100));
+    } else {
+      ligne('Rayonnement', fmt(c.rad, 1) + ' / ' + fmt(d.protection), couleurRisque(c.rad / d.protection));
+      ligne('Dose reçue', fmt(this.dose) + ' %', couleurRisque(this.dose / 100));
+    }
     ligne('Gravité', fmtG(c.g));
     ligne('Libération', fmtV(this.vLib));
     ligne(this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? `${sc.analyses} envoyées, ${this.donneesEnAttente} en mémoire` : `${this.sac.length} / ${d.capacite}` + (this.rover ? `  rover ${this.sacRover.length} / 20` : ''), this.donneesEnAttente ? '#ffca28' : '#fff');

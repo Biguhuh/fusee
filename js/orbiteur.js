@@ -291,6 +291,34 @@ const Orbiteur = {
   },
 
   // Fenêtre « Temps réel » : réglages, prochaine manœuvre à l'heure réelle, agenda.
+  // Avant de larguer un robot : rayonnement du lieu et choix du blindage (masse, Δv, durée de vie).
+  ouvrirLargageRobot(astreId) {
+    const a = ASTRES_PAR_ID[astreId], m = $('modale');
+    const v = this.v, d = doseSurface(a), conseil = blindageConseille(a);
+    const sources = { mesure: 'mesure', reference: 'valeur de référence', estimation: 'estimation' };
+    const terre = DOSES_REFERENCE.terre[0];
+    const choix = Object.entries(BLINDAGES_ROBOT).map(([cle, b]) => {
+      const c = coutBlindage(a, cle);
+      const vie = dureeVieRobot(a, cle);
+      const manque = c.ergols > v.ergolsAtt;
+      return `<label class="choix-ravito"><input type="radio" name="blindage" value="${cle}" ${cle === conseil && !manque ? 'checked' : ''} ${manque ? 'disabled' : ''}>
+        <b>${b.nom}</b>${cle === conseil ? ' <span class="doux">(conseillé)</span>' : ''} — ${b.detail}<br>
+        <span class="doux">${b.masse ? `+${fmt(b.masse)} kg : −${fmt(c.dvPerdu, 0)} m/s de Δv au module de descente, compensés par ${fmt(c.ergols, 0)} kg d’ergols pris sur la réserve${manque ? ' (réserve insuffisante)' : ''}` : 'pas de masse en plus'} · l’électronique tient ${vie > 3650 * 86400 ? 'plus de 10 ans' : fmtDuree(vie)}</span></label>`;
+    }).join('');
+    m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>🤖 Larguer un robot sur ${a.nom}</h2>
+      <p>Rayonnement en surface : <b>${fmtDose(d.svJour)}</b> (${sources[d.source]} : ${d.note}), soit ${fmt(d.svJour / terre, 0)} fois la dose au sol sur Terre. L’électronique du robot encaisse cette dose jour après jour : un blindage la protège, mais il alourdit le module de descente.</p></div><button class="fermer">✕</button></header>
+      <section><h3>Blindage du robot</h3>${choix}<p class="doux">Réserve d’ergols de l’atterrisseur : ${fmt(v.ergolsAtt, 0)} kg.</p></section>
+      <div class="actions"><span></span><button id="robot-larguer" class="principal">🤖 Larguer le robot</button></div></div>`;
+    m.classList.remove('cache');
+    m.querySelector('.fermer').onclick = () => Infos.fermer();
+    $('robot-larguer').onclick = () => {
+      const coche = m.querySelector('input[name=blindage]:checked');
+      const cle = coche ? coche.value : 'standard';
+      Infos.fermer();
+      this.contexte.larguerRobot(astreId, cle);
+    };
+  },
+
   ouvrirTempsReel() {
     const v = this.v, tr = v.tempsReel || {}, m = $('modale');
     const facteurs = [[1, 'Vrai temps (×1)'], [60, '×60 : 1 min réelle = 1 h'], [600, '×600 : 1 min = 10 h'], [3600, '×3 600 : 1 s = 1 h'], [86400, '×86 400 : 1 s = 1 jour']];
@@ -1530,7 +1558,7 @@ const Orbiteur = {
     bind('nav-executer', () => { this.executerEtape(); this.majHud(true); });
     bind('nav-auto', () => { this.auto = !this.auto; this.majHud(true); });
     bind('nav-descendre', () => this.contexte.descendre(o.centre));
-    bind('nav-robot', () => this.contexte.larguerRobot(o.centre));
+    bind('nav-robot', () => this.ouvrirLargageRobot(o.centre));
     bind('nav-rentrer', () => this.contexte.rentrer());
     bind('nav-amarrer', () => { this.amarrer(); this.majHud(true); });
     bind('nav-station', () => { this.construireStation(); this.majHud(true); });

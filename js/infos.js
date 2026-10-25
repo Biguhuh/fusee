@@ -101,6 +101,11 @@ const Infos = {
       if (a.relief) jeu.push(['Relief', `collines de ${fmt(a.relief.amplitude)} m, ${a.relief.crateres > 0.5 ? 'nombreux cratères' : a.relief.crateres > 0 ? 'quelques cratères' : 'sans cratères'}`]);
     }
     if (a.type !== 'etoile') jeu.push(['Rayonnement (1 = Terre)', fmt(conditions(a, 0).rad, 1)]);
+    if (a.type === 'solide') {
+      const d = doseSurface(a);
+      jeu.push(['Dose en surface', `${fmtDose(d.svJour)} (${d.source === 'estimation' ? 'estimée' : d.source === 'mesure' ? 'mesurée' : 'valeur de référence'} : ${d.note})`]);
+      jeu.push(['Robot conseillé', `blindage ${BLINDAGES_ROBOT[blindageConseille(a)].nom.toLowerCase()}`]);
+    }
     jeu.push(['Début de descente', fmtAlt(a.depart.alt) + ', ' + fmtV(a.depart.vitesse) + ' ↓']);
     sections.push(['Données de jeu', lignes(jeu)]);
 

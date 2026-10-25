@@ -107,6 +107,12 @@ Soleil, 8 planètes, Pluton, Cérès et 7 gros astéroïdes, et **les 460 lunes 
 - **Spationaute** : marche et saute selon la gravité locale (sauts de plusieurs mètres sur la Lune). 4 h d'oxygène, combinaison limitée à 1,2 bar et 120 °C. Ramasse 6 échantillons (E) et les rapporte à la fusée. Sur les très petites lunes, il reste attaché par un câble : un saut le ferait partir dans l'espace.
 - **Rover** (touche V près de lui) : jusqu'à 3,6 m/s sur la Lune (comme celui d'Apollo), 20 échantillons dans sa caisse.
 - **Robot** : roule, résiste à 100 bar et 480 °C, 8 h de batterie, analyse les sites sur place (E, 5 s).
+- **Rayonnement et blindage des robots** : chaque astre a sa dose en surface, en Sv/jour. Les valeurs mesurées ou de référence (Terre 6,6 µSv, Lune 1,37 mSv, Mars 0,67 mSv, Io 36 Sv, Europe 5,4 Sv, Ganymède 0,08 Sv, Callisto 0,1 mSv) sont indiquées comme telles ; les autres sont estimées (rayons cosmiques, ceintures de Jupiter et de Saturne, atténuation par l'atmosphère) et la fiche le dit. Avant de larguer un robot, on voit la dose du lieu et on choisit son blindage :
+  - **standard** : 50 Gy supportés, sans masse en plus ;
+  - **durci** : composants durcis et boîtier en aluminium, 1 000 Gy, dose divisée par 3, +25 kg ;
+  - **voûte en titane**, comme Juno : dose divisée par 33, +150 kg.
+
+  La masse du blindage coûte du Δv au module de descente, compensé par des ergols pris sur la réserve de l'atterrisseur. Pendant l'exploration, l'électronique encaisse la dose : son état et le temps qu'il lui reste s'affichent, et elle grille à 100 % (un robot standard tient environ 33 h sur Io).
 - Les pentes raides ralentissent ; seules les falaises (> 40° en rover) arrêtent.
 - Les échantillons rangés dans l'atterrisseur remontent à l'orbiteur et comptent quand ils arrivent sur Terre.
 - Chaque astre a ses sites : lacs de méthane sur Titan, soufre sur Io, glace salée sur Europe, lits de rivière sur Mars…
@@ -130,7 +136,7 @@ Survoler un astre (carte de l'orbiteur, ou ciel pendant l'atterrissage) affiche 
 - `js/astres.js` : 19 astres détaillés (atmosphères, couleurs, relief)
 - `js/donnees-jpl.js` : données JPL générées · `js/catalogue.js` : catalogue complet, orbites, masses
 - `js/physique.js` : conditions locales et relief · `js/orbites.js` : mécanique orbitale (Kepler, Lambert, sphères d'influence)
-- `js/vol.js` : atterrisseur et lanceurs · `js/exploration.js` : spationaute et robot · `js/equipage.js` : profil et dessin du ou de la spationaute
+- `js/vol.js` : atterrisseur et lanceurs · `js/kourou.js` : géographie sous la trace au départ de Kourou · `js/amarrage.js` : vue orbite du rendez-vous · `js/rayonnement.js` : doses en surface et blindages · `js/exploration.js` : spationaute et robot · `js/equipage.js` : profil et dessin du ou de la spationaute
 - `js/navigation.js` : planification des manœuvres · `js/orbiteur.js` : écran de l'orbiteur
 - `js/globes.js` : cartes et globes des astres
 - `js/infos.js` : infobulles, fiches, encyclopédie · `js/ecrans.js`, `js/main.js` : écrans et boucle de jeu
