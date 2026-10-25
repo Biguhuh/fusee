@@ -40,12 +40,41 @@ const SYSTEMES = {
 };
 
 let SYSTEME = SYSTEMES.solaire;
+let ASTRES_SOLAIRE = null;    // le Système solaire, mis de côté pendant qu'on joue dans un autre système
 
-// Change de système courant (au chargement d'une partie).
-function choisirSysteme(id) { SYSTEME = SYSTEMES[id] || SYSTEMES.solaire; return SYSTEME; }
+// Change de système courant : les listes d'astres (ASTRES, ASTRES_PAR_ID, ENFANTS) prennent celles du système.
+// Les autres systèmes sont décrits dans etoiles-proches.js (champ « astres »).
+function choisirSysteme(id) {
+  const cible = SYSTEMES[id] || SYSTEMES.solaire;
+  if (cible === SYSTEME) return SYSTEME;
+  if (!ASTRES_SOLAIRE) ASTRES_SOLAIRE = { liste: ASTRES.slice(), enfants: { ...ENFANTS } };
+  const liste = cible.id === 'solaire' ? ASTRES_SOLAIRE.liste : cible.astres;
+  ASTRES.length = 0;
+  ASTRES.push(...liste);
+  for (const k of Object.keys(ASTRES_PAR_ID)) delete ASTRES_PAR_ID[k];
+  for (const a of liste) ASTRES_PAR_ID[a.id] = a;
+  for (const k of Object.keys(ENFANTS)) delete ENFANTS[k];
+  if (cible.id === 'solaire') Object.assign(ENFANTS, ASTRES_SOLAIRE.enfants);
+  else for (const a of liste) if (a.orbite) (ENFANTS[a.orbite.centre] = ENFANTS[a.orbite.centre] || []).push(a);
+  SYSTEME = cible;
+  // Positions gardées en cache : elles appartenaient à l'autre système.
+  if (typeof cacheEtats !== 'undefined') { cacheEtats.clear(); cacheT = NaN; }
+  return SYSTEME;
+}
+// Le système d'une campagne, avec sa planète de base (point d'ancrage) quand on s'est installé ailleurs.
+function choisirSystemeCampagne(v) {
+  choisirSysteme(v && v.systeme ? v.systeme : 'solaire');
+  if (v && v.planeteBase && SYSTEME.id !== 'solaire') {
+    SYSTEME.base = v.planeteBase;
+  }
+  return SYSTEME;
+}
+function ressourcesIllimitees() { return SYSTEME.illimite !== false; }
 
 function etoileRacine() { return ASTRES_PAR_ID[SYSTEME.etoile]; }
 function planeteOrigine() { return ASTRES_PAR_ID[SYSTEME.origine]; }
+// Astre de repli quand il n'y a pas de planète d'origine (autre système) : la planète de base, sinon l'étoile.
+function astreAncrage() { return SYSTEME.origine || SYSTEME.base || SYSTEME.etoile; }
 function estOrigine(id) { return id === SYSTEME.origine; }
 function estEtoileRacine(id) { return id === SYSTEME.etoile; }
 

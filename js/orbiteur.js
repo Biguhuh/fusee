@@ -697,6 +697,7 @@ const Orbiteur = {
   mettreAJourLogistique() {
     const v = this.v;
     if (v.equipe) mettreAJourEquipe(v, (t) => this.log(t));
+    if (v.sondesInterstellaires && v.sondesInterstellaires.length) mettreAJourSondesInterstellaires(v, (t) => this.log(t));
     for (const s of v.stations) {
       s.stock = { ...STOCK_VIDE(), ...(s.stock || {}) };
       // Chantiers de l'atelier terminés
@@ -711,6 +712,8 @@ const Orbiteur = {
         delete s.agrandissement;
         this.log(`${s.nom} agrandie : niveau ${s.niveau} — ${niveauStation(s).apport}.`);
       }
+      // Ravitaillement courant depuis la Terre : seulement dans le Système solaire.
+      if (!ressourcesIllimitees()) continue;
       if (!s.prochainCargo) s.prochainCargo = v.t + intervalleCargo(s.centre);
       let n = 0;
       while (v.t >= s.prochainCargo && n++ < 50) {
@@ -726,6 +729,14 @@ const Orbiteur = {
       const a = ASTRES_PAR_ID[b.astre];
       b.niveau = b.niveau || 1;
       const st = v.stations.find((s) => s.centre === b.astre);
+      // Base déployée depuis l'orbite : elle ne produit qu'une fois le module posé.
+      if (b.deploiement) {
+        if (v.t < b.deploiement.fin) continue;
+        delete b.deploiement;
+        b.tMaj = v.t;
+        this.log(`${moduleExtension(a).nom} posé sur ${a.nom} : la base est opérationnelle.`);
+        continue;
+      }
       // Extension envoyée de la station : le module de descente se pose à la base et devient le niveau suivant.
       if (b.descente && v.t >= b.descente.fin) {
         b.niveau = Math.min(5, b.niveau + 1);
@@ -764,6 +775,27 @@ const Orbiteur = {
     remplir('robots', ORBITEUR.robots, 'robots');
     remplir('atterrisseurs', ORBITEUR.atterrisseurs, 'atterrisseurs');
     this.log(pris.length ? `Plein fait depuis ${SYSTEME.nomOrigine}, sans station ni base : ${pris.join(', ')}.` : 'L’orbiteur est déjà plein.');
+  },
+
+  // Base déployée depuis l'orbite : un module de descente (aller simple) pose le kit de base sur la zone repérée
+  // par la sonde. Indispensable là où aucun atterrisseur ne pourrait repartir (planètes de la taille de la Terre).
+  peutDeployerBase(a) {
+    const v = this.v;
+    if (a.type !== 'solide' || estOrigine(a.id)) return 'pas de sol où installer une base';
+    if (baseSur(v, a.id)) return 'base déjà installée sur cet astre';
+    if (!stationSur(v, a.id)) return `il faut une station en orbite de ${a.nom}`;
+    if (!(v.sites || {})[a.id]) return 'aucune zone de base repérée (envoyez une sonde)';
+    if (v.kitsBase <= 0) return 'plus de kit de base à bord';
+    return '';
+  },
+  deployerBase(astreId) {
+    const v = this.v, a = ASTRES_PAR_ID[astreId];
+    const pb = this.peutDeployerBase(a);
+    if (pb) return this.log(`Base impossible : ${pb}.`);
+    const site = v.sites[a.id], m = moduleExtension(a);
+    v.kitsBase--;
+    v.bases.push({ id: 'b' + Date.now(), astre: a.id, x: site.x, t0: v.t, tMaj: v.t, stock: 0, niveau: 1, deploiement: { fin: v.t + m.duree } });
+    this.log(`Kit de base envoyé vers ${a.nom} depuis l’orbite : ${m.description}. Base opérationnelle dans ${fmtDuree(m.duree)}.`);
   },
 
   // Agrandir une station d'un niveau avec une extension de station en stock (assemblage en orbite).
@@ -825,7 +857,8 @@ const Orbiteur = {
     // Sources classées par temps d'arrivée ; les durées se calculent une par une pour ne pas figer la fenêtre.
     const sources = () => {
       const d = $('rav-dest').value, c = CONTENUS_CARGO[contenuChoisi()].contenu;
-      const l = [{ id: SYSTEME.origine, nom: `${nomO} (lanceur cargo, stock illimité)`, ok: true }];
+      // La planète d'origine (stock illimité) n'existe que dans le Système solaire.
+      const l = ressourcesIllimitees() ? [{ id: SYSTEME.origine, nom: `${nomO} (lanceur cargo, stock illimité)`, ok: true }] : [];
       for (const s of v.stations) {
         if (s.id === d || estOrigine(s.centre)) continue;    // la station de la planète d'origine, c'est la source « origine »
         const manque = Object.entries(c).filter(([k, q]) => (s.stock[k] || 0) < q).map(([k]) => NOMS_STOCK[k]);
@@ -955,7 +988,7 @@ const Orbiteur = {
   },
 
   centrerSur(id) {
-    if (id === 'orbiteur' && !this.v.orb) id = SYSTEME.origine;
+    if (id === 'orbiteur' && !this.v.orb) id = astreAncrage();
     this.cam.focus = id;
     this.cam.decal = [0, 0];
     let taille;
@@ -988,7 +1021,7 @@ const Orbiteur = {
   // Position absolue du point de vue, et astre « principal » de la vue (pour la mini-carte).
   positionVue() {
     const f = this.cam.focus, v = this.v;
-    if (f === 'orbiteur') return v.orb ? this.absolu(v.orb) : etatAbsolu(SYSTEME.origine, v.t).r;
+    if (f === 'orbiteur') return v.orb ? this.absolu(v.orb) : etatAbsolu(astreAncrage(), v.t).r;
     if (f.startsWith('trajet:')) return this.trajet ? this.trajet.centre : [0, 0];
     if (f.startsWith('obj:')) {
       const o = this.objetSuivi(f.slice(4));
@@ -1001,7 +1034,7 @@ const Orbiteur = {
   },
   astreDeLaVue() {
     const f = this.cam.focus;
-    if (f === 'orbiteur') return this.v.orb ? this.v.orb.centre : SYSTEME.origine;
+    if (f === 'orbiteur') return this.v.orb ? this.v.orb.centre : astreAncrage();
     if (f.startsWith('trajet:')) return SYSTEME.etoile;
     if (f.startsWith('obj:')) { const o = this.objetSuivi(f.slice(4)); return o ? o.centre : SYSTEME.etoile; }
     return f;
@@ -1162,7 +1195,7 @@ const Orbiteur = {
         <div class="sections">
           ${section('Expédition', (v.orb ? ligne('🚀 Orbiteur', bouton('astre:orbiteur', 'Suivre', true)) + ligne(`🪐 ${ASTRES_PAR_ID[v.orb.centre].nom} (astre survolé)`, bouton('astre:' + v.orb.centre, 'Centrer')) : '') +
             (v.cible ? ligne(`🎯 ${ASTRES_PAR_ID[v.cible].nom} (cible)`, bouton('astre:' + v.cible, 'Centrer')) : '') +
-            ligne(`☀ ${SYSTEME.tout}`, bouton('astre:' + SYSTEME.etoile, 'Centrer')) + ligne(`🌍 ${planeteOrigine().nom}`, bouton('astre:' + SYSTEME.origine, 'Centrer')))}
+            ligne(`☀ ${SYSTEME.tout}`, bouton('astre:' + SYSTEME.etoile, 'Centrer')) + (ASTRES_PAR_ID[astreAncrage()] && astreAncrage() !== SYSTEME.etoile ? ligne(`🌍 ${ASTRES_PAR_ID[astreAncrage()].nom}`, bouton('astre:' + astreAncrage(), 'Centrer')) : ''))}
           ${section('Sondes et ravitos en route', enVol.map((o) => ligne(`${o.type === 'cargo' ? '📦' : '🛰'} ${o.nom}${o.etat === 'arrivee' ? ' (en orbite)' : ''}`,
             bouton('obj:' + o.id, 'Suivre') + (o.etat === 'vol' ? bouton('trajet:' + o.id, 'Trajectoire', true) : ''))).join(''))}
           ${section('Stations', v.stations.map((s) => ligne(`🛰 ${s.nom}`, bouton('obj:' + s.id, 'Suivre'))).join(''))}
@@ -1519,7 +1552,7 @@ const Orbiteur = {
     h.querySelectorAll('[data-mode]').forEach((b) => { b.onclick = () => { this.v.mode = b.dataset.mode; this.auto = false; this.avance = false; this.v.manette = 0; this.majHud(true); }; });
     $('nav-masque').onchange = () => this.contexte.basculerMasque();
     $('nav-c-orb').onclick = () => { this.trajet = null; this.centrerSur('orbiteur'); };
-    $('nav-c-astre').onclick = () => { this.trajet = null; this.centrerSur(this.v.orb ? this.v.orb.centre : SYSTEME.origine); };
+    $('nav-c-astre').onclick = () => { this.trajet = null; this.centrerSur(this.v.orb ? this.v.orb.centre : astreAncrage()); };
     $('nav-c-cible').onclick = () => { if (this.v.cible) { this.trajet = null; this.centrerSur(this.v.cible); } };
     $('nav-vues').onclick = () => this.ouvrirVues();
     $('nav-tr').onclick = () => this.ouvrirTempsReel();
@@ -1677,7 +1710,7 @@ const Orbiteur = {
     const fermee = this.orbiteFermee();
     if (estOrigine(c.id) && fermee) d += `<button id="nav-rentrer" class="principal">🏠 Rentrer sur ${SYSTEME.origineSans} (capsule)</button>`;
     if (estOrigine(c.id) && fermee) d += `<button id="nav-plein-origine">🌍 Faire le plein depuis ${SYSTEME.nomOrigine} (gratuit)</button>`;
-    d += `<button id="nav-depart">🌌 Quitter le ${SYSTEME.nom}</button>`;
+    if (SYSTEME.retour !== false) d += `<button id="nav-depart">🌌 Quitter le ${SYSTEME.nom}</button>`;
     if (this.peutDescendre()) {
       // L'atterrisseur est conçu pour l'astre : on ne descend que si l'on peut repartir.
       const conc = this.conceptionPour(c);
@@ -1704,12 +1737,13 @@ const Orbiteur = {
       d += site
         ? `<p class="doux">🟢 Zone de base repérée${site.prod ? ` — ${site.ressource}` : ' — pas de ressource locale'}. La descente la vise.</p>`
         : `<p class="doux">Aucune zone de base repérée sur ${c.nom} : envoyez une sonde.</p>`;
+      if (!this.peutDeployerBase(c)) d += `<button id="nav-deployer-base">🏠 Déployer la base depuis l’orbite (kit de base)</button>`;
     }
     // Station de l'astre courant : stock, prochain ravitaillement courant, atelier
     if (st) {
       const k = st.stock;
       d += `<h3>${st.nom}</h3><dl>` + Object.keys(NOMS_STOCK).map((cle) => `<dt>${NOMS_STOCK[cle]}</dt><dd>${fmtStock(cle, k[cle] || 0)}</dd>`).join('') + '</dl>';
-      d += `<p class="doux">Ravitaillement courant de la Terre dans ${fmtDuree(st.prochainCargo - v.t)}.</p>`;
+      if (ressourcesIllimitees() && st.prochainCargo) d += `<p class="doux">Ravitaillement courant de la Terre dans ${fmtDuree(st.prochainCargo - v.t)}.</p>`;
       d += `<p class="doux"><b>Atelier</b> (avec les matériaux et les ergols du stock) :</p><div class="orientations">` +
         Object.entries(RECETTES).filter(([cle]) => cle !== 'lanceurRetour' || AEROSTAT[st.centre]).map(([cle, r]) =>
           `<button data-fab="${cle}" ${k.materiaux < r.materiaux || (r.ergols && k.ergols < r.ergols) ? 'disabled' : ''}>${r.nom} · ${fmtStock('materiaux', r.materiaux)}${r.ergols ? ` + ${fmtStock('ergols', r.ergols)} d’ergols` : ''}${r.duree ? ` · ${fmtDuree(r.duree)}` : ''}</button>`).join('') + '</div>';
@@ -1749,6 +1783,7 @@ const Orbiteur = {
     bind('nav-rentrer', () => this.contexte.rentrer());
     bind('nav-depart', () => Depart.ouvrir(this.v));
     bind('nav-plein-origine', () => { this.pleinDepuisOrigine(); this.majHud(true); });
+    bind('nav-deployer-base', () => { this.deployerBase(v.orb.centre); this.majHud(true); });
     bind('nav-logistique', () => ouvrirLogistique(this.v, true));
     bind('nav-ressources', () => ouvrirRessources(this.v));
     bind('nav-amarrer', () => { this.amarrer(); this.majHud(true); });

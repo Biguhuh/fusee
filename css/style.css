@@ -231,6 +231,10 @@ dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .encart { margin: 10px 0; padding: 10px 14px; border: 1px solid var(--bord); border-radius: 10px; background: rgba(120,170,255,0.06); font-size: 14px; }
 .encart p { margin: 4px 0; }
 .defile { overflow-x: auto; }
+.cartes-tech { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+.choix-tech { display: flex; flex-direction: column; gap: 4px; padding: 8px; border: 1px solid var(--bord); border-radius: 10px; cursor: pointer; font-size: 13px; }
+.choix-tech canvas { width: 100%; height: auto; border-radius: 6px; }
+.choix-tech:has(input:checked) { border-color: #ff8a50; background: rgba(255,138,80,0.08); }
 .cartes-ciel { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
 .carte-ciel { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; text-align: left; padding: 10px 12px; }
 .carte-ciel span { font-size: 12px; opacity: 0.75; }

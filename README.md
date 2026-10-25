@@ -107,7 +107,20 @@ Tenue : combinaison de vol bleue de l'ESA sur Terre, scaphandre blanc aux couleu
        - assistances gravitationnelles comme Voyager 1, 17 km/s ;
        - poussée de l'orbiteur seule : tous ses ergols brûlés d'où il est, en profitant de la vitesse acquise (environ 65 km/s depuis l'orbite terrestre).
      - Le jeu donne la durée du voyage (environ 20 000 ans pour Proxima avec l'orbiteur), la date d'arrivée en temps de jeu et dans la vraie vie, et le temps qu'il faudrait au temps accéléré maximal. C'est la fin de la partie : un bilan s'affiche et la campagne ne se reprend plus.
-     - Le départ « science-fiction » (propulsions avancées) viendra ensuite.
+     - **Départ science-fiction** : on s'installe dans l'autre système et la partie continue là-bas (aller simple).
+       - **Systèmes jouables** : les 7 étoiles de la liste, avec leurs vraies planètes (masses, périodes, rayons quand ils sont mesurés). Le reste est estimé et indiqué comme tel : rayon d'après la masse, température d'après la lumière reçue, atmosphère inconnue, ressources supposées, astéroïdes hypothétiques dans les ceintures de poussière observées. Alpha Centauri n'a pas encore de planète solide connue : on ne peut pas s'y installer.
+       - **1. Sondes** : une grappe de 6 sondes à voile laser (20 % de c) part vers le système. Ses données reviennent à la vitesse de la lumière (par exemple vers 2073 pour Proxima). Elles cartographient les planètes et repèrent les zones de base.
+       - **2. Planète de base** : on la choisit parmi les astres solides cartographiés (température, gravité, dose, ressource).
+       - **3. Propulsion**, chacune avec son vaisseau dessiné :
+         - fusion type Daedalus, 12 % de c ;
+         - voile laser et frein magnétique, 20 % de c ;
+         - antimatière, 50 % de c, avec le temps vécu à bord plus court (relativité) ;
+         - saut, en 3 semaines, présenté comme pure fiction.
+       - **4. Liste avant de partir**, obligatoire.
+       - **Traversée animée** (étoiles qui défilent, Soleil qui s'éloigne, étoile visée qui grandit, date et temps à bord), puis **arrivée par l'extérieur du système**. L'expédition se place en orbite de la planète de base et une station y est déployée avec le chargement (matériaux, ergols, lanceurs). L'orbiteur garde kits, robots, atterrisseurs et sondes.
+       - **Là-bas**, pas de Terre : ni ravitaillement courant, ni plein gratuit, ni centre de lancement. Les zones repérées par les sondes sont connues.
+       - **Déployer la base depuis l'orbite** (aussi dans le Système solaire) : un module de descente sans retour pose un kit de base sur la zone repérée. C'est indispensable sur les planètes de la taille de la Terre, d'où aucun atterrisseur ne peut repartir.
+       - À l'accueil, la visite rapide, la promenade et l'encyclopédie restent dans le Système solaire ; « Reprendre » ramène dans le système de la campagne.
      - **Liste avant de partir**, dans la fenêtre de départ et dans « Logistique ». Elle compte ce qui est à la plus grande station et à bord de l'orbiteur, et dit ce qui manque :
        - une station de niveau 5 ;
        - 3 kits de base, 2 kits de station, 4 atterrisseurs, 2 lanceurs de retour, 6 robots, 6 sondes ;
