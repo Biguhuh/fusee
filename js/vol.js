@@ -528,6 +528,12 @@ class Vol {
     }
     this.decollageDemande = true;
     this.autopilote = true;
+    // Phobos : après la découverte du disque d’or.
+    if (this.elvis) {
+      this.elvis = false;
+      this.noter('Elvis a quitté le bâtiment.');
+      if (typeof etat !== 'undefined' && etat.enVoyage && etat.voyage) etat.voyage.journal.push({ t: etat.voyage.t, texte: 'Elvis a quitté le bâtiment.' });
+    }
     // Vénus : le ballon se gonfle sur le lanceur, posé à côté du module.
     if (this.f.aerostat && !this.ascension) {
       this.xModule = this.x;   // le module blindé reste au sol

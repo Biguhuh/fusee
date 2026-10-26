@@ -307,6 +307,8 @@ class Exploration {
 
     // Sur Terre : on respire, rien ne menace.
     if (this.terre) { this.taux = 0; return; }
+    // Easter eggs et traces réelles des environs.
+    verifierDecouvertes(this);
 
     // Réserve d'oxygène ou de batterie (le module robot recharge la batterie au soleil quand le robot est à côté)
     const effort = Math.abs(p.vx) > 0.05 ? 1 : 0.3;
@@ -495,6 +497,9 @@ class Exploration {
       const [dx, dy] = versEcran(d.x, this.sol(d.x));
       if (dx > -80 && dx < W + 80) dessinerDrapeauPlante(ctx, dx, dy, echelle, ventPourDrapeau(a));
     }
+
+    // Easter eggs et traces réelles
+    if (!this.terre) dessinerDecouvertes(ctx, this, versEcran, echelle, W);
 
     // Promenade sur Terre : fleurs, arbres fruitiers, bar
     if (this.terre) {

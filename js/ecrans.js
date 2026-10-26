@@ -6,7 +6,7 @@ const $ = (id) => document.getElementById(id);
 // ---------- Sauvegarde (équipement + astres réussis) ----------
 const CLE_SAUVEGARDE = 'fusee-systeme-solaire';
 function charger() {
-  const vide = { equipement: equipementParDefaut(), records: {}, science: {}, masque: false, voyage: null, drapeaux: {}, sauts: {} };
+  const vide = { equipement: equipementParDefaut(), records: {}, science: {}, masque: false, voyage: null, drapeaux: {}, sauts: {}, decouvertes: {}, reperes: {} };
   try {
     const s = JSON.parse(localStorage.getItem(CLE_SAUVEGARDE));
     if (s && s.equipement) {
@@ -15,6 +15,8 @@ function charger() {
         records: s.records || {}, science: s.science || {}, masque: !!s.masque, voyage: s.voyage || null,
         drapeaux: s.drapeaux || {},   // drapeaux plantés : { astreId: [{ x, par, quand }] }
         sauts: s.sauts || {},         // records de saut : { astreId: { h, par, quand } }
+        decouvertes: s.decouvertes || {},   // easter eggs trouvés : { id: { astre, quand, par } }
+        reperes: s.reperes || {},     // easter eggs signalés par un robot, pas encore examinés : { id: true }
       };
     }
   } catch (e) { /* stockage indisponible */ }
@@ -24,7 +26,7 @@ function sauver(etat) {
   try {
     localStorage.setItem(CLE_SAUVEGARDE, JSON.stringify({
       equipement: etat.equipement, records: etat.records, science: etat.science, masque: etat.masque, voyage: etat.voyage,
-      drapeaux: etat.drapeaux, sauts: etat.sauts,
+      drapeaux: etat.drapeaux, sauts: etat.sauts, decouvertes: etat.decouvertes, reperes: etat.reperes,
     }));
   } catch (e) { /* ignoré */ }
 }
