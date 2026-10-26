@@ -357,7 +357,7 @@ class Exploration {
     }
     return best;
   }
-  presDeLaFusee() { return Math.abs(this.p.x - this.xFusee) < (this.enRover ? 12 : 4) && this.p.auSol; }
+  presDeLaFusee() { return distSol(this.astre, this.p.x, this.xFusee) < (this.enRover ? 12 : 4) && this.p.auSol; }
 
   // Touche E : ramasser, analyser, ou rentrer.
   agir() {
@@ -412,7 +412,7 @@ class Exploration {
     const robot = this.type === 'robot';
     if (!this.p.auSol) return this.dire(robot ? 'Le robot doit être au sol pour planter le drapeau.' : 'Il faut avoir les pieds au sol pour planter le drapeau.');
     const liste = (etat.drapeaux[this.astre.id] = etat.drapeaux[this.astre.id] || []);
-    if (liste.some((d) => Math.abs(d.x - this.p.x) < 20)) return this.dire('Un drapeau flotte déjà ici.');
+    if (liste.some((d) => distSol(this.astre, d.x, this.p.x) < 20)) return this.dire('Un drapeau flotte déjà ici.');
     const x = this.p.x + (robot ? 1.6 : 1.2) * (this.p.dir || 1);
     const premier = liste.length === 0;
     liste.push({ x, par: robot ? 'robot' : nomSpatio(), robot, quand: etat.voyage && etat.enVoyage ? etat.voyage.t : null });
@@ -466,7 +466,8 @@ class Exploration {
     const yCam = p.y + 2.5;
     // Téléphone en paysage : la scène remonte pour laisser la place aux boutons du bas.
     const camY = H * (ecranPaysageTactile(W, H) ? 0.4 : 0.55);
-    const versEcran = (x, y) => [W / 2 + (x - p.x) * echelle, camY + (yCam - y) * echelle];
+    // Écart « autour de l'astre » : drapeaux, bases et module réapparaissent après un tour complet.
+    const versEcran = (x, y) => [W / 2 + ecartSol(a, x, p.x) * echelle, camY + (yCam - y) * echelle];
     dessinerFond(ctx, a, this.c, W, H, false, tempsCiel(this.vol), this.vol);
     if (this.terre) dessinerNuages(ctx, W, H, p.x * echelle);
 

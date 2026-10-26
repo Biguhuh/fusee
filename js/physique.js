@@ -51,31 +51,55 @@ function bruit1D(x, graine) {
   return a + (b - a) * u;
 }
 
+// ---------- Le sol fait le tour de l'astre ----------
+// Le sol boucle sur le périmètre réel (2πR) : en marchant toujours tout droit, on revient au point de départ.
+// Les positions restent continues (pas de saut) ; distances et dessins se calculent « autour de l'astre ».
+function perimetreSol(astre) { return 2 * Math.PI * astre.rayonKm * 1000; }
+// Écart signé a − b le plus court, en tenant compte du tour (entre −P/2 et +P/2).
+function ecartSol(astre, a, b) {
+  const P = perimetreSol(astre);
+  let d = (a - b) % P;
+  if (d > P / 2) d -= P; else if (d < -P / 2) d += P;
+  return d;
+}
+function distSol(astre, a, b) { return Math.abs(ecartSol(astre, a, b)); }
+
 // Renvoie une fonction hauteur(x) en mètres (0 = niveau moyen), ou null si pas de sol.
+// Relief périodique : chaque couche de bruit compte un nombre entier de motifs sur le tour de l'astre.
 function creerTerrain(astre) {
   const r = astre.relief;
   if (!r || astre.type !== 'solide') return null;
   const graine = (astre.rayonKm * 7.3) % 101;
-  const tailleCase = r.longueur * 0.8;
+  const P = perimetreSol(astre);
+  const mod = (k, n) => ((k % n) + n) % n;
+  const bruit = (x, L, g) => {
+    const n = Math.max(1, Math.round(P / L));
+    const u = x / (P / n), i = Math.floor(u), f = u - i, s = f * f * (3 - 2 * f);
+    const a = hash2(mod(i, n), g), b = hash2(mod(i + 1, n), g);
+    return a + (b - a) * s;
+  };
+  const nCases = Math.max(1, Math.round(P / (r.longueur * 0.8)));
+  const tailleCase = P / nCases;
   return function hauteur(x) {
     // Collines : plusieurs couches de bruit de plus en plus fines.
     let h = 0, amp = r.amplitude, L = r.longueur;
     for (let o = 0; o < 4; o++) {
-      h += (bruit1D(x / L, graine + o) * 2 - 1) * amp;
+      h += (bruit(x, L, graine + o) * 2 - 1) * amp;
       amp *= 0.45; L *= 0.42;
     }
     // Bosses et petites aspérités, proportionnelles au relief.
     const k = r.amplitude / 100;
-    h += (bruit1D(x / 70, graine + 8) * 2 - 1) * 2.5 * k;
-    h += (bruit1D(x / 18, graine + 9) * 2 - 1) * 0.7 * k;
-    h += (bruit1D(x / 5, graine + 10) * 2 - 1) * 0.15 * k;
+    h += (bruit(x, 70, graine + 8) * 2 - 1) * 2.5 * k;
+    h += (bruit(x, 18, graine + 9) * 2 - 1) * 0.7 * k;
+    h += (bruit(x, 5, graine + 10) * 2 - 1) * 0.15 * k;
     // Cratères : cuvette et rebord.
     if (r.crateres > 0) {
       const k0 = Math.floor(x / tailleCase);
       for (let k = k0 - 1; k <= k0 + 1; k++) {
-        if (hash2(k, graine + 20) > r.crateres) continue;
-        const cx = (k + 0.2 + 0.6 * hash2(k, graine + 21)) * tailleCase;
-        const rayon = tailleCase * (0.12 + 0.3 * hash2(k, graine + 22));
+        const kk = mod(k, nCases);
+        if (hash2(kk, graine + 20) > r.crateres) continue;
+        const cx = (k + 0.2 + 0.6 * hash2(kk, graine + 21)) * tailleCase;
+        const rayon = tailleCase * (0.12 + 0.3 * hash2(kk, graine + 22));
         const d = Math.abs(x - cx) / rayon;
         if (d < 1) h -= 0.2 * rayon * (1 - d * d);
         if (d < 1.6) h += 0.05 * rayon * Math.exp(-Math.pow((d - 1) / 0.15, 2));

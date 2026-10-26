@@ -101,10 +101,10 @@ class Vol {
     if (!this.terrain) return 0;
     let h = this.terrain(x);
     for (const b of this.bases) {
-      const d = Math.abs(x - b.x);
+      const d = distSol(this.astre, x, b.x);
       if (d < 140) {
         const w = d < 110 ? 1 : 1 - (d - 110) / 30;
-        h += (this.terrain(b.x) - h) * w;
+        h += (this.terrain(x + ecartSol(this.astre, b.x, x)) - h) * w;
       }
     }
     return h;
@@ -1894,7 +1894,7 @@ function dessinerTour(ctx, x, yBase, s, hauteurFusee) {
 function dessinerBases(ctx, vol, W, echelle, fuseeY) {
   const ecranY = (wx) => fuseeY + (vol.y - vol.sol(wx)) * echelle;
   for (const b of vol.bases) {
-    const sx = W / 2 + (b.x - vol.x) * echelle;
+    const sx = W / 2 + ecartSol(vol.astre, b.x, vol.x) * echelle;
     if (sx < -2000 || sx > W + 2000) continue;
     dessinerBase(ctx, sx, (dx) => ecranY(b.x + dx), Math.max(echelle, 0.4), b.niveau || 1, productionBase(vol.astre) > 0);
   }
@@ -1902,7 +1902,7 @@ function dessinerBases(ctx, vol, W, echelle, fuseeY) {
   if (vol.site && !vol.bases.some((b) => Math.abs(b.x - vol.site.x) < 500)) dessinerFanion(ctx, W / 2 + (vol.site.x - vol.x) * echelle, ecranY(vol.site.x), Math.max(echelle, 0.4), vol);
   // Drapeaux plantés lors des visites précédentes
   for (const d of drapeauxSur(vol.astre.id)) {
-    const sx = W / 2 + (d.x - vol.x) * echelle;
+    const sx = W / 2 + ecartSol(vol.astre, d.x, vol.x) * echelle;
     if (sx > -60 && sx < W + 60) dessinerDrapeauPlante(ctx, sx, ecranY(d.x), Math.max(echelle, 0.4), ventPourDrapeau(vol.astre));
   }
 }
