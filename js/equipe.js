@@ -112,6 +112,7 @@ function lancerRobotAuto(v, a, blindage, jours, log) {
   v.robotsAuto = v.robotsAuto || [];
   const vie = dureeVieRobot(a, blindage);
   v.robotsAuto.push({ id: 'r' + Date.now(), astre: a.id, blindage, debut: v.t, fin: v.t + jours * JOUR, jours, panne: vie < jours * JOUR ? v.t + vie : null });
+  replique('reviendrai');
   log(`Robot de prélèvement largué ${sur(a)} pour ${jours} jours (blindage ${BLINDAGES_ROBOT[blindage].nom.toLowerCase()}).`);
 }
 

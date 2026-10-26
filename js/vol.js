@@ -214,6 +214,8 @@ class Vol {
 
     this.dangers(c, v, dt);
     verifierCassini(this);
+    if (this.integrite < 99.5 && !this.fin) repliqueVol(this, 'houston');
+    if (this.astre.type === 'gazeuse' && c.p > 10) repliqueVol(this, 'pression');
     if (this.fin) return;
     this.prelever();
 
@@ -298,6 +300,7 @@ class Vol {
       }
     }
     this.pose = true;
+    if (typeAtmosphere(this.astre) === 'dense' && this.astre.id !== 'terre' && this.astre.type === 'solide') repliqueVol(this, 'silence');
     this.vx = 0; this.vy = 0;
     this.angleRepos = penteRad; // la fusée va se poser sur la pente (en douceur, voir step)
     this.omega = 0;
@@ -529,6 +532,7 @@ class Vol {
     }
     this.decollageDemande = true;
     this.autopilote = true;
+    if (!this.astre.atm && !this.lancement) repliqueVol(this, 'route');
     // Phobos : après la découverte du disque d’or.
     if (this.elvis) {
       this.elvis = false;

@@ -344,3 +344,16 @@ pre.erreur { white-space: pre-wrap; background: #1a0d0d; border: 1px solid #5a23
 @media (max-width: 600px) {
   .systeme { flex-wrap: wrap; justify-content: center; overflow-x: visible; row-gap: 18px; }
 }
+
+/* Répliques de science-fiction : une ligne discrète en haut, qui s'efface (ne masque pas le vol). */
+#replique {
+  position: fixed; z-index: 40; pointer-events: none;
+  top: calc(env(safe-area-inset-top, 0px) + 72px); left: 50%; transform: translateX(-50%);
+  max-width: min(560px, 82vw); padding: 5px 14px; border-radius: 10px;
+  background: rgba(5, 8, 16, 0.5); color: #ffe7b0; text-align: center;
+  font-style: italic; font-size: 15px; line-height: 1.35; text-shadow: 0 1px 2px #000;
+  opacity: 0; transition: opacity 0.9s;
+}
+#replique.visible { opacity: 0.92; }
+#replique .replique-source { display: block; font-size: 11.5px; font-style: normal; color: #b9c6d6; margin-top: 1px; }
+@media (max-width: 600px) { #replique { font-size: 13.5px; top: 28vh; } }

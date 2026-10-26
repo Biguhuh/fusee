@@ -98,6 +98,10 @@ class Exploration {
       const t = tempsAvantDoseMortelle(this.irradiation.svJour, this.doseSv);
       if (!this.terre && t < 30 * 86400) this.dire(`Rayonnement ici : ${fmtDose(this.irradiation.svJour)}. Dose mortelle atteinte dehors en ${fmtDureeLongue(t)}.`);
     }
+    if (type === 'spationaute' && !this.terre) {
+      if (this.astre.id === 'lune' && !(etat.repliques || {}).armstrong) replique('armstrong');
+      else if (!this.astre.atm) replique('crier');
+    }
     if (type === 'robot') {
       this.blindage = options.blindage || blindageConseille(this.astre);
       this.doseGy = 0;
@@ -617,7 +621,7 @@ class Exploration {
       const larg = Math.min(190, W * 0.52), y0 = 44;
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fillRect(6, y0, larg, 26 + l.length * 16);
-      ctx.font = 'bold 12px system-ui'; ctx.fillStyle = '#fff'; ctx.fillText(`${d.nom} · ${a.nom}`, 12, y0 + 16);
+      ctx.font = 'bold 12px system-ui'; ctx.fillStyle = '#fff'; ctx.fillText(majuscule(`${d.nom} · ${a.nom}`), 12, y0 + 16);
       let yy = y0 + 34;
       for (const [k, v, coul] of l) {
         ctx.font = '11px system-ui'; ctx.fillStyle = '#b0bec5'; ctx.fillText(k, 12, yy);

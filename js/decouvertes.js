@@ -152,7 +152,7 @@ function signalSonde(astreId) {
 
 // Plongée dans Saturne : la fin de Cassini.
 function verifierCassini(vol) {
-  if (vol.astre.id !== 'saturne' || vol.cassiniVu || vol.pose) return;
+  if (vol.astre.id !== 'saturne' || vol.cassiniVu || vol.pose || etat.vol !== vol) return;
   if (vol.y > vol.astre.depart.alt * 0.8) return;
   vol.cassiniVu = true;
   const texte = '15 septembre 2017 : c’est ici que Cassini a plongé, après treize ans autour de Saturne, pour ne pas risquer de contaminer Encelade ou Titan.';
@@ -363,6 +363,7 @@ function decouvrir(e, x) {
   etat.decouvertes[e.id] = { astre: e.astre, quand: etat.enVoyage && etat.voyage ? etat.voyage.t : null, par: nomSpatio() };
   x.dire('✨ ' + e.texte);
   if (e.elvis) x.vol.elvis = true;
+  if (e.id === 'chat') replique('chat');
   if (etat.enVoyage && etat.voyage) etat.voyage.journal.push({ t: etat.voyage.t, texte: `✨ Découverte ${sur(x.astre)} : ${e.texte}` });
   sauver(etat);
 }

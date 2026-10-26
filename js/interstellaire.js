@@ -184,6 +184,7 @@ class TransitInterstellaire {
 // Le vaisseau emporte le chargement de la grande station et de l'orbiteur ; à l'arrivée, une station est déployée
 // en orbite de la planète de base (avec les matériaux et les ergols) et l'orbiteur garde kits, robots et atterrisseurs.
 function arriverDansSysteme(v, info) {
+  replique('startrek');
   const st = stationDeDepart(v), k = st ? { ...st.stock } : {};
   const ech = Object.values(v.echantillonsRapportes || {}).reduce((s, x) => s + x, 0);
   v.historique = v.historique || [];

@@ -174,7 +174,7 @@ const Orbiteur = {
         if (avancerAvecPoussee(v.orb, v.t, h, () => acc) === 'impact') { v.t += h; return this.crash(); }
         v.carburant = Math.max(0, v.carburant - (F / (ORBITEUR.isp * G0)) * h);
         v.t += h; reste -= h;
-        if (v.carburant <= 0) { v.manette = 0; this.log('Réservoir de l’orbiteur vide.'); break; }
+        if (v.carburant <= 0) { v.manette = 0; this.log('Réservoir de l’orbiteur vide.'); replique('panique'); break; }
       }
       v.orb.transfert = null;
     } else if (dt > 0) {
@@ -186,6 +186,8 @@ const Orbiteur = {
       for (const e of ev) {
         if (e.type === 'entree') this.log(`Entrée dans la sphère d’influence ${de(ASTRES_PAR_ID[e.vers])}.`);
         if (e.type === 'sortie') this.log(`Sortie de la sphère d’influence ${de(ASTRES_PAR_ID[e.de])}.`);
+        if (e.type === 'sortie' && e.de === 'terre') replique('infini');
+        if (e.type === 'entree' && e.vers === 'europe') replique('europe');
       }
       if (res === 'impact') return this.crash();
     }

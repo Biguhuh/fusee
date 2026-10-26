@@ -382,6 +382,7 @@ function larguerRobot(id, blindage) {
   etat.vol.robotSeul = true;
   etat.enVoyage = true;
   etat.explo = new Exploration(etat.vol, 'robot', etat.science, { blindage });
+  replique('reviendrai');
   Orbiteur.log(`Robot largué ${sur(a)} (blindage ${BLINDAGES_ROBOT[blindage].nom.toLowerCase()}, rayonnement ${fmtDose(doseSurface(a).svJour)}).`);
   touches.clear();
   redim();
@@ -567,6 +568,7 @@ function reprendreDepuis(id) {
 function terminerParDepart(info) {
   const v = etat.voyage;
   v.fin = info;
+  replique('force');
   Orbiteur.log(`Départ pour ${le(info.nomEtoile)} (${fmt(info.distanceAL, 2)} années-lumière) à ${fmt(info.vitesse, 1)} km/s : ${info.nomProfil.toLowerCase()}. Arrivée vers ${fmtAnnee(info.arriveeJeu)}.`);
   sauver(etat);
   const h = $('res-titre');
@@ -592,6 +594,7 @@ function terminerParDepart(info) {
 // Départ science-fiction : traversée animée, puis arrivée et nouvelle campagne dans l'autre système.
 function partirVersSysteme(info) {
   const v = etat.voyage;
+  replique('force');
   Orbiteur.log(`Départ pour ${le(info.nomSysteme)} en ${TECHNOLOGIES[info.tech].nom.toLowerCase()} : ${fmtDureeAnnees(info.ans)} de voyage, installation prévue sur ${info.nomBase}.`);
   sauver(etat);
   jouerScene(new TransitInterstellaire(info), () => {
@@ -933,7 +936,7 @@ function signalerErreur(e) {
   if (erreurAffichee === texte) return;
   erreurAffichee = texte;
   const m = $('modale');
-  m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>⚠ Le jeu a rencontré une erreur</h2>
+  m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>⚠ Le jeu a rencontré une erreur</h2><p><i>Pas de panique.</i></p>
     <p>Le jeu est en pause${date ? ` (date du jeu : ${date})` : ''}. Vous pouvez reprendre ; si l’erreur revient, téléchargez la sauvegarde et envoyez-la avec ce message pour qu’elle soit corrigée.</p></div><button class="fermer">✕</button></header>
     <pre class="erreur"></pre>
     <div class="actions"><button id="err-sauvegarde">⬇ Télécharger la sauvegarde</button><button id="err-accueil">← Accueil</button><button id="err-reprendre" class="principal">▶ Reprendre</button></div></div>`;
