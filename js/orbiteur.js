@@ -18,7 +18,7 @@ const CEINTURE = Array.from({ length: 1400 }, (_, i) => {
 const Orbiteur = {
   v: null,            // état du voyage (sauvegardé)
   etape: null,        // prochaine étape calculée (non sauvegardée)
-  auto: false,        // planificateur en marche
+  auto: false,        // pilote auto en marche
   avance: false,      // assistant : avancer jusqu'à l'étape
   cam: { focus: 'orbiteur', echelle: 0.02, decal: [0, 0] },
   zones: [],
@@ -68,7 +68,7 @@ const Orbiteur = {
   injectionTranslunaire(dvDispo) {
     const v = this.v;
     v.cible = 'lune';
-    v.mode = 'planificateur';
+    v.mode = 'pilote';
     const e = prochaineEtape(v.orb, v.t, 'lune');
     if (e.type !== 'transfert') return { ok: false, texte: 'Pas de fenêtre vers la Lune trouvée.' };
     if (e.tExec > v.t) { avancerVaisseau(v.orb, v.t, e.tExec - v.t); v.t = e.tExec; }
@@ -82,7 +82,7 @@ const Orbiteur = {
     this.etape = null;
     this.auto = true;
     this.log(`Injection translunaire par le 3e étage : ${fmtV(besoin)}. Arrivée à la Lune dans environ ${fmtDuree(v.orb.transfert.tArrivee - v.t)}.`);
-    return { ok: true, texte: `Le 3e étage a rallumé pour l’injection translunaire (${fmtV(besoin)}) : l’expédition est en route vers la Lune, arrivée dans environ ${fmtDuree(v.orb.transfert.tArrivee - v.t)}. Le planificateur s’occupera de la mise en orbite lunaire ; réglez l’écoulement du temps à votre guise.` };
+    return { ok: true, texte: `Le 3e étage a rallumé pour l’injection translunaire (${fmtV(besoin)}) : l’expédition est en route vers la Lune, arrivée dans environ ${fmtDuree(v.orb.transfert.tArrivee - v.t)}. Le pilote auto s’occupera de la mise en orbite lunaire ; réglez l’écoulement du temps à votre guise.` };
   },
 
   // Fin d'expédition : la capsule rentre sur Terre avec l'équipage et les échantillons.
@@ -149,7 +149,7 @@ const Orbiteur = {
   // Fait avancer la simulation de dt secondes de jeu. tempsReel : appel du mode temps réel (pas de ×1 forcé).
   avancer(dt, tempsReel) {
     const v = this.v;
-    // Assistant / planificateur : on ne dépasse pas l'instant de la prochaine manœuvre
+    // Assistant / pilote auto : on ne dépasse pas l'instant de la prochaine manœuvre
     // (sauf en temps réel avec l'option « manœuvre ratée », où la mission continue sans l'attendre).
     const ratee = tempsReel && v.tempsReel.option === 'ratee' && !this.auto;
     if (!ratee && v.mode !== 'libre' && v.cible && this.etape && this.etape.dv && !this.etape.attenteEvenement && this.etape.tExec > v.t) {
@@ -336,7 +336,7 @@ const Orbiteur = {
     // la manœuvre suivante n'est calculée qu'à ce moment-là, mais on peut déjà mettre un rappel.
     const prochaine = actif && e && (e.dv || e.attenteEvenement) && e.type !== 'fini' && e.tExec > v.t ? e : null;
     m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>⏱ Mission en temps réel</h2>
-      <p>Le temps de la mission suit l’horloge, même quand le navigateur est fermé. Le jeu donne la date et l’heure réelles des manœuvres : mettez un rappel, revenez faire la manœuvre, puis repartez. En temps réel, ce sont l’assistant et le planificateur qui préparent les manœuvres.</p></div><button class="fermer">✕</button></header>
+      <p>Le temps de la mission suit l’horloge, même quand le navigateur est fermé. Le jeu donne la date et l’heure réelles des manœuvres : mettez un rappel, revenez faire la manœuvre, puis repartez. En temps réel, ce sont l’assistant et le pilote auto qui préparent les manœuvres.</p></div><button class="fermer">✕</button></header>
       <div class="sections">
         <section><h3>Écoulement du temps</h3>${facteurs.map(([f, t]) => `<label class="choix-ravito"><input type="radio" name="tr-facteur" value="${f}" ${(tr.facteur || 3600) === f ? 'checked' : ''}> ${t}</label>`).join('')}</section>
         <section><h3>Si une manœuvre n’est pas faite à temps</h3>
@@ -423,7 +423,7 @@ const Orbiteur = {
     if (this.contexte) this.contexte.finExpedition(`L’orbiteur s’est écrasé ${ici}. L’expédition est perdue.`);
   },
 
-  // Exécution automatique des étapes (planificateur, ou assistant « avancer »).
+  // Exécution automatique des étapes (pilote auto, ou assistant « avancer »).
   piloteAuto() {
     const v = this.v;
     if (!v.cible || v.mode === 'libre') { this.etape = null; return; }
@@ -1060,7 +1060,7 @@ const Orbiteur = {
   },
 
   // ---------- Trajectoire prévue d'une sonde ou d'un ravito ----------
-  // On rejoue le planificateur sur une copie du vaisseau jusqu'à l'arrivée, en notant les points
+  // On rejoue le pilote auto sur une copie du vaisseau jusqu'à l'arrivée, en notant les points
   // de la trajectoire (positions absolues) et chaque événement qui la modifie.
   planTrajet(vs) {
     const s = JSON.parse(JSON.stringify({ centre: vs.centre, r: vs.r, v: vs.v, transfert: vs.transfert || null }));
@@ -1556,7 +1556,7 @@ const Orbiteur = {
         <span id="nav-date" class="date"></span>
         <span class="groupe"><button id="nav-moins">−</button><span id="nav-warp"></span><button id="nav-plus">+</button></span>
         <span class="groupe modes">
-          ${['libre', 'assistant', 'planificateur'].map((m) => `<button data-mode="${m}">${{ libre: 'Pilotage libre', assistant: 'Assistant', planificateur: 'Planificateur' }[m]}</button>`).join('')}
+          ${['libre', 'assistant', 'pilote'].map((m) => `<button data-mode="${m}">${{ libre: 'Pilotage libre', assistant: 'Assistant', pilote: 'Pilote auto' }[m]}</button>`).join('')}
         </span>
         <span class="groupe">🎯 Centrer : <button id="nav-c-orb">Orbiteur</button><button id="nav-c-astre"></button><button id="nav-c-cible" class="cache"></button><button id="nav-vues">👁 Vues…</button><button id="nav-fermer-trajet" class="cache">✕ Trajectoire</button></span>
         <label class="groupe"><input type="checkbox" id="nav-masque"> Grosses lunes seulement</label>
@@ -1723,7 +1723,7 @@ const Orbiteur = {
           if (!enDirect && (e.tExec > v.t + 1 || e.attenteEvenement)) d += `<button id="nav-avancer" class="principal">${this.avance ? '⏸ Arrêter' : '⏩ Avancer jusqu’à l’étape'}</button>`;
           if (e.dv && e.tExec <= v.t + 1) d += `<button id="nav-executer" class="principal">🔥 Exécuter la manœuvre</button>`;
         }
-        if (v.mode === 'planificateur' && e.type !== 'fini') d += `<button id="nav-auto" class="principal">${this.auto ? '⏸ Arrêter le voyage' : `🚀 Aller ${au(cb)}`}</button>`;
+        if (v.mode === 'pilote' && e.type !== 'fini') d += `<button id="nav-auto" class="principal">${this.auto ? '⏸ Arrêter le voyage' : `🚀 Aller ${au(cb)}`}</button>`;
       } else {
         const cp = etatAbsolu(v.cible, v.t);
         const dist = V.norm(V.sub(cp.r, this.absolu(o)));

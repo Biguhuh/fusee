@@ -16,6 +16,8 @@ function migrerVoyage(v) {
   m.systeme = v.systeme || 'solaire';
   choisirSystemeCampagne(m);
   for (const cle of ['visites', 'echantillonsABord', 'echantillonsRapportes']) m[cle] = m[cle] || {};
+  // Ancien nom du mode qui fait tout le voyage (devenu « Pilote auto »).
+  if (m.mode === 'planif' + 'icateur') m.mode = 'pilote';
   m.provisions = { fleurs: 0, fruits: 0, ...(v.provisions || {}) };
   m.bases = (m.bases || []).map((b) => ({ niveau: 1, ...b }));
   m.sites = m.sites || {};
@@ -222,7 +224,7 @@ function finVol(r) {
       const f = etat.vol.f;
       if (f.lanceur === 'lune') {
         const tli = Orbiteur.injectionTranslunaire(deltaVRestant(f, etat.vol.carburant));
-        etat.reprendreAuto = tli.ok;   // le planificateur poursuit le voyage à l'ouverture de l'orbiteur
+        etat.reprendreAuto = tli.ok;   // le pilote auto poursuit le voyage à l'ouverture de l'orbiteur
         r.messageLancement = `${f.nomLanceur} a placé l’expédition en orbite terrestre. ` + tli.texte;
       } else {
         r.messageLancement = `${f.nomLanceur} a placé l’expédition en orbite terrestre.` + (v.stations.some((s) => s.terrestre) ? ' Rendez-vous avec la station spatiale.' : ' Première tâche : construire la station spatiale.');

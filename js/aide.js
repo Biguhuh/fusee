@@ -4,7 +4,7 @@
 // Les fiches suivent toutes le même plan : à quoi ça sert, comment l'obtenir, ce que ça fait, évolutions.
 
 // Nom du pilotage qui fait tout le voyage (voir le point 7 de la carte 4 : un seul nom partout).
-const NOM_PILOTE_VOYAGE = 'planificateur';
+const NOM_PILOTE_VOYAGE = 'pilote auto';
 
 function ficheAide(titre, f) {
   const lignes = [['À quoi ça sert', f.role], ['Comment l’obtenir', f.obtenir], ['Ce que ça fait', f.fait], ['Évolutions', f.evolue]].filter(([, t]) => t);
