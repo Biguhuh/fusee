@@ -140,6 +140,15 @@ const Orbiteur = {
   warpAvantImpact() {
     const o = this.v.orb, c = ASTRES_PAR_ID[o.centre];
     if (!o || !c || c.type === 'etoile') return Infinity;
+    // Rendez-vous avec un objet artificiel : on ralentit pour ne pas le dépasser entre deux images.
+    if (c.artificiel) {
+      const vv = V.norm(o.v);
+      if (vv < 1e-6 || V.dot(o.r, o.v) >= 0) return Infinity;
+      const tObj = Math.max(1, (V.norm(o.r) - 2.5) / vv);
+      let w = 1;
+      for (const p of PALIERS_NAV) if (p / 60 <= tObj / 20) w = p;
+      return w;
+    }
     const el = elements(o.r, o.v, c.gm), r = V.norm(o.r), rv = V.dot(o.r, o.v);
     if (el.rp >= c.rayonKm || rv >= 0) { this.alerteImpact = null; return Infinity; }
     const t = (r - c.rayonKm) / Math.max(Math.abs(rv) / r, 1e-3);   // ordre de grandeur du temps avant impact (s)
@@ -214,6 +223,7 @@ const Orbiteur = {
     this.mettreAJourLogistique();
     verifierEggsOrbite(this, dt);
     verifierVoiture(this);
+    verifierObservatoires(this);
     verifierVoyagers(this);
     this.piloteAuto();
   },
@@ -457,7 +467,7 @@ const Orbiteur = {
     }
     const e = this.etape;
     if (e.type === 'fini') {
-      if (this.auto) this.log(`Arrivée en orbite basse ${de(ASTRES_PAR_ID[v.cible])}.`);
+      if (this.auto) this.log(ASTRES_PAR_ID[v.cible].artificiel ? `${e.texte}.` : `Arrivée en orbite basse ${de(ASTRES_PAR_ID[v.cible])}.`);
       this.auto = false; this.avance = false;
       return;
     }
@@ -511,7 +521,7 @@ const Orbiteur = {
     const v = this.v, p = ASTRES_PAR_ID[centreId];
     // Une seule sonde par astre : les astres qui en ont déjà une sont grisés.
     const deja = new Set(v.sondesEnVol.map((s) => s.cible));
-    const candidats = [p, ...(ENFANTS[p.id] || []).slice().sort((x, y) => y.rayonKm - x.rayonKm)].filter((a) => a.type !== 'etoile').slice(0, 16);
+    const candidats = [p, ...(ENFANTS[p.id] || []).slice().sort((x, y) => y.rayonKm - x.rayonKm)].filter((a) => a.type !== 'etoile' && !a.artificiel).slice(0, 16);
     const m = $('modale');
     m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>🛰 Grappe de sondes vers ${le(p)}</h2>
       <p>Les sondes partent ensemble de l’orbiteur puis se séparent : une par cible. En orbite, chacune cartographie sa cible et repère une zone de base et ses ressources. ${v.sondes} sonde${v.sondes > 1 ? 's' : ''} à bord.</p></div><button class="fermer">✕</button></header>
@@ -1089,11 +1099,26 @@ const Orbiteur = {
     v.cible = id; this.etape = null; this.auto = false;
     this.log(`Nouvelle cible : ${a.nom}${detail ? ` (${detail})` : ''}.`);
     this.majHud(true);
+    if (a.observatoire) return this.avertirObservatoire(a);
+    if (a.artificiel) return;
     const p = a.orbite && ASTRES_PAR_ID[a.orbite.centre];
     if (!p || p.type === 'etoile') return;
     // Déjà dans le système de cette planète (autour d'elle ou d'une de ses lunes) : rien à conseiller.
     for (let c = ASTRES_PAR_ID[v.orb.centre]; c; c = c.orbite && ASTRES_PAR_ID[c.orbite.centre]) if (c.id === p.id) return;
     this.conseilLune(a, p);
+  },
+  // Viser un observatoire : on prévient (sa gravité le déplacerait), et l'on peut renoncer.
+  avertirObservatoire(a) {
+    const m = $('modale');
+    m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>⚠ ${majuscule(le(a))} : ne pas déranger</h2>
+      <p>${a.nom} pèse ${fmtNombre(a.masseKg, 0)} kg ; l’orbiteur, des centaines de tonnes. Si vous vous en approchez, la gravité de l’orbiteur va le déplacer et fausser ses mesures, réglées avec une précision extrême.</p>
+      <p><b>Si ça arrive, les équipes scientifiques du monde entier vous haïront.</b> Regardez-le de loin.</p></div><button class="fermer">✕</button></header>
+      <div class="actions"><button id="obs-annuler" class="principal">Renoncer à cette cible</button><button id="obs-garder">Viser quand même</button></div></div>`;
+    m.classList.remove('cache');
+    const renoncer = () => { Infos.fermer(); this.v.cible = null; this.etape = null; this.log(`Cible abandonnée : ${le(a)} reste tranquille.`); this.majHud(true); };
+    m.querySelector('.fermer').onclick = () => Infos.fermer();
+    $('obs-annuler').onclick = renoncer;
+    $('obs-garder').onclick = () => Infos.fermer();
   },
   conseilLune(a, p) {
     const v = this.v, m = $('modale');
@@ -1124,6 +1149,7 @@ const Orbiteur = {
     const l = [];
     if (a.type !== 'etoile') l.push({ texte: '🎯 Choisir comme cible', action: () => this.choisirCible(a.id) });
     l.push({ texte: '🔭 Centrer la vue', action: () => this.centrerSur(a.id) });
+    if (a.artificiel) return l;   // pas de sonde ni de grappe vers un objet artificiel
     if (a.type !== 'etoile' && sondeVers(this.v, a.id)) l.push({ texte: '🛰 Sonde déjà envoyée', desactive: 'Une seule sonde par astre' });
     else if (a.type !== 'etoile' && this.v.sondes > 0) l.push({ texte: '🛰 Lancer une sonde', action: () => this.lancerSonde(a.id) });
     if (a.type !== 'etoile' && this.v.sondes > 0 && (ENFANTS[a.id] || []).length) l.push({ texte: '🛰 Grappe de sondes', action: () => this.ouvrirGrappe(a.id) });

@@ -22,7 +22,7 @@ const Infos = {
     const el = $('infobulle');
     if (!id) { el.classList.add('cache'); return; }
     const a = ASTRES_PAR_ID[id];
-    el.innerHTML = `<b>${a.nom}</b><span>${this.typeAstre(a)}</span><span>Rayon ${fmt(a.rayonKm, a.rayonKm < 10 ? 1 : 0)} km · g ${fmtG(a.g)}</span><span class="doux">Clic : toutes les données</span>`;
+    el.innerHTML = `<b>${a.nom}</b><span>${this.typeAstre(a)}</span><span>${a.artificiel ? a.taille || '' : ''}</span><span ${a.artificiel ? 'hidden' : ''}>Rayon ${fmt(a.rayonKm, a.rayonKm < 10 ? 1 : 0)} km · g ${fmtG(a.g)}</span><span class="doux">Clic : toutes les données</span>`;
     el.classList.remove('cache');
     const w = el.offsetWidth, h = el.offsetHeight;
     el.style.left = Math.min(innerWidth - w - 8, x + 16) + 'px';
@@ -30,7 +30,46 @@ const Infos = {
   },
 
   // ---------- Fiche complète ----------
+  // Objet artificiel (voiture, télescope, sonde) : une fiche à part, sans descente ni atmosphère.
+  donneesObjet(a) {
+    const lignes = (l) => l.filter(Boolean).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+    const sections = [['Identité', lignes([
+      ['Nom', a.nom],
+      ['Catégorie', this.typeAstre(a)],
+      a.exploitant ? ['Exploitant', a.exploitant] : null,
+      a.lancement ? ['Lancement', a.lancement] : null,
+      a.etatObjet ? ['État', a.etatObjet] : null,
+      a.instrument ? ['Instrument', a.instrument] : null,
+    ])], ['Caractéristiques physiques', lignes([
+      ['Taille', a.taille || '—'],
+      ['Masse', a.masseKg ? `${fmtNombre(a.masseKg, 0)} kg` : '—'],
+      ['Gravité', 'négligeable : on ne peut pas tourner autour, seulement le rejoindre (rendez-vous)'],
+    ])]];
+    if (a.orbite) {
+      const o = a.orbite, centre = ASTRES_PAR_ID[o.centre];
+      sections.push(['Orbite', lignes([
+        ['Tourne autour de', centre.nom],
+        a.ouOrbite ? ['Où', a.ouOrbite] : null,
+        ['Demi-grand axe', fmt(o.a) + ' km' + (centre.type === 'etoile' ? ' (' + fmt(o.a / UA_KM, 3) + ' UA)' : '')],
+        ['Excentricité', fmt(o.e, 4)],
+        ['Période', fmtDuree((360 / Math.abs(o.n)) * JOUR)],
+        ['Distance mini / maxi', fmt(o.a * (1 - o.e)) + ' / ' + fmt(o.a * (1 + o.e)) + ' km'],
+        ['Zone de rendez-vous', `${fmt(a.soi)} km autour de l’objet`],
+      ])]);
+    }
+    if (a.observatoire) {
+      const d = typeof etat !== 'undefined' && etat.voyage && (etat.voyage.deranges || {})[a.id];
+      sections.push(['⚠ Ne pas déranger', lignes([
+        ['Pourquoi', 'Ses mesures demandent une orbite et un pointage d’une précision extrême. L’orbiteur pèse des centaines de tonnes : en le frôlant, sa gravité déplacerait l’observatoire et fausserait ses mesures.'],
+        ['Si ça arrive', 'Les équipes scientifiques du monde entier vous haïront.'],
+        d ? ['Dérangé', `oui, le ${fmtDate(d.t, false)} : les scientifiques ne vous l’ont pas pardonné`] : null,
+      ])]);
+    }
+    return sections;
+  },
+
   donnees(a) {
+    if (a.artificiel) return this.donneesObjet(a);
     const sections = [];
     const R = a.rayonKm;
     const masse = (a.gm * 1e9) / 6.674e-11;
@@ -214,7 +253,7 @@ const Infos = {
     const cats = this.catFiltre;
     const correspond = (a) => (!masque || a.grosse) && (!f || a.nom.toLowerCase().includes(f) || (a.nomJpl || '').toLowerCase().includes(f));
     const visible = (a) => correspond(a) && (!cats.size || cats.has(a.categorie));
-    const bouton = (a) => `<button class="lien-astre" data-id="${a.id}" title="${CATEGORIES[a.categorie].nom}"><span class="pastille" style="background:${a.couleurs.disque}"></span>${a.nom}<small>${fmt(a.rayonKm, a.rayonKm < 10 ? 1 : 0)} km</small></button>`;
+    const bouton = (a) => `<button class="lien-astre" data-id="${a.id}" title="${CATEGORIES[a.categorie].nom}"><span class="pastille" style="background:${a.couleurs.disque}"></span>${a.nom}<small>${a.artificiel ? a.tailleCourte || '' : fmt(a.rayonKm, a.rayonKm < 10 ? 1 : 0) + ' km'}</small></button>`;
     // Boutons de mode et filtres par catégorie (avec le nombre d'astres qui correspondent à la recherche).
     document.querySelectorAll('[data-mode-encyclo]').forEach((b) => b.classList.toggle('choisi', b.dataset.modeEncyclo === this.modeEncyclo));
     const zoneFiltres = $('filtres-cat');
@@ -239,10 +278,12 @@ const Infos = {
       groupes.push(['Étoile', [etoileRacine()]]);
       for (const pid of SYSTEME.principaux) {
         const p = ASTRES_PAR_ID[pid];
-        const lunes = (ENFANTS[pid] || []).slice().sort((x, y) => y.rayonKm - x.rayonKm);
+        const lunes = (ENFANTS[pid] || []).filter((a) => !a.artificiel).sort((x, y) => y.rayonKm - x.rayonKm);
         groupes.push([p.nom + (lunes.length > 1 ? ` et ses ${lunes.length} lunes` : lunes.length ? ' et sa lune' : ''), [p, ...lunes]]);
       }
       groupes.push(['Ceinture d’astéroïdes', ASTRES.filter((a) => a.asteroide)]);
+      // Objets artificiels (voiture, télescopes, sondes), où qu'ils tournent.
+      groupes.push(['Objets artificiels', ASTRES.filter((a) => a.artificiel && !a.cachee)]);
     }
     const html = groupes.map(([titre, liste, def]) => {
       const l = liste.filter(visible);

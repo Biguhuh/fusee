@@ -112,6 +112,28 @@ function prochaineEtape(vs, t, cibleId) {
   // 1. Déjà dans la sphère d'influence de la cible.
   if (vs.centre === cibleId) {
     vs.transfert = null;
+    // Objet artificiel (quelques mètres, quelques tonnes) : pas d'orbite autour, un rendez-vous.
+    // On annule la vitesse relative et l'on reste à côté.
+    // Approche en ligne droite vers un point à 1,5 km de l'objet (sa gravité est négligeable), puis arrêt à côté.
+    if (cible.artificiel) {
+      const dist = V.norm(vs.r);
+      if (dist < 3) {
+        if (V.norm(vs.v) > 1e-4) return { type: 'rendezvous', texte: `Rendez-vous : s’arrêter à côté ${de(cible)}`, tExec: t, dv: (s) => V.mul(s.v, -1), reste: [] };
+        return { type: 'fini', texte: `Rendez-vous avec ${le(cible)} : à ${fmt(dist, 1)} km, vitesse relative nulle`, tExec: t, reste: [] };
+      }
+      const ru = V.unit(vs.r), d = V.add(V.mul(vs.r, -1), V.mul([-ru[1], ru[0]], 1.5));
+      const vitesse = Math.min(0.5, Math.max(0.005, dist / 7200));            // km/s : environ 2 h d'approche
+      const voulu = V.mul(V.unit(d), vitesse);
+      // Déjà en route vers l'objet (bonne direction, ni trop lent ni trop rapide) : on attend l'arrivée.
+      // (trajectoire en ligne droite qui passe à moins de 2,5 km de l'objet, en s'en rapprochant)
+      const vv = V.norm(vs.v);
+      const passage = vv > 0 ? Math.abs(V.cross(vs.r, V.unit(vs.v))) : Infinity;
+      const enRoute = vv >= 0.004 && vv <= 0.6 && V.dot(vs.r, vs.v) < 0 && passage < 2.5;
+      if (!enRoute) {
+        return { type: 'approche', texte: `Approche finale ${de(cible)} à ${fmtV(vitesse * 1000)}`, tExec: t, dv: (s) => V.sub(voulu, s.v), reste: ['Rendez-vous'] };
+      }
+      return { type: 'approche', texte: `Approche ${de(cible)}`, tExec: t + Math.max(1, (dist - 2.5) / Math.max(V.norm(vs.v), 1e-3)), attenteEvenement: true, reste: ['Rendez-vous'] };
+    }
     const rBas = rayonOrbiteBasse(cible);
     const sens = Math.sign(el.h) || 1;
     if (el.e >= 1 || el.ra > centre.soi * 0.9) {

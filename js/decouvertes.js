@@ -182,17 +182,22 @@ function verifierBetelgeuse(obs) {
 // ---------- La voiture rouge ----------
 // Lancée le 6 février 2018 par le premier vol de la Falcon Heavy, un mannequin en combinaison au volant.
 // Orbite réelle (JPL) : a = 1,325 UA, e = 0,256 (0,99 à 1,66 UA), périhélie le 10 novembre 2018.
-// Rayon de 1 km et sphère d'influence de 5 000 km : une « bulle de rendez-vous » pour que l'orbiteur puisse la rejoindre.
-CATEGORIES.objet = { nom: 'Objet artificiel', icone: '🚗', def: 'Objet fabriqué sur Terre et laissé dans l’espace.' };
+// Vraie taille (4 m, 1,3 t) : on ne tourne pas autour, on la rejoint (rendez-vous) dans une zone de 5 000 km,
+// puis on la capture et on l'équipe d'un propulseur solaire qui l'envoie dans le Soleil.
+CATEGORIES.objet = { nom: 'Objet artificiel', icone: '🛰', def: 'Objet fabriqué sur Terre et envoyé dans l’espace : télescopes, sondes… et une voiture.' };
+const G_KM = 6.674e-20;   // constante de la gravitation en km³/(kg·s²)
 (function creerVoiture() {
   if (ASTRES_PAR_ID.roadster) return;
   const a = astreGenerique({
-    id: 'roadster', nom: 'Voiture rouge', parent: null, rayonKm: 1, gm: 3e-7, distanceUA: 1.325, famille: 'ceinture',
+    id: 'roadster', nom: 'Voiture rouge', parent: null, rayonKm: 0.002, gm: 1300 * G_KM, distanceUA: 1.325, famille: 'ceinture',
     surface: 'carrosserie rouge',
     note: 'Une vraie voiture de sport, lancée le 6 février 2018 par le premier vol de la Falcon Heavy, un mannequin en combinaison au volant. Aucun instrument scientifique : une démonstration et une opération publicitaire. Elle tourne autour du Soleil entre 0,99 et 1,66 UA.',
   });
   Object.assign(a, {
-    type: 'objet', artificiel: true, gm: 3e-7, systeme: 'solaire', grosse: true, categorie: 'objet',
+    type: 'objet', artificiel: true, gm: 1300 * G_KM, systeme: 'solaire', grosse: true, categorie: 'objet',
+    taille: '4 m de long (voiture de sport décapotable)', tailleCourte: '4 m', masseKg: 1300,
+    exploitant: 'une entreprise privée (démonstration publicitaire)', lancement: '6 février 2018, premier vol de la Falcon Heavy',
+    etatObjet: 'à la dérive, sans instrument ni moteur', ouOrbite: 'entre 0,99 et 1,66 UA du Soleil',
     couleurs: { sol: '#c62828', ciel: '#000000', disque: '#e53935' },
     orbite: { centre: 'soleil', a: 1.325 * UA_KM, e: 0.256, varpi: 134.5, M0: 228.5, n: 360 / 557, retro: false, periodeJours: 557 },
     soi: 5000, soiReelle: 5000,
@@ -203,7 +208,9 @@ CATEGORIES.objet = { nom: 'Objet artificiel', icone: '🚗', def: 'Objet fabriqu
 })();
 
 // Propulseur solaire (campagne.js) : proposé à l'atelier une fois la voiture découverte.
-function astreMasque(a) { return !!(a.artificiel && eggTrouve('voiture-2')); }
+function astreMasque(a) { return !!(a.id === 'roadster' && eggTrouve('voiture-2')); }
+// Rendez-vous fait : à quelques km de l'objet, vitesse relative presque nulle.
+function aCoteDe(v, id) { return v.orb && v.orb.centre === id && V.norm(v.orb.r) < 20 && V.norm(v.orb.v) < 0.01; }
 function recetteVisible(cle, st) {
   if (cle === 'lanceurRetour') return !!AEROSTAT[st.centre];
   if (cle === 'propulseurs') return eggTrouve('voiture-1') && !eggTrouve('voiture-3') && SYSTEME.id === 'solaire';
@@ -235,7 +242,10 @@ function verifierVoiture(orb) {
 function actionsVoiture(orb) {
   const v = orb.v;
   if (SYSTEME.id !== 'solaire' || eggTrouve('voiture-3')) return '';
-  if (v.orb.centre === 'roadster' && !eggTrouve('voiture-2')) return '<button id="nav-voiture" class="principal">🧲 Capturer la voiture (équipage)</button>';
+  if (v.orb.centre === 'roadster' && !eggTrouve('voiture-2')) {
+    if (!aCoteDe(v, 'roadster')) return '<p class="doux">🚗 La voiture est dans la zone de rendez-vous : approchez-vous à quelques km et annulez la vitesse relative (cible « Voiture rouge », assistant ou pilote auto) pour la capturer.</p>';
+    return '<button id="nav-voiture" class="principal">🧲 Capturer la voiture (équipage)</button>';
+  }
   if (v.voiture && v.voiture.etat === 'a_bord') {
     if (!v.propulseurs) return '<p class="doux">🚗 La voiture est à bord. Il faut un propulseur solaire (atelier d’une station, puis amarrage) pour l’envoyer dans le Soleil.</p>';
     if (v.orb.centre !== 'soleil' && v.orb.centre !== 'roadster') return '<p class="doux">🚗 La voiture est à bord : sortez des sphères d’influence des planètes pour la lancer vers le Soleil.</p>';
@@ -247,6 +257,7 @@ function actionsVoiture(orb) {
 function actionVoiture(orb) {
   const v = orb.v;
   if (v.orb.centre === 'roadster' && !eggTrouve('voiture-2')) {
+    if (!aCoteDe(v, 'roadster')) return;
     v.voiture = { etat: 'a_bord' };
     // La voiture quitte son orbite : on retire l'astre de la carte et la navigation reprend autour du Soleil.
     const car = ASTRES_PAR_ID.roadster, abs = etatAbsolu('roadster', v.t), soleil = etatAbsolu('soleil', v.t);
