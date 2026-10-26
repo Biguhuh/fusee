@@ -142,6 +142,7 @@ function verifierEggsOrbite(orb, dt) {
   if (v.observation.duree < Math.min(periode, DUREE_MAX_OBSERVATION)) return;
   etat.decouvertes = etat.decouvertes || {};
   etat.decouvertes[e.id] = { astre: e.astre, quand: v.t, par: 'l’équipage de l’orbiteur' };
+  regArtefactBord(v, e.id);
   v.observation = null;
   orb.log(`✨ Découverte ${enOrbite(a)} : ${e.texte}${e.titre ? ` — « ${e.titre} »` : ''}`);
   sauver(etat);
@@ -217,6 +218,7 @@ const TEXTES_VOITURE = {
 function etapeVoiture(n, orb) {
   etat.decouvertes = etat.decouvertes || {};
   etat.decouvertes['voiture-' + n] = { astre: 'roadster', quand: orb.v.t, par: 'l’équipage de l’orbiteur' };
+  regArtefactBord(orb.v, 'voiture-' + n);
   orb.log(`${n === 3 ? '☀️' : '🚗'} ${TEXTES_VOITURE[n]}`);
   sauver(etat);
 }
@@ -407,6 +409,7 @@ function verifierDecouvertes(x) {
 function decouvrir(e, x) {
   etat.decouvertes = etat.decouvertes || {};
   etat.decouvertes[e.id] = { astre: e.astre, quand: etat.enVoyage && etat.voyage ? etat.voyage.t : null, par: nomSpatio() };
+  if (etat.enVoyage && etat.voyage) regArtefact(principal(etat.voyage), e.id);
   x.dire('✨ ' + e.texte);
   if (e.elvis) x.vol.elvis = true;
   if (e.id === 'chat') replique('chat');

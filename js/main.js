@@ -241,6 +241,7 @@ function finVol(r) {
   const v = etat.voyage;
   const reussi = ['orbite', 'liberation', 'plongee'].includes(r.cause);
   etat.suiteResultat = etat.enVoyage ? 'nav' : 'visite';
+  etat.repriseCrash = null;
   if (etat.vol.lancement) {
     // Lancement de la méga-fusée depuis la Terre.
     if (reussi) {
@@ -263,6 +264,7 @@ function finVol(r) {
     }
   } else if (etat.enVoyage) {
     const a = r.astre.id;
+    if (!etat.vol.robotSeul && etat.vol.doseSv) regDose(principal(v), etat.vol.doseSv);   // registre des équipages
     if (reussi) {
       // L'atterrisseur rejoint l'orbiteur avec ses échantillons ; ses ergols restants retournent en réserve.
       v.ergolsAtt += r.carburantRestant;
@@ -354,7 +356,10 @@ function allerLancement() {
     dessinerTour(c, cv.width / 2 + 22, 210, 190 / f.hauteur, f.hauteur);
     dessinerFusee(c, { f, angle: 0, throttle: 0, temp: 20 }, cv.width / 2, 210, 190 * (f.hauteur / 120));
   });
-  $('lanceurs').querySelectorAll('[data-lancer]').forEach((b) => { b.onclick = () => lancerMegaFusee(b.dataset.lancer); });
+  // Avant le pas de tir : composer l'équipage (vétérans ou recrues, prénoms et apparences).
+  $('lanceurs').querySelectorAll('[data-lancer]').forEach((b) => {
+    b.onclick = () => (etat.voyage ? ouvrirComposition(etat.voyage, () => lancerMegaFusee(b.dataset.lancer)) : lancerMegaFusee(b.dataset.lancer));
+  });
   montrer('lancement');
 }
 
@@ -394,10 +399,15 @@ function descendre(id) {
       if (!confirm(`Aucun lanceur de retour n’est prêt : ${pourquoi}.\n\nSans lui, le module ne pourra pas repartir ${de(a)} tant qu’il n’aura pas été construit et envoyé.\n\nDescendre quand même ?`)) return;
     }
   }
-  if (v.ergolsAtt < c.fusee.carburant) return Orbiteur.log(`Pas assez d’ergols pour l’atterrisseur (${fmt(v.ergolsAtt / 1000, 1)} t sur ${fmt(c.fusee.carburant / 1000, 1)} t) : ravitaillez à une station.`);
-  v.ergolsAtt -= c.fusee.carburant;
+  // Réserve insuffisante : on prévient (l'équipage ne pourra pas remonter), mais on laisse descendre avec ce qu'il reste.
+  const plein = c.fusee.carburant, dispo = Math.min(plein, v.ergolsAtt);
+  if (dispo < plein) {
+    const gaz = a.type === 'gazeuse';
+    if (!confirm(`⚠ Attention : il ne reste que ${fmt(dispo / 1000, 1)} t d’ergols pour l’atterrisseur, sur ${fmt(plein / 1000, 1)} t nécessaires.\n\nSi vous descendez, l’équipage ne pourra pas remonter ${gaz ? 'des profondeurs ' + de(a) : de(a)} : ${gaz ? 'la plongée' : 'la descente'} serait un aller simple.\n\nRavitaillez plutôt à une station. Descendre quand même ?`)) return;
+  }
+  v.ergolsAtt -= dispo;
   etat.destination = id;
-  lancer({ voyage: true, fusee: c.fusee, bases: basesSur(id), site: siteDescente(id) });
+  lancer({ voyage: true, fusee: c.fusee, carburant: dispo, bases: basesSur(id), site: siteDescente(id) });
 }
 
 // Zone repérée par une sonde : la descente vise un peu à côté (l'aire d'atterrissage de la base).
@@ -473,9 +483,13 @@ function rentrerSurTerre() {
   const vivants = v.equipe ? survivants(v).map((m) => m.nom) : (v.equipagePerdu ? [] : [nomSpatio()]);
   const equipage = vivants.length > 0;
   const nom = vivants.length > 1 ? `${vivants.slice(0, -1).join(', ')} et ${vivants[vivants.length - 1]}` : (vivants[0] || nomSpatio());
+  // Chaque personne de la capsule est hélitreuillée à son tour, avec son apparence.
+  const personnes = v.equipe ? survivants(v).map((m) => ({ nom: m.nom, profil: m.principal ? SPATIO : m.profil || PROFIL_DEFAUT }))
+    : (v.equipagePerdu ? [] : [{ nom: nomSpatio(), profil: SPATIO }]);
+  regRetour(v);
   const res = Orbiteur.rentrerSurTerre();
   sauver(etat);
-  jouerScene(new RetourTerre({ equipage, echantillons: res.n, nom }), () => afficherRetourTerre(res, equipage, nom));
+  jouerScene(new RetourTerre({ equipage, echantillons: res.n, nom, personnes }), () => afficherRetourTerre(res, equipage, nom));
 }
 // Capsule sans équipage : depuis l'orbite terrestre, les échantillons rentrent seuls ; l'expédition continue.
 function renvoyerEchantillons() {
@@ -521,16 +535,46 @@ function afficherRetourTerre(res, equipage, nom = nomSpatio()) {
   if (equipage) replique('bienvenue');
 }
 
+// Point de reprise : l'expédition telle qu'elle était dans sa dernière orbite, quand on a choisi une cible.
+// Après un crash, on peut recommencer de là, ou acter la perte et continuer. Gardé à part de la sauvegarde.
+const CLE_REPRISE = CLE_SAUVEGARDE + '-reprise';
+function noterPointReprise(v) {
+  try { localStorage.setItem(CLE_REPRISE, JSON.stringify({ expedition: v.expeditions, t: v.t, centre: v.orb.centre, voyage: v, registre: registre() })); } catch (e) { /* stockage plein : pas de reprise */ }
+}
+function lirePointReprise(v) {
+  try {
+    const p = JSON.parse(localStorage.getItem(CLE_REPRISE));
+    return p && v && !v.orb && p.voyage && p.expedition === v.expeditions && ASTRES_PAR_ID[p.centre] ? p : null;
+  } catch (e) { return null; }
+}
+function oublierPointReprise() { try { localStorage.removeItem(CLE_REPRISE); } catch (e) { /* ignoré */ } }
+function textePointReprise(p) { return `${enOrbite(ASTRES_PAR_ID[p.centre])}, le ${fmtDate(p.t, false)}`; }
+function reprendreAvantCrash(p) {
+  const v = p.voyage;
+  v.warp = 1;
+  if (v.tempsReel && v.tempsReel.actif) Object.assign(v.tempsReel, { departJeu: v.t, departReel: Date.now(), vuLe: Date.now() });
+  etat.voyage = v;
+  if (p.registre) etat.registre = p.registre;   // l'équipage n'est pas mort, finalement
+  etat.repriseCrash = null;
+  Orbiteur.camPlacee = false;
+  allerNavigation();
+  Orbiteur.log(`Expédition reprise avant le crash : ${textePointReprise(p)}.`);
+  sauver(etat);
+}
+
 function terminerExpedition(texte) {
   sauver(etat);
+  const p = lirePointReprise(etat.voyage);
   const h = $('res-titre');
   h.textContent = 'Expédition perdue';
   h.className = 'echec';
-  $('res-message').textContent = texte;
+  $('res-message').textContent = texte + (p ? ` Vous pouvez recommencer cette étape depuis la dernière orbite (${textePointReprise(p)}), avec le même équipage, ou acter la perte et poursuivre la campagne avec une nouvelle expédition.` : '');
   $('res-stats').innerHTML = '';
   etat.suiteResultat = 'accueil';
-  $('vers-hangar').textContent = '← Accueil';
-  $('rejouer').classList.add('cache');
+  etat.repriseCrash = p;
+  $('vers-hangar').textContent = p ? '✝ Acter la perte et continuer' : '← Accueil';
+  $('rejouer').textContent = p ? '↺ Recommencer avant le crash' : 'Rejouer';
+  $('rejouer').classList.toggle('cache', !p);
   montrer('resultat');
 }
 
@@ -579,8 +623,10 @@ function ouvrirReprise() {
   if (!v || v.fin) return allerNavigation();
   choisirSystemeCampagne(v);
   const basesOk = v.bases.filter((b) => !AEROSTAT[b.astre] && ASTRES_PAR_ID[b.astre]);
-  if (!v.stations.length && !basesOk.length) return allerNavigation();
+  const pr = lirePointReprise(v);   // orbiteur écrasé, perte pas encore actée
+  if (!pr && !v.stations.length && !basesOk.length) return allerNavigation();
   const choix = [];
+  if (pr) choix.push(['crash', '↺ Recommencer avant le crash', `${textePointReprise(pr)}, même équipage, même chargement`]);
   if (v.orb) choix.push(['ici', `▶ Là où vous étiez`, `${enOrbite(ASTRES_PAR_ID[v.orb.centre])}`]);
   for (const s of v.stations) choix.push(['station:' + s.id, `🛰 ${s.nom}`, `${enOrbite(ASTRES_PAR_ID[s.centre])}, amarré à la station`]);
   for (const b of basesOk) choix.push(['base:' + v.bases.indexOf(b), `🏠 ${nomBase(ASTRES_PAR_ID[b.astre])}, niveau ${b.niveau || 1}`, `au sol, l’atterrisseur garé à côté ; l’orbiteur attend en orbite`]);
@@ -602,6 +648,8 @@ function ouvrirReprise() {
 function reprendreDepuis(id) {
   const v = etat.voyage;
   if (id === 'ici') return allerNavigation();
+  if (id === 'crash') { const p = lirePointReprise(v); return p ? reprendreAvantCrash(p) : allerNavigation(); }
+  if (lirePointReprise(v)) oublierPointReprise();   // repartir d'ailleurs : la perte est actée
   if (id === 'terre') return allerLancement();
   Orbiteur.charger(v);
   if (!v.orb) {
@@ -637,6 +685,7 @@ function terminerParDepart(info) {
   const v = etat.voyage;
   v.fin = info;
   replique('force');
+  regVoyageEtoile(v, info.ans * 365.25 * 86400, 'route');   // registre : des siècles dans l'espace, s'il le faut
   Orbiteur.log(`Départ pour ${le(info.nomEtoile)} (${fmt(info.distanceAL, 2)} années-lumière) à ${fmt(info.vitesse, 1)} km/s : ${info.nomProfil.toLowerCase()}. Arrivée vers ${fmtAnnee(info.arriveeJeu)}.`);
   sauver(etat);
   const h = $('res-titre');
@@ -663,10 +712,12 @@ function terminerParDepart(info) {
 function partirVersSysteme(info) {
   const v = etat.voyage;
   replique('force');
+  regVoyageEtoile(v, (info.ansBord || info.ans) * 365.25 * 86400);   // registre : le temps vécu à bord
   Orbiteur.log(`Départ pour ${le(info.nomSysteme)} en ${TECHNOLOGIES[info.tech].nom.toLowerCase()} : ${fmtDureeAnnees(info.ans)} de voyage, installation prévue sur ${info.nomBase}.`);
   sauver(etat);
   jouerScene(new TransitInterstellaire(info), () => {
     const st = arriverDansSysteme(v, info);
+    for (const m of v.equipe || []) m.tDepart = v.t;   // le voyage est déjà compté dans le registre
     Orbiteur.charger(v);
     Orbiteur.camPlacee = false;
     sauver(etat);
@@ -754,11 +805,15 @@ $('vers-carte').onclick = allerCarte;
 $('retour-hangar').onclick = allerHangar;
 $('lancer').onclick = lancerVisite;
 $('vers-hangar').onclick = () => {
+  if (etat.repriseCrash) { etat.repriseCrash = null; oublierPointReprise(); }   // perte actée
   if (etat.suiteResultat === 'nav' && etat.voyage && etat.voyage.orb) allerNavigation();
   else if (etat.suiteResultat === 'visite') allerCarte();
   else allerAccueil();
 };
-$('rejouer').onclick = () => (etat.vol && etat.vol.lancement ? lancerMegaFusee() : rejouerVisite());
+$('rejouer').onclick = () => {
+  if (etat.repriseCrash) return reprendreAvantCrash(etat.repriseCrash);
+  return etat.vol && etat.vol.lancement ? lancerMegaFusee() : rejouerVisite();
+};
 $('accueil-campagne').onclick = () => $('voyage-nouveau').click();
 $('accueil-reprendre').onclick = ouvrirReprise;
 $('accueil-visite').onclick = allerCarte;
@@ -770,6 +825,7 @@ const CONTEXTE_PROMENADE = {
 };
 $('accueil-promenade').onclick = () => ouvrirPromenade(CONTEXTE_PROMENADE);
 $('accueil-spatio').onclick = () => afficherCreationSpatio(allerAccueil);
+$('accueil-registre').onclick = ouvrirRegistre;
 $('accueil-aide').onclick = () => ouvrirAide();
 document.querySelectorAll('.ouvrir-aide').forEach((b) => { b.onclick = () => ouvrirAide(); });
 $('exporter').onclick = () => { exporterSauvegarde(etat); $('sauvegarde-info').textContent = 'Fichier téléchargé.'; };
@@ -1080,6 +1136,7 @@ function image(t) {
         noterPerte(etat.voyage, nomSpatio(), etat.vol.astre.id, causeSortie(x.fin.texte));
       }
       if (etat.voyage && etat.enVoyage) etat.voyage.journal.push({ t: etat.voyage.t, texte: `${etat.vol.astre.nom} : ${x.fin.texte}` });
+      if (x.type === 'spationaute' && !x.terre && etat.enVoyage && etat.voyage) regVisite(principal(etat.voyage), etat.vol.astre.id, x.recoltes || 0, 'sortie');
       etat.explo = null;
       touches.clear();
       sauver(etat);

@@ -83,10 +83,40 @@ function resumeSpatio() {
   return `${emojiSpatio()} ${p.prenom || 'Spationaute sans prénom'}` + (d.length ? ` · ${d.join(', ')}` : '');
 }
 
+// ---------- Recrues tirées au hasard ----------
+// Prénom et genre vont ensemble (pour les accords) ; l'apparence est tirée à part.
+const RECRUES = [
+  ['Inès', 'femme'], ['Hugo', 'homme'], ['Amina', 'femme'], ['Yuki', 'femme'], ['Mateo', 'homme'], ['Sofia', 'femme'],
+  ['Kwame', 'homme'], ['Lena', 'femme'], ['Rahul', 'homme'], ['Chloé', 'femme'], ['Nadia', 'femme'], ['Tomás', 'homme'],
+  ['Aiko', 'femme'], ['Malik', 'homme'], ['Elsa', 'femme'], ['Diego', 'homme'], ['Camille', 'nb'], ['Sasha', 'nb'],
+  ['Ana', 'femme'], ['Jonas', 'homme'], ['Leïla', 'femme'], ['Oscar', 'homme'], ['Priya', 'femme'], ['Ibrahim', 'homme'],
+];
+function profilAleatoire(nomsPris = []) {
+  const libres = RECRUES.filter(([n]) => !nomsPris.includes(n));
+  const [prenom, genre] = libres.length ? libres[Math.floor(Math.random() * libres.length)] : ['Recrue', 'aucun'];
+  const hasard = (n) => Math.floor(Math.random() * n);
+  const coiffures = Object.keys(COIFFURES);
+  // Un membre sur huit environ vit avec un handicap d'un bras ou d'une jambe, compensé par une aide.
+  const handicap = Math.random() < 0.125;
+  const jambes = handicap && Math.random() < 0.5;
+  return {
+    ...PROFIL_DEFAUT, prenom, genre,
+    carnation: hasard(CARNATIONS.length), cheveux: hasard(COULEURS_CHEVEUX.length), coiffure: coiffures[hasard(coiffures.length)],
+    membresSup: handicap && !jambes ? 1 + hasard(2) : 0, membresInf: jambes ? 1 + hasard(2) : 0,
+    aideSup: Math.random() < 0.5 ? 'exo' : 'bionique', aideInf: Math.random() < 0.5 ? 'exo' : 'bionique',
+  };
+}
+
 // ---------- Page de création ----------
-function afficherCreationSpatio(suite) {
+// options.profil : profil à modifier (par défaut, votre spationaute) ; options.surValider(p) : ce qu'on en fait ;
+// options.titre : titre de la page.
+function afficherCreationSpatio(suite, options = {}) {
   const el = $('ecran-spatio');
-  const brouillon = { ...SPATIO };
+  const brouillon = { ...(options.profil || SPATIO) };
+  const titre = el.querySelector('h1, h2');
+  if (titre) { titre.dataset.defaut = titre.dataset.defaut || titre.textContent; titre.textContent = options.titre || titre.dataset.defaut; }
+  const intro = el.querySelector('header p');
+  if (intro) { intro.dataset.defaut = intro.dataset.defaut || intro.textContent; intro.textContent = options.intro || intro.dataset.defaut; }
   const pastilles = (nom, options, courant) => Object.entries(options).map(([k, l]) =>
     `<button type="button" class="choix-spatio ${k === courant ? 'choisie' : ''}" data-champ="${nom}" data-val="${k}">${typeof l === 'string' ? l : l.libelle}</button>`).join('');
   const nuancier = (nom, couleurs, courant) => couleurs.map((c, i) =>
@@ -140,6 +170,7 @@ function afficherCreationSpatio(suite) {
     SPATIO = ancien;
   };
   el.querySelector('.valider').onclick = () => {
+    if (options.surValider) { options.surValider({ ...brouillon }); suite(); return; }
     SPATIO = { ...brouillon, choisi: true };
     sauverSpatio();
     suite();
@@ -153,9 +184,9 @@ window.addEventListener('resize', () => { if (redessinerApercu && !$('ecran-spat
 
 // ---------- Dessin ----------
 // (x, y) : pieds au sol ; s : pixels par mètre ; p : { dir, pas } ; surTerre : combinaison de vol, tête nue.
-function dessinerSpationaute(ctx, x, y, s, p, surTerre) {
+function dessinerSpationaute(ctx, x, y, s, p, surTerre, profil) {
   const h = 1.8 * s;
-  const prof = SPATIO;
+  const prof = profil || SPATIO;
   const peau = CARNATIONS[prof.carnation] || CARNATIONS[3];
   const phase = Math.sin((p.pas || 0) * 4.5);
   const tissu = surTerre ? '#1d4f91' : '#f2f2f2';         // bleu des combinaisons de vol ESA / blanc du scaphandre

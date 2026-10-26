@@ -114,9 +114,8 @@ function ouvrirRessources(v, famille = 'eau', tout = false) {
   m.querySelectorAll('.lien-astre').forEach((b) => { b.onclick = () => Infos.ouvrirFiche(b.dataset.id); });
   m.querySelectorAll('[data-cible]').forEach((b) => {
     b.onclick = () => {
-      v.cible = b.dataset.cible; Orbiteur.etape = null; Orbiteur.auto = false;
-      Orbiteur.log(`Nouvelle cible : ${ASTRES_PAR_ID[v.cible].nom} (${f.nom.replace(/^\S+\s/, '')}).`);
-      Infos.fermer(); Orbiteur.majHud(true);
+      Infos.fermer();
+      Orbiteur.choisirCible(b.dataset.cible, f.nom.replace(/^\S+\s/, ''));
     };
   });
 }

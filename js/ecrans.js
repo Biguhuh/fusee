@@ -6,7 +6,7 @@ const $ = (id) => document.getElementById(id);
 // ---------- Sauvegarde (équipement + astres réussis) ----------
 const CLE_SAUVEGARDE = 'fusee-systeme-solaire';
 function charger() {
-  const vide = { equipement: equipementParDefaut(), records: {}, science: {}, masque: false, voyage: null, drapeaux: {}, sauts: {}, decouvertes: {}, reperes: {}, repliques: {} };
+  const vide = { equipement: equipementParDefaut(), records: {}, science: {}, masque: false, voyage: null, drapeaux: {}, sauts: {}, decouvertes: {}, reperes: {}, repliques: {}, registre: {} };
   try {
     const s = JSON.parse(localStorage.getItem(CLE_SAUVEGARDE));
     if (s && s.equipement) {
@@ -18,6 +18,7 @@ function charger() {
         decouvertes: s.decouvertes || {},   // easter eggs trouvés : { id: { astre, quand, par } }
         repliques: s.repliques || {},   // répliques déjà affichées : { id: true }
         reperes: s.reperes || {},     // easter eggs signalés par un robot, pas encore examinés : { id: true }
+        registre: s.registre || {},   // registre des équipages : { idPersonne: fiche }
       };
     }
   } catch (e) { /* stockage indisponible */ }
@@ -28,6 +29,7 @@ function sauver(etat) {
     localStorage.setItem(CLE_SAUVEGARDE, JSON.stringify({
       equipement: etat.equipement, records: etat.records, science: etat.science, masque: etat.masque, voyage: etat.voyage,
       drapeaux: etat.drapeaux, sauts: etat.sauts, decouvertes: etat.decouvertes, reperes: etat.reperes, repliques: etat.repliques,
+      registre: etat.registre || {},
     }));
   } catch (e) { /* ignoré */ }
 }
@@ -321,7 +323,24 @@ function afficherFiche(etat) {
 }
 
 // ---------- Résultat ----------
+// Module détruit avec l'équipage à bord : on le dit clairement, l'équipage est mort.
+const CAUSES_MORTELLES = ['ecrasee', 'carburant', 'brulee', 'pressurisee'];
 function texteResultat(r) {
+  const res = texteResultatModule(r);
+  const robot = typeof etat !== 'undefined' && etat.vol && (etat.vol.robotSeul || etat.vol.lancement);
+  if (CAUSES_MORTELLES.includes(r.cause) && !robot && res) {
+    // Une seule personne descend avec l'atterrisseur : les autres attendent à bord de l'orbiteur.
+    const v = etat.enVoyage && etat.voyage;
+    const autres = v && v.equipe ? survivants(v).filter((m) => !m.principal).map((m) => m.nom) : [];
+    const total = v && v.equipe ? v.equipe.length : 1;
+    const liste = autres.length > 1 ? `${autres.slice(0, -1).join(', ')} et ${autres[autres.length - 1]}` : autres[0];
+    res[0] += total > 1 ? ` : 1 membre d’équipage perdu sur ${total}` : ' : spationaute perdu';
+    res[2] += ` ${majuscule(nomSpatio())}, seul${acc()} à bord du module, est mort${acc()}.` +
+      (autres.length ? ` ${liste} ${autres.length > 1 ? 'attendent' : 'attend'} toujours à bord de l’orbiteur.` : '');
+  }
+  return res;
+}
+function texteResultatModule(r) {
   const a = r.astre, f = r.fusee, c = r.conditions;
   const i = r.impact;
   switch (r.cause) {
@@ -344,7 +363,7 @@ function texteResultat(r) {
         : `La coque a chauffé jusqu’à ${fmt(r.temp)} °C, au-delà des ${fmt(f.tempMax)} °C du bouclier, et s’est consumée peu à peu. Extérieur : ${fmt(c.t)} °C.`];
     case 'pressurisee':
       return ['Pressurisée', 'echec', `La pression extérieure est montée jusqu’à ${fmtP(c.p)} pour une coque prévue pour ${fmt(f.pressionMax)} bar : elle s’est déformée puis a cédé.` +
-        (a.type === 'gazeuse' ? (r.carburantRestant <= 0 ? ` Réservoir vide, la sonde a sombré vers le centre ${de(a)}.` : ` Plus on descend dans ${le(a)}, plus la pression monte.`) : '')];
+        (a.type === 'gazeuse' ? (r.carburantRestant <= 0 ? ` Réservoir vide, le module a sombré vers le centre ${de(a)}.` : ` Plus on descend dans ${le(a)}, plus la pression monte.`) : '')];
     case 'irradiee':
       return ['Irradiée', 'echec', `L’équipage a reçu une dose mortelle : ${fmtDoseTotale(r.doseSv || DOSE_MORTELLE)} (${fmtDose(r.svBord || 0)} à bord à la fin, panneau : dose ÷ ${fmt(f.protection)}). Il faut un panneau anti-vent solaire plus épais, ou rester moins longtemps.`];
     case 'pose':

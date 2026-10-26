@@ -13,6 +13,9 @@ class RetourTerre {
     this.equipage = options.equipage !== false;
     this.echantillons = options.echantillons || 0;
     this.nom = options.nom || 'l’équipage';
+    // Personnes de la capsule, hélitreuillées une par une, chacune avec son apparence.
+    this.personnes = options.personnes && options.personnes.length ? options.personnes : [{ nom: this.nom, profil: SPATIO }];
+    this.vitesse = 1;             // vitesse choisie par le joueur (multiplie le temps accéléré)
     this.terre = ASTRES_PAR_ID.terre;
     // Interface d'entrée : 120 km, 7,8 km/s, pente de −2°.
     const v0 = 7800, gam = (-2 * Math.PI) / 180;
@@ -27,19 +30,39 @@ class RetourTerre {
     this.etoiles = Array.from({ length: 120 }, (_, i) => [hash(i * 5.3), hash(i * 2.9), 0.3 + 0.7 * hash(i * 1.7)]);
     this.nuages = Array.from({ length: 14 }, (_, i) => ({ x: hash(i * 3.3), alt: 1200 + 2500 * hash(i * 9.1), l: 0.08 + 0.12 * hash(i * 4.4) }));
     // Durée à l'écran (s réelles) de chaque étape de la récupération, et durée simulée correspondante.
+    // (Avec équipage : un aller-retour du treuil par personne ; le 4e élément est l'indice de la personne.)
     this.recup = this.equipage
-      ? [['flotte', 3, 300], ['helico', 5, 25 * 60], ['treuil', 3, 4 * 60], ['montee', 3.5, 4 * 60], ['depart', 3, 5 * 60]]
+      ? [['flotte', 3, 300], ['helico', 5, 25 * 60],
+        ...this.personnes.flatMap((p, i) => [['treuil', i ? 2 : 3, 3 * 60, i], ['montee', 3, 4 * 60, i]]),
+        ['depart', 3, 5 * 60]]
       : [['flotte', 3.5, 300], ['bateau', 6, 2 * 3600], ['grue', 4, 20 * 60], ['hisse', 3, 10 * 60], ['fin', 2, 0]];
   }
 
-  // Facteur de temps de la descente : la rentrée en ≈ 10 s, les parachutes en ≈ 8 s.
-  facteur() {
+  // Facteur de temps de la descente : la rentrée en ≈ 10 s, les parachutes en ≈ 8 s ; × la vitesse choisie.
+  facteurBase() {
     if (this.phase === 'rentree') return 70;
     if (this.phase === 'pilote') return 20;
     if (this.phase === 'principal') return 55;
-    const e = this.recup.find((r) => r[0] === this.phase);
+    const e = this.recup[this.iRecup];
     return e && e[1] ? Math.max(1, e[2] / e[1]) : 1;
   }
+  facteur() { return this.facteurBase() * this.vitesse; }
+
+  // Vitesse du temps : touches + et −, ou boutons à l'écran.
+  changerVitesse(sens) {
+    const paliers = [0.25, 0.5, 1, 2, 4, 8];
+    const i = paliers.indexOf(this.vitesse);
+    this.vitesse = paliers[Math.max(0, Math.min(paliers.length - 1, i + sens))];
+  }
+  touche(e) {
+    if (['NumpadAdd', 'Equal', 'BracketRight'].includes(e.code) || e.key === '+') this.changerVitesse(1);
+    else if (['NumpadSubtract', 'Minus', 'Digit6'].includes(e.code) || e.key === '-') this.changerVitesse(-1);
+  }
+  clic(x, y) {
+    for (const b of this.boutons || []) if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) { this.changerVitesse(b.sens); return true; }
+    return false;
+  }
+  personneCourante() { const e = this.recup[this.iRecup]; return e && e[3] !== undefined ? this.personnes[e[3]] : null; }
 
   passer() {
     if (this.phase === 'rentree' || this.phase === 'pilote' || this.phase === 'principal') {
@@ -62,6 +85,7 @@ class RetourTerre {
   step(dt) {
     if (this.fini || !(dt > 0)) return;
     this.tAnim += dt;             // temps réel, pour les animations (rotors, houle, balise)
+    dt *= this.vitesse;           // la suite du film va plus ou moins vite
     if (this.iRecup !== undefined) {
       // Récupération : une étape après l'autre.
       const [, duree, sim] = this.recup[this.iRecup];
@@ -77,7 +101,7 @@ class RetourTerre {
       return;
     }
     // Descente : intégration de la trajectoire.
-    const total = dt * this.facteur();
+    const total = dt * this.facteurBase();
     const n = Math.ceil(total / 0.05);
     for (let i = 0; i < n && this.h > 0; i++) this.integrer(total / n);
     if (this.h <= 0) { this.h = 0; this.entrerRecuperation(); }
@@ -274,7 +298,8 @@ class RetourTerre {
       if (this.phase === 'treuil') { xH = xStat; yH = yStat; cable = lisse; personne = 0; }
       if (this.phase === 'montee') { xH = xStat; yH = yStat; cable = 1 - lisse; personne = lisse; }
       if (this.phase === 'depart') { xH = xStat - (xStat + 300 * k) * lisse; yH = yStat - 80 * k * lisse; }
-      if (this.phase !== 'flotte') this.dessinerHelico(ctx, xH, yH, k, cable, yCap - taille * 1.1, personne);
+      const qui = this.personneCourante();
+      if (this.phase !== 'flotte') this.dessinerHelico(ctx, xH, yH, k, cable, yCap - taille * 1.1, personne, qui && qui.profil);
       // Vent du rotor sur la mer
       if (this.phase === 'treuil' || this.phase === 'montee') {
         ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1.5;
@@ -291,7 +316,7 @@ class RetourTerre {
   }
 
 
-  dessinerHelico(ctx, x, y, k, cable, yCapsule, personne) {
+  dessinerHelico(ctx, x, y, k, cable, yCapsule, personne, profil) {
     ctx.save();
     ctx.translate(x, y);
     const s = k;
@@ -300,8 +325,9 @@ class RetourTerre {
       const yBas = (yCapsule - y) * (personne !== null && personne > 0 ? 1 - personne : cable);
       ctx.strokeStyle = '#263238'; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.moveTo(-6 * s, 14 * s); ctx.lineTo(-6 * s, Math.max(14 * s, yBas)); ctx.stroke();
-      if (personne !== null && personne > 0) this.dessinerPersonne(ctx, -6 * s, Math.max(14 * s, yBas) + 22 * s, s);
-      else if (personne === 0 && cable > 0.95) this.dessinerPersonne(ctx, -6 * s, yBas + 22 * s, s);
+      // Au bout du câble : la personne, avec son apparence, jusqu'à ce qu'elle entre dans la cabine.
+      if (personne !== null && personne > 0 && personne < 0.97) this.dessinerPersonne(ctx, -6 * s, Math.max(14 * s, yBas) + 30 * s, s, profil);
+      else if (personne === 0 && cable > 0.95) this.dessinerPersonne(ctx, -6 * s, yBas + 30 * s, s, profil);
     }
     // Fuselage
     ctx.fillStyle = '#e65100';
@@ -326,8 +352,12 @@ class RetourTerre {
     ctx.restore();
   }
 
-  // Spationaute en combinaison claire, harnais au bout du câble.
-  dessinerPersonne(ctx, x, y, s) {
+  // Membre d'équipage au bout du câble (y : niveau des pieds), avec son apparence ; à défaut, une silhouette.
+  dessinerPersonne(ctx, x, y, s, profil) {
+    if (profil && typeof dessinerSpationaute === 'function') {
+      dessinerSpationaute(ctx, x, y + 10 * s, 24 * s, { dir: 1, pas: 0 }, true, profil);
+      return;
+    }
     ctx.fillStyle = '#eceff1';
     ctx.beginPath(); ctx.arc(x, y - 18 * s, 4.5 * s, 0, 2 * Math.PI); ctx.fill();           // tête (casque)
     ctx.fillRect(x - 4 * s, y - 14 * s, 8 * s, 12 * s);                                       // corps
@@ -385,11 +415,13 @@ class RetourTerre {
       else etape = 'Parachutes principaux ouverts à 3 km : descente à environ 8 m/s vers l’océan.';
       lignes.push([etape, '#ffffff', true]);
     } else {
+      const e = this.recup[this.iRecup];
+      const qui = e && e[3] !== undefined ? { ...this.personnes[e[3]], i: e[3] } : null;
       const textes = {
         flotte: this.equipage ? 'Amerrissage ! Ballons de redressement gonflés, balise allumée.' : 'Amerrissage. Capsule vide : personne à hélitreuiller.',
         helico: 'L’hélicoptère de récupération arrive.',
-        treuil: 'Stationnaire au-dessus de la capsule : le treuil descend.',
-        montee: `Hélitreuillage : ${this.nom} ${/ et /.test(this.nom) ? 'remontent' : 'remonte'} à bord.`,
+        treuil: qui && qui.i ? `Le treuil redescend chercher ${qui.nom}.` : 'Stationnaire au-dessus de la capsule : le treuil descend.',
+        montee: `Hélitreuillage : ${qui ? qui.nom : this.nom} remonte à bord${this.personnes.length > 1 && qui ? ` (${qui.i + 1} sur ${this.personnes.length})` : ''}.`,
         depart: `${this.nom} ${/ et /.test(this.nom) ? 'sont' : 'est'} à bord. Direction la base${this.echantillons ? ' ; un navire récupérera la capsule et ses échantillons' : ''}.`,
         bateau: 'Le navire de récupération arrive.',
         grue: 'La grue se place au-dessus de la capsule.',
@@ -398,7 +430,7 @@ class RetourTerre {
       };
       lignes.push([textes[this.phase] || '', '#ffffff', true]);
     }
-    lignes.push([`T+ ${fmtDuree(this.t)} · temps accéléré ×${fmt(this.facteur())}`, '#8fa3b8']);
+    lignes.push([`T+ ${fmtDuree(this.t)} · temps accéléré ×${fmt(this.facteur())}${this.vitesse !== 1 ? ` (vitesse ×${fmtNombre(this.vitesse, 2)})` : ''} · + / − : vitesse`, '#8fa3b8']);
     ctx.save();
     ctx.textAlign = 'left'; ctx.textBaseline = 'top';
     const compact = W < 700, x0 = 14, w = compact ? W - 28 : Math.min(460, W * 0.42), taille = compact ? 12 : 13, y = 14;
@@ -415,6 +447,16 @@ class RetourTerre {
     ctx.fillStyle = 'rgba(8,14,28,0.72)';
     ctx.beginPath(); ctx.roundRect(x0, y, w, hauteur, 8); ctx.fill();
     ecrire(true);
+    // Boutons − / + de la vitesse du temps, sous le panneau.
+    const bw = 40, yb = y + hauteur + 8;
+    this.boutons = [{ x: x0, y: yb, w: bw, h: bw, sens: -1, t: '−' }, { x: x0 + bw + 8, y: yb, w: bw, h: bw, sens: 1, t: '+' }];
+    for (const b of this.boutons) {
+      ctx.fillStyle = 'rgba(8,14,28,0.72)'; ctx.beginPath(); ctx.roundRect(b.x, b.y, b.w, b.h, 8); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = '600 22px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(b.t, b.x + b.w / 2, b.y + b.h / 2 + 1);
+    }
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.font = '600 13px system-ui, sans-serif'; ctx.fillStyle = '#ffffff';
+    texteSurFond(ctx, `vitesse ×${fmtNombre(this.vitesse, 2)}`, x0 + 2 * bw + 16 + 50, yb + bw / 2, { police: '600 13px system-ui, sans-serif', couleur: '#ffffff' });
     ctx.restore();
   }
 }

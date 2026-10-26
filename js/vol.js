@@ -2139,6 +2139,7 @@ function afficherMessages(ctx, textes, W, yBas) {
   ctx.restore();
 }
 
+function jaugeHud(...args) { return jauge(...args); }   // pour le panneau de vol (qui a sa propre « jauge » conditionnelle)
 function jauge(ctx, x, y, w, frac, couleur) {
   ctx.fillStyle = 'rgba(255,255,255,0.15)';
   ctx.fillRect(x, y, w, 5);
@@ -2225,26 +2226,39 @@ function dessinerHUD(ctx, vol, W, H, warp) {
 }
 
 function dessinerHudDetail(ctx, vol, W, H, compact) {
-  const a = vol.astre, c = vol.c, f = vol.f;
   const x = 14, larg = compact ? Math.min(250, W - 40) : 250;
-  let y = 14;
+  // Deux passes : la première mesure la hauteur (les valeurs trop longues passent à la ligne), la seconde dessine.
+  const hPanneau = corpsHudDetail(ctx, vol, x, larg, compact, false) + 6;
   ctx.fillStyle = compact ? 'rgba(0,0,0,0.8)' : 'rgba(0,0,0,0.55)';
-  const hPanneau = a.type === 'solide' ? 434 : a.type === 'etoile' ? 380 : 470;
   ctx.fillRect(8, 8, larg + 12, hPanneau);
   ZONE_HUD = compact ? { x: 8, y: 8, w: larg + 12, h: hPanneau } : null;
+  corpsHudDetail(ctx, vol, x, larg, compact, true);
+}
+function corpsHudDetail(ctx, vol, x, larg, compact, dessiner) {
+  const a = vol.astre, c = vol.c, f = vol.f;
+  const jauge = (...args) => { if (dessiner) jaugeHud(...args); };
+  let y = 14;
   ctx.font = 'bold 15px system-ui, sans-serif';
   ctx.fillStyle = '#fff';
-  ctx.fillText(a.nom, x, y + 12);
+  if (dessiner) ctx.fillText(a.nom, x, y + 12);
   y += 24;
 
   const ligne = (label, valeur, couleur = '#fff') => {
     ctx.font = '12px system-ui, sans-serif';
     ctx.fillStyle = '#b0bec5';
-    ctx.fillText(label, x, y + 10);
+    if (dessiner) ctx.fillText(label, x, y + 10);
     ctx.font = 'bold 13px ui-monospace, Consolas, monospace';
     ctx.fillStyle = couleur;
-    ctx.fillText(valeur, x + 105, y + 10);
-    y += 18;
+    // Valeur trop longue pour le panneau : retour à la ligne, aligné sous la valeur.
+    const max = larg - 105, mots = String(valeur).split(' ');
+    let courant = '';
+    const lignes = [];
+    for (const m of mots) {
+      const essai = courant ? courant + ' ' + m : m;
+      if (courant && ctx.measureText(essai).width > max) { lignes.push(courant); courant = m; } else courant = essai;
+    }
+    lignes.push(courant);
+    for (const l of lignes) { if (dessiner) ctx.fillText(l, x + 105, y + 10); y += 18; }
   };
 
   const alt = vol.altSol();
@@ -2294,7 +2308,9 @@ function dessinerHudDetail(ctx, vol, W, H, compact) {
   ligne('Rayonn. à bord', fmtDose(vol.svBord || 0), couleurRisque((vol.svBord || 0) / DOSE_MORTELLE));
   ligne('Dose équipage', `${fmtDoseTotale(vol.doseSv || 0)} (${fmt(vol.dose)} % de la dose mortelle)`, couleurRisque(vol.dose / 100));
   if (a.type === 'gazeuse') ligne('Prélèvements', String((vol.prelevements || []).length), '#4dd0e1');
-  if (compact) { ctx.font = '11px system-ui, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillText('toucher : réduire', x, y + 12); }
+  const hauteurTotale = y + (compact ? 18 : 0);
+  if (compact) { ctx.font = '11px system-ui, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.55)'; if (dessiner) ctx.fillText('toucher : réduire', x, y + 12); }
+  return hauteurTotale;
 }
 
 // Le reste du tableau de bord : alertes, compte à rebours, jauges, manette, objectif, temps.
