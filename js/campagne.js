@@ -273,7 +273,13 @@ function lanceurRetourDisponible(v, astreId) {
   return { station: st, pret: (st.stock.lanceurRetour || 0) > 0, chantier };
 }
 function fmtStock(cle, q) { return ['carburant', 'ergols', 'materiaux'].includes(cle) ? `${fmt(q / 1000, q < 10000 ? 1 : 0)} t` : fmt(q); }
-function decrireContenu(c) { return Object.entries(c).filter(([, q]) => q > 0).map(([k, q]) => `${fmtStock(k, q)} ${NOMS_STOCK[k]}`).join(', '); }
+// « 1 extension de station, 10 t de matériaux, 60 t d’ergols » (accord au singulier, « de » devant les masses).
+function nomStockAccorde(k, q) {
+  const nom = NOMS_STOCK[k];
+  if (['carburant', 'ergols', 'materiaux'].includes(k)) return (k === 'ergols' ? 'd’' : 'de ') + nom;
+  return q === 1 ? nom.split(' ').map((w) => (w === 'de' ? w : w.replace(/s$/, ''))).join(' ') : nom;
+}
+function decrireContenu(c) { return Object.entries(c).filter(([, q]) => q > 0).map(([k, q]) => `${fmtStock(k, q)} ${nomStockAccorde(k, q)}`).join(', '); }
 
 // Ravitos lancés par le joueur : contenus types (capacité d'un cargo lourd).
 const CONTENUS_CARGO = {
@@ -307,6 +313,35 @@ const RECETTES = {
   // Propulseur ionique largable (environ 18 km/s pour 1,3 t) : il envoie la voiture rouge dans le Soleil.
   propulseurs: { nom: 'Propulseur solaire', materiaux: 6000, ergols: 3000, duree: 5 * JOUR },
 };
+
+// Extensions encore utiles à une station (cle 'extensionsStation') ou à la base de son astre (cle 'extensions') :
+// de quoi monter jusqu'au niveau 5, moins ce qui est déjà prévu (agrandissement ou descente en cours, stock,
+// cargos en route, chantiers de l'atelier). On n'envoie pas plus que nécessaire.
+function extensionsUtiles(v, st, cle) {
+  const enRoute = (v.cargos || []).filter((c) => c.dest === st.id).reduce((s, c) => s + ((c.contenu || {})[cle] || 0), 0);
+  const enChantier = (st.chantiers || []).filter((c) => c.cle === cle).length;
+  const prevu = (st.stock[cle] || 0) + enRoute + enChantier;
+  if (cle === 'extensionsStation') return { reste: Math.max(0, 5 - (st.niveau || 1) - (st.agrandissement ? 1 : 0) - prevu), niveau: st.niveau || 1, prevu };
+  const b = (v.bases || []).find((x) => x.astre === st.centre);
+  const niveau = b ? b.niveau || 1 : 1;
+  return { reste: Math.max(0, 5 - niveau - (b && b.descente ? 1 : 0) - prevu), niveau, prevu, base: !!b };
+}
+// Texte d'empêchement si un envoi (ou une fabrication) dépasse ce qui est utile, sinon ''.
+function extensionsEnTrop(v, st, contenu) {
+  for (const cle of ['extensionsStation', 'extensions']) {
+    const q = contenu[cle] || 0;
+    if (!q) continue;
+    const u = extensionsUtiles(v, st, cle);
+    if (u.reste >= q) continue;
+    const quoi = cle === 'extensionsStation' ? `${le(st)} (niveau ${u.niveau})` : `${le(nomBase(ASTRES_PAR_ID[st.centre]))} (niveau ${u.niveau})`;
+    const objet = cle === 'extensionsStation' ? 'extension de station' : 'extension de base';
+    return `${majuscule(quoi)} n’a plus besoin d’${objet} : de quoi atteindre le niveau 5 est déjà prévu${u.prevu ? ` (${u.prevu} en stock, en route ou à l’atelier)` : ''}.`;
+  }
+  return '';
+}
+
+// Cargo vers une station du même astre (Terre → station terrestre) : lancement et rendez-vous en orbite.
+const DUREE_RDV_LOCAL = JOUR;
 
 // ---------- Ravitaillement courant depuis la planète d'origine ----------
 // Petit cargo automatique et régulier ; plus la station est loin, plus le trajet est long.

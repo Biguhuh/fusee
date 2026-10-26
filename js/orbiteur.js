@@ -522,6 +522,7 @@ const Orbiteur = {
     this.majHud(true);
   },
 
+  // Rendez-vous en orbite autour d'un même astre (cargo lancé depuis la Terre vers la station terrestre).
   // Ravito : un cargo part de la Terre (ou d'une station) vers une station, sur sa propre trajectoire.
   // contenu : { cle: quantité } ; origineId : la planète d'origine (SYSTEME.origine) ou l'id d'une station.
   // Point de départ d'un cargo : la station terrestre (ou l'orbite basse de la planète d'origine), ou une station.
@@ -548,7 +549,8 @@ const Orbiteur = {
     if (this.cacheRavito.has(cle)) return this.cacheRavito.get(cle);
     const d = this.departCargo(origineId);
     let duree = null;
-    if (d) {
+    if (d && d.centre === dest.centre) duree = DUREE_RDV_LOCAL;
+    else if (d) {
       try { const p = this.planTrajet({ ...d, transfert: null, cible: dest.centre }); duree = p.fin === 'arrivee' ? p.tFin - p.t0 : null; } catch (e) { duree = null; }
     }
     this.cacheRavito.set(cle, duree);
@@ -559,6 +561,8 @@ const Orbiteur = {
     const v = this.v;
     const dest = v.stations.find((s) => s.id === destId);
     if (!dest) return this.log('Station de destination introuvable.');
+    const enTrop = extensionsEnTrop(v, dest, contenu);
+    if (enTrop) return this.log(enTrop);
     if (!estOrigine(origineId)) {
       const st = v.stations.find((s) => s.id === origineId);
       if (!st) return this.log('Station de départ introuvable.');
@@ -573,10 +577,14 @@ const Orbiteur = {
       id, nom: `${nom} → ${dest.nom}`, type: 'cargo', cible: dest.centre, dest: destId, contenu, origine,
       centre: depart.centre, r: depart.r.slice(), v: depart.v.slice(), transfert: null, etat: 'vol', tLancement: v.t,
     };
+    // Départ et station autour du même astre (Terre → station terrestre, par exemple) : simple rendez-vous en orbite.
+    // Le calcul interplanétaire, à qui l'on demandait d'aller vers l'astre où l'on est déjà, partait au loin.
+    if (depart.centre === dest.centre) { cargo.local = true; cargo.tArrivee = v.t + DUREE_RDV_LOCAL; }
     v.cargos.push(cargo);
     this.arriveePrevue(cargo);
     this.log(`Cargo « ${nom} » lancé depuis ${le(origine)} vers ${le(dest)} : ${decrireContenu(contenu)}.`);
-    this.ouvrirTrajet(id);
+    if (cargo.local) this.log(`Rendez-vous en orbite ${au(dest)} dans ${fmtDuree(DUREE_RDV_LOCAL)}.`);
+    else this.ouvrirTrajet(id);
   },
 
   mettreAJourSondes(dt) {
@@ -596,6 +604,11 @@ const Orbiteur = {
 
   avancerSonde(s, dt) {
     const v = this.v;
+    // Cargo local (même astre au départ et à l'arrivée) : il suit l'orbite et arrive à l'heure prévue.
+    if (s.local && s.etat === 'vol') {
+      if (v.t >= s.tArrivee) { s.etat = 'arrivee'; this.livrerRavito(s); }
+      return;
+    }
     {
       if (s.etat !== 'vol') {
         // Sonde arrivée : elle reste en orbite autour de sa cible (orbite fermée, propagation directe).
@@ -882,8 +895,11 @@ const Orbiteur = {
           <b>${s.nom}</b>${i === 0 && s.duree != null ? ' <span class="doux">(la plus rapide)</span>' : ''}<br><span class="doux">${s.duree === undefined ? 'calcul du trajet…' : s.duree === null ? 'pas de trajectoire trouvée' : `arrive dans ${fmtDuree(s.duree)}`}</span></label>`).join('') +
         (imposs.length ? `<p class="doux">Pas assez de stock : ${imposs.map((s) => `${s.nom} (${s.manque.join(', ')})`).join(' ; ')}.</p>` : '');
       m.querySelectorAll('input[name=rav-source]').forEach((i) => { i.onchange = () => { origineChoisie = i.value; choixManuel = true; memoriser(); }; });
-      $('rav-lancer').disabled = !origineChoisie;
-      $('rav-info').textContent = origineChoisie ? '' : 'Aucune source possible.';
+      // Pas plus d'extensions que nécessaire pour atteindre le niveau 5.
+      const stD = v.stations.find((s) => s.id === $('rav-dest').value);
+      const enTrop = stD ? extensionsEnTrop(v, stD, CONTENUS_CARGO[contenuChoisi()].contenu) : '';
+      $('rav-lancer').disabled = !origineChoisie || !!enTrop;
+      $('rav-info').textContent = enTrop || (origineChoisie ? '' : 'Aucune source possible.');
     };
     const calculer = () => {
       const d = $('rav-dest').value;
@@ -938,6 +954,8 @@ const Orbiteur = {
     const st = this.v.stations.find((s) => s.id === stationId);
     const r = RECETTES[cle];
     if (!st || !r) return;
+    const enTrop = extensionsEnTrop(this.v, st, { [cle]: 1 });
+    if (enTrop) return this.log(enTrop);
     if (st.stock.materiaux < r.materiaux) return this.log(`${st.nom} : pas assez de matériaux pour ${r.fem ? 'une' : 'un'} ${r.nom.toLowerCase()} (${fmtStock('materiaux', r.materiaux)} nécessaires).`);
     if (r.ergols && st.stock.ergols < r.ergols) return this.log(`${st.nom} : pas assez d’ergols pour ${r.fem ? 'une' : 'un'} ${r.nom.toLowerCase()} (${fmtStock('ergols', r.ergols)} nécessaires).`);
     st.chantiers = st.chantiers || [];
@@ -1119,7 +1137,7 @@ const Orbiteur = {
   // Ouvre la vue « trajectoire » : départ, arrivée et le trajet entre les deux, avec ses manœuvres.
   ouvrirTrajet(id) {
     const o = this.objetSuivi(id);
-    if (!o || !o.vaisseau) return;
+    if (!o || !o.vaisseau || o.vaisseau.local) return;   // cargo local : pas de trajet interplanétaire à montrer
     const plan = this.planTrajet(o.vaisseau);
     // Cadre : tous les points du trajet, l'astre de départ maintenant et la cible à l'arrivée.
     const boite = [...plan.pts, etatAbsolu(o.vaisseau.centre, this.v.t).r, etatAbsolu(plan.cible, plan.tFin).r];
