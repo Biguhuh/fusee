@@ -181,7 +181,7 @@ function tableauAstre(v, a, actif) {
     if (niveauStation(st).habitat && v.equipe) orb += `<dt>Habitat</dt><dd>équipe ${survivants(v).length}/${capaciteEquipe(v)} ${v.equipe.length < capaciteEquipe(v) ? bouton('recruter', '🧑‍🚀 Accueillir une recrue') : ''}</dd>`;
     for (const ch of st.chantiers || []) orb += ligne('🔧 Chantier', `${RECETTES[ch.cle].nom}, prêt dans ${fmtDuree(ch.fin - v.t)}`);
     if (actif) {
-      const fab = Object.entries(RECETTES).filter(([cle]) => cle !== 'lanceurRetour' || AEROSTAT[st.centre])
+      const fab = Object.entries(RECETTES).filter(([cle]) => recetteVisible(cle, st))
         .map(([cle, r]) => bouton(`fab:${st.id}:${cle}`, `🔧 ${r.nom}`, k.materiaux < r.materiaux || (r.ergols && k.ergols < r.ergols))).join(' ');
       orb += `<dt>Atelier</dt><dd class="actions-tb">${fab}</dd>`;
       orb += `<dt></dt><dd>${bouton(`ravito:${st.id}`, '📦 Envoyer un ravito ici')}</dd>`;

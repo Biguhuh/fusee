@@ -167,6 +167,7 @@ class TransitInterstellaire {
       [`Phase : ${ph} · vitesse ${i.tech === 'saut' ? '— (espace distordu)' : `${fmt(vit * 100, 1)} % de la vitesse de la lumière`}`, '#cfd8e3', 400, 13],
       [`Distance restante : ${fmt(i.distanceAL * (1 - (i.tech === 'saut' ? f : Math.min(1, f * 1.02))), 2)} années-lumière`, '#cfd8e3', 400, 13],
       [`Date du jeu : ${fmtAnnee(i.anneeDepart + ans)} · temps vécu à bord : ${fmtDureeAnnees(bord)}`, '#bfe0ff', 400, 13],
+      ...(f > 0.02 && f < 0.35 ? [[this.croisement || (this.croisement = texteCroisementVoyager(DONNEES_ETOILES[i.systeme].positionAL, i.tDepart)), '#ffe0a3', 400, 13]] : []),
       [f >= 1 ? `Arrivée par l’extérieur du système, cap sur ${i.nomBase}.` : `Arrivée prévue vers ${fmtAnnee(i.anneeDepart + i.ans)}.`, '#e6edf6', 400, 13],
     ];
     ctx.save(); ctx.textAlign = 'left'; ctx.textBaseline = 'top';

@@ -659,7 +659,7 @@ Infos.contexte = {
   actions: (a) => {
     const l = [];
     if (etat.ecran === 'nav') l.push(...Orbiteur.actionsPour(a));
-    if (etat.ecran !== 'nav' && etat.ecran !== 'vol' && etat.ecran !== 'explo') {
+    if (etat.ecran !== 'nav' && etat.ecran !== 'vol' && etat.ecran !== 'explo' && !a.artificiel) {
       l.push({ texte: '🚀 Visite rapide ici', action: () => { etat.destination = a.id; montrer('carte'); afficherCarte(etat, choisirDestination); lancerVisite(); } });
     }
     return l;

@@ -196,13 +196,13 @@ function configurerEtage(f, i) {
 
 // ---------- Stocks des stations ----------
 const CAPACITES_STATION = {
-  carburant: 200000, ergols: 200000, materiaux: 150000, sondes: 10, kits: 4, kitsBase: 3, robots: 4, atterrisseurs: 4, extensions: 4, lanceurRetour: 2, extensionsStation: 2,
+  carburant: 200000, ergols: 200000, materiaux: 150000, sondes: 10, kits: 4, kitsBase: 3, robots: 4, atterrisseurs: 4, extensions: 4, lanceurRetour: 2, extensionsStation: 2, propulseurs: 1,
 };
-const STOCK_VIDE = () => ({ carburant: 0, ergols: 0, materiaux: 0, sondes: 0, kits: 0, kitsBase: 0, robots: 0, atterrisseurs: 0, extensions: 0, lanceurRetour: 0, extensionsStation: 0 });
+const STOCK_VIDE = () => ({ carburant: 0, ergols: 0, materiaux: 0, sondes: 0, kits: 0, kitsBase: 0, robots: 0, atterrisseurs: 0, extensions: 0, lanceurRetour: 0, extensionsStation: 0, propulseurs: 0 });
 const NOMS_STOCK = {
   carburant: 'carburant', ergols: 'ergols', materiaux: 'matériaux', sondes: 'sondes', kits: 'kits de station',
   kitsBase: 'kits de base', robots: 'robots', atterrisseurs: 'atterrisseurs', extensions: 'extensions de base',
-  lanceurRetour: 'lanceurs de retour', extensionsStation: 'extensions de station',
+  lanceurRetour: 'lanceurs de retour', extensionsStation: 'extensions de station', propulseurs: 'propulseurs solaires',
 };
 
 // Une seule station, une seule base et une seule sonde par astre.
@@ -304,6 +304,8 @@ const RECETTES = {
   extensionsStation: { nom: 'Extension de station', fem: true, materiaux: 30000, duree: 5 * JOUR },
   // Vénus : lanceur à deux étages et son ballon, construit en orbite puis envoyé au sol sous parachute.
   lanceurRetour: { nom: 'Lanceur de retour (ballon + Aphrodite)', materiaux: 20000, ergols: 37000, duree: 20 * JOUR },
+  // Propulseur ionique largable (environ 18 km/s pour 1,3 t) : il envoie la voiture rouge dans le Soleil.
+  propulseurs: { nom: 'Propulseur solaire', materiaux: 6000, ergols: 3000, duree: 5 * JOUR },
 };
 
 // ---------- Ravitaillement courant depuis la planète d'origine ----------

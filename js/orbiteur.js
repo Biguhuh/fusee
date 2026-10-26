@@ -194,6 +194,8 @@ const Orbiteur = {
     this.mettreAJourSondes(dt);
     this.mettreAJourLogistique();
     verifierEggsOrbite(this, dt);
+    verifierVoiture(this);
+    verifierVoyagers(this);
     this.piloteAuto();
   },
 
@@ -977,6 +979,7 @@ const Orbiteur = {
     prendre('kitsBase', 2, 'kits de base');
     prendre('robots', ORBITEUR.robots, 'robots');
     prendre('atterrisseurs', ORBITEUR.atterrisseurs, 'atterrisseurs');
+    if ((s.stock.propulseurs || 0) > 0 && !(v.propulseurs > 0)) { s.stock.propulseurs -= 1; v.propulseurs = 1; pris.push('1 propulseur solaire'); }
     // Les échantillons peuvent attendre à la station ; ils repartent vers la Terre avec le cargo.
     this.etape = null;
     this.log(`Amarré ${au(s)}${pris.length ? ' : ' + pris.join(', ') : ' : stock vide, attendez le prochain cargo'}.`);
@@ -985,7 +988,7 @@ const Orbiteur = {
   // Peut-on descendre avec l'atterrisseur ?
   peutDescendre() {
     const c = ASTRES_PAR_ID[this.v.orb.centre];
-    return c.type !== 'etoile' && !estOrigine(c.id) && this.orbiteFermee() && this.v.atterrisseurs > 0;
+    return c.type !== 'etoile' && c.type !== 'objet' && !estOrigine(c.id) && this.orbiteFermee() && this.v.atterrisseurs > 0;
   },
 
   // Actions proposées dans la fiche d'un astre.
@@ -1258,10 +1261,13 @@ const Orbiteur = {
       }
     }
 
+    // Voyager 1 et 2, au-delà de l’héliosphère
+    dessinerVoyagers(ctx, ecran, dansEcran, t);
+
     // Orbites et astres
     // Catégories cachées par le joueur (fenêtre Vues) ; on garde toujours la cible, l'astre survolé et le centre de la vue.
     const cachees = this.categoriesCachees();
-    const montre = (a) => !cachees.has(a.categorie) || a.id === v.cible || a.id === v.orb.centre || a.id === this.cam.focus;
+    const montre = (a) => !astreMasque(a) && !cachees.has(a.categorie) || a.id === v.cible || a.id === v.orb.centre || a.id === this.cam.focus;
     const diag = Math.hypot(W, H);
     for (const a of ASTRES) {
       if (!montre(a)) continue;
@@ -1721,6 +1727,7 @@ const Orbiteur = {
       }
     } else d += '<h3>Pas de cible</h3><p class="doux">Cliquez sur un astre puis « Choisir comme cible ».</p>';
     d += '<h3>Actions</h3><div class="actions-nav">';
+    d += actionsVoiture(this);
     const fermee = this.orbiteFermee();
     if (estOrigine(c.id) && fermee) d += `<button id="nav-rentrer" class="principal">🏠 Rentrer sur ${SYSTEME.origineSans} (capsule)</button>`;
     if (c.id === 'terre' && fermee) d += '<button id="nav-iss">🛰 Rendez-vous avec la Station spatiale internationale</button>';
@@ -1740,8 +1747,8 @@ const Orbiteur = {
     const st = this.stationIci();
     if (st) d += `<button id="nav-amarrer">⚓ S’amarrer ${au(st)}</button>`;
     // Une seule station et une seule sonde par astre : bouton grisé avec la raison.
-    if (st && c.type !== 'etoile') d += `<button disabled title="Une seule station par astre">🏗 Station déjà installée sur cet astre</button>`;
-    else if (v.kits > 0 && fermee && c.type !== 'etoile') d += `<button id="nav-station" ${estOrigine(c.id) ? 'class="principal"' : ''}>🏗 Construire une station ici</button>`;
+    if (st && c.type !== 'etoile' && c.type !== 'objet') d += `<button disabled title="Une seule station par astre">🏗 Station déjà installée sur cet astre</button>`;
+    else if (v.kits > 0 && fermee && c.type !== 'etoile' && c.type !== 'objet') d += `<button id="nav-station" ${estOrigine(c.id) ? 'class="principal"' : ''}>🏗 Construire une station ici</button>`;
     if (v.cible && sondeVers(v, v.cible)) d += `<button disabled title="Une seule sonde par astre">🛰 Sonde déjà envoyée vers ${le(ASTRES_PAR_ID[v.cible])}</button>`;
     else if (v.cible && v.sondes > 0) d += `<button id="nav-sonde">🛰 Sonde vers ${le(ASTRES_PAR_ID[v.cible])} (repérage)</button>`;
     if (v.stations.length) d += `<button id="nav-ravito">📦 Envoyer un ravito</button>`;
@@ -1760,7 +1767,7 @@ const Orbiteur = {
       d += `<h3>${st.nom}</h3><dl>` + Object.keys(NOMS_STOCK).map((cle) => `<dt>${NOMS_STOCK[cle]}</dt><dd>${fmtStock(cle, k[cle] || 0)}</dd>`).join('') + '</dl>';
       if (ressourcesIllimitees() && st.prochainCargo) d += `<p class="doux">Ravitaillement courant de la Terre dans ${fmtDuree(st.prochainCargo - v.t)}.</p>`;
       d += `<p class="doux"><b>Atelier</b> (avec les matériaux et les ergols du stock) :</p><div class="orientations">` +
-        Object.entries(RECETTES).filter(([cle]) => cle !== 'lanceurRetour' || AEROSTAT[st.centre]).map(([cle, r]) =>
+        Object.entries(RECETTES).filter(([cle]) => recetteVisible(cle, st)).map(([cle, r]) =>
           `<button data-fab="${cle}" ${k.materiaux < r.materiaux || (r.ergols && k.ergols < r.ergols) ? 'disabled' : ''}>${r.nom} · ${fmtStock('materiaux', r.materiaux)}${r.ergols ? ` + ${fmtStock('ergols', r.ergols)} d’ergols` : ''}${r.duree ? ` · ${fmtDuree(r.duree)}` : ''}</button>`).join('') + '</div>';
       for (const ch of st.chantiers || []) d += `<p class="doux">🔧 Chantier : ${RECETTES[ch.cle].nom}, prêt le ${fmtDate(ch.fin)} (dans ${fmtDuree(ch.fin - v.t)}).</p>`;
     }
@@ -1799,6 +1806,7 @@ const Orbiteur = {
     bind('nav-depart', () => Depart.ouvrir(this.v));
     bind('nav-plein-origine', () => { this.pleinDepuisOrigine(); this.majHud(true); });
     bind('nav-iss', () => this.rendezVousISS());
+    bind('nav-voiture', () => { actionVoiture(this); this.majHud(true); });
     bind('nav-deployer-base', () => { this.deployerBase(v.orb.centre); this.majHud(true); });
     bind('nav-logistique', () => ouvrirLogistique(this.v, true));
     bind('nav-ressources', () => ouvrirRessources(this.v));

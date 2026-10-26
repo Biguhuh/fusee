@@ -51,6 +51,19 @@ const EASTER_EGGS = [
     texte: 'Un œuf au cuir épais, entrouvert. Vide. Mieux vaut ne pas chercher ce qui en est sorti.' },
   { id: 'epseri-main', astre: 'epseri_ast2', dx: 300, dessin: 'mainLevee',
     texte: 'Une main levée, doigts écartés en deux paires. Longue vie et prospérité.' },
+  // ExRépublique (Alpha Centauri) : exception voulue, sept clins d'œil sur un même astre.
+  { id: 'exrep-marais', astre: 'alphacen_p2', dx: 300, dessin: 'cabane',
+    texte: 'Au fond du marais, une cabane minuscule. Son occupant parle à l’envers et donne de drôles de conseils.' },
+  { id: 'exrep-desert', astre: 'alphacen_p2', dx: -400, dessin: 'fermier',
+    texte: 'Les deux soleils se couchent sur le sable. Un jeune fermier rêve de partir, comme son père avant lui.' },
+  { id: 'exrep-cites', astre: 'alphacen_p2', dx: 700, dessin: 'citesNuages',
+    texte: 'Des cités flottent au-dessus des nuages. Le commerce y prospère, la confiance un peu moins.' },
+  { id: 'exrep-cantine', astre: 'alphacen_p2', dx: -750, dessin: 'cantine',
+    texte: 'Un chasseur de primes boit en silence. À côté, un grand compagnon poilu grogne pour deux.' },
+  { id: 'exrep-foret', astre: 'alphacen_p2', dx: 1050, dessin: 'villagesArbres',
+    texte: 'Des villages perchés dans les arbres. De petits habitants poilus y accueillent les visiteurs au rythme des tambours.' },
+  { id: 'exrep-polaire', astre: 'alphacen_p2', dx: -1100, dessin: 'plaineGelee',
+    texte: 'Une plaine gelée balayée par le blizzard. Des tranchées abandonnées, et les empreintes de machines géantes à quatre pattes.' },
   { id: 'trappist-e', astre: 'trappist1_p4', dx: 350, dessin: 'longCou',
     texte: 'Un petit être scrute le ciel. Il voudrait téléphoner à la maison.' },
   { id: 'proxima-b', astre: 'proxima_p2', dx: -400, dessin: 'villePluie',
@@ -104,6 +117,8 @@ const EGGS_ORBITE = [
     texte: 'Une vieille balise rouillée, frappée du sigle d’une grande compagnie interstellaire : Weyland. Elle répète le nom d’une survivante, Ripley, et parle d’un chat.' },
   { id: 'trappist-f', astre: 'trappist1_p5',
     texte: 'Un paquebot de luxe flotte au-dessus des vagues. Les vacances sont réussies.' },
+  { id: 'exrep-sphere', astre: 'alphacen_p2',
+    texte: 'Une immense sphère en chantier. Le permis de construire est contesté.' },
   { id: 'alphacen', astre: 'alphacen_etoile',
     texte: 'Une plaque au nom d’un pilote qui aurait inventé le vol plus rapide que la lumière. Il aurait pris sa retraite ici.' },
 ];
@@ -155,6 +170,159 @@ function verifierBetelgeuse(obs) {
     sauver(etat);
   }
   return '✨ ' + EGG_BETELGEUSE.texte;
+}
+
+// ---------- La voiture rouge ----------
+// Lancée le 6 février 2018 par le premier vol de la Falcon Heavy, un mannequin en combinaison au volant.
+// Orbite réelle (JPL) : a = 1,325 UA, e = 0,256 (0,99 à 1,66 UA), périhélie le 10 novembre 2018.
+// Rayon de 1 km et sphère d'influence de 5 000 km : une « bulle de rendez-vous » pour que l'orbiteur puisse la rejoindre.
+CATEGORIES.objet = { nom: 'Objet artificiel', icone: '🚗', def: 'Objet fabriqué sur Terre et laissé dans l’espace.' };
+(function creerVoiture() {
+  if (ASTRES_PAR_ID.roadster) return;
+  const a = astreGenerique({
+    id: 'roadster', nom: 'Voiture rouge', parent: null, rayonKm: 1, gm: 3e-7, distanceUA: 1.325, famille: 'ceinture',
+    surface: 'carrosserie rouge',
+    note: 'Une vraie voiture de sport, lancée le 6 février 2018 par le premier vol de la Falcon Heavy, un mannequin en combinaison au volant. Aucun instrument scientifique : une démonstration et une opération publicitaire. Elle tourne autour du Soleil entre 0,99 et 1,66 UA.',
+  });
+  Object.assign(a, {
+    type: 'objet', artificiel: true, gm: 3e-7, systeme: 'solaire', grosse: true, categorie: 'objet',
+    couleurs: { sol: '#c62828', ciel: '#000000', disque: '#e53935' },
+    orbite: { centre: 'soleil', a: 1.325 * UA_KM, e: 0.256, varpi: 134.5, M0: 228.5, n: 360 / 557, retro: false, periodeJours: 557 },
+    soi: 5000, soiReelle: 5000,
+  });
+  ASTRES.push(a);
+  ASTRES_PAR_ID[a.id] = a;
+  (ENFANTS.soleil = ENFANTS.soleil || []).push(a);
+})();
+
+// Propulseur solaire (campagne.js) : proposé à l'atelier une fois la voiture découverte.
+function astreMasque(a) { return !!(a.artificiel && eggTrouve('voiture-2')); }
+function recetteVisible(cle, st) {
+  if (cle === 'lanceurRetour') return !!AEROSTAT[st.centre];
+  if (cle === 'propulseurs') return eggTrouve('voiture-1') && !eggTrouve('voiture-3') && SYSTEME.id === 'solaire';
+  return true;
+}
+
+const TEXTES_VOITURE = {
+  1: 'Une voiture de sport en orbite autour du Soleil. Aucun instrument scientifique, beaucoup de publicité.',
+  2: 'Vous avez ramassé un déchet vaniteux. L’espace s’en porte mieux.',
+  3: '2,21 gigowatts reçus. Le déchet vaniteux est bien cuit.',
+};
+function etapeVoiture(n, orb) {
+  etat.decouvertes = etat.decouvertes || {};
+  etat.decouvertes['voiture-' + n] = { astre: 'roadster', quand: orb.v.t, par: 'l’équipage de l’orbiteur' };
+  orb.log(`${n === 3 ? '☀️' : '🚗'} ${TEXTES_VOITURE[n]}`);
+  sauver(etat);
+}
+// Appelé à chaque avancée du temps de l'orbiteur.
+function verifierVoiture(orb) {
+  const v = orb.v;
+  if (v.orb && v.orb.centre === 'roadster' && !eggTrouve('voiture-1')) etapeVoiture(1, orb);
+  if (v.voiture && v.voiture.etat === 'chute' && v.t >= v.voiture.fin) {
+    v.voiture = { etat: 'incineree' };
+    etapeVoiture(3, orb);
+  }
+}
+// Boutons du panneau d'actions de l'orbiteur.
+function actionsVoiture(orb) {
+  const v = orb.v;
+  if (SYSTEME.id !== 'solaire' || eggTrouve('voiture-3')) return '';
+  if (v.orb.centre === 'roadster' && !eggTrouve('voiture-2')) return '<button id="nav-voiture" class="principal">🧲 Capturer la voiture (équipage)</button>';
+  if (v.voiture && v.voiture.etat === 'a_bord') {
+    if (!v.propulseurs) return '<p class="doux">🚗 La voiture est à bord. Il faut un propulseur solaire (atelier d’une station, puis amarrage) pour l’envoyer dans le Soleil.</p>';
+    if (v.orb.centre !== 'soleil' && v.orb.centre !== 'roadster') return '<p class="doux">🚗 La voiture est à bord : sortez des sphères d’influence des planètes pour la lancer vers le Soleil.</p>';
+    return '<button id="nav-voiture" class="principal">☀️ Lancer la voiture vers le Soleil (propulseur)</button>';
+  }
+  if (v.voiture && v.voiture.etat === 'chute') return `<p class="doux">☀️ La voiture tombe vers le Soleil : arrivée dans ${fmtDuree(v.voiture.fin - v.t)}.</p>`;
+  return '';
+}
+function actionVoiture(orb) {
+  const v = orb.v;
+  if (v.orb.centre === 'roadster' && !eggTrouve('voiture-2')) {
+    v.voiture = { etat: 'a_bord' };
+    // La voiture quitte son orbite : on retire l'astre de la carte et la navigation reprend autour du Soleil.
+    const car = ASTRES_PAR_ID.roadster, abs = etatAbsolu('roadster', v.t), soleil = etatAbsolu('soleil', v.t);
+    v.orb = { centre: 'soleil', r: V.add(V.sub(abs.r, soleil.r), v.orb.r), v: V.add(V.sub(abs.v, soleil.v), v.orb.v), transfert: null };
+    car.cachee = true;
+    if (v.cible === 'roadster') v.cible = null;
+    orb.etape = null;
+    etapeVoiture(2, orb);
+    return;
+  }
+  if (v.voiture && v.voiture.etat === 'a_bord' && v.propulseurs > 0) {
+    // Le propulseur (ionique, environ 18 km/s) annule la vitesse orbitale de la voiture : chute presque radiale.
+    // Durée de chute depuis la distance r : (π/2)·√(r³ / 2GM).
+    v.propulseurs -= 1;
+    const r = V.norm(etatAbsoluOrbiteur(orb));
+    const duree = (Math.PI / 2) * Math.sqrt(Math.pow(r, 3) / (2 * GM_SOLEIL));
+    v.voiture = { etat: 'chute', fin: v.t + duree };
+    orb.log(`☀️ Propulseur solaire allumé : la voiture perd sa vitesse orbitale et tombe vers le Soleil. Arrivée dans ${fmtDuree(duree)}.`);
+  }
+}
+function etatAbsoluOrbiteur(orb) { return orb.absolu(orb.v.orb); }
+
+// ---------- Voyager 1 et 2 ----------
+// Lancées en 1977, sorties de l'héliosphère en 2012 et 2018. Elles filent en ligne presque droite à vitesse
+// quasi constante : position = position de référence + vitesse × temps écoulé.
+// Référence NASA : Voyager 1 à un jour-lumière de la Terre (173,3 UA) le 18 novembre 2026.
+// Voyager 2 : environ 145 UA à la même date (estimation d'après sa vitesse depuis l'héliopause, 119 UA en 2018).
+// Directions (équatoriales, vers où elles vont) : Voyager 1 vers Ophiuchus, Voyager 2 vers le Paon.
+const T_REF_VOYAGER = (Date.UTC(2026, 10, 18, 10, 16) - Date.UTC(2000, 0, 1, 12)) / 1000;
+const VOYAGERS = [
+  { id: 'voyager1', nom: 'Voyager 1', ad: 258.3, dec: 12.0, rRef: 173.3, uaParAn: 3.57, heliopause: 2012 },
+  { id: 'voyager2', nom: 'Voyager 2', ad: 301.5, dec: -58.6, rRef: 145, uaParAn: 3.21, heliopause: 2018 },
+];
+const ANNEE_JULIENNE = 365.25 * 86400;
+function directionEquatoriale(ad, dec) {
+  const a = ad * DEG, d = dec * DEG;
+  return [Math.cos(d) * Math.cos(a), Math.cos(d) * Math.sin(a), Math.sin(d)];
+}
+// Distance au Soleil (UA) et position sur la carte (plan de l'écliptique, km) à l'instant t du jeu.
+function positionVoyager(vg, t) {
+  const r = vg.rRef + vg.uaParAn * (t - T_REF_VOYAGER) / ANNEE_JULIENNE;
+  const [x, y, z] = directionEquatoriale(vg.ad, vg.dec);
+  const eps = 23.439 * DEG;
+  const ye = y * Math.cos(eps) + z * Math.sin(eps);
+  return { r, carte: [x * r * UA_KM, ye * r * UA_KM] };
+}
+function dessinerVoyagers(ctx, ecran, dansEcran, t) {
+  if (SYSTEME.id !== 'solaire') return;
+  for (const vg of VOYAGERS) {
+    const p = positionVoyager(vg, t), e = ecran(p.carte);
+    if (!dansEcran(e, 0)) continue;
+    disque(ctx, e[0], e[1], 2.5, '#eceff1');
+    texteSurFond(ctx, `${vg.nom} · ${fmt(p.r)} UA`, e[0], e[1] - 10, { police: '11px system-ui, sans-serif', couleur: '#cfd8dc' });
+  }
+}
+function texteVoyager(vg, t) {
+  return `${vg.nom}, lancée en 1977, sortie de l’héliosphère en ${vg.heliopause}, à ${fmt(positionVoyager(vg, t).r)} UA du Soleil. Elle emporte un disque d’or avec des sons et des images de la Terre.`;
+}
+// L'orbiteur passe à moins d'une UA de l'une d'elles.
+function verifierVoyagers(orb) {
+  const v = orb.v;
+  if (SYSTEME.id !== 'solaire' || v.orb.centre !== 'soleil') return;
+  const pos = orb.absolu(v.orb);
+  for (const vg of VOYAGERS) {
+    v.voyagersVus = v.voyagersVus || {};
+    if (v.voyagersVus[vg.id]) continue;
+    if (V.norm(V.sub(pos, positionVoyager(vg, v.t).carte)) < UA_KM) {
+      v.voyagersVus[vg.id] = true;
+      orb.log(`📍 Croisement de ${texteVoyager(vg, v.t)}`);
+    }
+  }
+}
+// Départ vers une autre étoile : la Voyager la plus proche de la route, à la date du départ.
+function texteCroisementVoyager(positionAL, t) {
+  const n = Math.hypot(...positionAL), u = positionAL.map((c) => c / n);
+  let meilleur = null;
+  for (const vg of VOYAGERS) {
+    const d = directionEquatoriale(vg.ad, vg.dec);
+    const cos = d[0] * u[0] + d[1] * u[1] + d[2] * u[2];
+    const r = positionVoyager(vg, t).r;
+    const ecart = cos > 0 ? r * Math.sqrt(1 - cos * cos) : r;
+    if (!meilleur || ecart < meilleur.ecart) meilleur = { vg, ecart, devant: cos > 0 };
+  }
+  return `Croisement : ${texteVoyager(meilleur.vg, t)} ${meilleur.devant ? `Elle passe à ${fmt(meilleur.ecart)} UA de votre route.` : 'Elle file à l’opposé de votre route.'}`;
 }
 
 // Mimas : pas d'easter egg, seulement un fait réel dans sa fiche.
@@ -594,6 +762,52 @@ const DESSINS_EGGS = {
     // Doigts en deux paires, écartés au milieu.
     for (const [dx, h] of [[-0.17, 0.32], [-0.08, 0.36], [0.08, 0.36], [0.17, 0.32]]) rect(ctx, x + dx * s - 0.035 * s + (dx < 0 ? -0.03 : 0.03) * s, b - 0.3 * s - h * s, 0.07 * s, h * s, c);
     rect(ctx, x + 0.18 * s, b - 0.22 * s, 0.14 * s, 0.07 * s, c);                          // pouce
+  },
+  cabane(ctx, x, y, s) {
+    ctx.fillStyle = 'rgba(160,190,170,0.35)'; ctx.beginPath(); ctx.ellipse(x, y - 1 * s, 4 * s, 1.2 * s, 0, 0, Math.PI * 2); ctx.fill();   // brume
+    ctx.fillStyle = '#5d6b4e'; ctx.beginPath(); ctx.ellipse(x, y - 0.7 * s, 1.1 * s, 0.8 * s, 0, Math.PI, 0); ctx.fill();
+    disque(ctx, x + 0.2 * s, y - 0.35 * s, 0.25 * s, '#2b2b1e');
+    disque(ctx, x - 0.45 * s, y - 0.75 * s, 0.1 * s, '#ffcc66');                         // fenêtre éclairée
+  },
+  fermier(ctx, x, y, s) {
+    disque(ctx, x - 2.5 * s, y - 3.2 * s, 0.35 * s, '#ffcf6a'); disque(ctx, x - 1.6 * s, y - 2.9 * s, 0.25 * s, '#ffb36a');   // deux soleils bas
+    const c = '#d9c9a8';
+    trait(ctx, [[x - 0.08 * s, y], [x - 0.08 * s, y - 0.8 * s]], c, 0.12 * s);
+    trait(ctx, [[x + 0.08 * s, y], [x + 0.08 * s, y - 0.8 * s]], c, 0.12 * s);
+    rect(ctx, x - 0.2 * s, y - 1.45 * s, 0.4 * s, 0.65 * s, '#ece3d0');
+    disque(ctx, x, y - 1.65 * s, 0.15 * s, '#c8a27a');
+  },
+  citesNuages(ctx, x, y, s) {
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    for (const [dx, dy] of [[-3, 9], [0, 11], [3.5, 8.5]]) { ctx.beginPath(); ctx.ellipse(x + dx * s, y - dy * s, 2.2 * s, 0.5 * s, 0, 0, Math.PI * 2); ctx.fill(); }
+    for (const [dx, dy, h] of [[-3, 9, 2], [0, 11, 3], [3.5, 8.5, 1.6]]) {
+      rect(ctx, x + (dx - 0.5) * s, y - (dy + h) * s, 1 * s, h * s, '#d7dbe0');
+      ctx.fillStyle = '#b0b6bd'; ctx.beginPath(); ctx.ellipse(x + dx * s, y - dy * s, 1.3 * s, 0.25 * s, 0, 0, Math.PI); ctx.fill();
+    }
+  },
+  cantine(ctx, x, y, s) {
+    ctx.fillStyle = '#b89a72'; ctx.beginPath(); ctx.ellipse(x, y, 3 * s, 2.2 * s, 0, Math.PI, 0); ctx.fill();
+    rect(ctx, x - 0.5 * s, y - 1.3 * s, 1 * s, 1.3 * s, '#3b2f22');
+    const p = '#3e3a36', g = '#8a5a35';
+    trait(ctx, [[x + 3.6 * s, y], [x + 3.6 * s, y - 0.9 * s]], p, 0.14 * s);
+    rect(ctx, x + 3.4 * s, y - 1.6 * s, 0.4 * s, 0.7 * s, p); disque(ctx, x + 3.6 * s, y - 1.8 * s, 0.16 * s, p);   // chasseur de primes
+    rect(ctx, x + 4.3 * s, y - 2.3 * s, 0.7 * s, 2.3 * s, g); disque(ctx, x + 4.65 * s, y - 2.5 * s, 0.3 * s, g);   // grand compagnon poilu
+  },
+  villagesArbres(ctx, x, y, s) {
+    for (const dx of [-3, 0, 3.2]) {
+      rect(ctx, x + (dx - 0.4) * s, y - 9 * s, 0.8 * s, 9 * s, '#5d4030');
+      disque(ctx, x + dx * s, y - 9.5 * s, 2.2 * s, '#2e5a2e');
+      rect(ctx, x + (dx - 1.2) * s, y - 5 * s, 2.4 * s, 0.25 * s, '#7a5a3a');
+      ctx.fillStyle = '#6b4b2b'; ctx.beginPath(); ctx.moveTo(x + (dx - 0.8) * s, y - 5 * s); ctx.lineTo(x + dx * s, y - 6 * s); ctx.lineTo(x + (dx + 0.8) * s, y - 5 * s); ctx.fill();
+    }
+  },
+  plaineGelee(ctx, x, y, s) {
+    rect(ctx, x - 6 * s, y - 0.25 * s, 12 * s, 0.25 * s, '#eef4f8');
+    rect(ctx, x - 4 * s, y - 0.5 * s, 2.5 * s, 0.3 * s, '#9aa7b0');                     // tranchée
+    for (const k of [0, 1, 2]) rect(ctx, x + (1 + k * 1.8) * s, y - 0.12 * s, 0.9 * s, 0.1 * s, 'rgba(60,70,80,0.6)');   // empreintes géantes
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 0.03 * s;
+    const t = (performance.now() / 15) % (3 * s);
+    for (let k = -12; k <= 12; k++) { ctx.beginPath(); ctx.moveTo(x + k * 0.5 * s - t, y - 3 * s + k * 0.1 * s); ctx.lineTo(x + k * 0.5 * s - t - 0.6 * s, y - 2.9 * s + k * 0.1 * s); ctx.stroke(); }
   },
   longCou(ctx, x, y, s) {
     const c = '#8d6e63';

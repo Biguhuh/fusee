@@ -29,6 +29,8 @@ const DONNEES_ETOILES = {
     ],
     planetes: [
       { nom: 'Alpha Centauri A b', a: 2.0, e: 0.1, m: 100, statut: 'candidate (image du télescope James Webb, 2025), géante à confirmer' },
+      // Planète inventée (easter egg), dans la zone habitable d'Alpha Centauri A, sous deux soleils.
+      { nom: 'ExRépublique', a: 1.25, e: 0.03, P: 365.25 * Math.sqrt(1.25 ** 3 / 1.08), m: 1.0, r: 1.0, statut: 'Planète composite, venue d’une galaxie lointaine, très lointaine. Planète inventée' },
     ],
   },
   barnard: {

@@ -21,6 +21,7 @@ function decomposerNom(x) {
   const a = astreDe(x);
   if (a) {
     if (ARTICLES_ASTRES[a.id]) return { art: ARTICLES_ASTRES[a.id], nom: a.nom };
+    if (a.artificiel) return { art: 'la', nom: a.nom.charAt(0).toLowerCase() + a.nom.slice(1) };   // « la voiture rouge »
     if (/^Étoile /.test(a.nom)) return { art: 'l’', nom: 'é' + a.nom.slice(1) };
     return { art: '', nom: a.nom };
   }
