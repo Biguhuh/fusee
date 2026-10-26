@@ -331,6 +331,46 @@ function texteCroisementVoyager(positionAL, t) {
   return `Croisement : ${texteVoyager(meilleur.vg, t)} ${meilleur.devant ? `Elle passe à ${fmt(meilleur.ecart)} UA de votre route.` : 'Elle file à l’opposé de votre route.'}`;
 }
 
+// ---------- Compteur et liste des trouvailles ----------
+// Comptent : les easter eggs (au sol, en orbite, Bételgeuse) et les trois étapes de la voiture rouge.
+// Le message d'un robot ne compte pas : l'objet est seulement « à explorer ».
+function tousLesEggs() {
+  return [
+    ...EASTER_EGGS.map((e) => ({ id: e.id, astre: e.astre, texte: e.texte })),
+    ...EGGS_ORBITE.map((e) => ({ id: e.id, astre: e.astre, texte: e.texte, orbite: true })),
+    { id: EGG_BETELGEUSE.id, astre: 'betelgeuse', texte: EGG_BETELGEUSE.texte },
+    ...[1, 2, 3].map((n) => ({ id: 'voiture-' + n, astre: 'roadster', texte: TEXTES_VOITURE[n], orbite: true })),
+  ];
+}
+function nombreEggsTrouves() { return tousLesEggs().filter((e) => eggTrouve(e.id)).length; }
+// Un astre de n'importe quel système (le Système solaire est mis de côté quand on joue ailleurs).
+function astrePartout(id) {
+  if (id === 'betelgeuse') return { nom: 'Bételgeuse' };
+  if (ASTRES_PAR_ID[id]) return ASTRES_PAR_ID[id];
+  const listes = [ASTRES_SOLAIRE ? ASTRES_SOLAIRE.liste : [], ...Object.values(SYSTEMES).map((s) => s.astres || [])];
+  for (const l of listes) { const a = l.find((x) => x.id === id); if (a) return a; }
+  return { nom: id };
+}
+// Bloc du journal : compteur, liste des trouvailles (repliée), objets à explorer. Vide tant qu'il n'y a rien.
+function htmlTrouvailles() {
+  const tous = tousLesEggs(), n = nombreEggsTrouves();
+  const reperes = tous.filter((e) => etat.reperes && etat.reperes[e.id] && !eggTrouve(e.id));
+  let h = '';
+  if (n) {
+    const trouves = tous.filter((e) => eggTrouve(e.id)).sort((a, b) => ((etat.decouvertes[a.id].quand || 0) - (etat.decouvertes[b.id].quand || 0)));
+    h += `<p class="encart">✨ Easter eggs trouvés : <b>${n}</b> <button id="voir-trouvailles">Voir les trouvailles</button></p>
+      <ul class="sondes cache" id="liste-trouvailles">${trouves.map((e) => `<li><b>${Le(astrePartout(e.astre))}</b> — ${e.texte}</li>`).join('')}</ul>`;
+  }
+  if (reperes.length) {
+    h += `<h3>À explorer</h3><ul class="sondes">${reperes.map((e) => `<li>Objet inhabituel ${e.orbite ? enOrbite(astrePartout(e.astre)) : sur(astrePartout(e.astre))}</li>`).join('')}</ul>`;
+  }
+  return h;
+}
+function brancherTrouvailles(m) {
+  const b = m.querySelector('#voir-trouvailles');
+  if (b) b.onclick = () => { const l = m.querySelector('#liste-trouvailles'); l.classList.toggle('cache'); b.textContent = l.classList.contains('cache') ? 'Voir les trouvailles' : 'Masquer les trouvailles'; };
+}
+
 // Mimas : pas d'easter egg, seulement un fait réel dans sa fiche.
 if (typeof ASTRES_PAR_ID !== 'undefined' && ASTRES_PAR_ID.l601 && !/Herschel/.test(ASTRES_PAR_ID.l601.note || '')) {
   ASTRES_PAR_ID.l601.note = `${ASTRES_PAR_ID.l601.note || ''} Son cratère Herschel, large de 139 km, lui donne une célèbre allure de station spatiale de science-fiction.`.trim();

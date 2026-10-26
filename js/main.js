@@ -100,6 +100,9 @@ function allerAccueil() {
     $('progres-accueil').innerHTML = (SYSTEME.id !== 'solaire' ? `<b>Campagne dans le ${SYSTEME.nom}</b> (${fmt(SYSTEME.distanceAL, 2)} années-lumière). ` : '') +
       `Progression : <b>${vus.length} astre${vus.length > 1 ? 's' : ''} visité${vus.length > 1 ? 's' : ''}</b> sur ${astresAVisiter().length} (dont ${nPrinc} des ${SYSTEME.objectifs.length} principaux). ` + resumeCampagne(v);
   } else $('progres-accueil').innerHTML = '';
+  // Easter eggs : rien tant que le premier n'est pas trouvé.
+  const nEggs = nombreEggsTrouves();
+  if (nEggs) $('progres-accueil').innerHTML += `${$('progres-accueil').innerHTML ? '<br>' : ''}✨ Easter eggs trouvés : <b>${nEggs}</b>`;
   // Hors campagne (visite rapide, promenade, encyclopédie), on est dans le Système solaire.
   choisirSysteme('solaire');
   $('spatio-resume').textContent = resumeSpatio();
@@ -637,7 +640,9 @@ Orbiteur.contexte = {
   journal: () => {
     const m = $('modale');
     m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>Journal de bord</h2></div><button class="fermer">✕</button></header>
+      ${htmlTrouvailles()}
       <ol class="journal">${etat.voyage.journal.slice().reverse().map((j) => `<li><span class="doux">${fmtDate(j.t)}</span> ${j.texte}</li>`).join('')}</ol></div>`;
+    brancherTrouvailles(m);
     m.classList.remove('cache');
     m.querySelector('.fermer').onclick = () => Infos.fermer();
   },
