@@ -432,6 +432,7 @@ const Orbiteur = {
   crash() {
     const ici = sur(ASTRES_PAR_ID[this.v.orb.centre]);
     this.auto = false; this.avance = false;
+    regExpeditionPerdue(this.v, 'orbiteur écrasé', this.v.orb.centre);
     this.log(`L’orbiteur s’est écrasé ${ici} !`);
     this.log(`L’expédition est perdue. Il faudra lancer une nouvelle méga-fusée depuis la Terre.`);
     this.v.orb = null;

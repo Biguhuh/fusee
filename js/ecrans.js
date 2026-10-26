@@ -6,7 +6,7 @@ const $ = (id) => document.getElementById(id);
 // ---------- Sauvegarde (équipement + astres réussis) ----------
 const CLE_SAUVEGARDE = 'fusee-systeme-solaire';
 function charger() {
-  const vide = { equipement: equipementParDefaut(), records: {}, science: {}, masque: false, voyage: null, drapeaux: {}, sauts: {}, decouvertes: {}, reperes: {}, repliques: {} };
+  const vide = { equipement: equipementParDefaut(), records: {}, science: {}, masque: false, voyage: null, drapeaux: {}, sauts: {}, decouvertes: {}, reperes: {}, repliques: {}, registre: {} };
   try {
     const s = JSON.parse(localStorage.getItem(CLE_SAUVEGARDE));
     if (s && s.equipement) {
@@ -18,6 +18,7 @@ function charger() {
         decouvertes: s.decouvertes || {},   // easter eggs trouvés : { id: { astre, quand, par } }
         repliques: s.repliques || {},   // répliques déjà affichées : { id: true }
         reperes: s.reperes || {},     // easter eggs signalés par un robot, pas encore examinés : { id: true }
+        registre: s.registre || {},   // registre des équipages : { idPersonne: fiche }
       };
     }
   } catch (e) { /* stockage indisponible */ }
@@ -28,6 +29,7 @@ function sauver(etat) {
     localStorage.setItem(CLE_SAUVEGARDE, JSON.stringify({
       equipement: etat.equipement, records: etat.records, science: etat.science, masque: etat.masque, voyage: etat.voyage,
       drapeaux: etat.drapeaux, sauts: etat.sauts, decouvertes: etat.decouvertes, reperes: etat.reperes, repliques: etat.repliques,
+      registre: etat.registre || {},
     }));
   } catch (e) { /* ignoré */ }
 }

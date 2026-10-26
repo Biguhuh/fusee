@@ -381,6 +381,7 @@ class Exploration {
         const s = (this.science[this.astre.id] = this.science[this.astre.id] || { sites: {}, echantillons: 0, analyses: 0 });
         s.echantillons += n;
         this.vol.echantillons = (this.vol.echantillons || 0) + n;
+        this.recoltes = (this.recoltes || 0) + n;   // pour le registre des équipages
       }
       return this.terminer('retour', n ? `${n} échantillon${n > 1 ? 's' : ''} rangé${n > 1 ? 's' : ''} à bord de l’atterrisseur.` : 'De retour à bord.');
     }

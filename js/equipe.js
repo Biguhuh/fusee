@@ -15,7 +15,11 @@ function capaciteEquipe(v) { return v.stations.some((s) => niveauStation(s).habi
 
 // ---------- Pertes de l'expédition (pour le message du retour sur Terre) ----------
 // Chaque perte : { nom, astre, cause, t }. Remises à zéro à chaque nouvelle expédition.
-function noterPerte(v, nom, astreId, cause) { (v.pertesEquipage = v.pertesEquipage || []).push({ nom, astre: astreId, cause, t: v.t }); }
+function noterPerte(v, nom, astreId, cause) {
+  (v.pertesEquipage = v.pertesEquipage || []).push({ nom, astre: astreId, cause, t: v.t });
+  const m = (v.equipe || []).find((x) => x.nom === nom) || (nom === nomSpatio() ? (v.equipe || []).find((x) => x.principal) : null);
+  if (m) regMort(v, m, cause, astreId);
+}
 function causeSortie(texte) {
   if (/pression/.test(texte)) return 'combinaison écrasée par la pression';
   if (/chaleur/.test(texte)) return 'combinaison détruite par la chaleur';
@@ -36,18 +40,23 @@ function textePertes(v) {
 function initialiserEquipe(v) {
   v.equipagePerdu = false;       // nouvelle équipe, nouveau départ (voir le point 10 de la carte 4)
   v.pertesEquipage = [];
-  const pris = new Set();
-  const nom = () => { const libres = NOMS_EQUIPE.filter((n) => !pris.has(n)); const n = libres[Math.floor(Math.random() * libres.length)] || 'Recrue'; pris.add(n); return n; };
-  v.equipe = [{ id: 'e0', nom: nomSpatio(), principal: true, dose: 0, etat: 'bord' }];
-  for (let i = 1; i < TAILLE_EQUIPE; i++) v.equipe.push({ id: 'e' + i, nom: nom(), dose: 0, etat: 'bord' });
+  // L'équipe composée au centre de lancement (vétérans ou recrues, apparence choisie), sinon une proposition.
+  const prevue = v.equipePrevue && v.equipePrevue.length ? v.equipePrevue : equipeProposee(v);
+  v.equipe = prevue.map((p, i) => ({
+    id: 'e' + i, regId: p.regId, nom: p.principal ? nomSpatio() : p.profil.prenom || p.nom,
+    profil: p.principal ? null : { ...p.profil }, principal: !!p.principal, dose: 0, etat: 'bord',
+  }));
+  v.equipePrevue = null;
+  regDepart(v);
 }
 
 // Recrue supplémentaire (habitat d'une station de niveau 4).
 function recruter(v, log) {
   if (v.equipe.length >= capaciteEquipe(v)) return log(`L’équipe est au complet (${capaciteEquipe(v)} places${capaciteEquipe(v) < TAILLE_EQUIPE_HABITAT ? ' ; une station de niveau 4 en accueille 8' : ''}).`);
-  const libres = NOMS_EQUIPE.filter((n) => !v.equipe.some((m) => m.nom === n));
-  const m = { id: 'e' + Date.now(), nom: libres[0] || 'Recrue', dose: 0, etat: 'bord' };
+  const profil = profilAleatoire(v.equipe.map((x) => x.nom));
+  const m = { id: 'e' + Date.now(), nom: profil.prenom, profil, dose: 0, etat: 'bord' };
   v.equipe.push(m);
+  regRecrue(v, m);
   log(`${m.nom} rejoint l’équipe (${v.equipe.length}/${capaciteEquipe(v)}).`);
 }
 
@@ -90,7 +99,9 @@ function mettreAJourEquipe(v, log) {
   for (const m of v.equipe || []) {
     if (m.etat !== 'mission' || v.t < m.mission.fin) continue;
     const a = ASTRES_PAR_ID[m.mission.astre], jours = m.mission.jours;
-    m.dose += doseMission(a, jours);
+    const dMission = doseMission(a, jours);
+    m.dose += dMission;
+    regDose(m, dMission);
     v.atterrisseurs += 1;                                  // l'atterrisseur remonte seul, avec ou sans équipage
     v.visites[a.id] = { ...(v.visites[a.id] || {}), pose: true };
     if (m.dose >= DOSE_MORTELLE) {
@@ -100,6 +111,7 @@ function mettreAJourEquipe(v, log) {
     } else {
       const n = echantillonsMission(jours);
       v.echantillonsABord[a.id] = (v.echantillonsABord[a.id] || 0) + n;
+      regVisite(m, a.id, n, 'mission');
       m.etat = 'bord';
       log(`${m.nom} est de retour ${de(a)} avec ${n} échantillon${n > 1 ? 's' : ''} (dose cumulée ${fmtDoseTotale(m.dose)}).`);
     }

@@ -418,3 +418,20 @@ pre.erreur { white-space: pre-wrap; background: #1a0d0d; border: 1px solid #5a23
 }
 #replique .replique-source { display: block; font-size: 11.5px; font-style: normal; color: #b9c6d6; margin-top: 1px; }
 @media (max-width: 600px) { #replique { font-size: 13.5px; top: 28vh; } }
+
+/* Composition de l'équipage et registre des équipages */
+.cartes-equipage { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin: 12px 0; }
+.carte-membre { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding: 12px; border: 1px solid var(--bord); border-radius: 10px; background: rgba(255,255,255,0.03); }
+.carte-membre canvas, .fiche-registre canvas { border-radius: 8px; flex: none; }
+.boutons-membre { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.boutons-membre button, .boutons-membre select { width: 100%; font-size: 13px; }
+.liste-registre { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; margin-top: 12px; max-height: 70vh; overflow-y: auto; }
+.fiche-registre { display: flex; gap: 12px; padding: 12px; border: 1px solid var(--bord); border-radius: 10px; background: rgba(255,255,255,0.03); }
+.fiche-registre.mort { opacity: 0.75; border-style: dashed; }
+.fiche-registre h3 { margin: 0 0 2px; font-size: 15px; }
+.fiche-registre p { margin: 0 0 6px; font-size: 12.5px; }
+.corps-registre { min-width: 0; }
+.corps-registre dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; font-size: 12.5px; }
+.corps-registre dt { color: var(--doux); }
+.corps-registre dd { margin: 0; overflow-wrap: anywhere; text-align: left; }
+@media (max-width: 600px) { .liste-registre { grid-template-columns: 1fr; } .cartes-equipage { grid-template-columns: 1fr 1fr; } }
