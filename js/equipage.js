@@ -43,8 +43,8 @@ function texteMobilite(p) {
       : `${p.membresSup === 2 ? 'deux bras bioniques à pince remplacent les bras' : 'un bras bionique à pince remplace le bras'}`);
   }
   if (!t.length) return 'Tout l’équipage porte la même combinaison de l’ESA.';
-  const phrase = t.join(' ; ');
-  return phrase.charAt(0).toUpperCase() + phrase.slice(1) + ' : marcher, sauter, conduire le rover et ramasser des échantillons, comme tout l’équipage.';
+  const phrase = t.join(' ; ');
+  return phrase.charAt(0).toUpperCase() + phrase.slice(1) + ' : marcher, sauter, conduire l’astromobile et ramasser des échantillons, comme tout l’équipage.';
 }
 
 const PROFIL_DEFAUT = { prenom: '', genre: 'aucun', carnation: 3, cheveux: 1, coiffure: 'courte', membresSup: 0, membresInf: 0, aideSup: 'bionique', aideInf: 'exo' };
@@ -78,8 +78,8 @@ function acc() { return (GENRES[SPATIO.genre] || GENRES.aucun).accord; }
 function emojiSpatio() { return (GENRES[SPATIO.genre] || GENRES.aucun).emoji; }
 function resumeSpatio() {
   const p = SPATIO, d = [];
-  if (p.membresSup) d.push(`${p.membresSup === 2 ? '2 bras' : '1 bras'} : ${AIDES[p.aideSup].toLowerCase()}`);
-  if (p.membresInf) d.push(`${p.membresInf === 2 ? '2 jambes' : '1 jambe'} : ${AIDES[p.aideInf].toLowerCase()}`);
+  if (p.membresSup) d.push(`${p.membresSup === 2 ? '2 bras' : '1 bras'} : ${AIDES[p.aideSup].toLowerCase()}`);
+  if (p.membresInf) d.push(`${p.membresInf === 2 ? '2 jambes' : '1 jambe'} : ${AIDES[p.aideInf].toLowerCase()}`);
   return `${emojiSpatio()} ${p.prenom || 'Spationaute sans prénom'}` + (d.length ? ` · ${d.join(', ')}` : '');
 }
 
@@ -134,8 +134,8 @@ function afficherCreationSpatio(suite) {
     dessinerSpationaute(c, W * 0.25, H - 40, s, { dir: 1, pas: 0.12 }, true);
     dessinerSpationaute(c, W * 0.75, H - 40, s, { dir: -1, pas: 0.12 }, false);
     c.fillStyle = '#10223a'; c.font = '13px system-ui, sans-serif'; c.textAlign = 'center';
-    c.fillText('Sur Terre : combinaison ESA', W * 0.25, 20);
-    c.fillStyle = '#dfe8ff'; c.fillText('Sur les astres : scaphandre', W * 0.75, 20);
+    c.fillText('Sur Terre : combinaison ESA', W * 0.25, 20);
+    c.fillStyle = '#dfe8ff'; c.fillText('Sur les astres : scaphandre', W * 0.75, 20);
     c.textAlign = 'left';
     SPATIO = ancien;
   };

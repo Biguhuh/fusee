@@ -118,7 +118,7 @@ function prochaineEtape(vs, t, cibleId) {
       if (V.dot(vs.r, vs.v) < 0 && Math.abs(el.rp - rBas) > 0.1 * rBas) {
         // Régler le point le plus proche sur l'orbite basse.
         return {
-          type: 'approche', texte: `Approche : viser ${fmtAlt((rBas - cible.rayonKm) * 1000)} d'altitude au plus près`, tExec: t,
+          type: 'approche', texte: `Approche : viser ${fmtAlt((rBas - cible.rayonKm) * 1000)} d’altitude au plus près`, tExec: t,
           dv: (s) => {
             const rr = V.norm(s.r), vv = V.norm(s.v);
             const h = rBas * Math.sqrt(Math.max(0, vv * vv - (2 * mu) / rr + (2 * mu) / rBas));
@@ -131,7 +131,7 @@ function prochaineEtape(vs, t, cibleId) {
       }
       const dtP = tempsJusquPeriapse(vs);
       return {
-        type: 'capture', texte: `Capture : freiner au plus près de ${cible.nom}`, tExec: t + dtP,
+        type: 'capture', texte: `Capture : freiner au plus près ${de(cible)}`, tExec: t + dtP,
         dv: (s) => {
           const rr = V.norm(s.r), tu = [-s.r[1] / rr, s.r[0] / rr];
           return V.sub(V.mul(tu, sens * Math.sqrt(mu / rr)), s.v);
@@ -148,7 +148,7 @@ function prochaineEtape(vs, t, cibleId) {
       const sol = lambert(vs.r, V.rot(cible2, sens * 0.01), tof, mu, sens > 0);
       if (sol) {
         return {
-          type: 'abaisser', texte: `Rejoindre l'orbite basse (${fmtAlt((rBas - cible.rayonKm) * 1000)})`, tExec: t,
+          type: 'abaisser', texte: `Rejoindre l’orbite basse (${fmtAlt((rBas - cible.rayonKm) * 1000)})`, tExec: t,
           dv: () => V.sub(sol.v1, vs.v), reste: ['Circulariser'],
         };
       }
@@ -164,15 +164,15 @@ function prochaineEtape(vs, t, cibleId) {
         reste: [],
       };
     }
-    return { type: 'fini', texte: `En orbite basse de ${cible.nom}`, tExec: t, reste: [] };
+    return { type: 'fini', texte: `En orbite basse ${de(cible)}`, tExec: t, reste: [] };
   }
 
   // 2. La cible est sous le centre courant : transfert.
   const fils = filsVers(vs.centre, cibleId);
   if (fils) {
     const f = ASTRES_PAR_ID[fils];
-    const reste = [`Entrée dans la sphère d’influence de ${f.nom}`, 'Capture en orbite basse'];
-    if (fils !== cibleId) reste.push(`Transfert vers ${cible.nom}`);
+    const reste = [`Entrée dans la sphère d’influence ${de(f)}`, 'Capture en orbite basse'];
+    if (fils !== cibleId) reste.push(`Transfert vers ${le(cible)}`);
     if (vs.transfert && vs.transfert.cible === fils && t < vs.transfert.tArrivee + 0.25 * (vs.transfert.tArrivee - vs.transfert.tDepart)) {
       const tr = vs.transfert;
       const tMilieu = (tr.tDepart + tr.tArrivee) / 2;
@@ -189,12 +189,12 @@ function prochaineEtape(vs, t, cibleId) {
           reste,
         };
       }
-      return { type: 'croisiere', texte: `Croisière vers ${f.nom}`, tExec: tr.tArrivee, attenteEvenement: true, reste: reste.slice(1) };
+      return { type: 'croisiere', texte: `Croisière vers ${le(f)}`, tExec: tr.tArrivee, attenteEvenement: true, reste: reste.slice(1) };
     }
     const fen = chercherFenetre(vs, t, fils);
-    if (!fen) return { type: 'impossible', texte: `Pas de trajectoire trouvée vers ${f.nom}`, tExec: t, reste: [] };
+    if (!fen) return { type: 'impossible', texte: `Pas de trajectoire trouvée vers ${le(f)}`, tExec: t, reste: [] };
     return {
-      type: 'transfert', texte: `Transfert vers ${f.nom} : ${fmtV(fen.dv1 * 1000)}, arrivée dans ${fmtDuree(fen.tArrivee - t)}`,
+      type: 'transfert', texte: `Transfert vers ${le(f)} : ${fmtV(fen.dv1 * 1000)}, arrivée dans ${fmtDuree(fen.tArrivee - t)}`,
       tExec: t + fen.d, fenetre: fen,
       dv: (s, tc) => {
         // On recalcule au moment du départ pour être précis.
@@ -214,12 +214,12 @@ function prochaineEtape(vs, t, cibleId) {
   if (el.energie < 0) {
     const vinf = Math.min(0.5, 0.1 * vesc);
     return {
-      type: 'sortie', texte: `Quitter l’attraction de ${centre.nom}`, tExec: t,
+      type: 'sortie', texte: `Quitter l’attraction ${de(centre)}`, tExec: t,
       dv: (s) => V.sub(V.mul(V.unit(s.v), Math.sqrt((2 * mu) / V.norm(s.r) + vinf * vinf)), s.v),
-      reste: [`Sortie de la sphère d’influence de ${centre.nom}`, `Transfert vers ${cible.nom}`],
+      reste: [`Sortie de la sphère d’influence ${de(centre)}`, `Transfert vers ${le(cible)}`],
     };
   }
-  return { type: 'attente-sortie', texte: `Sortie de la sphère d’influence de ${centre.nom}`, tExec: t + estimerSortie(vs), attenteEvenement: true, reste: [`Transfert vers ${cible.nom}`] };
+  return { type: 'attente-sortie', texte: `Sortie de la sphère d’influence ${de(centre)}`, tExec: t + estimerSortie(vs), attenteEvenement: true, reste: [`Transfert vers ${le(cible)}`] };
 }
 
 function estimerSortie(vs) {

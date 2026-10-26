@@ -127,12 +127,12 @@ class Vol {
     if (this.compteARebours > 0) {
       const avant = this.compteARebours;
       this.compteARebours = Math.max(0, this.compteARebours - dt);
-      if (avant > 3 && this.compteARebours <= 3) this.noter('T−3 s : allumage des moteurs');
+      if (avant > 3 && this.compteARebours <= 3) this.noter('T−3 s : allumage des moteurs');
       this.throttle = this.compteARebours <= 3 ? Math.min(1, (3 - this.compteARebours) / 2) : 0;
       this.manette = this.throttle;
       if (this.compteARebours === 0) {
         this.tDecollage = this.t;
-        this.noter('T−0 : décollage !');
+        this.noter('T−0 : décollage !');
         this.decollageDemande = true;
         this.autopilote = true;
       } else return;
@@ -166,7 +166,7 @@ class Vol {
       if (this.carburant === 0 && f.etages && f.etage < f.etages.length - 1) {
         configurerEtage(f, f.etage + 1);
         this.carburant = f.carburant;
-        this.noter(`Séparation : ${f.etages[f.etage - 1].nom} largué à ${fmtAlt(this.y)}, ${f.etages[f.etage].nom} allumé`);
+        this.noter(`Séparation : ${f.etages[f.etage - 1].nom} largué à ${fmtAlt(this.y)}, ${f.etages[f.etage].nom} allumé`);
         // L'étage vide retombe : on le voit s'éloigner. Le bas de la fusée est maintenant le haut de l'étage largué.
         const lenLargue = f.etages[f.etage - 1].hauteur - f.hauteur;
         this.y += lenLargue * Math.cos(this.angle); this.x += lenLargue * Math.sin(this.angle);
@@ -213,6 +213,9 @@ class Vol {
     this.stats.altMin = Math.min(this.stats.altMin, this.y);
 
     this.dangers(c, v, dt);
+    verifierCassini(this);
+    if (this.integrite < 99.5 && !this.fin) repliqueVol(this, 'houston');
+    if (this.astre.type === 'gazeuse' && c.p > 10) repliqueVol(this, 'pression');
     if (this.fin) return;
     this.prelever();
 
@@ -234,7 +237,7 @@ class Vol {
         this.prelevements.push({ niveau: n, p: this.c.p, t: this.c.t, alt: this.y, texte });
         this.echantillons++;
         this.tPrelevement = this.t;
-        this.messageExplo = { texte: `Prélèvement n° ${this.prelevements.length} à ${fmtP(this.c.p)}, ${fmt(this.c.t)} °C : ${texte}`, vie: 6 };
+        this.messageExplo = { texte: `Prélèvement n° ${this.prelevements.length} à ${fmtP(this.c.p)}, ${fmt(this.c.t)} °C : ${texte}`, vie: 6 };
       }
     }
   }
@@ -297,6 +300,7 @@ class Vol {
       }
     }
     this.pose = true;
+    if (typeAtmosphere(this.astre) === 'dense' && this.astre.id !== 'terre' && this.astre.type === 'solide') repliqueVol(this, 'silence');
     this.vx = 0; this.vy = 0;
     this.angleRepos = penteRad; // la fusée va se poser sur la pente (en douceur, voir step)
     this.omega = 0;
@@ -350,7 +354,7 @@ class Vol {
         if (this.vy < -vFinale) aFrein = (this.vy * this.vy - vFinale * vFinale) / (2 * Math.max(0.5, alt - 2)) - trainee;
         if (Math.abs(ecart) > 6 && alt < 80) { vyCible = Math.max(vyCible, alt < 30 ? 0.5 : -2); aFrein = 0; } // attendre d'être au-dessus du plat
         if (alt < 15) inclinaisonMax = 0.05;
-        this.messageAuto = twr < 1 ? 'poussée insuffisante pour freiner !' : this.cibleX === null && alt < 1500 ? 'aucun terrain plat en vue' : 'descente vers une zone plate';
+        this.messageAuto = twr < 1 ? 'poussée insuffisante pour freiner !' : this.cibleX === null && alt < 1500 ? 'aucun terrain plat en vue' : 'descente vers une zone plate';
         break;
       }
       case 'au sol':
@@ -365,7 +369,7 @@ class Vol {
         if (a.type === 'gazeuse') {
           // Dans les géantes, monter vite limite les pertes dues à la gravité.
           vyCible = 550;
-          this.messageAuto = twr < 1 ? 'poussée insuffisante pour monter !' : 'remontée vers le niveau 1 bar';
+          this.messageAuto = twr < 1 ? 'poussée insuffisante pour monter !' : 'remontée vers le niveau 1 bar';
           break;
         }
         // Les grands lanceurs pivotent lentement : il leur faut un guidage qui n'exige jamais de virage brusque.
@@ -375,7 +379,7 @@ class Vol {
       case 'plongee': {
         const zone = 1 + (a.cible - 1) * 0.3;
         vyCible = this.c.p < zone ? -1e9 : -200;
-        this.messageAuto = 'plongée vers ' + fmt(a.cible, 1) + ' bar';
+        this.messageAuto = 'plongée vers ' + fmt(a.cible, 1) + ' bar';
         break;
       }
       case 'approche':
@@ -433,11 +437,11 @@ class Vol {
       angleCible = Math.atan2(sens * ax, ay);
       // On réduit la poussée en approchant de la vitesse orbitale, pour ne pas la dépasser.
       th = Math.min(1, resteH / (aT * 3) + 0.08);
-      this.messageAuto = `mise en orbite : encore ${fmt(resteH)} m/s`;
+      this.messageAuto = `mise en orbite : encore ${fmt(resteH)} m/s`;
     }
     this.orienterVers(angleCible, dt);
     this.manette = Math.max(0, Math.min(1, th));
-    if (twr < 1) this.messageAuto = 'poussée insuffisante pour décoller !';
+    if (twr < 1) this.messageAuto = 'poussée insuffisante pour décoller !';
   }
 
   // Montée vers l'orbite : on grimpe d'abord, puis on bascule vers l'horizontale
@@ -476,7 +480,7 @@ class Vol {
     if (Math.abs(dA) > 0.4) th *= 0.3;
     this.manette = Math.max(0, Math.min(1, th));
     const reste = vO - Math.abs(this.vx);
-    this.messageAuto = twr < 1 ? 'poussée insuffisante pour décoller !' : `mise en orbite : encore ${fmt(Math.max(0, reste))} m/s`;
+    this.messageAuto = twr < 1 ? 'poussée insuffisante pour décoller !' : `mise en orbite : encore ${fmt(Math.max(0, reste))} m/s`;
   }
 
   // Endroit le plus proche où le sol est presque plat sur une vingtaine de mètres.
@@ -502,7 +506,7 @@ class Vol {
     if (!this.pose || this.fin) return;
     if (this.lancement && this.compteARebours === undefined) {
       this.compteARebours = 10;
-      this.noter(this.geo ? 'Centre spatial guyanais, Kourou — compte à rebours : T−10 s' : 'Compte à rebours : T−10 s');
+      this.noter(this.geo ? 'Centre spatial guyanais, Kourou — compte à rebours : T−10 s' : 'Compte à rebours : T−10 s');
       return;
     }
     if (this.compteARebours > 0) return;
@@ -528,6 +532,13 @@ class Vol {
     }
     this.decollageDemande = true;
     this.autopilote = true;
+    if (!this.astre.atm && !this.lancement) repliqueVol(this, 'route');
+    // Phobos : après la découverte du disque d’or.
+    if (this.elvis) {
+      this.elvis = false;
+      this.noter('Elvis a quitté le bâtiment.');
+      if (typeof etat !== 'undefined' && etat.enVoyage && etat.voyage) etat.voyage.journal.push({ t: etat.voyage.t, texte: 'Elvis a quitté le bâtiment.' });
+    }
     // Vénus : le ballon se gonfle sur le lanceur, posé à côté du module.
     if (this.f.aerostat && !this.ascension) {
       this.xModule = this.x;   // le module blindé reste au sol
@@ -538,8 +549,8 @@ class Vol {
       this.phase = 'ballon';
       this.manette = 0;
       this.tDecollage = this.t; // la chronologie de la remontée part du gonflage du ballon
-      this.noter('Gonflage du ballon : le lanceur Aphrodite quitte le sol');
-      this.messageExplo = { texte: `Gonflage du ballon : montée lente vers ${fmtAlt(this.f.aerostat.alt)}, au-dessus de la fournaise. Accélérez le temps (+).`, vie: 9 };
+      this.noter('Gonflage du ballon : le lanceur Aphrodite quitte le sol');
+      this.messageExplo = { texte: `Gonflage du ballon : montée lente vers ${fmtAlt(this.f.aerostat.alt)}, au-dessus de la fournaise. Accélérez le temps (+).`, vie: 9 };
     }
   }
 
@@ -550,11 +561,11 @@ class Vol {
     const vLimite = lr.y - sol > 8000 ? -60 : -8;      // parachute principal sous 8 km
     lr.vy += (vLimite - lr.vy) * Math.min(1, dt / 15);
     lr.y += lr.vy * dt;
-    if (!lr.parachute && lr.y - sol < 8000) { lr.parachute = true; this.messageExplo = { texte: 'Parachute ouvert : le lanceur de retour descend vers le site.', vie: 5 }; }
+    if (!lr.parachute && lr.y - sol < 8000) { lr.parachute = true; this.messageExplo = { texte: 'Parachute ouvert : le lanceur de retour descend vers le site.', vie: 5 }; }
     if (lr.y <= sol) {
       lr.y = sol;
       lr.etat = 'pret';
-      this.messageExplo = { texte: 'Lanceur de retour posé à 30 m du module. T : gonfler le ballon et repartir.', vie: 10 };
+      this.messageExplo = { texte: 'Lanceur de retour posé à 30 m du module. T : gonfler le ballon et repartir.', vie: 10 };
     }
   }
 
@@ -570,7 +581,7 @@ class Vol {
     this.y += this.vy * dt;
     this.angle *= Math.max(0, 1 - dt / 5);
     this.throttle = 0;
-    this.messageAuto = `ballon : ${fmtAlt(this.y - this.sol(this.x))} sur ${fmtAlt(this.f.aerostat.alt)}`;
+    this.messageAuto = `ballon : ${fmtAlt(this.y - this.sol(this.x))} sur ${fmtAlt(this.f.aerostat.alt)}`;
     this.dangers(c, Math.hypot(this.vx, this.vy), dt);
     if (this.fin) return;
     if (this.y - this.sol(this.x) >= this.f.aerostat.alt) {
@@ -583,7 +594,7 @@ class Vol {
       this.phase = 'remontee';
       this.angle = 0;
       this.vy = 0;
-      this.noter(`Ballon à ${fmtAlt(alt)} (${fmtP(c.p)}, ${fmt(c.t)} °C) : largage, allumage du lanceur ${this.f.nomLanceur}`);
+      this.noter(`Ballon à ${fmtAlt(alt)} (${fmtP(c.p)}, ${fmt(c.t)} °C) : largage, allumage du lanceur ${this.f.nomLanceur}`);
     }
   }
 
@@ -605,20 +616,20 @@ class Vol {
       if (g.nom !== this.geoNom) {
         if (this.geoNom) {
           const p = prochainChangementKourou(this.x);
-          this.noter(g.type === 'ocean' && p ? `Survol : ${g.nom} — prochaine côte : ${p.nom}, à ${fmt(p.distance / 1000)} km` : `Survol : ${g.nom}`);
+          this.noter(g.type === 'ocean' && p ? `Survol : ${g.nom} — prochaine côte : ${p.nom}, à ${fmt(p.distance / 1000)} km` : `Survol : ${g.nom}`);
         }
         this.geoNom = g.nom;
       }
     }
     if (!this.maxQAnnonce && this.qMax > 5000 && q < 0.9 * this.qMax) {
       this.maxQAnnonce = true;
-      this.noter(`Max Q : pression aérodynamique maximale (${fmt(this.qMax / 1000)} kPa) à ${fmtAlt(this.y)}`);
+      this.noter(`Max Q : pression aérodynamique maximale (${fmt(this.qMax / 1000)} kPa) à ${fmtAlt(this.y)}`);
     }
-    if (!this.coiffeLarguee && this.y > 110000) {
+    if (!this.coiffeLarguee && coiffeALarguer(this.astre, this.y, this.y - this.sol(this.x))) {
       this.coiffeLarguee = true;
       // Les deux demi-coiffes s'écartent : on découvre l'orbiteur et son atterrisseur.
       if (this.f.charge) this.coiffeDebris = { x: this.x, y: this.y, vx: this.vx, vy: this.vy, angle: this.angle, t: 0 };
-      this.noter('Largage de la coiffe : l’atmosphère est trop ténue pour la charge utile');
+      this.noter(TEXTES_COIFFE[typeAtmosphere(this.astre)]);
     }
   }
   abandonner() { if (!this.fin) this.terminer(this.pose ? 'pose' : 'abandon'); }
@@ -659,28 +670,28 @@ class Vol {
   objectifTexte() {
     const a = this.astre;
     switch (this.phase) {
-      case 'descente': return `Posez-vous en douceur : moins de ${a.vMax} m/s, module droit, sol pas trop pentu`;
+      case 'descente': return `Posez-vous en douceur : moins de ${a.vMax} m/s, module droit, sol pas trop pentu`;
       case 'au sol':
         if (this.lancement) {
-          if (this.compteARebours > 0) return `${this.f.nomLanceur} : compte à rebours en cours…`;
-          return `${this.f.nomLanceur} sur le pas de tir : T pour lancer le compte à rebours`;
+          if (this.compteARebours > 0) return `${this.f.nomLanceur} : compte à rebours en cours…`;
+          return `${this.f.nomLanceur} sur le pas de tir : T pour lancer le compte à rebours`;
         }
         // Vénus : le retour passe par le lanceur que la station envoie au sol.
         if (this.f.aerostat && !this.ascension) {
           const lr = this.lanceurRetour;
-          if (!lr) return 'Posé sur Vénus ! T : demander le lanceur de retour à la station en orbite · E : spationaute · R : robot';
+          if (!lr) return 'Posé sur Vénus ! T : demander le lanceur de retour à la station en orbite · E : spationaute · R : robot';
           if (lr.etat === 'descente') return 'Le lanceur de retour descend sous son parachute… (accélérez le temps avec +)';
-          return 'Lanceur de retour posé à côté du module : T pour gonfler le ballon et repartir';
+          return 'Lanceur de retour posé à côté du module : T pour gonfler le ballon et repartir';
         }
         return this.voyage
-          ? 'Posé ! E : spationaute · R : robot · B : construire une base · T : décoller vers l\'orbiteur'
-          : 'Posé ! Entrée : terminer · E : spationaute · R : robot · T : décoller vers l\'orbite';
+          ? 'Posé ! E : spationaute · R : robot · B : construire une base · T : décoller vers l’orbiteur'
+          : 'Posé ! Entrée : terminer · E : spationaute · R : robot · T : décoller vers l’orbite';
       case 'remontee': return a.type === 'gazeuse'
-        ? `${fmt(a.cible, 1)} bar atteints ! Remontez jusqu'au niveau 1 bar`
-        : `Mise en orbite : ${fmtAlt(this.altOrbite)} d'altitude et ${fmtV(vitesseOrbitale(a, this.altOrbite))} à l'horizontale`;
-      case 'plongee': return `Pas de sol : plongez jusqu'à ${fmt(a.cible, 1)} bar (prélèvements automatiques), puis remontez`;
-      case 'approche': return 'Approchez le Soleil… si vous pouvez';
-      case 'ballon': return `Montée en ballon vers ${fmtAlt(this.f.aerostat ? this.f.aerostat.alt : 54000)} : le lanceur s’allumera dans les nuages (accélérez avec +)`;
+        ? `${fmt(a.cible, 1)} bar atteints ! Remontez jusqu’au niveau 1 bar`
+        : `Mise en orbite : ${fmtAlt(this.altOrbite)} d’altitude et ${fmtV(vitesseOrbitale(a, this.altOrbite))} à l’horizontale`;
+      case 'plongee': return `Pas de sol : plongez jusqu’à ${fmt(a.cible, 1)} bar (prélèvements automatiques), puis remontez`;
+      case 'approche': return 'Approchez-vous du Soleil… si vous le pouvez';
+      case 'ballon': return `Montée en ballon vers ${fmtAlt(this.f.aerostat ? this.f.aerostat.alt : 54000)} : le lanceur s’allumera dans les nuages (accélérez avec +)`;
     }
     return '';
   }
@@ -689,14 +700,14 @@ class Vol {
 // Ce que contient le gaz prélevé, selon la géante et la profondeur (pression en bar).
 function compositionGaz(a, p) {
   if (a.id === 'jupiter' || a.id === 'saturne') {
-    const base = 'hydrogène ~' + (a.id === 'jupiter' ? '90' : '96') + ' %, hélium, traces de méthane';
-    if (p < 0.7) return `${base} ; cristaux de glace d’ammoniac (les nuages blancs)`;
-    if (p < 2.5) return `${base} ; nuages d’hydrosulfure d’ammonium (les bandes brun-orangé)`;
-    return `${base} ; gouttelettes d’eau, nuages d’orage profonds`;
+    const base = 'hydrogène ~' + (a.id === 'jupiter' ? '90' : '96') + ' %, hélium, traces de méthane';
+    if (p < 0.7) return `${base} ; cristaux de glace d’ammoniac (les nuages blancs)`;
+    if (p < 2.5) return `${base} ; nuages d’hydrosulfure d’ammonium (les bandes brun-orangé)`;
+    return `${base} ; gouttelettes d’eau, nuages d’orage profonds`;
   }
   // Uranus et Neptune : le méthane absorbe le rouge, d'où leur couleur bleue.
-  if (p < 1.5) return 'hydrogène, hélium, ~2 % de méthane (il donne la couleur bleue) ; cristaux de méthane';
-  return 'hydrogène, hélium, méthane ; nuages de sulfure d’hydrogène (odeur d’œuf pourri !)';
+  if (p < 1.5) return 'hydrogène, hélium, ~2 % de méthane (il donne la couleur bleue) ; cristaux de méthane';
+  return 'hydrogène, hélium, méthane ; nuages de sulfure d’hydrogène (odeur d’œuf pourri !)';
 }
 
 // Altitude à atteindre pour réussir la remontée.
@@ -720,24 +731,24 @@ function fmt(n, dec = 0) {
 function fmtAlt(m) {
   const s = m < 0 ? '−' : '';
   m = Math.abs(m);
-  if (m >= 1e6) return s + fmt(m / 1000) + ' km';
-  if (m >= 10000) return s + fmt(m / 1000, 1) + ' km';
-  return s + fmt(m) + ' m';
+  if (m >= 1e6) return s + fmt(m / 1000) + ' km';
+  if (m >= 10000) return s + fmt(m / 1000, 1) + ' km';
+  return s + fmt(m) + ' m';
 }
 function fmtP(p) {
-  if (p === 0) return '0 bar';
-  if (p < 0.001) return p.toExponential(1).replace('.', ',') + ' bar';
-  if (p < 1) return fmt(p, 3) + ' bar';
-  if (p < 100) return fmt(p, 1) + ' bar';
-  return fmt(p) + ' bar';
+  if (p === 0) return '0 bar';
+  if (p < 0.001) return p.toExponential(1).replace('.', ',') + ' bar';
+  if (p < 1) return fmt(p, 3) + ' bar';
+  if (p < 100) return fmt(p, 1) + ' bar';
+  return fmt(p) + ' bar';
 }
 function fmtV(v) {
   const a = Math.abs(v);
-  if (a >= 10000) return fmt(v / 1000, 1) + ' km/s';
+  if (a >= 10000) return fmt(v / 1000, 1) + ' km/s';
   if (a < 1 && a > 0) return fmt(v * 100, 1) + ' cm/s';
-  return fmt(v, 1) + ' m/s';
+  return fmt(v, 1) + ' m/s';
 }
-function fmtG(g) { return g < 0.01 ? fmt(g * 1000, 2) + ' mm/s² (' + (g / G0).toExponential(1).replace('.', ',') + ' g)' : fmt(g, 2) + ' m/s² (' + fmt(g / G0, 2) + ' g)'; }
+function fmtG(g) { return g < 0.01 ? fmt(g * 1000, 2) + ' mm/s² (' + (g / G0).toExponential(1).replace('.', ',') + ' g)' : fmt(g, 2) + ' m/s² (' + fmt(g / G0, 2) + ' g)'; }
 
 // Durée lisible : secondes, minutes, heures, jours, mois, années.
 function fmtDuree(s) {
@@ -745,13 +756,13 @@ function fmtDuree(s) {
   s = Math.abs(s);
   const MIN = 60, H = 3600, J = 86400, MOIS = 30.436875 * J, AN = 365.25 * J;
   const deux = (n) => String(Math.floor(n)).padStart(2, '0');
-  if (s < MIN) return signe + fmt(s, s < 10 ? 1 : 0) + ' s';
-  if (s < H) return signe + Math.floor(s / MIN) + ' min ' + deux(s % MIN) + ' s';
-  if (s < J) return signe + Math.floor(s / H) + ' h ' + deux((s % H) / MIN) + ' min';
-  if (s < MOIS) return signe + Math.floor(s / J) + ' j ' + deux((s % J) / H) + ' h';
-  if (s < AN) return signe + Math.floor(s / MOIS) + ' mois ' + Math.floor((s % MOIS) / J) + ' j';
+  if (s < MIN) return signe + fmt(s, s < 10 ? 1 : 0) + ' s';
+  if (s < H) return signe + Math.floor(s / MIN) + ' min ' + deux(s % MIN) + ' s';
+  if (s < J) return signe + Math.floor(s / H) + ' h ' + deux((s % H) / MIN) + ' min';
+  if (s < MOIS) return signe + Math.floor(s / J) + ' j ' + deux((s % J) / H) + ' h';
+  if (s < AN) return signe + Math.floor(s / MOIS) + ' mois ' + Math.floor((s % MOIS) / J) + ' j';
   const ans = Math.floor(s / AN);
-  return signe + ans + (ans > 1 ? ' ans ' : ' an ') + Math.floor((s % AN) / MOIS) + ' mois';
+  return signe + ans + (ans > 1 ? ' ans ' : ' an ') + Math.floor((s % AN) / MOIS) + ' mois';
 }
 
 // Date du calendrier à partir du temps de simulation (s depuis J2000).
@@ -828,7 +839,8 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
     const lr = vol.lanceurRetour;
     const altCadre = lr && lr.etat === 'descente' ? Math.max(alt, Math.min(4000, (lr.y - vol.sol(lr.x)) * 1.2)) : alt;
     echelle = echelleCamera(a, altCadre, W, H);
-    fuseeY = H * 0.8 - alt * echelle;
+    // Téléphone en paysage : les boutons d'action occupent le bas de l'écran, le sol remonte pour rester visible.
+    fuseeY = H * (ecranPaysageTactile(W, H) ? 0.6 : 0.8) - alt * echelle;
     solY = fuseeY + vol.y * echelle;
   }
 
@@ -899,7 +911,7 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
     ctx.setLineDash([]);
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
     ctx.font = '12px system-ui, sans-serif';
-    ctx.fillText('niveau 1 bar', 12, solY - 6);
+    ctx.fillText('niveau 1 bar', 12, solY - 6);
   }
 
   // Fumée et étincelles, puis fusée ou explosion.
@@ -915,7 +927,7 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
       const x = Math.max(30, Math.min(W - 30, sx));
       ctx.fillStyle = '#ffd54f';
       ctx.beginPath(); ctx.moveTo(x - 9, 52); ctx.lineTo(x + 9, 52); ctx.lineTo(x, 66); ctx.fill();
-      texteSurFond(ctx, `Lanceur de retour : ${fmtAlt(Math.max(0, lr.y - vol.sol(lr.x)))}`, x, 46, { police: 'bold 12px system-ui, sans-serif', couleur: '#ffd54f' });
+      texteSurFond(ctx, `Lanceur de retour : ${fmtAlt(Math.max(0, lr.y - vol.sol(lr.x)))}`, x, 46, { police: 'bold 12px system-ui, sans-serif', couleur: '#ffd54f' });
     }
   }
   // Vénus : le module blindé reste au sol après le départ du ballon.
@@ -991,6 +1003,26 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
   }
 
   dessinerHUD(ctx, vol, W, H, warp);
+}
+
+// ---------- Coiffe ----------
+// La coiffe protège la charge utile de l'air. On la largue quand l'air est devenu assez rare :
+// la densité qu'a l'atmosphère terrestre vers 110 km (≈ 3 × 10⁻⁶ kg/m³ dans notre modèle).
+// Sans atmosphère, elle ne sert à rien : on la largue dès que la fusée a quitté le pas de tir.
+const RHO_COIFFE = 1.225 * Math.exp(-110 / 8.5);
+const TEXTES_COIFFE = {
+  dense: 'Éjection de la coiffe, les couches denses sont derrière nous.',
+  tenue: 'Atmosphère ténue, éjection de la coiffe.',
+  vide: 'Dans le vide, éjection de la coiffe.',
+};
+// Dense à partir de 0,1 bar au sol (Terre, Vénus, Titan) ; ténue en dessous (Mars, Pluton, Triton).
+function typeAtmosphere(a) {
+  if (!a.atm || !a.atm.p0) return 'vide';
+  return a.atm.p0 >= 0.1 ? 'dense' : 'tenue';
+}
+function coiffeALarguer(a, alt, hauteurSol) {
+  if (hauteurSol < 1000) return false;
+  return typeAtmosphere(a) === 'vide' || conditions(a, alt).rho < RHO_COIFFE;
 }
 
 // Débris (étage vide, demi-coiffes) : mouvement balistique, comme la fusée mais sans poussée.
@@ -2121,18 +2153,20 @@ const ECRAN_TACTILE = typeof matchMedia === 'function' && (matchMedia('(pointer:
 
 // Petit écran (téléphone) : tableau de bord réduit à l'essentiel ; un appui dessus affiche le détail.
 function ecranCompact(W, H) { return W < 720 || H < 520; }
+// Téléphone tenu en paysage : écran tactile, plus large que haut, peu de hauteur.
+function ecranPaysageTactile(W, H) { return ECRAN_TACTILE && W > H && H < 520; }
 let ZONE_HUD = null;   // rectangle du tableau de bord quand il est compact (pour l'appui)
 
 // Géantes gazeuses (pas de sol) : position par rapport au niveau 1 bar, et objectif de la plongée.
 function infoPlongee(vol, court) {
   const a = vol.astre, alt = vol.y;
   const position = court
-    ? `${alt < 0 ? '−' : '+'}${fmtAlt(Math.abs(alt))} / 1 bar`
-    : `${fmtAlt(Math.abs(alt))} ${alt < 0 ? 'sous le' : 'au-dessus du'} niveau 1 bar`;
+    ? `${alt < 0 ? '−' : '+'}${fmtAlt(Math.abs(alt))} / 1 bar`
+    : `${fmtAlt(Math.abs(alt))} ${alt < 0 ? 'sous le' : 'au-dessus du'} niveau 1 bar`;
   const atteint = vol.phase === 'remontee' || (vol.prelevements || []).some((p) => p.niveau >= a.cible);
   const objectif = atteint
-    ? (court ? `1 bar (${fmt(a.cible, 1)} ✓)` : `remonter au niveau 1 bar (${fmt(a.cible, 1)} bar atteints ✓)`)
-    : (court ? `${fmt(a.cible, 1)} bar, puis 1 bar` : `descendre à ${fmt(a.cible, 1)} bar, puis remonter à 1 bar`);
+    ? (court ? `1 bar (${fmt(a.cible, 1)} ✓)` : `remonter au niveau 1 bar (${fmt(a.cible, 1)} bar atteints ✓)`)
+    : (court ? `${fmt(a.cible, 1)} bar, puis 1 bar` : `descendre à ${fmt(a.cible, 1)} bar, puis remonter à 1 bar`);
   return { position, objectif, atteint };
 }
 
@@ -2154,14 +2188,14 @@ function dessinerHudCompact(ctx, vol, W, H) {
   lignes.push(['V vert.', (vv >= 0 ? '↓ ' : '↑ ') + fmtV(Math.abs(vv)), proche ? (vv > a.vMax ? '#ef5350' : '#66bb6a') : '#fff']);
   lignes.push(['V horiz.', fmtV(Math.abs(vol.vx)), proche && Math.abs(vol.vx) > a.vMax ? '#ef5350' : '#fff']);
   const fc = vol.carburant / f.carburant;
-  lignes.push(['Carbur.', fmt(fc * 100) + ' %', fc < 0.15 ? '#ef5350' : '#42a5f5']);
+  lignes.push(['Carbur.', fmt(fc * 100) + ' %', fc < 0.15 ? '#ef5350' : '#42a5f5']);
   const fi = vol.integrite / 100;
-  lignes.push(['Coque', fmt(vol.integrite) + ' %', fi > 0.6 ? '#66bb6a' : fi > 0.3 ? '#ffca28' : '#ef5350']);
+  lignes.push(['Coque', fmt(vol.integrite) + ' %', fi > 0.6 ? '#66bb6a' : fi > 0.3 ? '#ffca28' : '#ef5350']);
   // Les limites n'apparaissent que si elles approchent.
   // Risque de rayonnement : part de la dose mortelle reçue en un jour à ce débit (1 = mortel en un jour).
   const fp = c.p / f.pressionMax, ft = (vol.temp + KELVIN) / (f.tempMax + KELVIN), fr = Math.max((vol.svBord || 0) / DOSE_MORTELLE, vol.dose / 100);
   if (fp > 0.6 && !gaz) lignes.push(['Pression', fmtP(c.p), couleurRisque(fp)]);
-  if (ft > 0.7) lignes.push(['Temp.', fmt(vol.temp) + ' °C', couleurRisque(ft)]);
+  if (ft > 0.7) lignes.push(['Temp.', fmt(vol.temp) + ' °C', couleurRisque(ft)]);
   if (fr > 0.25) lignes.push(['Rayonn.', `${fmtDose(vol.svBord || 0)} · ${fmtDoseTotale(vol.doseSv || 0)}`, couleurRisque(fr)]);
   if (a.type === 'gazeuse') lignes.push(['Prélèv.', String((vol.prelevements || []).length), '#4dd0e1']);
   const h = 26 + lignes.length * 16 + 14;
@@ -2177,7 +2211,7 @@ function dessinerHudCompact(ctx, vol, W, H) {
     y += 16;
   }
   ctx.font = '10px system-ui, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  ctx.fillText('toucher : détails', 12, y + 2);
+  ctx.fillText('toucher : détails', 12, y + 2);
   ZONE_HUD = { x: 6, y: y0, w: larg, h };
 }
 
@@ -2231,11 +2265,11 @@ function dessinerHudDetail(ctx, vol, W, H, compact) {
   }
 
   const fc = vol.carburant / f.carburant;
-  ligne('Carburant', fmt(vol.carburant) + ' kg', fc < 0.15 ? '#ef5350' : '#fff');
+  ligne('Carburant', fmt(vol.carburant) + ' kg', fc < 0.15 ? '#ef5350' : '#fff');
   jauge(ctx, x, y - 4, larg, fc, fc < 0.15 ? '#ef5350' : '#42a5f5'); y += 6;
 
   const fi = vol.integrite / 100;
-  ligne('Intégrité coque', fmt(vol.integrite) + ' %', fi > 0.6 ? '#66bb6a' : fi > 0.3 ? '#ffca28' : '#ef5350');
+  ligne('Intégrité coque', fmt(vol.integrite) + ' %', fi > 0.6 ? '#66bb6a' : fi > 0.3 ? '#ffca28' : '#ef5350');
   jauge(ctx, x, y - 4, larg, fi, fi > 0.6 ? '#66bb6a' : fi > 0.3 ? '#ffca28' : '#ef5350'); y += 6;
 
   const fp = c.p / f.pressionMax;
@@ -2243,24 +2277,24 @@ function dessinerHudDetail(ctx, vol, W, H, compact) {
   jauge(ctx, x, y - 4, larg, fp, couleurRisque(fp)); y += 6;
 
   const ft = (vol.temp + KELVIN) / (f.tempMax + KELVIN);
-  ligne('Temp. coque', fmt(vol.temp) + ' / ' + fmt(f.tempMax) + ' °C', couleurRisque(ft));
+  ligne('Temp. coque', fmt(vol.temp) + ' / ' + fmt(f.tempMax) + ' °C', couleurRisque(ft));
   jauge(ctx, x, y - 4, larg, ft, couleurRisque(ft)); y += 6;
-  ligne('Temp. extérieure', fmt(c.t) + ' °C');
+  ligne('Temp. extérieure', fmt(c.t) + ' °C');
 
   ligne('Gravité locale', fmtG(c.g));
   if (a.type !== 'etoile') {
     const vO = vol.vOrbitale(), vL = vol.vLiberation();
     const vh = Math.abs(vol.vx);
-    ligne('Vit. orbitale', fmtV(vO) + (vol.phase === 'remontee' && a.type === 'solide' ? ' (' + fmt(Math.min(100, (vh / vO) * 100)) + ' %)' : ''), vh >= vO * 0.98 ? '#66bb6a' : '#fff');
+    ligne('Vit. orbitale', fmtV(vO) + (vol.phase === 'remontee' && a.type === 'solide' ? ' (' + fmt(Math.min(100, (vh / vO) * 100)) + ' %)' : ''), vh >= vO * 0.98 ? '#66bb6a' : '#fff');
     ligne('Vit. libération', fmtV(vL), Math.hypot(vol.vx, vol.vy) >= vL ? '#66bb6a' : '#fff');
   }
   const twr = vol.twr();
   ligne('Poussée/poids', fmt(twr * vol.throttle, 2) + ' (max ' + fmt(twr, 2) + ')', twr < 1 ? '#ef5350' : '#fff');
 
   ligne('Rayonn. à bord', fmtDose(vol.svBord || 0), couleurRisque((vol.svBord || 0) / DOSE_MORTELLE));
-  ligne('Dose équipage', `${fmtDoseTotale(vol.doseSv || 0)} (${fmt(vol.dose)} % du mortel)`, couleurRisque(vol.dose / 100));
+  ligne('Dose équipage', `${fmtDoseTotale(vol.doseSv || 0)} (${fmt(vol.dose)} % de la dose mortelle)`, couleurRisque(vol.dose / 100));
   if (a.type === 'gazeuse') ligne('Prélèvements', String((vol.prelevements || []).length), '#4dd0e1');
-  if (compact) { ctx.font = '11px system-ui, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillText('toucher : réduire', x, y + 12); }
+  if (compact) { ctx.font = '11px system-ui, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillText('toucher : réduire', x, y + 12); }
 }
 
 // Le reste du tableau de bord : alertes, compte à rebours, jauges, manette, objectif, temps.
@@ -2270,8 +2304,8 @@ function dessinerHudSuite(ctx, vol, W, H, warp, compact, twr) {
   // Alertes de dégâts
   if (vol.enDegats() && !vol.fin) {
     const msgs = [];
-    if (vol.taux.pression > 0) msgs.push('SURPRESSION : la coque se déforme');
-    if (vol.taux.chaleur > 0) msgs.push('SURCHAUFFE : la coque brûle');
+    if (vol.taux.pression > 0) msgs.push('SURPRESSION : la coque se déforme');
+    if (vol.taux.chaleur > 0) msgs.push('SURCHAUFFE : la coque brûle');
     ctx.font = compact ? 'bold 14px system-ui, sans-serif' : 'bold 18px system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillStyle = Math.sin(performance.now() / 150) > 0 ? '#ff1744' : '#ffffff';
@@ -2315,10 +2349,10 @@ function dessinerHudSuite(ctx, vol, W, H, warp, compact, twr) {
     const x0 = compact ? 14 : W / 2 - 160, y0 = compact ? (ZONE_HUD ? ZONE_HUD.y + ZONE_HUD.h + 18 : 190) : 48;
     ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(x0 - 8, y0 - 6, lj + 16, 52);
     ctx.font = compact ? '11px system-ui, sans-serif' : '12px system-ui, sans-serif'; ctx.fillStyle = '#fff';
-    ctx.fillText(`${compact ? 'Alt. d’orbite' : 'Altitude d’orbite'} : ${fmtAlt(Math.max(0, vol.y))} / ${fmtAlt(vol.altOrbite * 0.9)}`, x0, y0 + 8);
+    ctx.fillText(`${compact ? 'Alt. d’orbite' : 'Altitude d’orbite'} : ${fmtAlt(Math.max(0, vol.y))} / ${fmtAlt(vol.altOrbite * 0.9)}`, x0, y0 + 8);
     jauge(ctx, x0, y0 + 12, lj, fa, fa >= 1 ? '#66bb6a' : '#42a5f5');
     ctx.fillStyle = '#fff';
-    ctx.fillText(`${compact ? 'V horiz.' : 'Vitesse horizontale'} : ${fmtV(Math.abs(vol.vx))} / ${fmtV(vO * 0.97)}`, x0, y0 + 32);
+    ctx.fillText(`${compact ? 'V horiz.' : 'Vitesse horizontale'} : ${fmtV(Math.abs(vol.vx))} / ${fmtV(vO * 0.97)}`, x0, y0 + 32);
     jauge(ctx, x0, y0 + 36, lj, fv, fv >= 1 ? '#66bb6a' : '#ffca28');
   }
   if (vol.f.mega && !vol.fin) {
@@ -2340,8 +2374,13 @@ function dessinerHudSuite(ctx, vol, W, H, warp, compact, twr) {
 
   // Manette des gaz : barre verticale à droite.
   const bx = W - 46;
-  const bh = compact ? Math.max(60, Math.min(150, (portrait ? H * 0.2 : H * 0.2))) : Math.min(240, H * 0.4);
-  const by = compact ? hautDroite + (portrait ? 110 : 66) : H / 2 - bh / 2;
+  let bh = compact ? Math.max(60, Math.min(150, (portrait ? H * 0.2 : H * 0.2))) : Math.min(240, H * 0.4);
+  let by = compact ? hautDroite + (portrait ? 110 : 66) : H / 2 - bh / 2;
+  if (ecranPaysageTactile(W, H)) {
+    // Paysage : sous le bloc du temps et du pilote auto, au-dessus des boutons ▲ ▼ (environ 140 px en bas).
+    by = hautDroite + (vol.autopilote ? 112 : 70);
+    bh = Math.max(36, Math.min(H * 0.2, H - 150 - by - 26));
+  }
   ctx.fillStyle = 'rgba(0,0,0,0.55)';
   ctx.fillRect(bx - 12, by - 30, 50, bh + 58);
   ctx.fillStyle = 'rgba(255,255,255,0.15)';
@@ -2358,7 +2397,7 @@ function dessinerHudSuite(ctx, vol, W, H, warp, compact, twr) {
   ctx.font = 'bold 13px ui-monospace, Consolas, monospace';
   ctx.textAlign = 'center';
   ctx.fillStyle = '#fff';
-  ctx.fillText(fmt(vol.manette * 100) + ' %', bx + 13, by + bh + 18);
+  ctx.fillText(fmt(vol.manette * 100) + ' %', bx + 13, by + bh + 18);
   ctx.font = '11px system-ui, sans-serif';
   ctx.fillStyle = '#b0bec5';
   ctx.fillText('Gaz', bx + 13, by - 12);
@@ -2390,7 +2429,7 @@ function dessinerHudSuite(ctx, vol, W, H, warp, compact, twr) {
 
   // Aide commandes (clavier seulement : sur écran tactile, ce sont les boutons)
   if (!ECRAN_TACTILE) {
-    texteSurFond(ctx, '↑↓ / Z S : gaz · X couper · Espace plein gaz · ←→ / Q D : orienter · L pilote auto · +/− temps · P pause · Échap quitter', W / 2, H - 12, { police: '12px system-ui, sans-serif' });
+    texteSurFond(ctx, '↑↓ / Z S : gaz · X couper · Espace plein gaz · ←→ / Q D : orienter · L pilote auto · +/− temps · P pause · Échap quitter', W / 2, H - 12, { police: '12px system-ui, sans-serif' });
     ctx.textAlign = 'center';
   }
 

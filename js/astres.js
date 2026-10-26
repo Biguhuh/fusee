@@ -25,7 +25,7 @@ const ASTRES = [
     depart: { alt: 5e9, vitesse: 200000 },
     couleurs: { sol: '#ffb300', ciel: '#ff8f00', disque: '#ffd54f' },
     surface: 'plasma',
-    note: "Aucune fusée ne peut s'y poser : elle brûle bien avant la photosphère.",
+    note: "Aucune fusée ne peut s’y poser : elle brûle bien avant la photosphère.",
   },
   {
     id: 'mercure', nom: 'Mercure', type: 'solide', parent: null,
@@ -34,7 +34,7 @@ const ASTRES = [
     depart: { alt: 4000, vitesse: 60 },
     couleurs: { sol: '#8d8478', ciel: '#000000', disque: '#9e9e9e' },
     surface: 'roche cratérisée (face éclairée)',
-    note: 'Pas d’air, mais 430 °C côté jour et un vent solaire 7 fois plus fort que sur Terre.',
+    note: 'Pas d’air, mais 430 °C côté jour et un vent solaire 7 fois plus fort que sur Terre.',
   },
   {
     id: 'venus', nom: 'Vénus', type: 'solide', parent: null,
@@ -44,7 +44,7 @@ const ASTRES = [
     depart: { alt: 50000, vitesse: 100 },
     couleurs: { sol: '#a0672b', ciel: '#e0a95a', disque: '#e8c37a' },
     surface: 'basalte brûlant',
-    note: '92 bar et 464 °C au sol : il faut une coque lourde et un bouclier.',
+    note: '92 bar et 464 °C au sol : il faut une coque lourde et un bouclier.',
   },
   {
     id: 'terre', nom: 'Terre', type: 'solide', parent: null,
@@ -53,7 +53,7 @@ const ASTRES = [
     depart: { alt: 15000, vitesse: 250 },
     couleurs: { sol: '#3f7d3a', ciel: '#5aa9f0', disque: '#4f8fe0' },
     surface: 'prairie',
-    note: 'La référence : 1 g, 1 bar, 15 °C.',
+    note: 'La référence : 1 g, 1 bar, 15 °C.',
   },
   {
     id: 'mars', nom: 'Mars', type: 'solide', parent: null,
@@ -62,7 +62,7 @@ const ASTRES = [
     depart: { alt: 12000, vitesse: 300 },
     couleurs: { sol: '#b5532c', ciel: '#d9a37a', disque: '#c1440e' },
     surface: 'poussière rouge',
-    note: 'Air très fin : il freine à peine, les moteurs font presque tout.',
+    note: 'Air très fin : il freine à peine, les moteurs font presque tout.',
   },
   {
     id: 'jupiter', nom: 'Jupiter', type: 'gazeuse', parent: null,
@@ -72,7 +72,7 @@ const ASTRES = [
     depart: { alt: 20000, vitesse: 150 },
     couleurs: { sol: '#8a5a3c', ciel: '#d8b48a', disque: '#d8ca9d' },
     surface: 'aucune (gaz)',
-    note: 'Gravité 2,5 fois celle de la Terre : le défi le plus dur. Il faut le plus gros moteur et le plus gros réservoir.',
+    note: 'Gravité 2,5 fois celle de la Terre : le défi le plus dur. Il faut le plus gros moteur et le plus gros réservoir.',
   },
   {
     id: 'saturne', nom: 'Saturne', type: 'gazeuse', parent: null,
@@ -82,7 +82,7 @@ const ASTRES = [
     depart: { alt: 30000, vitesse: 150 },
     couleurs: { sol: '#9c8150', ciel: '#e3cf9a', disque: '#ead6a6' },
     surface: 'aucune (gaz)',
-    note: 'Atmosphère très étendue : la pression monte lentement, la plongée est longue.',
+    note: 'Atmosphère très étendue : la pression monte lentement, la plongée est longue.',
   },
   {
     id: 'uranus', nom: 'Uranus', type: 'gazeuse', parent: null,
@@ -121,7 +121,7 @@ const ASTRES = [
     depart: { alt: 10000, vitesse: 30 },
     couleurs: { sol: '#7a5a2a', ciel: '#d39a3c', disque: '#d8a24a' },
     surface: 'sable organique',
-    note: 'Air 4 fois plus dense que sur Terre et gravité faible : la chute est lente.',
+    note: 'Air 4 fois plus dense que sur Terre et gravité faible : la chute est lente.',
   },
   {
     id: 'callisto', nom: 'Callisto', type: 'solide', parent: 'jupiter',
@@ -166,7 +166,7 @@ const ASTRES = [
     depart: { alt: 3000, vitesse: 30 },
     couleurs: { sol: '#c9a9a0', ciel: '#05060a', disque: '#d4b8ae' },
     surface: 'glace d’azote',
-    note: 'L’un des endroits les plus froids du système solaire.',
+    note: 'L’un des endroits les plus froids du Système solaire.',
   },
   {
     id: 'titania', nom: 'Titania', type: 'solide', parent: 'uranus',
@@ -193,7 +193,7 @@ const ASTRES = [
     depart: { alt: 2500, vitesse: 20 },
     couleurs: { sol: '#b8b4ae', ciel: '#000000', disque: '#c8c4be' },
     surface: 'glace claire',
-    note: 'Gravité la plus faible du jeu : 1/37 de la Terre.',
+    note: 'Gravité la plus faible du jeu : 1/37 de la Terre.',
   },
 ];
 

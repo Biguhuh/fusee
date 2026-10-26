@@ -62,7 +62,7 @@ const Tactile = {
         b.push({ zone: 'actions', label, code: 'KeyT', principal: true });
       }
       if (v.pose && solide && !v.lancement && !v.promenade) {
-        b.push({ zone: 'actions', label: '🧑‍🚀 Sortir', code: 'KeyE' });
+        b.push({ zone: 'actions', label: '🚶 Sortir', code: 'KeyE' });
         b.push({ zone: 'actions', label: '🤖 Robot', code: 'KeyR' });
         if (etat.enVoyage && etat.voyage && baseSur(etat.voyage, v.astre.id)) b.push({ zone: 'actions', label: '🏗 Base ✓', code: 'KeyB', desactive: 'Base déjà installée sur cet astre' });
         else if (etat.enVoyage) b.push({ zone: 'actions', label: '🏗 Base', code: 'KeyB' });
@@ -70,7 +70,7 @@ const Tactile = {
       }
       temps('actions');
       b.push({ zone: 'actions', label: etat.pause ? '▶' : '⏸', code: 'KeyP' });
-      b.push({ zone: 'actions', label: '✕', code: 'Escape', confirmer: v.pose ? null : 'Abandonner ce vol ?' });
+      b.push({ zone: 'actions', label: '✕', code: 'Escape', confirmer: v.pose ? null : 'Abandonner ce vol ?' });
     } else if (etat.ecran === 'explo' && etat.explo && !etat.explo.fin) {
       const x = etat.explo;
       b.push({ zone: 'gauche', label: '◀', code: 'ArrowLeft', maintenu: true, titre: 'Gauche' });
@@ -79,7 +79,7 @@ const Tactile = {
       // Émojis anciens seulement : 🪨 et 🛞 (récents) s'affichent en carré vide sur beaucoup de téléphones.
       const action = x.terre ? '🌸 Cueillir' : x.type === 'robot' ? '🔬 Analyser' : '🤲 Ramasser';
       b.push({ zone: 'droite', label: action, code: 'KeyE', principal: true, large: true });
-      if (x.rover) b.push({ zone: 'actions', label: x.enRover ? '🚶 Descendre' : '🚙 Rover', code: 'KeyV' });
+      if (x.rover) b.push({ zone: 'actions', label: x.enRover ? '🚶 Descendre' : '🚙 Astromobile', code: 'KeyV' });
       if (!x.terre && !x.enRover) b.push({ zone: 'actions', label: '🚩', code: 'KeyF', titre: 'Planter le drapeau' });
       temps('actions');
       b.push({ zone: 'actions', label: etat.pause ? '▶' : '⏸', code: 'KeyP' });

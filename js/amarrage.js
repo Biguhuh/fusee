@@ -180,23 +180,23 @@ class Amarrage {
     // Panneau d'informations.
     const lignes = [];
     const fmtA = (r) => fmtAlt(r - this.R);
-    lignes.push([`Orbite de ${a.nom}`, '#ffffff', true]);
-    lignes.push([`Votre orbite : ${fmtA(this.r1)}, un tour en ${fmtDuree(this.T1)}`, '#ffe7a3']);
-    if (this.cible) lignes.push([`${this.cible.nom} : ${fmtA(this.r2)}, un tour en ${fmtDuree(this.T2)}`, '#bfe0ff']);
+    lignes.push([`Orbite ${de(a)}`, '#ffffff', true]);
+    lignes.push([`Votre orbite : ${fmtA(this.r1)}, un tour en ${fmtDuree(this.T1)}`, '#ffe7a3']);
+    if (this.cible) lignes.push([`${this.cible.nom} : ${fmtA(this.r2)}, un tour en ${fmtDuree(this.T2)}`, '#bfe0ff']);
     const hRot = Math.abs(rot.heures);
-    lignes.push([`Rotation de ${a.nom} : un tour en ${fmtDuree(hRot * 3600)}${rot.synchrone ? ' (synchrone)' : ''}${rot.estimee ? ' (estimé)' : ''}`, '#cfd8e3']);
+    lignes.push([`Rotation ${de(a)} : un tour en ${fmtDuree(hRot * 3600)}${rot.synchrone ? ' (synchrone)' : ''}${rot.estimee ? ' (estimé)' : ''}`, '#cfd8e3']);
     const tours = this.t / this.T1;
     const deg = ((this.t / 3600 / hRot) * 360);
-    lignes.push([`T+ ${fmtDuree(this.t)} — ${fmt(tours, 1)} tour(s) d’orbite ; ${a.nom} a tourné de ${fmt(deg, deg < 10 ? 1 : 0)}°`, '#cfd8e3']);
+    lignes.push([`T+ ${fmtDuree(this.t)} — ${fmt(tours, 1)} tour(s) d’orbite ; ${a.nom} a tourné de ${fmt(deg, deg < 10 ? 1 : 0)}°`, '#cfd8e3']);
     if (!amarre) lignes.push([`Temps accéléré ×${fmt(this.facteur())}`, '#8fa3b8']);
     let etape;
-    if (!this.cible) etape = this.fini ? 'Orbite atteinte.' : 'En orbite : un tour avant de continuer.';
+    if (!this.cible) etape = this.fini ? 'Orbite atteinte.' : 'En orbite : un tour avant de continuer.';
     else if (this.phase === 'attente') {
       const ecart = ((p.cib.th - p.eng.th) * 180) / Math.PI;
-      etape = `Attente de la fenêtre : la cible est ${fmt(ecart, 1)}° devant, il faut ${fmt((this.avance * 180) / Math.PI, 1)}° (dans ${fmtDuree(this.tAttente - this.t)}).`;
-    } else if (this.phase === 'transfert') etape = `Transfert de Hohmann : poussée de ${fmt(this.dv1, 1)} m/s, puis ${fmt(this.dv2, 1)} m/s à l’arrivée (demi-orbite en ${fmtDuree(this.tTransfert)}).`;
-    else if (this.phase === 'approche') etape = `Approche finale : ${fmt(p.distance, 0)} m de ${this.cible.nom}.`;
-    else etape = this.cible.vaisseau ? `Amarré à ${this.cible.nom} !` : `En place sur ${this.cible.nom}.`;
+      etape = `Attente de la fenêtre : la cible est ${fmt(ecart, 1)}° devant, il faut ${fmt((this.avance * 180) / Math.PI, 1)}° (dans ${fmtDuree(this.tAttente - this.t)}).`;
+    } else if (this.phase === 'transfert') etape = `Transfert de Hohmann : poussée de ${fmt(this.dv1, 1)} m/s, puis ${fmt(this.dv2, 1)} m/s à l’arrivée (demi-orbite en ${fmtDuree(this.tTransfert)}).`;
+    else if (this.phase === 'approche') etape = `Approche finale : ${fmt(p.distance, 0)} m ${de(this.cible)}.`;
+    else etape = this.cible.vaisseau ? `Amarré ${au(this.cible)} !` : `En place ${sur(this.cible)}.`;
     lignes.push([etape, amarre ? '#8be28b' : '#ffffff', true]);
     ctx.save();
     ctx.textAlign = 'left'; ctx.textBaseline = 'top';
@@ -217,7 +217,7 @@ class Amarrage {
     ctx.beginPath(); ctx.roundRect(x0, y, w, hauteur, 8); ctx.fill();
     ecrire(true);
     ctx.restore();
-    if (!amarre && !this.fini) texteSurFond(ctx, 'Entrée, Espace ou toucher l’écran : passer', W / 2, H - 16, { police: '12px system-ui, sans-serif', couleur: '#8fa3b8' });
+    if (!amarre && !this.fini) texteSurFond(ctx, 'Entrée, Espace ou toucher l’écran : passer', W / 2, H - 16, { police: '12px system-ui, sans-serif', couleur: '#8fa3b8' });
   }
 }
 

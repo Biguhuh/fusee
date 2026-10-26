@@ -18,123 +18,123 @@ const CATEGORIES_CIEL = [
 // rendu : nom de la fonction de dessin ; p : ses réglages.
 const OBJETS_CIEL = [
   // ---------- Étoiles ----------
-  { id: 'proxima', cat: 'etoiles', nom: 'Proxima Centauri', type: 'Naine rouge', distance: '4,25 années-lumière', rendu: 'etoile', p: { couleur: [255, 110, 60], taille: 0.35, taches: 5, eruption: true },
+  { id: 'proxima', cat: 'etoiles', nom: 'Proxima Centauri', type: 'Naine rouge', distance: '4,25 années-lumière', rendu: 'etoile', p: { couleur: [255, 110, 60], taille: 0.35, taches: 5, eruption: true },
     texte: 'L’étoile la plus proche du Soleil. Une naine rouge, sept fois plus petite que lui et bien plus froide, mais capable de violentes éruptions. Ces étoiles brûlent si lentement qu’elles vivront des milliers de milliards d’années. Deux planètes connues, dont Proxima b dans la zone habitable.' },
-  { id: 'kappaceti', cat: 'etoiles', nom: 'Kappa¹ Ceti', type: 'Naine jaune jeune (600 millions d’années)', distance: '30 années-lumière', rendu: 'etoile', p: { couleur: [255, 236, 170], taille: 0.5, taches: 14, eruption: true },
-    texte: 'Un « Soleil jeune » : même type que le nôtre, mais âgé de seulement 600 millions d’années. Il tourne plus vite, est couvert de taches et lance un vent stellaire puissant. Le Soleil ressemblait à ça quand la vie apparaissait sur Terre.' },
-  { id: 'alphacenA', cat: 'etoiles', nom: 'Alpha Centauri A', type: 'Naine jaune (environ 5 milliards d’années)', distance: '4,37 années-lumière', rendu: 'etoile', p: { couleur: [255, 240, 200], taille: 0.55, taches: 4 },
+  { id: 'kappaceti', cat: 'etoiles', nom: 'Kappa¹ Ceti', type: 'Naine jaune jeune (600 millions d’années)', distance: '30 années-lumière', rendu: 'etoile', p: { couleur: [255, 236, 170], taille: 0.5, taches: 14, eruption: true },
+    texte: 'Un « Soleil jeune » : même type que le nôtre, mais âgé de seulement 600 millions d’années. Il tourne plus vite, est couvert de taches et lance un vent stellaire puissant. Le Soleil ressemblait à ça quand la vie apparaissait sur Terre.' },
+  { id: 'alphacenA', cat: 'etoiles', nom: 'Alpha Centauri A', type: 'Naine jaune (environ 5 milliards d’années)', distance: '4,37 années-lumière', rendu: 'etoile', p: { couleur: [255, 240, 200], taille: 0.55, taches: 4 },
     texte: 'Presque une jumelle du Soleil, un peu plus grosse et un peu plus vieille. Elle forme un couple avec Alpha Centauri B, et Proxima tourne autour des deux, très loin.' },
-  { id: '18sco', cat: 'etoiles', nom: '18 Scorpii', type: 'Naine jaune, « jumelle du Soleil »', distance: '46 années-lumière', rendu: 'etoile', p: { couleur: [255, 242, 205], taille: 0.5, taches: 6 },
-    texte: 'L’étoile la plus semblable au Soleil connue : même masse, même température, même âge à peu près. Les astronomes l’étudient pour savoir si notre étoile est « normale ».' },
-  { id: 'epseri', cat: 'etoiles', nom: 'Epsilon Eridani', type: 'Naine orange', distance: '10,5 années-lumière', rendu: 'etoile', p: { couleur: [255, 190, 110], taille: 0.42, taches: 8, disque: true },
+  { id: '18sco', cat: 'etoiles', nom: '18 Scorpii', type: 'Naine jaune, « jumelle du Soleil »', distance: '46 années-lumière', rendu: 'etoile', p: { couleur: [255, 242, 205], taille: 0.5, taches: 6 },
+    texte: 'L’étoile la plus semblable au Soleil connue : même masse, même température, même âge à peu près. Les astronomes l’étudient pour savoir si notre étoile est « normale ».' },
+  { id: 'epseri', cat: 'etoiles', nom: 'Epsilon Eridani', type: 'Naine orange', distance: '10,5 années-lumière', rendu: 'etoile', p: { couleur: [255, 190, 110], taille: 0.42, taches: 8, disque: true },
     texte: 'Une étoile orange, un peu plus petite et plus froide que le Soleil, et jeune. Elle est entourée de ceintures de poussières, comme un système solaire en train de se ranger, avec au moins une planète géante.' },
-  { id: 'rigel', cat: 'etoiles', nom: 'Rigel', type: 'Supergéante bleue', distance: '860 années-lumière', rendu: 'etoile', p: { couleur: [170, 200, 255], taille: 0.75, vent: true },
+  { id: 'rigel', cat: 'etoiles', nom: 'Rigel', type: 'Supergéante bleue', distance: '860 années-lumière', rendu: 'etoile', p: { couleur: [170, 200, 255], taille: 0.75, vent: true },
     texte: 'Le pied d’Orion. Une étoile bleue énorme, 120 000 fois plus lumineuse que le Soleil. Les étoiles massives brûlent tout en quelques millions d’années et finissent en supernova.' },
-  { id: 'zetapup', cat: 'etoiles', nom: 'Zeta Puppis', type: 'Étoile bleue de type O', distance: '1 100 années-lumière', rendu: 'etoile', p: { couleur: [150, 180, 255], taille: 0.6, vent: true },
-    texte: 'Une des étoiles les plus chaudes visibles à l’œil nu : 40 000 °C en surface. Elle souffle un vent si fort qu’elle perd l’équivalent de la Terre tous les quelques jours.' },
-  { id: 'aldebaran', cat: 'etoiles', nom: 'Aldébaran', type: 'Géante rouge', distance: '65 années-lumière', rendu: 'etoile', p: { couleur: [255, 150, 80], taille: 0.85, granul: true },
+  { id: 'zetapup', cat: 'etoiles', nom: 'Zeta Puppis', type: 'Étoile bleue de type O', distance: '1 100 années-lumière', rendu: 'etoile', p: { couleur: [150, 180, 255], taille: 0.6, vent: true },
+    texte: 'Une des étoiles les plus chaudes visibles à l’œil nu : 40 000 °C en surface. Elle souffle un vent si fort qu’elle perd l’équivalent de la Terre tous les quelques jours.' },
+  { id: 'aldebaran', cat: 'etoiles', nom: 'Aldébaran', type: 'Géante rouge', distance: '65 années-lumière', rendu: 'etoile', p: { couleur: [255, 150, 80], taille: 0.85, granul: true },
     texte: 'L’œil du Taureau. Une étoile en fin de vie qui a gonflé jusqu’à 44 fois la taille du Soleil. Dans 5 milliards d’années, le Soleil deviendra une géante rouge comme elle.' },
-  { id: 'betelgeuse', cat: 'etoiles', nom: 'Bételgeuse', type: 'Supergéante rouge', distance: '550 années-lumière', rendu: 'etoile', p: { couleur: [255, 110, 60], taille: 1, granul: true, pulse: [0.04, 6] },
-    texte: 'L’épaule d’Orion. Placée à la place du Soleil, elle avalerait Mars et peut-être Jupiter. Sa surface bouillonne de cellules géantes. Elle explosera en supernova d’ici 100 000 ans, visible en plein jour.' },
-  { id: 'vycma', cat: 'etoiles', nom: 'VY Canis Majoris', type: 'Hypergéante rouge', distance: '3 900 années-lumière', rendu: 'etoile', p: { couleur: [255, 90, 50], taille: 1.1, granul: true, nuage: true },
-    texte: 'L’une des plus grandes étoiles connues : environ 1 400 fois le rayon du Soleil. Elle se défait lentement, entourée des nuages de gaz et de poussières qu’elle éjecte.' },
-  { id: 'etacar', cat: 'etoiles', nom: 'Eta Carinae', type: 'Variable lumineuse bleue', distance: '7 500 années-lumière', rendu: 'etaCarinae', p: {},
-    texte: 'Un monstre instable de plus de 100 masses solaires. En 1843, une éruption géante l’a rendue un temps la 2e étoile du ciel et a créé la nébuleuse en deux lobes qui l’entoure, l’« Homoncule ».' },
-  { id: 'wr104', cat: 'etoiles', nom: 'WR 104', type: 'Étoile de Wolf-Rayet', distance: '8 000 années-lumière', rendu: 'wolfRayet', p: {},
-    texte: 'Une étoile massive qui a perdu ses couches externes et souffle un vent violent. Avec sa compagne, elle dessine une spirale de poussière en tourniquet, qui fait un tour tous les 8 mois.' },
-  { id: 'deltacep', cat: 'etoiles', nom: 'Delta Cephei', type: 'Céphéide', distance: '890 années-lumière', rendu: 'etoile', p: { couleur: [255, 225, 150], taille: 0.6, pulse: [0.18, 4], cepheide: true },
-    texte: 'Une étoile qui gonfle et dégonfle tous les 5,4 jours. Plus une céphéide est lumineuse, plus elle pulse lentement : en mesurant sa période, on connaît sa vraie luminosité, donc sa distance. Elles ont servi à mesurer l’Univers.' },
-  { id: 'hltau', cat: 'etoiles', nom: 'HL Tauri', type: 'Proto-étoile et son disque', distance: '450 années-lumière', rendu: 'protoEtoile', p: {},
-    texte: 'Une étoile qui naît, âgée de moins d’un million d’années. Son disque de gaz et de poussière montre des anneaux sombres : des planètes s’y forment déjà. Des jets de matière jaillissent de ses pôles.' },
-  { id: 'luhman16', cat: 'etoiles', nom: 'Luhman 16', type: 'Naines brunes', distance: '6,5 années-lumière', rendu: 'naineBrune', p: {},
-    texte: 'Deux « étoiles ratées », trop légères pour allumer la fusion de l’hydrogène. Pas plus grosses que Jupiter, à peine lumineuses, avec des bandes de nuages et des orages de fer liquide.' },
+  { id: 'betelgeuse', cat: 'etoiles', nom: 'Bételgeuse', type: 'Supergéante rouge', distance: '550 années-lumière', rendu: 'etoile', p: { couleur: [255, 110, 60], taille: 1, granul: true, pulse: [0.04, 6] },
+    texte: 'L’épaule d’Orion. Placée à la place du Soleil, elle avalerait Mars et peut-être Jupiter. Sa surface bouillonne de cellules géantes. Elle explosera en supernova d’ici 100 000 ans, visible en plein jour.' },
+  { id: 'vycma', cat: 'etoiles', nom: 'VY Canis Majoris', type: 'Hypergéante rouge', distance: '3 900 années-lumière', rendu: 'etoile', p: { couleur: [255, 90, 50], taille: 1.1, granul: true, nuage: true },
+    texte: 'L’une des plus grandes étoiles connues : environ 1 400 fois le rayon du Soleil. Elle se défait lentement, entourée des nuages de gaz et de poussières qu’elle éjecte.' },
+  { id: 'etacar', cat: 'etoiles', nom: 'Eta Carinae', type: 'Variable lumineuse bleue', distance: '7 500 années-lumière', rendu: 'etaCarinae', p: {},
+    texte: 'Un monstre instable de plus de 100 masses solaires. En 1843, une éruption géante l’a rendue un temps la 2e étoile du ciel et a créé la nébuleuse en deux lobes qui l’entoure, l’« Homoncule ».' },
+  { id: 'wr104', cat: 'etoiles', nom: 'WR 104', type: 'Étoile de Wolf-Rayet', distance: '8 000 années-lumière', rendu: 'wolfRayet', p: {},
+    texte: 'Une étoile massive qui a perdu ses couches externes et souffle un vent violent. Avec sa compagne, elle dessine une spirale de poussière en tourniquet, qui fait un tour tous les 8 mois.' },
+  { id: 'deltacep', cat: 'etoiles', nom: 'Delta Cephei', type: 'Céphéide', distance: '890 années-lumière', rendu: 'etoile', p: { couleur: [255, 225, 150], taille: 0.6, pulse: [0.18, 4], cepheide: true },
+    texte: 'Une étoile qui gonfle et dégonfle tous les 5,4 jours. Plus une céphéide est lumineuse, plus elle pulse lentement : en mesurant sa période, on connaît sa vraie luminosité, donc sa distance. Elles ont servi à mesurer l’Univers.' },
+  { id: 'hltau', cat: 'etoiles', nom: 'HL Tauri', type: 'Proto-étoile et son disque', distance: '450 années-lumière', rendu: 'protoEtoile', p: {},
+    texte: 'Une étoile qui naît, âgée de moins d’un million d’années. Son disque de gaz et de poussière montre des anneaux sombres : des planètes s’y forment déjà. Des jets de matière jaillissent de ses pôles.' },
+  { id: 'luhman16', cat: 'etoiles', nom: 'Luhman 16', type: 'Naines brunes', distance: '6,5 années-lumière', rendu: 'naineBrune', p: {},
+    texte: 'Deux « étoiles ratées », trop légères pour allumer la fusion de l’hydrogène. Pas plus grosses que Jupiter, à peine lumineuses, avec des bandes de nuages et des orages de fer liquide.' },
 
   // ---------- Étoiles compactes ----------
-  { id: 'siriusb', cat: 'compactes', nom: 'Sirius B', type: 'Naine blanche', distance: '8,6 années-lumière', rendu: 'naineBlanche', p: {},
-    texte: 'Le cœur nu d’une étoile morte : la masse du Soleil tassée dans une boule grande comme la Terre. Une cuillère de sa matière pèse plusieurs tonnes. Elle tourne autour de Sirius A, l’étoile la plus brillante du ciel.' },
-  { id: 'rxj1856', cat: 'compactes', nom: 'RX J1856.5−3754', type: 'Étoile à neutrons isolée', distance: '400 années-lumière', rendu: 'etoileNeutrons', p: {},
-    texte: 'Plus d’une masse solaire dans une boule de 20 km : la matière y est aussi dense qu’un noyau d’atome. Une cuillère pèserait un milliard de tonnes. Celle-ci, l’une des plus proches, brille seulement par sa chaleur.' },
-  { id: 'vela', cat: 'compactes', nom: 'Pulsar de Vela', type: 'Pulsar', distance: '1 000 années-lumière', rendu: 'pulsar', p: { periode: 0.089 },
-    texte: 'Une étoile à neutrons qui tourne 11 fois par seconde en balayant l’espace de deux faisceaux, comme un phare. Chaque passage du faisceau sur la Terre fait un « bip » radio d’une régularité d’horloge atomique.' },
-  { id: 'terzan5', cat: 'compactes', nom: 'PSR J1748−2446ad', type: 'Pulsar milliseconde', distance: '18 000 années-lumière', rendu: 'pulsar', p: { periode: 0.0014, rapide: true },
-    texte: 'Le pulsar le plus rapide connu : 716 tours par seconde. Son équateur file à un quart de la vitesse de la lumière. Il a été « remonté » en avalant la matière d’une étoile compagne.' },
-  { id: 'sgr1806', cat: 'compactes', nom: 'SGR 1806−20', type: 'Magnétar', distance: '42 000 années-lumière', rendu: 'magnetar', p: {},
-    texte: 'Une étoile à neutrons au champ magnétique mille milliards de fois plus fort que celui de la Terre. En 2004, un tremblement de sa croûte a libéré en 0,2 s plus d’énergie que le Soleil en 100 000 ans.' },
+  { id: 'siriusb', cat: 'compactes', nom: 'Sirius B', type: 'Naine blanche', distance: '8,6 années-lumière', rendu: 'naineBlanche', p: {},
+    texte: 'Le cœur nu d’une étoile morte : la masse du Soleil tassée dans une boule grande comme la Terre. Une cuillère de sa matière pèse plusieurs tonnes. Elle tourne autour de Sirius A, l’étoile la plus brillante du ciel.' },
+  { id: 'rxj1856', cat: 'compactes', nom: 'RX J1856.5−3754', type: 'Étoile à neutrons isolée', distance: '400 années-lumière', rendu: 'etoileNeutrons', p: {},
+    texte: 'Plus d’une masse solaire dans une boule de 20 km : la matière y est aussi dense qu’un noyau d’atome. Une cuillère pèserait un milliard de tonnes. Celle-ci, l’une des plus proches, brille seulement par sa chaleur.' },
+  { id: 'vela', cat: 'compactes', nom: 'Pulsar de Vela', type: 'Pulsar', distance: '1 000 années-lumière', rendu: 'pulsar', p: { periode: 0.089 },
+    texte: 'Une étoile à neutrons qui tourne 11 fois par seconde en balayant l’espace de deux faisceaux, comme un phare. Chaque passage du faisceau sur la Terre fait un « bip » radio d’une régularité d’horloge atomique.' },
+  { id: 'terzan5', cat: 'compactes', nom: 'PSR J1748−2446ad', type: 'Pulsar milliseconde', distance: '18 000 années-lumière', rendu: 'pulsar', p: { periode: 0.0014, rapide: true },
+    texte: 'Le pulsar le plus rapide connu : 716 tours par seconde. Son équateur file à un quart de la vitesse de la lumière. Il a été « remonté » en avalant la matière d’une étoile compagne.' },
+  { id: 'sgr1806', cat: 'compactes', nom: 'SGR 1806−20', type: 'Magnétar', distance: '42 000 années-lumière', rendu: 'magnetar', p: {},
+    texte: 'Une étoile à neutrons au champ magnétique mille milliards de fois plus fort que celui de la Terre. En 2004, un tremblement de sa croûte a libéré en 0,2 s plus d’énergie que le Soleil en 100 000 ans.' },
 
   // ---------- Étoiles multiples ----------
-  { id: 'betalyr', cat: 'multiples', nom: 'Bêta Lyrae', type: 'Binaire serrée avec transfert de masse', distance: '960 années-lumière', rendu: 'binaireTransfert', p: {},
-    texte: 'Deux étoiles si proches qu’elles se touchent presque : l’une, déformée en goutte, se vide dans l’autre par un flot de gaz qui forme un disque. Elles font le tour l’une de l’autre en 13 jours.' },
-  { id: 'algol', cat: 'multiples', nom: 'Algol', type: 'Binaire à éclipses', distance: '90 années-lumière', rendu: 'binaireEclipse', p: {},
-    texte: 'L’« étoile du démon » : tous les 2,9 jours, sa lumière baisse pendant quelques heures. Ce sont deux étoiles qui passent l’une devant l’autre, vues par la tranche. La courbe de lumière en bas montre les éclipses.' },
-  { id: 'albireo', cat: 'multiples', nom: 'Albireo', type: 'Étoile double large', distance: '430 années-lumière', rendu: 'binaireLarge', p: {},
-    texte: 'Une des plus belles doubles du ciel dans un petit télescope : une étoile dorée et une étoile bleue. Le contraste des couleurs vient de leurs températures très différentes.' },
-  { id: 'tcrb', cat: 'multiples', nom: 'T Coronae Borealis', type: 'Nova récurrente', distance: '3 000 années-lumière', rendu: 'binaireNova', p: {},
-    texte: 'Une naine blanche aspire le gaz d’une géante rouge. Tous les 80 ans environ, l’hydrogène accumulé explose à sa surface : l’étoile devient d’un coup mille fois plus brillante. La prochaine explosion est attendue d’un jour à l’autre.' },
-  { id: 'alphacen', cat: 'multiples', nom: 'Alpha Centauri', type: 'Système triple', distance: '4,37 années-lumière', rendu: 'triple', p: {},
-    texte: 'Nos plus proches voisines : A et B tournent l’une autour de l’autre en 80 ans, et la petite Proxima tourne autour des deux en un demi-million d’années, à un cinquième d’année-lumière.' },
-  { id: 'castor', cat: 'multiples', nom: 'Castor', type: 'Système sextuple', distance: '51 années-lumière', rendu: 'sextuple', p: {},
-    texte: 'Ce qui ressemble à une étoile est en fait six étoiles : trois couples serrés, qui tournent les uns autour des autres. Le ciel est plein de familles d’étoiles.' },
-  { id: 'doublepulsar', cat: 'multiples', nom: 'Double pulsar PSR J0737−3039', type: 'Deux étoiles à neutrons qui vont fusionner', distance: '2 400 années-lumière', rendu: 'fusion', p: { compact: 'neutrons' },
-    texte: 'Deux pulsars qui tournent l’un autour de l’autre en 2 h 27. En émettant des ondes gravitationnelles, ils se rapprochent de 7 mm par jour : ils fusionneront dans 85 millions d’années. Un test parfait de la relativité d’Einstein.' },
+  { id: 'betalyr', cat: 'multiples', nom: 'Bêta Lyrae', type: 'Binaire serrée avec transfert de masse', distance: '960 années-lumière', rendu: 'binaireTransfert', p: {},
+    texte: 'Deux étoiles si proches qu’elles se touchent presque : l’une, déformée en goutte, se vide dans l’autre par un flot de gaz qui forme un disque. Elles font le tour l’une de l’autre en 13 jours.' },
+  { id: 'algol', cat: 'multiples', nom: 'Algol', type: 'Binaire à éclipses', distance: '90 années-lumière', rendu: 'binaireEclipse', p: {},
+    texte: 'L’« étoile du démon » : tous les 2,9 jours, sa lumière baisse pendant quelques heures. Ce sont deux étoiles qui passent l’une devant l’autre, vues par la tranche. La courbe de lumière en bas montre les éclipses.' },
+  { id: 'albireo', cat: 'multiples', nom: 'Albireo', type: 'Étoile double large', distance: '430 années-lumière', rendu: 'binaireLarge', p: {},
+    texte: 'Une des plus belles doubles du ciel dans un petit télescope : une étoile dorée et une étoile bleue. Le contraste des couleurs vient de leurs températures très différentes.' },
+  { id: 'tcrb', cat: 'multiples', nom: 'T Coronae Borealis', type: 'Nova récurrente', distance: '3 000 années-lumière', rendu: 'binaireNova', p: {},
+    texte: 'Une naine blanche aspire le gaz d’une géante rouge. Tous les 80 ans environ, l’hydrogène accumulé explose à sa surface : l’étoile devient d’un coup mille fois plus brillante. La prochaine explosion est attendue d’un jour à l’autre.' },
+  { id: 'alphacen', cat: 'multiples', nom: 'Alpha Centauri', type: 'Système triple', distance: '4,37 années-lumière', rendu: 'triple', p: {},
+    texte: 'Nos plus proches voisines : A et B tournent l’une autour de l’autre en 80 ans, et la petite Proxima tourne autour des deux en un demi-million d’années, à un cinquième d’année-lumière.' },
+  { id: 'castor', cat: 'multiples', nom: 'Castor', type: 'Système sextuple', distance: '51 années-lumière', rendu: 'sextuple', p: {},
+    texte: 'Ce qui ressemble à une étoile est en fait six étoiles : trois couples serrés, qui tournent les uns autour des autres. Le ciel est plein de familles d’étoiles.' },
+  { id: 'doublepulsar', cat: 'multiples', nom: 'Double pulsar PSR J0737−3039', type: 'Deux étoiles à neutrons qui vont fusionner', distance: '2 400 années-lumière', rendu: 'fusion', p: { compact: 'neutrons' },
+    texte: 'Deux pulsars qui tournent l’un autour de l’autre en 2 h 27. En émettant des ondes gravitationnelles, ils se rapprochent de 7 mm par jour : ils fusionneront dans 85 millions d’années. Un test parfait de la relativité d’Einstein.' },
   { id: 'gw150914', cat: 'multiples', nom: 'GW150914', type: 'Fusion de deux trous noirs', distance: '1,3 milliard d’années-lumière', rendu: 'fusion', p: { compact: 'trous' },
-    texte: 'Le premier signal d’ondes gravitationnelles capté, en 2015 : deux trous noirs de 36 et 29 masses solaires ont fusionné, convertissant trois masses solaires en ondes qui ont déformé l’espace jusqu’à la Terre.' },
+    texte: 'Le premier signal d’ondes gravitationnelles capté, en 2015 : deux trous noirs de 36 et 29 masses solaires ont fusionné, convertissant trois masses solaires en ondes qui ont déformé l’espace jusqu’à la Terre.' },
 
   // ---------- Trous noirs et extrêmes ----------
-  { id: 'cygx1', cat: 'extremes', nom: 'Cygnus X-1', type: 'Trou noir stellaire avec compagne', distance: '7 200 années-lumière', rendu: 'trouNoir', p: { compagne: true },
-    texte: 'Le premier trou noir identifié, en 1971 : 21 masses solaires. Il arrache le gaz d’une supergéante bleue ; ce gaz tourbillonne dans un disque et chauffe à des millions de degrés avant de tomber.' },
-  { id: 'gaiabh1', cat: 'extremes', nom: 'Gaia BH1', type: 'Trou noir dormant', distance: '1 560 années-lumière', rendu: 'trouNoir', p: { dormant: true },
-    texte: 'Le trou noir le plus proche connu. Il ne mange rien et n’émet rien : on l’a trouvé grâce au mouvement de l’étoile qui tourne autour, mesuré par le satellite Gaia. On voit ici la lumière des étoiles derrière, déformée par sa gravité.' },
-  { id: 'sgra', cat: 'extremes', nom: 'Sagittarius A*', type: 'Trou noir supermassif', distance: '26 700 années-lumière', rendu: 'trouNoir', p: { supermassif: true, etoiles: true },
-    texte: 'Le trou noir au centre de notre galaxie : 4 millions de masses solaires. Des étoiles tournent autour à des milliers de km/s ; leur suivi a valu un prix Nobel en 2020. Sa première image date de 2022.' },
+  { id: 'cygx1', cat: 'extremes', nom: 'Cygnus X-1', type: 'Trou noir stellaire avec compagne', distance: '7 200 années-lumière', rendu: 'trouNoir', p: { compagne: true },
+    texte: 'Le premier trou noir identifié, en 1971 : 21 masses solaires. Il arrache le gaz d’une supergéante bleue ; ce gaz tourbillonne dans un disque et chauffe à des millions de degrés avant de tomber.' },
+  { id: 'gaiabh1', cat: 'extremes', nom: 'Gaia BH1', type: 'Trou noir dormant', distance: '1 560 années-lumière', rendu: 'trouNoir', p: { dormant: true },
+    texte: 'Le trou noir le plus proche connu. Il ne mange rien et n’émet rien : on l’a trouvé grâce au mouvement de l’étoile qui tourne autour, mesuré par le satellite Gaia. On voit ici la lumière des étoiles derrière, déformée par sa gravité.' },
+  { id: 'sgra', cat: 'extremes', nom: 'Sagittarius A*', type: 'Trou noir supermassif', distance: '26 700 années-lumière', rendu: 'trouNoir', p: { supermassif: true, etoiles: true },
+    texte: 'Le trou noir au centre de notre galaxie : 4 millions de masses solaires. Des étoiles tournent autour à des milliers de km/s ; leur suivi a valu un prix Nobel en 2020. Sa première image date de 2022.' },
   { id: 'm87', cat: 'extremes', nom: 'M87*', type: 'Trou noir supermassif', distance: '55 millions d’années-lumière', rendu: 'trouNoir', p: { supermassif: true, jets: true, image: true },
-    texte: 'Le premier trou noir photographié, en 2019 : un anneau de lumière autour d’une ombre. 6,5 milliards de masses solaires, et un jet de matière qui file presque à la vitesse de la lumière sur 5 000 années-lumière.' },
+    texte: 'Le premier trou noir photographié, en 2019 : un anneau de lumière autour d’une ombre. 6,5 milliards de masses solaires, et un jet de matière qui file presque à la vitesse de la lumière sur 5 000 années-lumière.' },
   { id: '3c273', cat: 'extremes', nom: '3C 273', type: 'Quasar', distance: '2,4 milliards d’années-lumière', rendu: 'quasar', p: {},
-    texte: 'Le premier quasar identifié : le cœur d’une galaxie où un trou noir géant dévore tant de matière qu’il brille comme 4 000 milliards de Soleils, plus que toute sa galaxie. On le voit d’ici avec un télescope d’amateur.' },
+    texte: 'Le premier quasar identifié : le cœur d’une galaxie où un trou noir géant dévore tant de matière qu’il brille comme 4 000 milliards de Soleils, plus que toute sa galaxie. On le voit d’ici avec un télescope d’amateur.' },
 
   // ---------- Explosions et restes ----------
-  { id: 'sn1987a', cat: 'explosions', nom: 'SN 1987A', type: 'Supernova', distance: '168 000 années-lumière', rendu: 'supernova', p: { anneau: true },
-    texte: 'L’explosion d’une étoile massive, vue en 1987 dans le Grand Nuage de Magellan. Son cœur s’est effondré en une fraction de seconde ; des neutrinos captés sur Terre l’ont annoncée avant la lumière. Le choc illumine aujourd’hui un anneau de gaz.' },
-  { id: 'crabe', cat: 'explosions', nom: 'Nébuleuse du Crabe', type: 'Reste de supernova', distance: '6 500 années-lumière', rendu: 'crabe', p: {},
-    texte: 'Les débris d’une étoile explosée en 1054, notée par des astronomes chinois : visible en plein jour pendant trois semaines. Au centre, le pulsar du Crabe tourne 30 fois par seconde et éclaire le nuage en bleu.' },
-  { id: 'casA', cat: 'explosions', nom: 'Cassiopée A', type: 'Reste de supernova', distance: '11 000 années-lumière', rendu: 'coquille', p: {},
-    texte: 'Une bulle de débris de 10 années-lumière qui s’étend à 5 000 km/s. On y voit le fer, le silicium et l’oxygène fabriqués par l’étoile avant de mourir : les éléments qui forment les planètes et les êtres vivants.' },
+  { id: 'sn1987a', cat: 'explosions', nom: 'SN 1987A', type: 'Supernova', distance: '168 000 années-lumière', rendu: 'supernova', p: { anneau: true },
+    texte: 'L’explosion d’une étoile massive, vue en 1987 dans le Grand Nuage de Magellan. Son cœur s’est effondré en une fraction de seconde ; des neutrinos captés sur Terre l’ont annoncée avant la lumière. Le choc illumine aujourd’hui un anneau de gaz.' },
+  { id: 'crabe', cat: 'explosions', nom: 'Nébuleuse du Crabe', type: 'Reste de supernova', distance: '6 500 années-lumière', rendu: 'crabe', p: {},
+    texte: 'Les débris d’une étoile explosée en 1054, notée par des astronomes chinois : visible en plein jour pendant trois semaines. Au centre, le pulsar du Crabe tourne 30 fois par seconde et éclaire le nuage en bleu.' },
+  { id: 'casA', cat: 'explosions', nom: 'Cassiopée A', type: 'Reste de supernova', distance: '11 000 années-lumière', rendu: 'coquille', p: {},
+    texte: 'Une bulle de débris de 10 années-lumière qui s’étend à 5 000 km/s. On y voit le fer, le silicium et l’oxygène fabriqués par l’étoile avant de mourir : les éléments qui forment les planètes et les êtres vivants.' },
   { id: 'gw170817', cat: 'explosions', nom: 'GW170817', type: 'Kilonova', distance: '130 millions d’années-lumière', rendu: 'kilonova', p: {},
     texte: 'Deux étoiles à neutrons qui fusionnent, vues en 2017 à la fois en ondes gravitationnelles et en lumière. L’explosion a fabriqué plusieurs fois la masse de la Terre en or et en platine.' },
   { id: 'grb221009', cat: 'explosions', nom: 'GRB 221009A', type: 'Sursaut gamma', distance: '2,4 milliards d’années-lumière', rendu: 'sursaut', p: {},
-    texte: 'Le « BOAT » (le plus brillant de tous les temps), en 2022 : l’effondrement d’une étoile géante en trou noir lance deux jets à 99,99 % de la vitesse de la lumière. Celui qui pointait vers nous a perturbé l’atmosphère de la Terre.' },
+    texte: 'Le « BOAT » (le plus brillant de tous les temps), en 2022 : l’effondrement d’une étoile géante en trou noir lance deux jets à 99,99 % de la vitesse de la lumière. Celui qui pointait vers nous a perturbé l’atmosphère de la Terre.' },
 
   // ---------- Nébuleuses ----------
-  { id: 'm57', cat: 'nebuleuses', nom: 'Nébuleuse de l’Anneau (M57)', type: 'Nébuleuse planétaire', distance: '2 300 années-lumière', rendu: 'nebPlanetaire', p: {},
+  { id: 'm57', cat: 'nebuleuses', nom: 'Nébuleuse de l’Anneau (M57)', type: 'Nébuleuse planétaire', distance: '2 300 années-lumière', rendu: 'nebPlanetaire', p: {},
     texte: 'Une étoile comme le Soleil, en fin de vie, a soufflé ses couches externes en un anneau coloré. Au centre reste une naine blanche. C’est l’avenir du Soleil, dans 7 milliards d’années.' },
-  { id: 'oeilchat', cat: 'nebuleuses', nom: 'Nébuleuse de l’Œil de Chat', type: 'Nébuleuse planétaire', distance: '3 300 années-lumière', rendu: 'nebPlanetaire', p: { coquilles: true },
-    texte: 'Une des nébuleuses planétaires les plus complexes : des coquilles emboîtées et des jets, peut-être sculptés par une étoile compagne cachée au centre.' },
-  { id: 'm42', cat: 'nebuleuses', nom: 'Nébuleuse d’Orion (M42)', type: 'Pépinière d’étoiles', distance: '1 344 années-lumière', rendu: 'nebuleuse', p: { palette: 'orion' },
+  { id: 'oeilchat', cat: 'nebuleuses', nom: 'Nébuleuse de l’Œil de Chat', type: 'Nébuleuse planétaire', distance: '3 300 années-lumière', rendu: 'nebPlanetaire', p: { coquilles: true },
+    texte: 'Une des nébuleuses planétaires les plus complexes : des coquilles emboîtées et des jets, peut-être sculptés par une étoile compagne cachée au centre.' },
+  { id: 'm42', cat: 'nebuleuses', nom: 'Nébuleuse d’Orion (M42)', type: 'Pépinière d’étoiles', distance: '1 344 années-lumière', rendu: 'nebuleuse', p: { palette: 'orion' },
     texte: 'La pépinière d’étoiles la plus proche, visible à l’œil nu sous l’épée d’Orion. Au centre, quatre jeunes étoiles brûlantes (le Trapèze) éclairent et sculptent le nuage où naissent des milliers d’autres.' },
-  { id: 'piliers', cat: 'nebuleuses', nom: 'Piliers de la Création (M16)', type: 'Colonnes de gaz et de poussière', distance: '6 500 années-lumière', rendu: 'piliers', p: {},
+  { id: 'piliers', cat: 'nebuleuses', nom: 'Piliers de la Création (M16)', type: 'Colonnes de gaz et de poussière', distance: '6 500 années-lumière', rendu: 'piliers', p: {},
     texte: 'Trois colonnes de gaz froid, hautes de plusieurs années-lumière, rongées par la lumière d’étoiles géantes voisines. À leurs sommets, des étoiles sont en train de naître.' },
-  { id: 'carene', cat: 'nebuleuses', nom: 'Nébuleuse de la Carène', type: 'Grande région de formation d’étoiles', distance: '7 500 années-lumière', rendu: 'nebuleuse', p: { palette: 'carene' },
-    texte: 'Une nébuleuse quatre fois plus grande qu’Orion, où vivent certaines des étoiles les plus massives de la galaxie, dont Eta Carinae. Ses « falaises cosmiques » ont été photographiées par le télescope James Webb.' },
+  { id: 'carene', cat: 'nebuleuses', nom: 'Nébuleuse de la Carène', type: 'Grande région de formation d’étoiles', distance: '7 500 années-lumière', rendu: 'nebuleuse', p: { palette: 'carene' },
+    texte: 'Une nébuleuse quatre fois plus grande qu’Orion, où vivent certaines des étoiles les plus massives de la galaxie, dont Eta Carinae. Ses « falaises cosmiques » ont été photographiées par le télescope James Webb.' },
 
   // ---------- Amas et galaxies ----------
-  { id: 'pleiades', cat: 'amas', nom: 'Les Pléiades', type: 'Amas ouvert', distance: '444 années-lumière', rendu: 'amasOuvert', p: {},
-    texte: 'Un groupe d’un millier d’étoiles jeunes (100 millions d’années), nées ensemble. Les plus brillantes, bleues, se voient à l’œil nu ; elles traversent un nuage de poussière qui les entoure d’un voile bleuté.' },
-  { id: 'omegacen', cat: 'amas', nom: 'Oméga du Centaure', type: 'Amas globulaire', distance: '17 000 années-lumière', rendu: 'amasGlobulaire', p: {},
+  { id: 'pleiades', cat: 'amas', nom: 'Les Pléiades', type: 'Amas ouvert', distance: '444 années-lumière', rendu: 'amasOuvert', p: {},
+    texte: 'Un groupe d’un millier d’étoiles jeunes (100 millions d’années), nées ensemble. Les plus brillantes, bleues, se voient à l’œil nu ; elles traversent un nuage de poussière qui les entoure d’un voile bleuté.' },
+  { id: 'omegacen', cat: 'amas', nom: 'Oméga du Centaure', type: 'Amas globulaire', distance: '17 000 années-lumière', rendu: 'amasGlobulaire', p: {},
     texte: 'Dix millions d’étoiles serrées dans une boule, parmi les plus vieilles de la galaxie (12 milliards d’années). C’est peut-être le cœur d’une petite galaxie avalée par la nôtre.' },
-  { id: 'voielactee', cat: 'amas', nom: 'La Voie lactée vue de loin', type: 'Notre galaxie', distance: '100 000 années-lumière de diamètre', rendu: 'galaxie', p: { faceOn: true, ici: true },
-    texte: 'Notre galaxie : une spirale barrée de 200 à 400 milliards d’étoiles. Le Soleil est dans un bras secondaire, à 26 700 années-lumière du centre, et fait le tour de la galaxie en 230 millions d’années.' },
-  { id: 'lmc', cat: 'amas', nom: 'Grand Nuage de Magellan', type: 'Galaxie naine', distance: '160 000 années-lumière', rendu: 'galaxieIrreguliere', p: {},
+  { id: 'voielactee', cat: 'amas', nom: 'La Voie lactée vue de loin', type: 'Notre galaxie', distance: '100 000 années-lumière de diamètre', rendu: 'galaxie', p: { faceOn: true, ici: true },
+    texte: 'Notre galaxie : une spirale barrée de 200 à 400 milliards d’étoiles. Le Soleil est dans un bras secondaire, à 26 700 années-lumière du centre, et fait le tour de la galaxie en 230 millions d’années.' },
+  { id: 'lmc', cat: 'amas', nom: 'Grand Nuage de Magellan', type: 'Galaxie naine', distance: '160 000 années-lumière', rendu: 'galaxieIrreguliere', p: {},
     texte: 'Une petite galaxie qui tourne autour de la nôtre, visible à l’œil nu depuis l’hémisphère Sud. Elle abrite la nébuleuse de la Tarentule et a accueilli la supernova SN 1987A.' },
   { id: 'andromede', cat: 'amas', nom: 'Galaxie d’Andromède (M31)', type: 'Galaxie spirale', distance: '2,5 millions d’années-lumière', rendu: 'galaxie', p: { incline: true },
-    texte: 'La grande voisine, un peu plus grande que la Voie lactée : mille milliards d’étoiles. C’est l’objet le plus lointain visible à l’œil nu. Elle fonce vers nous : les deux galaxies fusionneront dans 4 à 5 milliards d’années.' },
+    texte: 'La grande voisine, un peu plus grande que la Voie lactée : mille milliards d’étoiles. C’est l’objet le plus lointain visible à l’œil nu. Elle fonce vers nous : les deux galaxies fusionneront dans 4 à 5 milliards d’années.' },
   { id: 'antennes', cat: 'amas', nom: 'Galaxies des Antennes', type: 'Galaxies en collision', distance: '45 millions d’années-lumière', rendu: 'antennes', p: {},
-    texte: 'Deux galaxies en pleine collision. Les étoiles ne se percutent presque jamais, mais les nuages de gaz se compriment et allument des milliers de nouvelles étoiles. Les marées gravitationnelles étirent deux longues « antennes ».' },
+    texte: 'Deux galaxies en pleine collision. Les étoiles ne se percutent presque jamais, mais les nuages de gaz se compriment et allument des milliers de nouvelles étoiles. Les marées gravitationnelles étirent deux longues « antennes ».' },
 
   // ---------- Exoplanètes ----------
-  { id: '51peg', cat: 'planetes', nom: '51 Pegasi b', type: 'Jupiter chaud', distance: '50 années-lumière', rendu: 'exoplanete', p: { couleur: [210, 150, 100], periode: 4 },
-    texte: 'La première planète découverte autour d’une étoile comme le Soleil, en 1995 (prix Nobel 2019). Une géante comme Jupiter, mais qui tourne si près de son étoile qu’elle en fait le tour en 4 jours, à plus de 1 000 °C.' },
-  { id: 'hd189733b', cat: 'planetes', nom: 'HD 189733 b', type: 'Jupiter chaud bleu', distance: '64 années-lumière', rendu: 'exoplanete', p: { couleur: [70, 120, 230], periode: 2.2 },
-    texte: 'Une géante d’un bleu profond, à cause de particules de verre dans son atmosphère. Il y pleut du verre à l’horizontale, poussé par des vents de 8 000 km/h.' },
-  { id: 'trappist1', cat: 'planetes', nom: 'TRAPPIST-1', type: 'Sept planètes de la taille de la Terre', distance: '40 années-lumière', rendu: 'trappist', p: {},
+  { id: '51peg', cat: 'planetes', nom: '51 Pegasi b', type: 'Jupiter chaud', distance: '50 années-lumière', rendu: 'exoplanete', p: { couleur: [210, 150, 100], periode: 4 },
+    texte: 'La première planète découverte autour d’une étoile comme le Soleil, en 1995 (prix Nobel 2019). Une géante comme Jupiter, mais qui tourne si près de son étoile qu’elle en fait le tour en 4 jours, à plus de 1 000 °C.' },
+  { id: 'hd189733b', cat: 'planetes', nom: 'HD 189733 b', type: 'Jupiter chaud bleu', distance: '64 années-lumière', rendu: 'exoplanete', p: { couleur: [70, 120, 230], periode: 2.2 },
+    texte: 'Une géante d’un bleu profond, à cause de particules de verre dans son atmosphère. Il y pleut du verre à l’horizontale, poussé par des vents de 8 000 km/h.' },
+  { id: 'trappist1', cat: 'planetes', nom: 'TRAPPIST-1', type: 'Sept planètes de la taille de la Terre', distance: '40 années-lumière', rendu: 'trappist', p: {},
     texte: 'Une petite naine rouge entourée de sept planètes rocheuses, toutes plus proches d’elle que Mercure du Soleil. Trois sont dans la zone où l’eau pourrait être liquide. Depuis l’une, les autres apparaîtraient plus grosses que la Lune.' },
 ];
 const OBJET_CIEL_PAR_ID = Object.fromEntries(OBJETS_CIEL.map((o) => [o.id, o]));
@@ -562,7 +562,9 @@ class Observation {
     // Panneau : nom, type, distance, explication.
     const x0 = 14, w = compact ? W - 28 : Math.min(420, W * 0.36), taille = compact ? 12.5 : 13.5;
     const lignes = [[this.o.nom, '#ffffff', `600 ${taille + 5}px system-ui, sans-serif`], [this.o.type, '#ffd666', `600 ${taille}px system-ui, sans-serif`],
-      [`Distance : ${this.o.distance}`, '#bfe0ff', `${taille}px system-ui, sans-serif`], [this.o.texte, '#e6edf6', `${taille}px system-ui, sans-serif`]];
+      [`Distance : ${this.o.distance}`, '#bfe0ff', `${taille}px system-ui, sans-serif`], [this.o.texte, '#e6edf6', `${taille}px system-ui, sans-serif`]];
+    const egg = verifierBetelgeuse(this);
+    if (egg) lignes.push([egg, '#ffd54f', `italic ${taille}px system-ui, sans-serif`]);
     ctx.save(); ctx.textAlign = 'left'; ctx.textBaseline = 'top';
     const ecrire = (dessiner) => { let yy = 22; for (const [t, c, f] of lignes) { ctx.font = f; ctx.fillStyle = c; yy = ecrireLignes(ctx, t, x0 + 12, yy, w - 24, taille + 8, dessiner) + 4; } return yy; };
     const h = ecrire(false) - 14 + 8;
@@ -578,7 +580,7 @@ class Observation {
       ctx.fillStyle = '#fff'; ctx.font = '600 22px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(b.t, b.x + b.w / 2, b.y + b.h / 2 + 1);
     }
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    texteSurFond(ctx, compact ? 'Toucher : revenir · + / − : zoom · pas à l’échelle' : 'Échap, Entrée ou toucher : revenir · molette, + / − : zoom · tailles non à l’échelle', W / 2, H - 14, { police: '12px system-ui, sans-serif', couleur: '#8fa3b8' });
+    texteSurFond(ctx, compact ? 'Toucher : revenir · + / − : zoom · pas à l’échelle' : 'Échap, Entrée ou toucher : revenir · molette, + / − : zoom · tailles non à l’échelle', W / 2, H - 14, { police: '12px system-ui, sans-serif', couleur: '#8fa3b8' });
   }
 }
 
@@ -586,7 +588,7 @@ class Observation {
 function ouvrirPromenade(contexte) {
   const m = $('modale');
   m.innerHTML = `<div class="fenetre large"><header class="entete"><div><h2>🔭 Se promener</h2>
-    <p>Une balade sur Terre avant de partir, ou un regard sur les merveilles du ciel lointain, hors du Système solaire. Ceux-là, on les observe de loin : pas d’atterrissage.</p></div><button class="fermer">✕</button></header>
+    <p>Une balade sur Terre avant de partir, ou un regard sur les merveilles du ciel lointain, hors du Système solaire. Ceux-là, on les observe de loin : pas d’atterrissage.</p></div><button class="fermer">✕</button></header>
     <section><h3>🌍 Sur Terre</h3><div class="cartes-ciel"><button class="carte-ciel" data-terre="1"><b>🌳 La Terre</b><span>Fleurs, fruits et le Bar de l’Espace</span></button></div></section>
     ${CATEGORIES_CIEL.map(([cat, titre]) => `<section><h3>${titre}</h3><div class="cartes-ciel">${OBJETS_CIEL.filter((o) => o.cat === cat).map((o) =>
       `<button class="carte-ciel" data-objet="${o.id}"><b>${o.nom}</b><span>${o.type} · ${o.distance}</span></button>`).join('')}</div></section>`).join('')}

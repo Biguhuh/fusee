@@ -18,7 +18,7 @@ const DONNEES_ETOILES = {
     etoiles: [{ nom: 'Proxima Centauri', type: 'naine rouge M5,5', masse: 0.122, rayon: 0.154, lum: 0.0017, teff: 3042, couleur: '#ff7043' }],
     planetes: [
       { nom: 'Proxima d', a: 0.02885, e: 0.04, P: 5.12, m: 0.26, statut: 'confirmée (2025), masse minimale' },
-      { nom: 'Proxima b', a: 0.04857, e: 0.02, P: 11.19, m: 1.07, statut: 'confirmée, masse minimale ; dans la zone habitable' },
+      { nom: 'Proxima b', a: 0.04857, e: 0.02, P: 11.19, m: 1.07, statut: 'confirmée, masse minimale ; dans la zone habitable' },
     ],
   },
   alphacen: {
@@ -29,6 +29,8 @@ const DONNEES_ETOILES = {
     ],
     planetes: [
       { nom: 'Alpha Centauri A b', a: 2.0, e: 0.1, m: 100, statut: 'candidate (image du télescope James Webb, 2025), géante à confirmer' },
+      // Planète inventée (easter egg), dans la zone habitable d'Alpha Centauri A, sous deux soleils.
+      { nom: 'ExRépublique', a: 1.25, e: 0.03, P: 365.25 * Math.sqrt(1.25 ** 3 / 1.08), m: 1.0, r: 1.0, statut: 'Planète composite, venue d’une galaxie lointaine, très lointaine. Planète inventée' },
     ],
   },
   barnard: {
@@ -64,8 +66,8 @@ const DONNEES_ETOILES = {
     planetes: [
       { nom: 'Tau Ceti g', a: 0.133, e: 0.06, P: 20, m: 1.75, statut: 'candidate, masse minimale' },
       { nom: 'Tau Ceti h', a: 0.243, e: 0.23, P: 49.4, m: 1.83, statut: 'candidate, masse minimale' },
-      { nom: 'Tau Ceti e', a: 0.538, e: 0.18, P: 163, m: 3.9, statut: 'candidate, masse minimale ; bord de la zone habitable' },
-      { nom: 'Tau Ceti f', a: 1.334, e: 0.16, P: 636, m: 3.9, statut: 'candidate, masse minimale ; bord de la zone habitable' },
+      { nom: 'Tau Ceti e', a: 0.538, e: 0.18, P: 163, m: 3.9, statut: 'candidate, masse minimale ; bord de la zone habitable' },
+      { nom: 'Tau Ceti f', a: 1.334, e: 0.16, P: 636, m: 3.9, statut: 'candidate, masse minimale ; bord de la zone habitable' },
     ],
     asteroides: [{ nom: 'Astéroïde du disque de débris', a: 10, rayon: 300 }],
   },
@@ -75,10 +77,10 @@ const DONNEES_ETOILES = {
     planetes: [
       { nom: 'TRAPPIST-1 b', a: 0.01154, e: 0, P: 1.511, m: 1.374, r: 1.116, statut: 'confirmée, masse et rayon mesurés' },
       { nom: 'TRAPPIST-1 c', a: 0.01580, e: 0, P: 2.422, m: 1.308, r: 1.097, statut: 'confirmée, masse et rayon mesurés' },
-      { nom: 'TRAPPIST-1 d', a: 0.02227, e: 0, P: 4.049, m: 0.388, r: 0.788, statut: 'confirmée ; bord intérieur de la zone habitable' },
-      { nom: 'TRAPPIST-1 e', a: 0.02925, e: 0, P: 6.101, m: 0.692, r: 0.920, statut: 'confirmée ; dans la zone habitable' },
-      { nom: 'TRAPPIST-1 f', a: 0.03849, e: 0, P: 9.208, m: 1.039, r: 1.045, statut: 'confirmée ; dans la zone habitable' },
-      { nom: 'TRAPPIST-1 g', a: 0.04683, e: 0, P: 12.352, m: 1.321, r: 1.129, statut: 'confirmée ; bord extérieur de la zone habitable' },
+      { nom: 'TRAPPIST-1 d', a: 0.02227, e: 0, P: 4.049, m: 0.388, r: 0.788, statut: 'confirmée ; bord intérieur de la zone habitable' },
+      { nom: 'TRAPPIST-1 e', a: 0.02925, e: 0, P: 6.101, m: 0.692, r: 0.920, statut: 'confirmée ; dans la zone habitable' },
+      { nom: 'TRAPPIST-1 f', a: 0.03849, e: 0, P: 9.208, m: 1.039, r: 1.045, statut: 'confirmée ; dans la zone habitable' },
+      { nom: 'TRAPPIST-1 g', a: 0.04683, e: 0, P: 12.352, m: 1.321, r: 1.129, statut: 'confirmée ; bord extérieur de la zone habitable' },
       { nom: 'TRAPPIST-1 h', a: 0.06189, e: 0, P: 18.773, m: 0.326, r: 0.755, statut: 'confirmée, glacée' },
     ],
   },
@@ -114,7 +116,7 @@ function construireAstresSysteme(id) {
       atm: { p0: 0.08, rho0: 2e-4, H: 150, t0: e.teff - KELVIN, gradient: -10, tHaut: e.teff - KELVIN },
       depart: { alt: R * 1000 * 6, vitesse: 150000 },
       couleurs: { sol: e.couleur, ciel: e.couleur, disque: e.couleur }, surface: 'plasma',
-      note: `Étoile ${e.type} : ${fmt(e.masse, 2)} masse solaire, ${fmt(e.rayon, 2)} rayon solaire, ${fmt(e.lum, e.lum < 0.01 ? 4 : 2)} fois la lumière du Soleil.`,
+      note: `Étoile ${e.type} : ${fmt(e.masse, 2)} masse solaire, ${fmt(e.rayon, 2)} rayon solaire, ${fmt(e.lum, e.lum < 0.01 ? 4 : 2)} fois la lumière du Soleil.`,
       luminosite: e.lum,
       orbite: e.a ? { centre: idEtoile, a: e.a * UA_KM, e: e.e || 0, varpi: 0, M0: 0, n: 360 / e.P, retro: false } : null,
     };
@@ -145,8 +147,8 @@ function construireAstresSysteme(id) {
       couleurs: couleursExo(gazeuse ? 'gazeuse' : 'solide', t),
       surface: gazeuse ? 'aucune (gaz)' : asteroide ? 'roche et glace (supposées)' : t > 300 ? 'roche brûlante (supposée)' : t < -110 ? 'glace (supposée)' : 'roche (supposée)',
       note: asteroide
-        ? `Objet supposé dans la ceinture de poussières observée vers ${fmt(p.a)} UA. Hypothétique : taille et nature estimées.`
-        : `${p.statut}. ${p.r ? '' : 'Rayon estimé d’après la masse. '}Température d’équilibre ${t} °C (estimée d’après la lumière reçue). ${gazeuse ? '' : 'Atmosphère inconnue, supposée absente.'}`,
+        ? `Objet supposé dans la ceinture de poussières observée vers ${fmt(p.a)} UA. Hypothétique : taille et nature estimées.`
+        : `${p.statut}. ${p.r ? '' : 'Rayon estimé d’après la masse. '}Température d’équilibre ${t} °C (estimée d’après la lumière reçue). ${gazeuse ? '' : 'Atmosphère inconnue, supposée absente.'}`,
       relief: gazeuse ? undefined : { amplitude: Math.max(15, Math.min(150, R * 0.02)), longueur: Math.max(200, Math.min(1800, R * 0.25)), crateres: t < -110 ? 0.5 : 0.3 },
       rayonEstime: !p.r,
       orbite: { centre: idEtoile, a: p.a * UA_KM, e: p.e || 0, varpi: hash2(i + 1, id.length) * 360, M0: hash2(i + 7, id.length) * 360, n: 360 / P, retro: false, periodeJours: P },
@@ -180,8 +182,8 @@ for (const [id, d] of Object.entries(DONNEES_ETOILES)) {
   const lum = d.etoiles.reduce((s, e) => s + (e.a ? 0 : e.lum), 0);
   const aMax = Math.max(...liste.filter((a) => a.orbite).map((a) => a.orbite.a / UA_KM), 0.05);
   SYSTEMES[id] = {
-    id, nom: `Système de ${d.nom}`, tout: `Tout le système de ${d.nom}`, etoile: id + '_etoile', luminosite: lum,
-    distanceA: `à ${d.etoiles[0].nom}`, origine: null, nomOrigine: '', origineSans: '',
+    id, nom: `système ${de(d)}`, tout: `Tout le système ${de(d)}`, etoile: id + '_etoile', luminosite: lum,
+    distanceA: `${au(d.etoiles[0])}`, origine: null, nomOrigine: '', origineSans: '',
     positionAL: d.positionAL, distanceAL: d.distanceAL, vueUA: aMax * 2.5,
     planetes, principaux: planetes, objectifs: planetes,
     carte: [[id + '_etoile', []], ...planetes.map((p) => [p, []])],
