@@ -15,21 +15,21 @@ const EXPLORATEURS = {
 
 // Ce qu'on peut trouver, selon l'astre.
 const SITES_PAR_ASTRE = {
-  terre: [['Roche granitique', 'Roche continentale riche en quartz.'], ['Plante', 'De la vie ! Photosynthèse à base de chlorophylle.'], ['Fossile', 'Coquillage pétrifié vieux de 200 millions d’années.'], ['Minéral', 'Cristal de feldspath.']],
+  terre: [['Roche granitique', 'Roche continentale riche en quartz.'], ['Plante', 'De la vie ! Photosynthèse à base de chlorophylle.'], ['Fossile', 'Coquillage pétrifié vieux de 200 millions d’années.'], ['Minéral', 'Cristal de feldspath.']],
   lune: [['Régolithe', 'Poussière fine produite par 4 milliards d’années d’impacts.'], ['Basalte des mers', 'Lave refroidie il y a 3,5 milliards d’années.'], ['Anorthosite', 'Roche claire des hauts plateaux, la croûte primitive.'], ['Billes de verre', 'Gouttelettes de verre volcanique orangé.']],
-  mars: [['Poussière rouge', 'Oxydes de fer : la rouille qui colore Mars.'], ['Ancien lit de rivière', 'Galets arrondis : de l’eau a coulé ici.'], ['Basalte', 'Roche volcanique sombre.'], ['Glace enfouie', 'Glace d’eau sous quelques centimètres de sol.']],
+  mars: [['Poussière rouge', 'Oxydes de fer : la rouille qui colore Mars.'], ['Ancien lit de rivière', 'Galets arrondis : de l’eau a coulé ici.'], ['Basalte', 'Roche volcanique sombre.'], ['Glace enfouie', 'Glace d’eau sous quelques centimètres de sol.']],
   venus: [['Basalte', 'Lave figée, surface de moins de 500 millions d’années.'], ['Coulée de lave', 'Plaine volcanique.'], ['Croûte de soufre', 'Dépôts de composés soufrés.']],
   mercure: [['Régolithe', 'Sol sombre riche en graphite.'], ['Cratère', 'Impact ancien.'], ['Glace polaire', 'Glace d’eau cachée à l’ombre des cratères polaires.']],
   io: [['Soufre', 'Soufre jaune déposé par les volcans.'], ['Coulée de lave', 'Lave de silicates très chaude.'], ['Évent volcanique', 'Panache de dioxyde de soufre.']],
-  europe: [['Glace salée', 'Glace teintée de sels venus de l’océan profond.'], ['Fissure de la banquise', 'Rift où la glace s’ouvre et se referme.'], ['Sels marins', 'Chlorure de sodium : l’océan remonte ici.']],
-  titan: [['Sable organique', 'Grains d’hydrocarbures façonnés en dunes.'], ['Lac de méthane', 'Méthane et éthane liquides à −179 °C.'], ['Galet de glace', 'Glace d’eau dure comme la roche, arrondie par des rivières de méthane.']],
-  triton: [['Glace d’azote', 'Glace rose-blanche d’azote gelé.'], ['Geyser d’azote', 'Panache sombre qui monte à 8 km.']],
+  europe: [['Glace salée', 'Glace teintée de sels venus de l’océan profond.'], ['Fissure de la banquise', 'Rift où la glace s’ouvre et se referme.'], ['Sels marins', 'Chlorure de sodium : l’océan remonte ici.']],
+  titan: [['Sable organique', 'Grains d’hydrocarbures façonnés en dunes.'], ['Lac de méthane', 'Méthane et éthane liquides à −179 °C.'], ['Galet de glace', 'Glace d’eau dure comme la roche, arrondie par des rivières de méthane.']],
+  triton: [['Glace d’azote', 'Glace rose-blanche d’azote gelé.'], ['Geyser d’azote', 'Panache sombre qui monte à 8 km.']],
   pluton: [['Glace d’azote', 'Plaine glacée qui se renouvelle par convection.'], ['Glace d’eau', 'Montagnes de glace d’eau dure comme du granite.'], ['Tholins', 'Molécules organiques rougeâtres.']],
   l602: [['Neige des geysers', 'Grains de glace retombés des panaches.'], ['Rayure de tigre', 'Fissure chaude d’où jaillissent les geysers.']],
 };
 const SITES_GLACE = [['Glace d’eau', 'Glace vieille de plusieurs milliards d’années.'], ['Givre', 'Fine couche de givre.'], ['Cratère', 'Impact dans la glace.'], ['Roche', 'Inclusions rocheuses.']];
 const SITES_ROCHE = [['Roche', 'Roche primitive.'], ['Régolithe', 'Poussière d’impacts.'], ['Météorite', 'Fragment métallique tombé du ciel.'], ['Cratère', 'Impact récent.']];
-const SITES_ASTEROIDE = [['Roche carbonée', 'Matière primitive du système solaire.'], ['Métal', 'Fer et nickel.'], ['Régolithe', 'Poussière très fine.']];
+const SITES_ASTEROIDE = [['Roche carbonée', 'Matière primitive du Système solaire.'], ['Métal', 'Fer et nickel.'], ['Régolithe', 'Poussière très fine.']];
 
 // Échantillons qu'on peut trouver sur un astre : [nom, description].
 function typesEchantillons(a) {
@@ -74,7 +74,7 @@ class Exploration {
     this.acc = Math.min(type === 'robot' ? 1 : 4, 0.6 * g + 0.001);
     this.saut = type === 'robot' ? 0 : Math.min(2.2, 0.5 * this.vLib);
     this.cable = type === 'spationaute' && this.vLib < 4.4;
-    if (this.cable) this.dire(`Gravité minuscule (libération à ${fmtV(this.vLib)}) : ${nomSpatio()} reste attaché${acc()} par un câble.`);
+    if (this.cable) this.dire(`Gravité minuscule (libération à ${fmtV(this.vLib)}) : ${nomSpatio()} reste attaché${acc()} par un câble.`);
     // Promenade sur Terre : fleurs, fruits et bar, pas de science.
     this.terre = !!options.terre;
     this.campagne = options.provisions || null;
@@ -96,12 +96,12 @@ class Exploration {
       this.doseSv = vol.doseSv || 0;
       this.dose = (100 * this.doseSv) / DOSE_MORTELLE;
       const t = tempsAvantDoseMortelle(this.irradiation.svJour, this.doseSv);
-      if (!this.terre && t < 30 * 86400) this.dire(`Rayonnement ici : ${fmtDose(this.irradiation.svJour)}. Dose mortelle atteinte dehors en ${fmtDureeLongue(t)}.`);
+      if (!this.terre && t < 30 * 86400) this.dire(`Rayonnement ici : ${fmtDose(this.irradiation.svJour)}. Dose mortelle atteinte dehors en ${fmtDureeLongue(t)}.`);
     }
     if (type === 'robot') {
       this.blindage = options.blindage || blindageConseille(this.astre);
       this.doseGy = 0;
-      this.dire(`Rayonnement ici : ${fmtDose(this.irradiation.svJour)}. Blindage ${BLINDAGES_ROBOT[this.blindage].nom.toLowerCase()} : l’électronique tient ${this.vieRestante()}.`);
+      this.dire(`Rayonnement ici : ${fmtDose(this.irradiation.svJour)}. Blindage ${BLINDAGES_ROBOT[this.blindage].nom.toLowerCase()} : l’électronique tient ${this.vieRestante()}.`);
     }
   }
 
@@ -128,24 +128,24 @@ class Exploration {
     const p = this.p;
     const proche = this.sites.filter((s) => Math.abs(s.x - p.x) < (s.type === 'bar' ? 8 : 2.5))
       .sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0];
-    if (Math.abs(p.x - this.xFusee) < 4 && !proche) return this.terminer('retour', `Fin de la promenade : ${this.bouquet || 0} fleurs et ${this.panier || 0} fruits pour l’équipage${this.bieres ? `, et ${this.bieres} bière${this.bieres > 1 ? 's' : ''} au bar` : ''}.`);
+    if (Math.abs(p.x - this.xFusee) < 4 && !proche) return this.terminer('retour', `Fin de la promenade : ${this.bouquet || 0} fleurs et ${this.panier || 0} fruits pour l’équipage${this.bieres ? `, et ${this.bieres} bière${this.bieres > 1 ? 's' : ''} au bar` : ''}.`);
     if (!proche) return this.dire('Approchez-vous d’une fleur, d’un arbre fruitier ou du bar.');
     const c = this.campagne;
     if (proche.type === 'bar') {
       // Le barman sert 3 bières au plus ; au-delà, il refuse et rien n'est compté.
-      if (this.bieres >= BIERES_MAX) return this.dire(`🍺 Le barman refuse : ${this.bieres} bières, ça suffit, il y a un lancement demain !`);
+      if (this.bieres >= BIERES_MAX) return this.dire(`🍺 Le barman refuse : ${this.bieres} bières, ça suffit, il y a un lancement demain !`);
       this.bieres++;
       if (c) c.bieres = (c.bieres || 0) + 1;
-      return this.dire(this.bieres === 1 ? '🍺 Une bière bien fraîche au Bar de l’Espace. Introuvable là-haut !'
+      return this.dire(this.bieres === 1 ? '🍺 Une bière bien fraîche au Bar de l’Espace. Introuvable là-haut !'
         : this.bieres < BIERES_MAX ? `🍺 ${this.bieres}e bière… la démarche devient incertaine.`
-          : `🍺 ${this.bieres}e bière, la dernière : le barman ne vous en servira plus.`);
+          : `🍺 ${this.bieres}e bière, la dernière : le barman ne vous en servira plus.`);
     }
     if (proche.type === 'arbre') {
-      if (proche.reste <= 0) return this.dire(`${proche.nom} : plus de fruits à portée.`);
+      if (proche.reste <= 0) return this.dire(`${proche.nom} : plus de fruits à portée.`);
       proche.reste--;
       this.panier = (this.panier || 0) + 1;
       if (c) c.provisions.fruits++;
-      return this.dire(`Une ${proche.fruit} cueillie. Des fruits frais : le luxe absolu dans l’espace.`);
+      return this.dire(`Une ${proche.fruit} cueillie. Des fruits frais : le luxe absolu dans l’espace.`);
     }
     if (proche.cueillie) return this.dire('Déjà cueillie.');
     proche.cueillie = true;
@@ -161,12 +161,12 @@ class Exploration {
     if (this.enRover) {
       this.enRover = false;
       this.rover.x = p.x;
-      this.dire(`Vous descendez du rover. ${this.sacRover.length} échantillon${this.sacRover.length > 1 ? 's' : ''} dans sa caisse.`);
+      this.dire(`Vous descendez de l’astromobile. ${this.sacRover.length} échantillon${this.sacRover.length > 1 ? 's' : ''} dans sa caisse.`);
     } else if (Math.abs(p.x - this.rover.x) < 4 && p.auSol) {
       this.enRover = true;
       p.x = this.rover.x;
-      this.dire('À bord du rover : jusqu’à ' + fmtV(this.vMaxRover) + ' et 20 échantillons.');
-    } else this.dire('Approchez-vous du rover (à côté du module) pour monter dedans.');
+      this.dire('À bord de l’astromobile : jusqu’à ' + fmtV(this.vMaxRover) + ' et 20 échantillons.');
+    } else this.dire('Approchez-vous de l’astromobile (à côté du module) pour monter dedans.');
   }
 
   genererSites() {
@@ -187,11 +187,11 @@ class Exploration {
     if (h < 0.02) return;
     this.dernierSaut = h;
     const rec = recordSaut(this.astre.id);
-    const txt = h < 10 ? `${fmt(h, 2)} m` : fmtAlt(h);
+    const txt = h < 10 ? `${fmt(h, 2)} m` : fmtAlt(h);
     if (!rec || h > rec.h) {
       enregistrerSaut(this.astre.id, h, nomSpatio());
-      this.dire(`🏅 Saut de ${txt} : record sur ${this.astre.nom}${rec ? ` (l’ancien : ${rec.h < 10 ? fmt(rec.h, 2) + ' m' : fmtAlt(rec.h)})` : ''} !`);
-    } else this.dire(`Saut de ${txt} (record sur ${this.astre.nom} : ${rec.h < 10 ? fmt(rec.h, 2) + ' m' : fmtAlt(rec.h)}).`);
+      this.dire(`🏅 Saut de ${txt} : record ${sur(this.astre)}${rec ? ` (l’ancien : ${rec.h < 10 ? fmt(rec.h, 2) + ' m' : fmtAlt(rec.h)})` : ''} !`);
+    } else this.dire(`Saut de ${txt} (record ${sur(this.astre)} : ${rec.h < 10 ? fmt(rec.h, 2) + ' m' : fmtAlt(rec.h)}).`);
   }
 
   dejaFait(site) { const s = this.science[this.astre.id]; return !!(s && s.sites && s.sites[site.k]); }
@@ -229,7 +229,7 @@ class Exploration {
         const s = this.analyse.site;
         this.marquer(s);
         this.donneesEnAttente++;
-        this.dire(`Analyse terminée : ${s.nom}. ${s.texte} (données à transmettre depuis ${this.moduleRobot ? 'le module robot' : 'le module'})`);
+        this.dire(`Analyse terminée : ${s.nom}. ${s.texte} (données à transmettre depuis ${this.moduleRobot ? 'le module robot' : 'le module'})`);
         this.analyse = null;
       }
     }
@@ -256,7 +256,7 @@ class Exploration {
       const pente = Math.atan2(this.sol(p.x + 0.5 * Math.sign(p.vx || 1)) - this.sol(p.x), 0.5);
       if (pente * 180 / Math.PI > penteMax && Math.abs(p.vx) > 0) {
         p.vx = 0;
-        if (this.type === 'robot' || this.enRover) this.dire(`Pente trop raide pour les roues du ${this.enRover ? 'rover' : 'robot'}.`);
+        if (this.type === 'robot' || this.enRover) this.dire(`Pente trop raide pour les roues ${this.enRover ? 'de l’astromobile' : 'du robot'}.`);
       }
       const nx = p.x + p.vx * dt;
       const ny = this.sol(nx);
@@ -297,7 +297,7 @@ class Exploration {
         p.y = this.sol(p.x);
         if (p.vy < -3 * Math.sqrt(g * 2) - 2) {
           this.integrite -= Math.min(60, (-p.vy - 2) * 8);
-          this.dire('Réception brutale !');
+          this.dire('Réception brutale !');
         }
         p.vy = 0; p.auSol = true;
         this.poussiere(8);
@@ -313,7 +313,7 @@ class Exploration {
     this.reserve -= dt * (this.type === 'robot' ? effort : 1);
     if (this.moduleRobot && this.presDeLaFusee()) this.reserve = Math.min(this.def.autonomie, this.reserve + dt * 20);
     if (this.reserve <= 0) {
-      return this.terminer('perdu', this.type === 'robot' ? 'Batterie vide : le robot s’est arrêté pour toujours.' : `Plus d’oxygène : ${nomSpatio()} n’a pas pu rentrer à temps.`);
+      return this.terminer('perdu', this.type === 'robot' ? 'Batterie vide : le robot s’est arrêté pour toujours.' : `Plus d’oxygène : ${nomSpatio()} n’a pas pu rentrer à temps.`);
     }
 
     // Dangers (dégradation progressive, comme la coque de la fusée)
@@ -330,7 +330,7 @@ class Exploration {
       this.doseSv += (this.irradiation.svJour * dt) / 86400;
       this.dose = (100 * this.doseSv) / DOSE_MORTELLE;
     }
-    if (this.integrite <= 0) return this.terminer('perdu', tp >= tc ? `La pression (${fmtP(this.c.p)}) a écrasé ${this.type === 'robot' ? 'le robot' : 'la combinaison'}.` : `La chaleur (${fmt(this.c.t)} °C) a eu raison ${this.type === 'robot' ? 'du robot' : 'de la combinaison'}.`);
+    if (this.integrite <= 0) return this.terminer('perdu', tp >= tc ? `La pression (${fmtP(this.c.p)}) a écrasé ${this.type === 'robot' ? 'le robot' : 'la combinaison'}.` : `La chaleur (${fmt(this.c.t)} °C) a eu raison ${this.type === 'robot' ? 'du robot' : 'de la combinaison'}.`);
     if (this.dose >= 100) return this.terminer('perdu', `Le rayonnement a ${this.type === 'robot' ? 'grillé l’électronique du robot' : `été mortel pour ${nomSpatio()}`}.`);
   }
 
@@ -340,7 +340,7 @@ class Exploration {
     const parJour = this.irradiation.svJour * b.facteur;
     if (parJour <= 0) return 'illimitée';
     const s = ((b.tolerance - this.doseGy) / parJour) * 86400;
-    return s > 3650 * 86400 ? 'plus de 10 ans' : fmtDuree(Math.max(0, s));
+    return s > 3650 * 86400 ? 'plus de 10 ans' : fmtDuree(Math.max(0, s));
   }
 
   siteProche() {
@@ -361,11 +361,11 @@ class Exploration {
     if (this.moduleRobot && this.presDeLaFusee()) {
       const n = this.transmettre();
       this.reserve = this.def.autonomie;
-      return this.dire(`Batterie rechargée par les panneaux solaires.${n ? ` ${n} analyse${n > 1 ? 's' : ''} envoyée${n > 1 ? 's' : ''} à l’orbiteur.` : ''} Échap : laisser le robot ici et revenir à l’orbiteur.`);
+      return this.dire(`Batterie rechargée par les panneaux solaires.${n ? ` ${n} analyse${n > 1 ? 's' : ''} envoyée${n > 1 ? 's' : ''} à l’orbiteur.` : ''} Échap : laisser le robot ici et revenir à l’orbiteur.`);
     }
     if (this.type === 'robot' && this.presDeLaFusee()) {
       const n = this.transmettre();
-      return this.terminer('retour', n ? `Robot rentré : ${n} analyse${n > 1 ? 's' : ''} transmise${n > 1 ? 's' : ''}.` : 'Robot rentré à bord.');
+      return this.terminer('retour', n ? `Robot rentré : ${n} analyse${n > 1 ? 's' : ''} transmise${n > 1 ? 's' : ''}.` : 'Robot rentré à bord.');
     }
     if (this.presDeLaFusee() && !this.vol.robotSeul) {
       // On rentre : les échantillons du sac et du rover montent à bord de l'atterrisseur.
@@ -379,21 +379,21 @@ class Exploration {
       return this.terminer('retour', n ? `${n} échantillon${n > 1 ? 's' : ''} rangé${n > 1 ? 's' : ''} à bord de l’atterrisseur.` : 'De retour à bord.');
     }
     const site = this.siteProche();
-    if (!site) return this.dire(this.rover && !this.enRover ? 'Rien ici. Suivez les repères ◆, ou prenez le rover (V).' : 'Rien d’intéressant ici. Suivez les repères ◆.');
-    if (this.dejaFait(site) || this.sac.some((x) => x.k === site.k) || this.sacRover.some((x) => x.k === site.k)) return this.dire(`${site.nom} : déjà étudié.`);
+    if (!site) return this.dire(this.rover && !this.enRover ? 'Rien ici. Suivez les repères ◆, ou prenez l’astromobile (V).' : 'Rien d’intéressant ici. Suivez les repères ◆.');
+    if (this.dejaFait(site) || this.sac.some((x) => x.k === site.k) || this.sacRover.some((x) => x.k === site.k)) return this.dire(`${site.nom} : déjà étudié.`);
     if (this.type === 'robot') {
-      if (!this.analyse) { this.analyse = { site, t: 0 }; this.dire(`Analyse de « ${site.nom} »…`); }
+      if (!this.analyse) { this.analyse = { site, t: 0 }; this.dire(`Analyse de « ${site.nom} »…`); }
       return;
     }
     if (this.enRover) {
-      if (this.sacRover.length >= 20) return this.dire('Caisse du rover pleine (20) : rentrez au module.');
+      if (this.sacRover.length >= 20) return this.dire('Caisse de l’astromobile pleine (20) : rentrez au module.');
       this.sacRover.push(site);
     } else {
-      if (this.sac.length >= this.def.capacite) return this.dire('Sac plein (6) : rapportez les échantillons, ou prenez le rover (20).');
+      if (this.sac.length >= this.def.capacite) return this.dire('Sac plein (6) : rapportez les échantillons, ou prenez l’astromobile (20).');
       this.sac.push(site);
     }
     this.marquer(site);
-    this.dire(`Échantillon ramassé : ${site.nom}. ${site.texte}`);
+    this.dire(`Échantillon ramassé : ${site.nom}. ${site.texte}`);
   }
 
   // Touche F : planter le drapeau, par le ou la spationaute ou par le robot (avec ou sans équipage, la prise
@@ -401,7 +401,7 @@ class Exploration {
   planterDrapeau() {
     if (this.fin) return;
     if (this.terre) return this.dire('Sur Terre, on garde le drapeau pour les astres.');
-    if (this.enRover) return this.dire('Descendez du rover (V) pour planter le drapeau.');
+    if (this.enRover) return this.dire('Descendez de l’astromobile (V) pour planter le drapeau.');
     const robot = this.type === 'robot';
     if (!this.p.auSol) return this.dire(robot ? 'Le robot doit être au sol pour planter le drapeau.' : 'Il faut avoir les pieds au sol pour planter le drapeau.');
     const liste = (etat.drapeaux[this.astre.id] = etat.drapeaux[this.astre.id] || []);
@@ -414,8 +414,8 @@ class Exploration {
     if (robot) this.brasDrapeau = 1.5;   // le bras du robot reste sorti un instant
     const qui = robot ? 'Le robot a planté' : '';
     this.dire(premier
-      ? `🚩 ${robot ? qui + ' le drapeau des Nations unies et le fanion de l’AS Nancy Lorraine' : 'Drapeau des Nations unies et fanion de l’AS Nancy Lorraine plantés'} sur ${this.astre.nom} : une première${robot ? ', sans équipage' : ''} !`
-      : `🚩 ${robot ? qui + ' un drapeau de plus' : 'Un drapeau de plus'} sur ${this.astre.nom} (${liste.length}).`);
+      ? `🚩 ${robot ? qui + ' le drapeau des Nations unies et le fanion de l’AS Nancy Lorraine' : 'Drapeau des Nations unies et fanion de l’AS Nancy Lorraine plantés'} ${sur(this.astre)} : une première${robot ? ', sans équipage' : ''} !`
+      : `🚩 ${robot ? qui + ' un drapeau de plus' : 'Un drapeau de plus'} ${sur(this.astre)} (${liste.length}).`);
   }
 
   terminer(issue, texte) { this.fin = { issue, texte }; }
@@ -437,7 +437,7 @@ class Exploration {
       const n = pres ? this.transmettre() : 0;
       const perdues = this.donneesEnAttente;
       if (this.moduleRobot) {
-        return this.terminer('retour', `Le robot reste sur place, près de son module.${n ? ` ${n} analyse(s) transmise(s).` : ''}${perdues ? ` ${perdues} analyse(s) non transmise(s) : il faudra le ramener au module.` : ''}`);
+        return this.terminer('retour', `Le robot reste sur place, près de son module.${n ? ` ${n} analyse(s) transmise(s).` : ''}${perdues ? ` ${perdues} analyse(s) non transmise(s) : il faudra le ramener au module.` : ''}`);
       }
       return this.terminer('retour', `Robot rappelé à bord.${n ? ` ${n} analyse(s) transmise(s).` : ''}`);
     }
@@ -563,7 +563,7 @@ class Exploration {
     if (this.terre) this.dessinerHudTerre(ctx, W, H);
     else this.dessinerHud(ctx, W, H);
     const compact = ecranCompact(W, H);
-    texteSurFond(ctx, `Temps ×${this.warp}${this.warp > 1 ? ` (1 s = ${this.warp} s)` : ''}${ECRAN_TACTILE ? '' : '  (+/−)'}`, W - 14, compact ? 58 : 28,
+    texteSurFond(ctx, `Temps ×${this.warp}${this.warp > 1 ? ` (1 s = ${this.warp} s)` : ''}${ECRAN_TACTILE ? '' : '  (+/−)'}`, W - 14, compact ? 58 : 28,
       { police: compact ? 'bold 12px system-ui' : 'bold 14px system-ui', couleur: this.warp > 1 ? '#ffca28' : '#ffffff', align: 'right' });
   }
 
@@ -576,18 +576,18 @@ class Exploration {
     ctx.fillText('Promenade sur Terre', 16, y0 + (compact ? 18 : 22));
     ctx.font = compact ? '12px system-ui' : '13px system-ui';
     const pasL = compact ? 18 : 20, yl = y0 + (compact ? 38 : 46);
-    ctx.fillText(`🌸 Fleurs : ${this.bouquet || 0}`, 16, yl);
-    ctx.fillText(`🍎 Fruits : ${this.panier || 0}`, 16, yl + pasL);
-    ctx.fillText(`🍺 Bières au bar : ${this.bieres}`, 16, yl + 2 * pasL);
+    ctx.fillText(`🌸 Fleurs : ${this.bouquet || 0}`, 16, yl);
+    ctx.fillText(`🍎 Fruits : ${this.panier || 0}`, 16, yl + pasL);
+    ctx.fillText(`🍺 Bières au bar : ${this.bieres}`, 16, yl + 2 * pasL);
     const proche = this.sites.filter((s) => s.type === 'bar' || (s.type === 'arbre' && s.reste > 0) || (s.type === 'fleur' && !s.cueillie))
       .reduce((m, x) => (!m || Math.abs(x.x - this.p.x) < Math.abs(m.x - this.p.x) ? x : m), null);
     if (proche) {
       const dx = proche.x - this.p.x;
-      texteSurFond(ctx, `${dx < 0 ? '◀' : '▶'} ${proche.nom} à ${fmt(Math.abs(dx))} m`, W / 2, 30, { police: 'bold 14px system-ui', couleur: '#ffd54f' });
+      texteSurFond(ctx, `${dx < 0 ? '◀' : '▶'} ${proche.nom} à ${fmt(Math.abs(dx))} m`, W / 2, 30, { police: 'bold 14px system-ui', couleur: '#ffd54f' });
     }
     afficherMessages(ctx, this.messagesVisibles(), W, yMessagesExplo(W, H));
     if (!ECRAN_TACTILE) {
-      texteSurFond(ctx, '←→ / Q D : marcher · ↑ / Z / Espace : sauter · E : cueillir, boire une bière, ou rentrer à la maison · Échap : rentrer', W / 2, H - 12, { police: '12px system-ui' });
+      texteSurFond(ctx, '←→ / Q D : marcher · ↑ / Z / Espace : sauter · E : cueillir, boire une bière, ou rentrer à la maison · Échap : rentrer', W / 2, H - 12, { police: '12px system-ui' });
     }
     ctx.textAlign = 'left';
   }
@@ -601,14 +601,14 @@ class Exploration {
       // Petit écran : l'essentiel, et les limites seulement si elles approchent.
       const l = [];
       l.push([d.ressource, fmtDuree(this.reserve), fr < 0.2 ? '#ef5350' : '#66bb6a']);
-      l.push([this.type === 'robot' ? 'Robot' : 'Combi.', fmt(this.integrite) + ' %', this.integrite > 60 ? '#66bb6a' : this.integrite > 30 ? '#ffca28' : '#ef5350']);
-      l.push([this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? `${sc.analyses} (+${this.donneesEnAttente})` : `${this.sac.length}/${d.capacite}` + (this.rover ? ` · rover ${this.sacRover.length}/20` : ''), this.donneesEnAttente ? '#ffca28' : '#fff']);
-      l.push(['Module', fmt(Math.abs(this.p.x - this.xFusee)) + ' m', '#fff']);
+      l.push([this.type === 'robot' ? 'Robot' : 'Combi.', fmt(this.integrite) + ' %', this.integrite > 60 ? '#66bb6a' : this.integrite > 30 ? '#ffca28' : '#ef5350']);
+      l.push([this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? `${sc.analyses} (+${this.donneesEnAttente})` : `${this.sac.length}/${d.capacite}` + (this.rover ? ` · astromobile ${this.sacRover.length}/20` : ''), this.donneesEnAttente ? '#ffca28' : '#fff']);
+      l.push(['Module', fmt(Math.abs(this.p.x - this.xFusee)) + ' m', '#fff']);
       const rp = c.p / d.pressionMax, rt = (c.t + KELVIN) / (d.tempMax + KELVIN), rr = this.type === 'robot' ? 0 : this.irradiation.svJour / DOSE_MORTELLE;
       if (rp > 0.6) l.push(['Pression', fmtP(c.p), couleurRisque(rp)]);
-      if (rt > 0.7) l.push(['Temp.', fmt(c.t) + ' °C', couleurRisque(rt)]);
-      if (this.type === 'robot') l.push(['Électron.', `${fmt(Math.max(0, 100 - this.dose))} % · ${this.vieRestante()}`, couleurRisque(this.dose / 100)]);
-      else if (rr > 0.25 || this.dose > 20) l.push(['Dose', `${fmtDoseTotale(this.doseSv)} · ${fmt(this.dose)} %`, couleurRisque(Math.max(rr, this.dose / 100))]);
+      if (rt > 0.7) l.push(['Temp.', fmt(c.t) + ' °C', couleurRisque(rt)]);
+      if (this.type === 'robot') l.push(['Électron.', `${fmt(Math.max(0, 100 - this.dose))} % · ${this.vieRestante()}`, couleurRisque(this.dose / 100)]);
+      else if (rr > 0.25 || this.dose > 20) l.push(['Dose', `${fmtDoseTotale(this.doseSv)} · ${fmt(this.dose)} %`, couleurRisque(Math.max(rr, this.dose / 100))]);
       const larg = Math.min(190, W * 0.52), y0 = 44;
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fillRect(6, y0, larg, 26 + l.length * 16);
@@ -628,29 +628,29 @@ class Exploration {
       ctx.font = 'bold 13px ui-monospace, Consolas, monospace'; ctx.fillStyle = coul; ctx.fillText(v, 140, y);
       y += 18;
     };
-    ctx.font = 'bold 15px system-ui'; ctx.fillStyle = '#fff'; ctx.fillText(`${d.nom} sur ${a.nom}`, 16, y); y += 24;
+    ctx.font = 'bold 15px system-ui'; ctx.fillStyle = '#fff'; ctx.fillText(majuscule(`${d.nom} ${sur(a)}`), 16, y); y += 24;
     ligne(d.ressource, fmtDuree(this.reserve), fr < 0.2 ? '#ef5350' : '#66bb6a');
-    ligne(this.type === 'robot' ? 'État du robot' : 'Combinaison', fmt(this.integrite) + ' %', this.integrite > 60 ? '#66bb6a' : this.integrite > 30 ? '#ffca28' : '#ef5350');
+    ligne(this.type === 'robot' ? 'État du robot' : 'Combinaison', fmt(this.integrite) + ' %', this.integrite > 60 ? '#66bb6a' : this.integrite > 30 ? '#ffca28' : '#ef5350');
     ligne('Pression', fmtP(c.p) + ' / ' + fmt(d.pressionMax, 1), couleurRisque(c.p / d.pressionMax));
-    ligne('Température', fmt(c.t) + ' / ' + fmt(d.tempMax) + ' °C', couleurRisque((c.t + KELVIN) / (d.tempMax + KELVIN)));
+    ligne('Température', fmt(c.t) + ' / ' + fmt(d.tempMax) + ' °C', couleurRisque((c.t + KELVIN) / (d.tempMax + KELVIN)));
     if (this.type === 'robot') {
       ligne('Rayonnement', fmtDose(this.irradiation.svJour), couleurRisque(this.dose / 100));
       ligne('Blindage', BLINDAGES_ROBOT[this.blindage].nom);
-      ligne('Électronique', `${fmt(Math.max(0, 100 - this.dose))} % · ${this.vieRestante()}`, couleurRisque(this.dose / 100));
+      ligne('Électronique', `${fmt(Math.max(0, 100 - this.dose))} % · ${this.vieRestante()}`, couleurRisque(this.dose / 100));
     } else {
       ligne('Rayonnement', fmtDose(this.irradiation.svJour), couleurRisque(this.irradiation.svJour / DOSE_MORTELLE));
-      ligne('Dose reçue', `${fmtDoseTotale(this.doseSv || 0)} · ${fmt(this.dose)} %`, couleurRisque(this.dose / 100));
+      ligne('Dose reçue', `${fmtDoseTotale(this.doseSv || 0)} · ${fmt(this.dose)} %`, couleurRisque(this.dose / 100));
     }
     ligne('Gravité', fmtG(c.g));
     ligne('Libération', fmtV(this.vLib));
     if (this.type === 'spationaute') {
       const rec = recordSaut(a.id);
       const enl = this.sautEnCours ? this.sautEnCours.max : this.dernierSaut;
-      if (enl || rec) ligne('Saut (record)', `${enl ? fmt(enl, 2) + ' m' : '—'} (${rec ? fmt(rec.h, 2) + ' m' : '—'})`, this.sautEnCours ? '#ffca28' : '#fff');
+      if (enl || rec) ligne('Saut (record)', `${enl ? fmt(enl, 2) + ' m' : '—'} (${rec ? fmt(rec.h, 2) + ' m' : '—'})`, this.sautEnCours ? '#ffca28' : '#fff');
     }
-    ligne(this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? `${sc.analyses} envoyées, ${this.donneesEnAttente} en mémoire` : `${this.sac.length} / ${d.capacite}` + (this.rover ? `  rover ${this.sacRover.length} / 20` : ''), this.donneesEnAttente ? '#ffca28' : '#fff');
+    ligne(this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? `${sc.analyses} envoyées, ${this.donneesEnAttente} en mémoire` : `${this.sac.length} / ${d.capacite}` + (this.rover ? `  astromobile ${this.sacRover.length} / 20` : ''), this.donneesEnAttente ? '#ffca28' : '#fff');
     ligne('Sites étudiés ici', String(Object.keys(sc.sites || {}).length));
-    ligne('Distance module', fmt(Math.abs(this.p.x - this.xFusee)) + ' m');
+    ligne('Distance module', fmt(Math.abs(this.p.x - this.xFusee)) + ' m');
     }
 
     // Site le plus proche non étudié
@@ -658,7 +658,7 @@ class Exploration {
     if (libres.length) {
       const s = libres.reduce((m, x) => (Math.abs(x.x - this.p.x) < Math.abs(m.x - this.p.x) ? x : m));
       const dx = s.x - this.p.x;
-      texteSurFond(ctx, `${dx < 0 ? '◀' : '▶'} ${s.nom} à ${fmt(Math.abs(dx))} m`, W / 2, 30, { police: 'bold 14px system-ui', couleur: '#ffd54f' });
+      texteSurFond(ctx, `${dx < 0 ? '◀' : '▶'} ${s.nom} à ${fmt(Math.abs(dx))} m`, W / 2, 30, { police: 'bold 14px system-ui', couleur: '#ffd54f' });
     }
     if (this.analyse) {
       ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(W / 2 - 100, 44, 200, 14);
@@ -672,7 +672,7 @@ class Exploration {
       ctx.textAlign = 'left';
     }
     if (!ECRAN_TACTILE) {
-      texteSurFond(ctx, `←→ / Q D : ${this.type === 'robot' || this.enRover ? 'rouler' : 'marcher'}${this.saut && !this.enRover ? ' · ↑ / Z / Espace : sauter' : ''}${this.rover ? ` · V : ${this.enRover ? 'descendre du' : 'monter dans le'} rover` : ''} · E : ${this.type === 'robot' ? 'analyser' : 'ramasser'} (ou rentrer près du module) · F : planter le drapeau · Échap : rappeler`, W / 2, H - 12, { police: '12px system-ui' });
+      texteSurFond(ctx, `←→ / Q D : ${this.type === 'robot' || this.enRover ? 'rouler' : 'marcher'}${this.saut && !this.enRover ? ' · ↑ / Z / Espace : sauter' : ''}${this.rover ? ` · V : ${this.enRover ? 'descendre de' : 'monter dans'} l’astromobile` : ''} · E : ${this.type === 'robot' ? 'analyser' : 'ramasser'} (ou rentrer près du module) · F : planter le drapeau · Échap : rappeler`, W / 2, H - 12, { police: '12px system-ui' });
     }
     ctx.textAlign = 'left';
   }
@@ -702,7 +702,7 @@ function dessinerModuleRobot(ctx, x, y, s, actif) {
     ctx.strokeStyle = 'rgba(79,195,247,0.8)';
     for (let r = 1; r <= 3; r++) { ctx.beginPath(); ctx.arc(0.6 * s, -2.4 * s, r * 0.35 * s, -1.6, -0.4); ctx.stroke(); }
   }
-  texteSurFond(ctx, actif ? 'Module robot — recharge et liaison' : 'Module robot (E à côté : recharger, envoyer les données)', 0, -2.9 * s, { police: '12px system-ui' });
+  texteSurFond(ctx, actif ? 'Module robot — recharge et liaison' : 'Module robot (E à côté : recharger, envoyer les données)', 0, -2.9 * s, { police: '12px system-ui' });
   ctx.textAlign = 'left';
   ctx.restore();
 }

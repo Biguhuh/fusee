@@ -9,7 +9,7 @@ const SYSTEMES = {
   solaire: {
     id: 'solaire',
     nom: 'Système solaire',
-    tout: 'Tout le système solaire',          // bouton « centrer » de l'orbiteur
+    tout: 'Tout le Système solaire',          // bouton « centrer » de l'orbiteur
     etoile: 'soleil',                          // astre racine (le seul sans orbite)
     luminosite: 1,                             // en luminosités solaires
     distanceA: 'au Soleil',                    // « Distance au Soleil »

@@ -117,7 +117,7 @@ class RetourTerre {
     if (recup) this.dessinerRecuperation(ctx, W, H);
     else this.dessinerDescente(ctx, W, H);
     this.dessinerPanneau(ctx, W, H);
-    if (!this.fini) texteSurFond(ctx, 'Entrée, Espace ou toucher l’écran : passer', W / 2, H - 16, { police: '12px system-ui, sans-serif', couleur: '#8fa3b8' });
+    if (!this.fini) texteSurFond(ctx, 'Entrée, Espace ou toucher l’écran : passer', W / 2, H - 16, { police: '12px system-ui, sans-serif', couleur: '#8fa3b8' });
   }
 
   couleurCiel(h) {
@@ -374,23 +374,23 @@ class RetourTerre {
     const recup = this.iRecup !== undefined;
     lignes.push(['Retour sur Terre', '#ffffff', true]);
     if (!recup) {
-      lignes.push([`Altitude ${fmtAlt(this.h)} · vitesse ${fmtV(this.v || 7800)} · ${fmt(this.decel || 0, 1)} g (max ${fmt(this.gMax, 1)} g)`, '#cfd8e3']);
+      lignes.push([`Altitude ${fmtAlt(this.h)} · vitesse ${fmtV(this.v || 7800)} · ${fmt(this.decel || 0, 1)} g (max ${fmt(this.gMax, 1)} g)`, '#cfd8e3']);
       let etape;
       if (this.phase === 'rentree') {
         const plasma = this.h < 85000 && this.h > 40000 && (this.v || 0) > 3500;
-        etape = this.h > 90000 ? 'Interface d’entrée à 120 km : la capsule présente son bouclier thermique.'
-          : plasma ? 'Rentrée atmosphérique : le bouclier chauffe, le plasma coupe la radio.'
-            : 'Rentrée atmosphérique : l’air freine la capsule.';
-      } else if (this.phase === 'pilote') etape = 'Parachute de stabilisation ouvert vers 7 km.';
-      else etape = 'Parachutes principaux ouverts à 3 km : descente à environ 8 m/s vers l’océan.';
+        etape = this.h > 90000 ? 'Interface d’entrée à 120 km : la capsule présente son bouclier thermique.'
+          : plasma ? 'Rentrée atmosphérique : le bouclier chauffe, le plasma coupe la radio.'
+            : 'Rentrée atmosphérique : l’air freine la capsule.';
+      } else if (this.phase === 'pilote') etape = 'Parachute de stabilisation ouvert vers 7 km.';
+      else etape = 'Parachutes principaux ouverts à 3 km : descente à environ 8 m/s vers l’océan.';
       lignes.push([etape, '#ffffff', true]);
     } else {
       const textes = {
-        flotte: this.equipage ? 'Amerrissage ! Ballons de redressement gonflés, balise allumée.' : 'Amerrissage. Capsule vide : personne à hélitreuiller.',
+        flotte: this.equipage ? 'Amerrissage ! Ballons de redressement gonflés, balise allumée.' : 'Amerrissage. Capsule vide : personne à hélitreuiller.',
         helico: 'L’hélicoptère de récupération arrive.',
-        treuil: 'Stationnaire au-dessus de la capsule : le treuil descend.',
-        montee: `Hélitreuillage : ${this.nom} ${/ et /.test(this.nom) ? 'remontent' : 'remonte'} à bord.`,
-        depart: `${this.nom} ${/ et /.test(this.nom) ? 'sont' : 'est'} à bord. Direction la base${this.echantillons ? ' ; un navire récupérera la capsule et ses échantillons' : ''}.`,
+        treuil: 'Stationnaire au-dessus de la capsule : le treuil descend.',
+        montee: `Hélitreuillage : ${this.nom} ${/ et /.test(this.nom) ? 'remontent' : 'remonte'} à bord.`,
+        depart: `${this.nom} ${/ et /.test(this.nom) ? 'sont' : 'est'} à bord. Direction la base${this.echantillons ? ' ; un navire récupérera la capsule et ses échantillons' : ''}.`,
         bateau: 'Le navire de récupération arrive.',
         grue: 'La grue se place au-dessus de la capsule.',
         hisse: 'La capsule est hissée à bord.',

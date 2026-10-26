@@ -5,7 +5,7 @@
 
 // Mesures et valeurs de référence (Sv/jour, surface, sans protection).
 const DOSES_REFERENCE = {
-  terre: [0.0000066, 'mesure', 'environ 2,4 mSv par an au sol'],
+  terre: [0.0000066, 'mesure', 'environ 2,4 mSv par an au sol'],
   lune: [0.00137, 'mesure', 'mesuré par Chang’e 4 (2019)'],
   mars: [0.00067, 'mesure', 'mesuré par Curiosity (RAD)'],
   io: [36, 'reference', 'en plein cœur des ceintures de Jupiter'],
@@ -109,28 +109,28 @@ function doseEspaceEstimee(a) {
 function tempsAvantDoseMortelle(svJour, dejaRecu = 0) {
   return svJour > 0 ? Math.max(0, ((DOSE_MORTELLE - dejaRecu) / svJour) * 86400) : Infinity;
 }
-function fmtDureeLongue(s) { return s > 3650 * 86400 ? 'plus de 10 ans' : fmtDuree(s); }
+function fmtDureeLongue(s) { return s > 3650 * 86400 ? 'plus de 10 ans' : fmtDuree(s); }
 
 // Affichage d'une dose par jour, en Sv, mSv ou µSv.
 function fmtDose(sv) {
-  if (sv >= 1) return `${fmt(sv, sv < 10 ? 1 : 0)} Sv/jour`;
-  if (sv >= 0.001) return `${fmt(sv * 1000, sv < 0.01 ? 2 : 1)} mSv/jour`;
-  return `${fmt(sv * 1e6, 1)} µSv/jour`;
+  if (sv >= 1) return `${fmt(sv, sv < 10 ? 1 : 0)} Sv/jour`;
+  if (sv >= 0.001) return `${fmt(sv * 1000, sv < 0.01 ? 2 : 1)} mSv/jour`;
+  return `${fmt(sv * 1e6, 1)} µSv/jour`;
 }
 
 // Dose cumulée (Sv), en Sv, mSv ou µSv.
 function fmtDoseTotale(sv) {
-  if (sv >= 0.1) return `${fmt(sv, 2)} Sv`;
-  if (sv >= 0.0001) return `${fmt(sv * 1000, 1)} mSv`;
-  return `${fmt(sv * 1e6, 1)} µSv`;
+  if (sv >= 0.1) return `${fmt(sv, 2)} Sv`;
+  if (sv >= 0.0001) return `${fmt(sv * 1000, 1)} mSv`;
+  return `${fmt(sv * 1e6, 1)} µSv`;
 }
 
 // Blindages des robots. facteur : part de la dose qui atteint l'électronique ;
 // tolerance : dose totale que l'électronique supporte avant de griller (Gy, ≈ Sv ici).
 const BLINDAGES_ROBOT = {
   standard: { nom: 'Standard', detail: 'électronique courante, boîtier léger', masse: 0, facteur: 1, tolerance: 50 },
-  durci: { nom: 'Durci', detail: 'composants durcis et boîtier en aluminium de 5 mm', masse: 25, facteur: 0.3, tolerance: 1000 },
-  voute: { nom: 'Voûte en titane', detail: 'composants durcis dans une voûte de titane de 1 cm, comme la sonde Juno', masse: 150, facteur: 0.03, tolerance: 1000 },
+  durci: { nom: 'Durci', detail: 'composants durcis et boîtier en aluminium de 5 mm', masse: 25, facteur: 0.3, tolerance: 1000 },
+  voute: { nom: 'Voûte en titane', detail: 'composants durcis dans une voûte de titane de 1 cm, comme la sonde Juno', masse: 150, facteur: 0.03, tolerance: 1000 },
 };
 
 // Durée de vie (s) de l'électronique d'un robot sur cet astre, avec ce blindage.

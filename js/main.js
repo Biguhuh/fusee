@@ -40,6 +40,8 @@ function migrerVoyage(v) {
   if (m.orb && !m.equipe) initialiserEquipe(m);
   // Une seule station, base et sonde par astre : les doublons des anciennes parties sont fusionnés.
   for (const texte of fusionnerDoublons(m)) m.journal.push({ t: m.t, texte });
+  // Noms des stations : « Station Lune » est devenu « Station lunaire », « Station Europe » « Station d’Europe ».
+  for (const s of m.stations) if (!s.terrestre && ASTRES_PAR_ID[s.centre]) s.nom = nomStation(ASTRES_PAR_ID[s.centre]);
   return m;
 }
 const canvas = $('vol');
@@ -73,7 +75,7 @@ function allerHangar() {
   $('voyage-reprendre').textContent = v && v.orb ? '▶ Reprendre l’expédition en cours' : '🚀 Lancer une expédition (méga-fusée)';
   $('voyage-nouveau').textContent = v ? '↺ Nouvelle campagne' : '🛰 Commencer la campagne';
   $('voyage-etat').innerHTML = v ? resumeCampagne(v) : '';
-  $('vers-carte').textContent = 'Visite rapide : choisir la destination →';
+  $('vers-carte').textContent = 'Visite rapide : choisir la destination →';
   montrer('hangar');
 }
 
@@ -89,14 +91,14 @@ function allerAccueil() {
   $('accueil-campagne').textContent = v ? '↺ Nouvelle campagne' : '🛰 Commencer';
   if (v && v.fin) {
     const f = v.fin;
-    $('progres-accueil').innerHTML = `<b>Campagne terminée.</b> Partie en ${f.anneeDepart} vers ${f.nomEtoile} (${fmt(f.distanceAL, 2)} années-lumière) à ${fmt(f.vitesse, 1)} km/s : arrivée vers ${fmtAnnee(f.arriveeJeu)} (temps de jeu), vers ${fmtAnnee(f.arriveeVraie)} dans la vraie vie.`;
+    $('progres-accueil').innerHTML = `<b>Campagne terminée.</b> Partie en ${f.anneeDepart} vers ${le(f.nomEtoile)} (${fmt(f.distanceAL, 2)} années-lumière) à ${fmt(f.vitesse, 1)} km/s : arrivée vers ${fmtAnnee(f.arriveeJeu)} (temps de jeu), vers ${fmtAnnee(f.arriveeVraie)} dans la vraie vie.`;
   } else if (v) {
     // La progression se compte dans le système de la campagne (qui peut être une autre étoile).
     choisirSystemeCampagne(v);
     const vus = Object.keys(v.visites).filter((id) => v.visites[id].pose && ASTRES_PAR_ID[id]);
     const nPrinc = SYSTEME.objectifs.filter((id) => vus.includes(id)).length;
-    $('progres-accueil').innerHTML = (SYSTEME.id !== 'solaire' ? `<b>Campagne dans le ${SYSTEME.nom}</b> (${fmt(SYSTEME.distanceAL, 2)} années-lumière). ` : '') +
-      `Progression : <b>${vus.length} astre${vus.length > 1 ? 's' : ''} visité${vus.length > 1 ? 's' : ''}</b> sur ${astresAVisiter().length} (dont ${nPrinc} des ${SYSTEME.objectifs.length} principaux). ` + resumeCampagne(v);
+    $('progres-accueil').innerHTML = (SYSTEME.id !== 'solaire' ? `<b>Campagne dans le ${SYSTEME.nom}</b> (${fmt(SYSTEME.distanceAL, 2)} années-lumière). ` : '') +
+      `Progression : <b>${vus.length} astre${vus.length > 1 ? 's' : ''} visité${vus.length > 1 ? 's' : ''}</b> sur ${astresAVisiter().length} (dont ${nPrinc} des ${SYSTEME.objectifs.length} principaux). ` + resumeCampagne(v);
   } else $('progres-accueil').innerHTML = '';
   // Hors campagne (visite rapide, promenade, encyclopédie), on est dans le Système solaire.
   choisirSysteme('solaire');
@@ -144,7 +146,7 @@ function animerAccueil() {
 function resumeCampagne(v) {
   const n = Object.values(v.echantillonsRapportes).reduce((s, x) => s + x, 0);
   return `${fmtDate(v.t, false)} · ${v.stations.length} station${v.stations.length > 1 ? 's' : ''} · ${v.bases.length} base${v.bases.length > 1 ? 's' : ''} · ${n} échantillon${n > 1 ? 's' : ''} rapporté${n > 1 ? 's' : ''} sur Terre` +
-    (v.provisions.fleurs + v.provisions.fruits ? ` · à emporter : ${v.provisions.fleurs} fleurs, ${v.provisions.fruits} fruits` : '');
+    (v.provisions.fleurs + v.provisions.fruits ? ` · à emporter : ${v.provisions.fleurs} fleurs, ${v.provisions.fruits} fruits` : '');
 }
 function allerCarte() { afficherCarte(etat, choisirDestination); montrer('carte'); }
 function choisirDestination(id) {
@@ -220,7 +222,7 @@ function finVol(r) {
         etat.reprendreAuto = tli.ok;   // le planificateur poursuit le voyage à l'ouverture de l'orbiteur
         r.messageLancement = `${f.nomLanceur} a placé l’expédition en orbite terrestre. ` + tli.texte;
       } else {
-        r.messageLancement = `${f.nomLanceur} a placé l’expédition en orbite terrestre.` + (v.stations.some((s) => s.terrestre) ? ' Rendez-vous avec la station spatiale.' : ' Première tâche : construire la station spatiale.');
+        r.messageLancement = `${f.nomLanceur} a placé l’expédition en orbite terrestre.` + (v.stations.some((s) => s.terrestre) ? ' Rendez-vous avec la station spatiale.' : ' Première tâche : construire la station spatiale.');
       }
       etat.suiteResultat = 'nav';
     } else {
@@ -234,11 +236,11 @@ function finVol(r) {
       // L'atterrisseur rejoint l'orbiteur avec ses échantillons ; ses ergols restants retournent en réserve.
       v.ergolsAtt += r.carburantRestant;
       if (etat.vol.echantillons) v.echantillonsABord[a] = (v.echantillonsABord[a] || 0) + etat.vol.echantillons;
-      Orbiteur.log(`Atterrisseur récupéré en orbite de ${r.astre.nom}${etat.vol.echantillons ? ` avec ${etat.vol.echantillons} échantillon(s)` : ''}.`);
+      Orbiteur.log(`Atterrisseur récupéré ${enOrbite(r.astre)}${etat.vol.echantillons ? ` avec ${etat.vol.echantillons} échantillon(s)` : ''}.`);
     } else {
       v.atterrisseurs = Math.max(0, v.atterrisseurs - 1);
       if (!etat.vol.robotSeul) v.equipagePerdu = true;     // l'équipage était à bord de l'atterrisseur
-      Orbiteur.log(`Atterrisseur perdu sur ${r.astre.nom}${etat.vol.echantillons ? ' avec ses échantillons' : ''}. Il en reste ${v.atterrisseurs}.`);
+      Orbiteur.log(`Atterrisseur perdu ${sur(r.astre)}${etat.vol.echantillons ? ' avec ses échantillons' : ''}. Il en reste ${v.atterrisseurs}.`);
     }
     v.visites[a] = { ...(v.visites[a] || {}), pose: r.dejaPose || r.cause === 'pose' };
   }
@@ -283,8 +285,8 @@ function allerLancement() {
   const v = etat.voyage;
   const station = v && v.stations.find((s) => s.terrestre);
   const notes = {
-    station: station ? `Rendez-vous et amarrage à ${station.nom}.` : 'Arrivée en orbite basse : vous y construirez la station spatiale.',
-    lune: 'Après la mise en orbite, le 3e étage rallume pour l’injection translunaire : l’expédition part directement vers la Lune (environ 5 jours de trajet).',
+    station: station ? `Rendez-vous et amarrage ${au(station)}.` : 'Arrivée en orbite basse : vous y construirez la station spatiale.',
+    lune: 'Après la mise en orbite, le 3e étage rallume pour l’injection translunaire : l’expédition part directement vers la Lune (environ 5 jours de trajet).',
   };
   $('lanceurs').innerHTML = ['station', 'lune'].map((type) => {
     const l = LANCEURS[type], c = caracteristiquesLanceur(l);
@@ -295,11 +297,11 @@ function allerLancement() {
         <p class="dest">→ ${l.destination}</p>
         <p>${l.description}</p>
         <dl>
-          <dt>Hauteur</dt><dd>${fmt(c.hauteur)} m</dd>
-          <dt>Masse au décollage</dt><dd>${fmt(c.masse / 1000)} t</dd>
-          <dt>Poussée au décollage</dt><dd>${fmt(c.poussee / 1e6, 1)} MN (${fmt(c.twr, 2)} fois son poids)</dd>
+          <dt>Hauteur</dt><dd>${fmt(c.hauteur)} m</dd>
+          <dt>Masse au décollage</dt><dd>${fmt(c.masse / 1000)} t</dd>
+          <dt>Poussée au décollage</dt><dd>${fmt(c.poussee / 1e6, 1)} MN (${fmt(c.twr, 2)} fois son poids)</dd>
           <dt>Étages</dt><dd>${l.etages.length}</dd>
-          <dt>Charge utile</dt><dd>${fmt(l.chargeUtile / 1000)} t</dd>
+          <dt>Charge utile</dt><dd>${fmt(l.chargeUtile / 1000)} t</dd>
         </dl>
         <p class="note">${notes[type]}</p>
         <button class="principal" data-lancer="${type}">🚀 Aller sur le pas de tir</button>
@@ -322,20 +324,20 @@ function basesSur(id) { return etat.voyage ? etat.voyage.bases.filter((b) => b.a
 // Vénus : la station en orbite envoie au sol le lanceur de retour qu'elle a construit à son atelier.
 // En visite rapide (pas de stations), une station de soutien est supposée en orbite.
 function fournisseurLanceurRetour(astreId) {
-  const nom = ASTRES_PAR_ID[astreId].nom;
-  if (!etat.enVoyage) return () => ({ ok: true, texte: 'La station de soutien en orbite envoie le lanceur de retour : capsule sous parachute, 15 km au-dessus du site.' });
+  const a = ASTRES_PAR_ID[astreId];
+  if (!etat.enVoyage) return () => ({ ok: true, texte: 'La station de soutien en orbite envoie le lanceur de retour : capsule sous parachute, 15 km au-dessus du site.' });
   return () => {
     const d = lanceurRetourDisponible(etat.voyage, astreId);
     const recette = RECETTES.lanceurRetour;
     const cout = `${fmtStock('materiaux', recette.materiaux)} de matériaux, ${fmtStock('ergols', recette.ergols)} d’ergols, ${fmtDuree(recette.duree)}`;
-    if (!d.station) return { ok: false, texte: `Pas de lanceur de retour : il faut une station en orbite de ${nom}, qui le construit à son atelier (${cout}). Sans lui, pas de retour en orbite.` };
+    if (!d.station) return { ok: false, texte: `Pas de lanceur de retour : il faut une station ${enOrbite(a)}, qui le construit à son atelier (${cout}). Sans lui, pas de retour en orbite.` };
     if (!d.pret) {
       return { ok: false, texte: d.chantier
-        ? `Le lanceur de retour est en construction à ${d.station.nom} : prêt le ${fmtDate(d.chantier.fin)}. Remontez le temps à l’orbiteur ou patientez.`
-        : `${d.station.nom} n’a pas de lanceur de retour : lancez sa construction à l’atelier (${cout}).` };
+        ? `Le lanceur de retour est en construction ${au(d.station)} : prêt le ${fmtDate(d.chantier.fin)}. Accélérez le temps à l’orbiteur ou patientez.`
+        : `${Le(d.station)} n’a pas de lanceur de retour : lancez sa construction à l’atelier (${cout}).` };
     }
     d.station.stock.lanceurRetour -= 1;
-    return { ok: true, texte: `${d.station.nom} envoie le lanceur de retour : capsule sous parachute, 15 km au-dessus du site.` };
+    return { ok: true, texte: `${Le(d.station)} envoie le lanceur de retour : capsule sous parachute, 15 km au-dessus du site.` };
   };
 }
 
@@ -347,13 +349,13 @@ function descendre(id) {
   if (AEROSTAT[id]) {
     const d = lanceurRetourDisponible(v, id);
     if (!d.pret) {
-      const pourquoi = !d.station ? `il n’y a pas de station en orbite de ${a.nom} pour le construire`
-        : d.chantier ? `il est en construction à ${d.station.nom} (prêt le ${fmtDate(d.chantier.fin)})`
-          : `${d.station.nom} ne l’a pas encore construit (atelier)`;
-      if (!confirm(`Aucun lanceur de retour n’est prêt : ${pourquoi}.\n\nSans lui, le module ne pourra pas repartir de ${a.nom} tant qu’il n’aura pas été construit et envoyé.\n\nDescendre quand même ?`)) return;
+      const pourquoi = !d.station ? `il n’y a pas de station ${enOrbite(a)} pour le construire`
+        : d.chantier ? `il est en construction ${au(d.station)} (prêt le ${fmtDate(d.chantier.fin)})`
+          : `${le(d.station)} ne l’a pas encore construit (atelier)`;
+      if (!confirm(`Aucun lanceur de retour n’est prêt : ${pourquoi}.\n\nSans lui, le module ne pourra pas repartir ${de(a)} tant qu’il n’aura pas été construit et envoyé.\n\nDescendre quand même ?`)) return;
     }
   }
-  if (v.ergolsAtt < c.fusee.carburant) return Orbiteur.log(`Pas assez d’ergols pour l’atterrisseur (${fmt(v.ergolsAtt / 1000, 1)} t sur ${fmt(c.fusee.carburant / 1000, 1)} t) : ravitaillez à une station.`);
+  if (v.ergolsAtt < c.fusee.carburant) return Orbiteur.log(`Pas assez d’ergols pour l’atterrisseur (${fmt(v.ergolsAtt / 1000, 1)} t sur ${fmt(c.fusee.carburant / 1000, 1)} t) : ravitaillez à une station.`);
   v.ergolsAtt -= c.fusee.carburant;
   etat.destination = id;
   lancer({ voyage: true, fusee: c.fusee, bases: basesSur(id), site: siteDescente(id) });
@@ -374,13 +376,13 @@ function larguerRobot(id, blindage) {
   blindage = blindage || 'standard';
   // Le blindage alourdit le module de descente : les ergols en plus sont pris sur la réserve de l'atterrisseur.
   const cout = coutBlindage(a, blindage);
-  if (cout.ergols > v.ergolsAtt) { v.robots++; return Orbiteur.log(`Pas assez d’ergols en réserve pour descendre le blindage ${BLINDAGES_ROBOT[blindage].nom.toLowerCase()} (${fmt(cout.ergols, 0)} kg).`); }
+  if (cout.ergols > v.ergolsAtt) { v.robots++; return Orbiteur.log(`Pas assez d’ergols en réserve pour descendre le blindage ${BLINDAGES_ROBOT[blindage].nom.toLowerCase()} (${fmt(cout.ergols, 0)} kg).`); }
   v.ergolsAtt -= cout.ergols;
   etat.vol = new Vol(a, assemblerFusee(equipementParDefaut()), { voyage: true, depuisSol: true, bases: basesSur(id), site: siteDescente(id) });
   etat.vol.robotSeul = true;
   etat.enVoyage = true;
   etat.explo = new Exploration(etat.vol, 'robot', etat.science, { blindage });
-  Orbiteur.log(`Robot largué sur ${a.nom} (blindage ${BLINDAGES_ROBOT[blindage].nom.toLowerCase()}, rayonnement ${fmtDose(doseSurface(a).svJour)}).`);
+  Orbiteur.log(`Robot largué ${sur(a)} (blindage ${BLINDAGES_ROBOT[blindage].nom.toLowerCase()}, rayonnement ${fmtDose(doseSurface(a).svJour)}).`);
   touches.clear();
   redim();
   montrer('explo');
@@ -389,23 +391,23 @@ function larguerRobot(id, blindage) {
 function construireBase() {
   const v = etat.voyage, vol = etat.vol;
   if (!vol) return;
-  if (!etat.enVoyage) return (vol.messageExplo = { texte: 'Les bases se construisent pendant l’exploration du système solaire (campagne), pas en visite rapide.', vie: 5 });
-  if (!vol.pose) return (vol.messageExplo = { texte: 'Construire une base (B) : il faut d’abord être posé.', vie: 4 });
+  if (!etat.enVoyage) return (vol.messageExplo = { texte: 'Les bases se construisent pendant l’exploration du Système solaire (campagne), pas en visite rapide.', vie: 5 });
+  if (!vol.pose) return (vol.messageExplo = { texte: 'Construire une base (B) : il faut d’abord être posé.', vie: 4 });
   const a = vol.astre;
-  if (!v.stations.some((s) => s.centre === a.id)) return (vol.messageExplo = { texte: `Il faut d’abord une station en orbite de ${a.nom} pour ravitailler la base.`, vie: 6 });
-  if (v.kitsBase <= 0) return (vol.messageExplo = { texte: 'Plus de kit de base à bord (un ravito « Kit d’expédition » ou l’atelier d’une station en fournit).', vie: 6 });
-  if (baseSur(v, a.id)) return (vol.messageExplo = { texte: `Base déjà installée sur ${a.nom} : une seule base par astre.`, vie: 6 });
+  if (!v.stations.some((s) => s.centre === a.id)) return (vol.messageExplo = { texte: `Il faut d’abord une station ${enOrbite(a)} pour ravitailler la base.`, vie: 6 });
+  if (v.kitsBase <= 0) return (vol.messageExplo = { texte: 'Plus de kit de base à bord (un ravito « Kit d’expédition » ou l’atelier d’une station en fournit).', vie: 6 });
+  if (baseSur(v, a.id)) return (vol.messageExplo = { texte: `Base déjà installée ${sur(a)} : une seule base par astre.`, vie: 6 });
   // Une base a besoin d'un terrain plat, repéré par une sonde.
   const site = (v.sites || {})[a.id];
-  if (!site) return (vol.messageExplo = { texte: `Impossible de construire une base ici : le relief est trop accidenté. Conseil : remontez en orbite et envoyez une sonde vers ${a.nom}, elle repérera une zone compatible.`, vie: 10 });
-  if (Math.abs(site.x - vol.x) > 400) return (vol.messageExplo = { texte: `La zone plate repérée par la sonde est à ${fmtAlt(Math.abs(site.x - vol.x))} : posez-vous plus près (la descente vise désormais cette zone).`, vie: 10 });
+  if (!site) return (vol.messageExplo = { texte: `Impossible de construire une base ici : le relief est trop accidenté. Conseil : remontez en orbite et envoyez une sonde vers ${le(a)}, elle repérera une zone compatible.`, vie: 10 });
+  if (Math.abs(site.x - vol.x) > 400) return (vol.messageExplo = { texte: `La zone plate repérée par la sonde est à ${fmtAlt(Math.abs(site.x - vol.x))} : posez-vous plus près (la descente vise désormais cette zone).`, vie: 10 });
   v.kitsBase--;
   const [ressource, prod] = ressourceLocale(a);
   const b = { id: 'b' + Date.now(), astre: a.id, x: site.x, t0: v.t, tMaj: v.t, stock: 0, niveau: 1 };
   v.bases.push(b);
   vol.bases.push(b);
-  Orbiteur.log(`Base construite sur ${a.nom}.` + (prod ? ` Elle exploite : ${ressource} (${fmt(prod / 1000, 1)} t d’ergols par jour).` : ' Pas de ressource exploitable ici : tout viendra de la Terre.'));
-  vol.messageExplo = { texte: `Base construite !${prod ? ` Ressource locale : ${ressource}.` : ' Pas de ressource locale.'}`, vie: 7 };
+  Orbiteur.log(`Base construite ${sur(a)}.` + (prod ? ` Elle exploite : ${ressource} (${fmt(prod / 1000, 1)} t d’ergols par jour).` : ' Pas de ressource exploitable ici : tout viendra de la Terre.'));
+  vol.messageExplo = { texte: `Base construite !${prod ? ` Ressource locale : ${ressource}.` : ' Pas de ressource locale.'}`, vie: 7 };
   sauver(etat);
 }
 
@@ -417,7 +419,7 @@ function pleinALaBase(vol) {
   vol.pleinFait = true;
   const q = Math.min(b.stock || 0, vol.f.carburant - vol.carburant);
   if (q > 0) { b.stock -= q; vol.carburant += q; }
-  vol.messageExplo = { texte: q > 0 ? `Plein fait à la base : ${fmt(q / 1000, 1)} t d’ergols produits sur place.` : 'Base à proximité (pas encore d’ergols en réserve).', vie: 6 };
+  vol.messageExplo = { texte: q > 0 ? `Plein fait à la base : ${fmt(q / 1000, 1)} t d’ergols produits sur place.` : 'Base à proximité (pas encore d’ergols en réserve).', vie: 6 };
 }
 
 // Retour sur Terre : rentrée de la capsule, parachutes, amerrissage, puis récupération
@@ -426,7 +428,7 @@ function rentrerSurTerre() {
   const v = etat.voyage;
   // On attend le retour des coéquipiers partis en mission.
   const enCours = missionsEnCours(v);
-  if (enCours.length) return Orbiteur.log(`Retour impossible : ${enCours.map((m) => `${m.nom} (sur ${ASTRES_PAR_ID[m.mission.astre].nom}, retour dans ${fmtDuree(m.mission.fin - v.t)})`).join(', ')} encore en mission.`);
+  if (enCours.length) return Orbiteur.log(`Retour impossible : ${enCours.map((m) => `${m.nom} (${sur(ASTRES_PAR_ID[m.mission.astre])}, retour dans ${fmtDuree(m.mission.fin - v.t)})`).join(', ')} encore en mission.`);
   // Survivants de l'équipe (sans équipe : le ou la spationaute du joueur, s'il est vivant).
   const vivants = v.equipe ? survivants(v).map((m) => m.nom) : (v.equipagePerdu ? [] : [nomSpatio()]);
   const equipage = vivants.length > 0;
@@ -437,12 +439,12 @@ function rentrerSurTerre() {
 }
 function afficherRetourTerre(res, equipage, nom = nomSpatio()) {
   const h = $('res-titre');
-  h.textContent = equipage ? 'Retour sur Terre' : 'Retour sur Terre : capsule vide';
+  h.textContent = equipage ? 'Retour sur Terre' : 'Retour sur Terre : capsule vide';
   h.className = equipage ? 'succes' : 'partiel';
-  const ech = res.n ? `${res.n} échantillon${res.n > 1 ? 's' : ''} rapporté${res.n > 1 ? 's' : ''} : ${res.liste}.` : 'Pas d’échantillon cette fois.';
+  const ech = res.n ? `${res.n} échantillon${res.n > 1 ? 's' : ''} rapporté${res.n > 1 ? 's' : ''} : ${res.liste}.` : 'Pas d’échantillon cette fois.';
   $('res-message').textContent = equipage
     ? `La capsule a amerri sous ses parachutes et l’hélicoptère a hélitreuillé ${nom}. ${ech}`
-    : `Capsule vide : l’équipage n’est pas revenu. Un navire a hissé la capsule à bord avec sa grue. ${ech}`;
+    : `Capsule vide : l’équipage n’est pas revenu. Un navire a hissé la capsule à bord avec sa grue. ${ech}`;
   $('res-stats').innerHTML = resumeCampagne(etat.voyage).split(' · ').map((x) => `<dt>•</dt><dd style="text-align:left">${x}</dd>`).join('');
   etat.suiteResultat = 'accueil';
   $('vers-hangar').textContent = '← Accueil';
@@ -484,7 +486,7 @@ function allerNavigation() {
   choisirSystemeCampagne(etat.voyage);
   if (!etat.voyage.orb) {
     // Autre système : pas de centre de lancement ici, l'expédition perdue ne se remplace pas.
-    if (!ressourcesIllimitees()) { alert(`Plus d’orbiteur dans le ${SYSTEME.nom} : il n’y a pas de centre de lancement ici. Reprenez depuis une station ou une base.`); return allerAccueil(); }
+    if (!ressourcesIllimitees()) { alert(`Plus d’orbiteur dans le ${SYSTEME.nom} : il n’y a pas de centre de lancement ici. Reprenez depuis une station ou une base.`); return allerAccueil(); }
     // Pas d'expédition en cours : tout part de la Terre, depuis le centre de lancement.
     return allerLancement();
   }
@@ -510,9 +512,9 @@ function ouvrirReprise() {
   const basesOk = v.bases.filter((b) => !AEROSTAT[b.astre] && ASTRES_PAR_ID[b.astre]);
   if (!v.stations.length && !basesOk.length) return allerNavigation();
   const choix = [];
-  if (v.orb) choix.push(['ici', `▶ Là où vous étiez`, `en orbite de ${ASTRES_PAR_ID[v.orb.centre].nom}`]);
-  for (const s of v.stations) choix.push(['station:' + s.id, `🛰 ${s.nom}`, `en orbite de ${ASTRES_PAR_ID[s.centre].nom}, amarré à la station`]);
-  for (const b of basesOk) choix.push(['base:' + v.bases.indexOf(b), `🏠 Base ${ASTRES_PAR_ID[b.astre].nom}, niveau ${b.niveau || 1}`, `au sol, l’atterrisseur garé à côté ; l’orbiteur attend en orbite`]);
+  if (v.orb) choix.push(['ici', `▶ Là où vous étiez`, `${enOrbite(ASTRES_PAR_ID[v.orb.centre])}`]);
+  for (const s of v.stations) choix.push(['station:' + s.id, `🛰 ${s.nom}`, `${enOrbite(ASTRES_PAR_ID[s.centre])}, amarré à la station`]);
+  for (const b of basesOk) choix.push(['base:' + v.bases.indexOf(b), `🏠 ${nomBase(ASTRES_PAR_ID[b.astre])}, niveau ${b.niveau || 1}`, `au sol, l’atterrisseur garé à côté ; l’orbiteur attend en orbite`]);
   if (ressourcesIllimitees()) choix.push(['terre', `🚀 Depuis ${SYSTEME.nomOrigine}`, v.orb ? 'centre de lancement (l’expédition en cours reste où elle est)' : 'centre de lancement, nouvelle méga-fusée']);
   const m = $('modale');
   m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>▶ Reprendre la campagne</h2><p>Choisissez d’où repartir.</p></div><button class="fermer">✕</button></header>
@@ -535,7 +537,7 @@ function reprendreDepuis(id) {
   Orbiteur.charger(v);
   if (!v.orb) {
     // Autre système : pas de nouvelle expédition possible (rien ne vient de la Terre).
-    if (!ressourcesIllimitees()) { alert('Plus d’orbiteur : dans ce système, une nouvelle expédition ne peut pas être lancée.'); return allerAccueil(); }
+    if (!ressourcesIllimitees()) { alert('Plus d’orbiteur : dans ce système, une nouvelle expédition ne peut pas être lancée.'); return allerAccueil(); }
     Orbiteur.demarrerExpedition();        // nouvelle expédition, montée à bord à la station ou à la base
   }
   Orbiteur.camPlacee = false;
@@ -544,7 +546,7 @@ function reprendreDepuis(id) {
     const e = Orbiteur.etatStation(st);
     v.orb = { centre: st.centre, r: e.r, v: e.v, transfert: null };
     v.cible = null;
-    Orbiteur.log(`Reprise à ${st.nom}, en orbite de ${ASTRES_PAR_ID[st.centre].nom}.`);
+    Orbiteur.log(`Reprise ${au(st)}, ${enOrbite(ASTRES_PAR_ID[st.centre])}.`);
     return allerNavigation();
   }
   // Base : l'orbiteur attend en orbite (à la station s'il y en a une), l'atterrisseur est posé à côté de la base.
@@ -555,7 +557,7 @@ function reprendreDepuis(id) {
   v.cible = null;
   const c = concevoirAtterrisseur(a);
   if (!c.ok) { Orbiteur.log(c.raison); return allerNavigation(); }
-  Orbiteur.log(`Reprise à la base ${a.nom} (niveau ${b.niveau || 1}) : l’atterrisseur est posé à côté.`);
+  Orbiteur.log(`Reprise à la base ${a.nom} (niveau ${b.niveau || 1}) : l’atterrisseur est posé à côté.`);
   sauver(etat);
   etat.destination = a.id;
   lancer({ voyage: true, fusee: c.fusee, bases: basesSur(a.id), site: { x: b.x, xDescente: b.x - 90 }, depuisSol: true });
@@ -565,17 +567,17 @@ function reprendreDepuis(id) {
 function terminerParDepart(info) {
   const v = etat.voyage;
   v.fin = info;
-  Orbiteur.log(`Départ pour ${info.nomEtoile} (${fmt(info.distanceAL, 2)} années-lumière) à ${fmt(info.vitesse, 1)} km/s : ${info.nomProfil.toLowerCase()}. Arrivée vers ${fmtAnnee(info.arriveeJeu)}.`);
+  Orbiteur.log(`Départ pour ${le(info.nomEtoile)} (${fmt(info.distanceAL, 2)} années-lumière) à ${fmt(info.vitesse, 1)} km/s : ${info.nomProfil.toLowerCase()}. Arrivée vers ${fmtAnnee(info.arriveeJeu)}.`);
   sauver(etat);
   const h = $('res-titre');
-  h.textContent = `En route vers ${info.nomEtoile}`;
+  h.textContent = `En route vers ${le(info.nomEtoile)}`;
   h.className = 'succes';
-  $('res-message').textContent = `L’expédition a quitté le ${SYSTEME.nom} en ${info.anneeDepart}. À ${fmt(info.vitesse, 1)} km/s, les ${fmt(info.distanceAL, 2)} années-lumière prendront ${fmtDureeAnnees(info.ans)}. Fin de la partie.`;
+  $('res-message').textContent = `L’expédition a quitté le ${SYSTEME.nom} en ${info.anneeDepart}. À ${fmt(info.vitesse, 1)} km/s, les ${fmt(info.distanceAL, 2)} années-lumière prendront ${fmtDureeAnnees(info.ans)}. Fin de la partie.`;
   const vus = Object.keys(v.visites).filter((id) => v.visites[id].pose && ASTRES_PAR_ID[id]).length;
   const ech = Object.values(v.echantillonsRapportes || {}).reduce((s, k) => s + k, 0);
   $('res-stats').innerHTML = `
-    <dt>Destination</dt><dd>${info.nomEtoile}, ${fmt(info.distanceAL, 2)} années-lumière</dd>
-    <dt>Propulsion</dt><dd>${info.nomProfil} (${fmt(info.vitesse, 1)} km/s)</dd>
+    <dt>Destination</dt><dd>${info.nomEtoile}, ${fmt(info.distanceAL, 2)} années-lumière</dd>
+    <dt>Propulsion</dt><dd>${info.nomProfil} (${fmt(info.vitesse, 1)} km/s)</dd>
     <dt>Durée du voyage</dt><dd>${fmtDureeAnnees(info.ans)}</dd>
     <dt>Arrivée (temps de jeu)</dt><dd>vers ${fmtAnnee(info.arriveeJeu)}</dd>
     <dt>Arrivée (vraie vie)</dt><dd>vers ${fmtAnnee(info.arriveeVraie)}</dd>
@@ -590,7 +592,7 @@ function terminerParDepart(info) {
 // Départ science-fiction : traversée animée, puis arrivée et nouvelle campagne dans l'autre système.
 function partirVersSysteme(info) {
   const v = etat.voyage;
-  Orbiteur.log(`Départ pour ${info.nomSysteme} en ${TECHNOLOGIES[info.tech].nom.toLowerCase()} : ${fmtDureeAnnees(info.ans)} de voyage, installation prévue sur ${info.nomBase}.`);
+  Orbiteur.log(`Départ pour ${le(info.nomSysteme)} en ${TECHNOLOGIES[info.tech].nom.toLowerCase()} : ${fmtDureeAnnees(info.ans)} de voyage, installation prévue sur ${info.nomBase}.`);
   sauver(etat);
   jouerScene(new TransitInterstellaire(info), () => {
     const st = arriverDansSysteme(v, info);
@@ -600,10 +602,10 @@ function partirVersSysteme(info) {
     const h = $('res-titre');
     h.textContent = `Arrivée dans le ${SYSTEME.nom}`;
     h.className = 'succes';
-    $('res-message').textContent = `Après ${fmtDureeAnnees(info.ans)} de voyage (${fmtDureeAnnees(info.ansBord)} vécus à bord), l’expédition est entrée dans le système par l’extérieur et s’est placée en orbite de ${info.nomBase}. ${st.nom} est déployée avec le chargement. À vous de vous poser et de construire la base.`;
+    $('res-message').textContent = `Après ${fmtDureeAnnees(info.ans)} de voyage (${fmtDureeAnnees(info.ansBord)} vécus à bord), l’expédition est entrée dans le système par l’extérieur et s’est placée ${enOrbite(info.nomBase)}. ${Le(st)} est déployée avec le chargement. À vous de vous poser et de construire la base.`;
     $('res-stats').innerHTML = `
       <dt>Propulsion</dt><dd>${TECHNOLOGIES[info.tech].nom}</dd>
-      <dt>Distance</dt><dd>${fmt(info.distanceAL, 2)} années-lumière</dd>
+      <dt>Distance</dt><dd>${fmt(info.distanceAL, 2)} années-lumière</dd>
       <dt>Date d’arrivée</dt><dd>${fmtAnnee(info.anneeDepart + info.ans)}</dd>
       <dt>Planète de base</dt><dd>${info.nomBase}</dd>
       <dt>Station</dt><dd>${decrireContenu(st.stock) || 'stock vide'}</dd>
@@ -639,7 +641,7 @@ Orbiteur.contexte = {
 };
 
 $('voyage-nouveau').onclick = () => {
-  if (etat.voyage && !confirm('Recommencer une nouvelle campagne ? Les stations, bases et sondes actuelles seront perdues.')) return;
+  if (etat.voyage && !confirm('Recommencer une nouvelle campagne ? Les stations, bases et sondes actuelles seront perdues.')) return;
   etat.voyage = Orbiteur.nouveauVoyage();
   Orbiteur.camPlacee = false;
   sauver(etat);
@@ -699,7 +701,7 @@ $('fichier-sauvegarde').onchange = (e) => {
   const f = e.target.files[0];
   e.target.value = '';
   if (!f) return;
-  if (etat.voyage && !confirm('Charger ce fichier remplace la partie en cours dans ce navigateur. Continuer ?')) return;
+  if (etat.voyage && !confirm('Charger ce fichier remplace la partie en cours dans ce navigateur. Continuer ?')) return;
   importerSauvegarde(f, (erreur) => {
     if (erreur) { $('sauvegarde-info').textContent = '⚠ ' + erreur; return; }
     location.reload();   // on repart proprement de la sauvegarde chargée
@@ -799,7 +801,7 @@ addEventListener('keydown', (e) => {
     if (e.code === 'KeyV') x.basculerRover();
     if (e.code === 'KeyF') x.planterDrapeau();
     if (e.code === 'Escape') {
-      if (x.terre) x.terminer('retour', `Fin de la promenade : ${x.bouquet || 0} fleurs, ${x.panier || 0} fruits, ${x.bieres} bière(s).`);
+      if (x.terre) x.terminer('retour', `Fin de la promenade : ${x.bouquet || 0} fleurs, ${x.panier || 0} fruits, ${x.bieres} bière(s).`);
       else x.agirRappel();
     }
     // Écoulement du temps pendant l'exploration : ×1 à ×50.
@@ -828,15 +830,15 @@ addEventListener('keydown', (e) => {
   const refus = (texte) => { v.messageExplo = { texte, vie: 4 }; };
   if (e.code === 'KeyL') {
     v.autopilote = !v.autopilote; v.cibleX = null; v.tCible = -1;
-    refus(v.autopilote ? 'Pilote automatique activé.' : 'Pilote automatique coupé : vous avez les commandes.');
+    refus(v.autopilote ? 'Pilote automatique activé.' : 'Pilote automatique coupé : vous avez les commandes.');
   }
   if (e.code === 'KeyT') {
     if (v.pose) v.demanderDecollage();
-    else refus('Décollage (T) : il faut d’abord être posé.');
+    else refus('Décollage (T) : il faut d’abord être posé.');
   }
   if (e.code === 'KeyB') construireBase();
   if ((e.code === 'KeyE' || e.code === 'KeyR') && !(v.pose && v.astre.type === 'solide')) {
-    refus(v.astre.type !== 'solide' ? 'Pas de sol ici : ni spationaute ni robot ne peuvent sortir.' : `${e.code === 'KeyE' ? 'Sortir le spationaute' : 'Sortir le robot'} : il faut d’abord être posé.`);
+    refus(v.astre.type !== 'solide' ? 'Pas de sol ici : ni spationaute ni robot ne peuvent sortir.' : `${e.code === 'KeyE' ? 'Sortir le spationaute' : 'Sortir le robot'} : il faut d’abord être posé.`);
   }
   if ((e.code === 'KeyE' || e.code === 'KeyR') && v.pose && v.astre.type === 'solide') {
     etat.explo = new Exploration(v, e.code === 'KeyE' ? 'spationaute' : 'robot', etat.science);
@@ -932,7 +934,7 @@ function signalerErreur(e) {
   erreurAffichee = texte;
   const m = $('modale');
   m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>⚠ Le jeu a rencontré une erreur</h2>
-    <p>Le jeu est en pause${date ? ` (date du jeu : ${date})` : ''}. Vous pouvez reprendre ; si l’erreur revient, téléchargez la sauvegarde et envoyez-la avec ce message pour qu’elle soit corrigée.</p></div><button class="fermer">✕</button></header>
+    <p>Le jeu est en pause${date ? ` (date du jeu : ${date})` : ''}. Vous pouvez reprendre ; si l’erreur revient, téléchargez la sauvegarde et envoyez-la avec ce message pour qu’elle soit corrigée.</p></div><button class="fermer">✕</button></header>
     <pre class="erreur"></pre>
     <div class="actions"><button id="err-sauvegarde">⬇ Télécharger la sauvegarde</button><button id="err-accueil">← Accueil</button><button id="err-reprendre" class="principal">▶ Reprendre</button></div></div>`;
   m.querySelector('.erreur').textContent = texte;
@@ -992,7 +994,7 @@ function image(t) {
       if (x.fin.issue === 'perdu' && !x.terre) (etat.vol.pertes = etat.vol.pertes || []).push({ qui: x.type, texte: x.fin.texte });
       // Campagne : l'équipage perdu ne reviendra pas (la capsule rentrera vide).
       if (x.fin.issue === 'perdu' && x.type === 'spationaute' && !x.terre && etat.enVoyage && etat.voyage) etat.voyage.equipagePerdu = true;
-      if (etat.voyage && etat.enVoyage) etat.voyage.journal.push({ t: etat.voyage.t, texte: `${etat.vol.astre.nom} : ${x.fin.texte}` });
+      if (etat.voyage && etat.enVoyage) etat.voyage.journal.push({ t: etat.voyage.t, texte: `${etat.vol.astre.nom} : ${x.fin.texte}` });
       etat.explo = null;
       touches.clear();
       sauver(etat);

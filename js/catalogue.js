@@ -35,10 +35,22 @@ const NOMS_FR = {
   Amalthea: 'Amalthée', Thebe: 'Thébé', Pasiphae: 'Pasiphaé', Sinope: 'Sinopé', Carme: 'Carmé', Ananke: 'Ananké',
   Leda: 'Léda', Kerberos: 'Cerbère', Telesto: 'Télesto', Galatea: 'Galatée', Naiad: 'Naïade', Metis: 'Métis',
   Adrastea: 'Adrastée', Callirrhoe: 'Callirrhoé', Magaclite: 'Mégaclité', Megaclite: 'Mégaclité', Taygete: 'Taygète',
-  Ceres: 'Cérès', Hygiea: 'Hygie', Juno: 'Junon', Psyche: 'Psyché', Hydra: 'Hydre', Cupid: 'Cupidon',
+  Ceres: 'Cérès', Hygiea: 'Hygie', Juno: 'Junon', Psyche: 'Psyché', Hydra: 'Hydre',
   Juliet: 'Juliette', Ophelia: 'Ophélie', Cressida: 'Cressida', Desdemona: 'Desdémone', Rosalind: 'Rosalinde',
-  Margaret: 'Marguerite', Prospero: 'Prospéro', Stephano: 'Stéphano', Daphnis: 'Daphnis', Calypso: 'Calypso',
+  Daphnis: 'Daphnis', Calypso: 'Calypso',
   Polydeuces: 'Pollux', Methone: 'Méthone', Pallene: 'Pallène', Aegaeon: 'Égéon', Atlas: 'Atlas', Pan: 'Pan',
+  // Noms d'usage en français, d'après Wikipédia en français (octobre 2026) ; sinon le nom de l'UAI.
+  Deimos: 'Déimos', Eunomia: 'Eunomie',
+  Elara: 'Élara', Lysithea: 'Lysithée', Themisto: 'Thémisto', Chaldene: 'Chaldéné', Harpalyke: 'Harpalycé',
+  Kalyke: 'Calycé', Iocaste: 'Jocaste', Erinome: 'Érinomé', Isonoe: 'Isonoé', Praxidike: 'Praxidiké',
+  Autonoe: 'Autonoé', Thyone: 'Thyoné', Hermippe: 'Hermippé', Aitne: 'Aitné', Eurydome: 'Eurydomé',
+  Euanthe: 'Euanthé', Sponde: 'Spondé', Kale: 'Calé', Pasithee: 'Pasithée', Hegemone: 'Hégémone',
+  Mneme: 'Mnémé', Aoede: 'Aédé', Thelxinoe: 'Thelxinoé', Arche: 'Arché', Kallichore: 'Callichore',
+  Helike: 'Hélicé', Eukelade: 'Eukéladé', Cyllene: 'Cyllène', Kore: 'Coré', Herse: 'Hersé', Eirene: 'Eiréné',
+  Philophrosyn: 'Philophrosyne', Philophrosyne: 'Philophrosyne', Eupheme: 'Euphémé', Valetudo: 'Valétudo',
+  Anthe: 'Anthée', Dione: 'Dioné', Aegir: 'Ægir',
+  Cordelia: 'Cordélia',
+  Hippocamp: 'Hippocampe', Halimede: 'Halimède', Laomedeia: 'Laomédie', Psamathe: 'Psamathée', Neso: 'Néso',
 };
 
 function nomFrancais(nom) {
@@ -56,8 +68,8 @@ ASTRES.push({
   atm: { p0: 1e-5, rho0: 6e-5, H: 60, t0: -229, gradient: 0, tHaut: -229 },
   depart: { alt: 3000, vitesse: 30 },
   couleurs: { sol: '#cdb79e', ciel: '#05060a', disque: '#d9c3a5' },
-  surface: "plaine de glace d'azote",
-  note: "Planète naine. Plaine de glace d'azote Spoutnik, montagnes de glace d'eau, atmosphère ténue d'azote.",
+  surface: "plaine de glace d’azote",
+  note: "Planète naine. Plaine de glace d’azote Spoutnik, montagnes de glace d’eau, atmosphère ténue d’azote.",
 });
 ASTRES_PAR_ID.pluton = ASTRES[ASTRES.length - 1];
 ASTRES_PAR_ID.pluton.relief = { amplitude: 140, longueur: 1800, crateres: 0.3 };
@@ -134,9 +146,9 @@ for (const l of LUNES_JPL) {
       id: 'l' + code, nom, parent, rayonKm: rayon, gm, estime,
       distanceUA: ORBITES_PLANETES[parent][0], famille: parent,
       surface: FAMILLE_SURFACE[parent],
-      note: (inc > 90 ? 'Lune irrégulière rétrograde' : rayon < 20 ? 'Petite lune' : 'Lune') + ` de ${ASTRES_PAR_ID[parent].nom}` +
+      note: (inc > 90 ? 'Lune irrégulière rétrograde' : rayon < 20 ? 'Petite lune' : 'Lune') + ` ${de(ASTRES_PAR_ID[parent])}` +
         (provisoire ? ', désignation provisoire (découverte récente).' : '.') +
-        (estime ? ' Taille non mesurée : estimation.' : ''),
+        (estime ? ' Taille non mesurée : estimation.' : ''),
     });
     ASTRES.push(astre);
     ASTRES_PAR_ID[astre.id] = astre;
@@ -160,7 +172,7 @@ for (const s of ASTEROIDES_JPL) {
     id: 'a' + s.num, nom, parent: null, rayonKm: rayon, gm, distanceUA: s.a, famille: 'ceinture',
     surface: s.type ? `astéroïde de type ${s.type}` : 'roche',
     note: (s.num === '1' ? 'Planète naine, le plus gros objet de la ceinture d’astéroïdes.' : `Astéroïde n° ${s.num} de la ceinture principale.`) +
-      (s.rotation ? ` Tourne sur lui-même en ${fmtNombre(s.rotation, 1)} h.` : ''),
+      (s.rotation ? ` Tourne sur lui-même en ${fmtNombre(s.rotation, 1)} h.` : ''),
   });
   astre.asteroide = true;
   if (s.num === '1') astre.naine = true;
@@ -204,13 +216,13 @@ for (const a of ASTRES) if (a.orbite) (ENFANTS[a.orbite.centre] = ENFANTS[a.orbi
 // Ordre d'affichage, nom, icône et définition courte (affichée dans la fiche).
 const CATEGORIES = {
   etoile: { nom: 'Étoile', icone: '☀️', def: 'Boule de gaz qui produit sa propre lumière par fusion nucléaire.' },
-  tellurique: { nom: 'Planète tellurique', icone: '🌍', def: 'Planète rocheuse, avec une surface solide, proche du Soleil.' },
+  tellurique: { nom: 'Planète tellurique', icone: '🌍', def: 'Planète rocheuse, avec une surface solide, proche de son étoile.' },
   gazeuse: { nom: 'Géante gazeuse', icone: '🪐', def: 'Planète géante faite surtout d’hydrogène et d’hélium, sans surface solide.' },
-  glaces: { nom: 'Géante de glaces', icone: '🧊', def: 'Planète géante formée surtout d’eau, d’ammoniac et de méthane (les « glaces »), sous une atmosphère d’hydrogène.' },
+  glaces: { nom: 'Géante de glaces', icone: '🧊', def: 'Planète géante formée surtout d’eau, d’ammoniac et de méthane (les « glaces »), sous une atmosphère d’hydrogène.' },
   naine: { nom: 'Planète naine', icone: '⚪', def: 'Assez massive pour être ronde, mais elle n’a pas fait le ménage sur son orbite.' },
-  luneMajeure: { nom: 'Lune majeure', icone: '🌕', def: 'Satellite assez gros (plus de 190 km de rayon) pour être à peu près rond.' },
-  luneReguliere: { nom: 'Petite lune régulière', icone: '🌘', def: 'Petit satellite né avec sa planète : orbite proche, presque circulaire, dans le sens de rotation.' },
-  luneIrreguliere: { nom: 'Lune irrégulière', icone: '🌑', def: 'Objet capturé par sa planète : orbite lointaine, inclinée ou très allongée, souvent rétrograde.' },
+  luneMajeure: { nom: 'Lune majeure', icone: '🌕', def: 'Satellite assez gros (plus de 190 km de rayon) pour être à peu près rond.' },
+  luneReguliere: { nom: 'Petite lune régulière', icone: '🌘', def: 'Petit satellite né avec sa planète : orbite proche, presque circulaire, dans le sens de rotation.' },
+  luneIrreguliere: { nom: 'Lune irrégulière', icone: '🌑', def: 'Objet capturé par sa planète : orbite lointaine, inclinée ou très allongée, souvent rétrograde.' },
   asteroide: { nom: 'Astéroïde', icone: '☄️', def: 'Petit corps rocheux ou métallique qui tourne autour du Soleil, ici dans la ceinture principale.' },
 };
 // Catégorie calculée à partir des données (type, orbite, inclinaison, sens, taille).

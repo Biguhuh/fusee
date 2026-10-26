@@ -83,7 +83,7 @@ function concevoirAtterrisseur(a) {
 }
 
 function calculerConception(a) {
-  if (a.type === 'etoile') return { ok: false, raison: 'Personne ne se pose sur le Soleil : tout brûle bien avant.' };
+  if (a.type === 'etoile') return { ok: false, raison: 'Personne ne se pose sur le Soleil : tout brûle bien avant.' };
   if (estOrigine(a.id)) return { ok: false, raison: `Sur ${SYSTEME.origineSans}, on rentre à la maison en capsule.` };
   const gaz = a.type === 'gazeuse';
   const pMax = gaz ? a.cible * 2.5 : (a.atm ? a.atm.p0 : 0);
@@ -96,7 +96,7 @@ function calculerConception(a) {
   const bouclier = premier('bouclier', (o) => o.tempMax >= tMax);
   const panneau = premier('panneau', (o) => o.protection >= rad);
   if (!coque) return { ok: false, raison: `Aucune coque ne résiste à ${fmtP(pMax)}.` };
-  if (!bouclier) return { ok: false, raison: `Aucun bouclier ne résiste à ${fmt(tMax)} °C.` };
+  if (!bouclier) return { ok: false, raison: `Aucun bouclier ne résiste à ${fmt(tMax)} °C.` };
   if (!panneau) return { ok: false, raison: 'Aucun panneau ne protège d’un tel rayonnement.' };
   if (AEROSTAT[a.id]) {
     // Vénus : il suffit de freiner la descente (l'air épais aide) ; la remontée est confiée au ballon et au lanceur.
@@ -113,7 +113,7 @@ function calculerConception(a) {
     for (const c of candidats.slice(0, 14)) {
       if (simulerAllerRetour(a, c.fusee)) return { ok: true, aerostat: true, besoin: besoinDescente(a) * 1.2, ...c };
     }
-    return { ok: false, raison: `Aucun module ne réussit la descente sur ${a.nom} avec son ballon de remontée.` };
+    return { ok: false, raison: `Aucun module ne réussit la descente ${sur(a)} avec son ballon de remontée.` };
   }
   const besoin = besoinAtterrisseur(a) * 1.2;
   // Candidats plausibles, du plus léger au plus lourd ; on garde le premier qui réussit
@@ -134,7 +134,7 @@ function calculerConception(a) {
     if (simulerAllerRetour(a, c.fusee)) { meilleur = c; break; }
   }
   if (!meilleur) {
-    return { ok: false, besoin, raison: `Aucun atterrisseur ne pourrait repartir de ${a.nom} : il faudrait ≈ ${fmtV(besoin)} de Δv. Larguez plutôt un robot (aller simple).` };
+    return { ok: false, besoin, raison: `Aucun atterrisseur ne pourrait repartir ${de(a)} : il faudrait ≈ ${fmtV(besoin)} de Δv. Larguez plutôt un robot (aller simple).` };
   }
   return { ok: true, besoin, ...meilleur };
 }
@@ -143,8 +143,8 @@ function calculerConception(a) {
 // Deux destinations, deux fusées.
 const LANCEURS = {
   station: {
-    nom: 'Hercule', destination: 'la station spatiale (orbite basse, 400 km)',
-    description: 'Lanceur lourd à 2 étages. Met 110 t en orbite basse : orbiteur, atterrisseur, kits et ergols.',
+    nom: 'Hercule', destination: 'la station spatiale (orbite basse, 400 km)',
+    description: 'Lanceur lourd à 2 étages. Met 110 t en orbite basse : orbiteur, atterrisseur, kits et ergols.',
     chargeUtile: 110000,
     // Charge utile (orbiteur + atterrisseur) : hauteur et largeur sous la coiffe, en mètres.
     charge: { hauteur: 22, largeur: 10 },
@@ -230,21 +230,21 @@ function fusionnerDoublons(v) {
       for (const c of v.cargos || []) if (c.dest === s.id) c.dest = k.id;
     }
     v.stations = v.stations.filter((s) => !autres.includes(s));
-    notes.push(`${autres.length + 1} stations en orbite de ${ASTRES_PAR_ID[k.centre].nom} regroupées en une seule (${k.nom}).`);
+    notes.push(`${autres.length + 1} stations ${enOrbite(ASTRES_PAR_ID[k.centre])} regroupées en une seule (${k.nom}).`);
   }
   for (const g of garder(v.bases, 'astre')) {
     g.sort((a, b) => (b.niveau || 1) - (a.niveau || 1));
     const [k, ...autres] = g;
     for (const b of autres) k.stock = (k.stock || 0) + (b.stock || 0);
     v.bases = v.bases.filter((b) => !autres.includes(b));
-    notes.push(`${autres.length + 1} bases sur ${ASTRES_PAR_ID[k.astre].nom} regroupées en une seule (niveau ${k.niveau || 1}).`);
+    notes.push(`${autres.length + 1} bases ${sur(ASTRES_PAR_ID[k.astre])} regroupées en une seule (niveau ${k.niveau || 1}).`);
   }
   for (const g of garder(v.sondesEnVol, 'cible')) {
     g.sort((a, b) => (b.etat === 'orbite') - (a.etat === 'orbite'));
     const autres = g.slice(1);
     v.sondesEnVol = v.sondesEnVol.filter((s) => !autres.includes(s));
     if (v.orb) v.sondes = (v.sondes || 0) + autres.length;
-    notes.push(`${autres.length} sonde${autres.length > 1 ? 's' : ''} en double vers ${ASTRES_PAR_ID[g[0].cible].nom}${v.orb ? ' revenue(s) à bord' : ' retirée(s)'}.`);
+    notes.push(`${autres.length} sonde${autres.length > 1 ? 's' : ''} en double vers ${le(ASTRES_PAR_ID[g[0].cible])}${v.orb ? ' revenue(s) à bord' : ' retirée(s)'}.`);
   }
   return notes;
 }
@@ -259,7 +259,7 @@ const NIVEAUX_STATION = {
   2: { stock: 2, vitesse: 1, ravito: 1, apport: 'stockage doublé' },
   3: { stock: 2, vitesse: 1.5, ravito: 2, apport: 'chantiers 1,5 fois plus rapides, ravitaillement courant doublé' },
   4: { stock: 3, vitesse: 1.5, ravito: 2, habitat: true, apport: 'habitat pour l’équipe de spationautes, stockage triplé' },
-  5: { stock: 3, vitesse: 2, ravito: 2, habitat: true, interstellaire: true, apport: 'chantier interstellaire : assemble le vaisseau de départ vers une autre étoile, chantiers 2 fois plus rapides' },
+  5: { stock: 3, vitesse: 2, ravito: 2, habitat: true, interstellaire: true, apport: 'chantier interstellaire : assemble le vaisseau de départ vers une autre étoile, chantiers 2 fois plus rapides' },
 };
 const DUREE_AGRANDISSEMENT = 10 * JOUR;
 function niveauStation(st) { return NIVEAUX_STATION[st.niveau || 1]; }
@@ -272,21 +272,21 @@ function lanceurRetourDisponible(v, astreId) {
   const chantier = (st.chantiers || []).find((c) => c.cle === 'lanceurRetour');
   return { station: st, pret: (st.stock.lanceurRetour || 0) > 0, chantier };
 }
-function fmtStock(cle, q) { return ['carburant', 'ergols', 'materiaux'].includes(cle) ? `${fmt(q / 1000, q < 10000 ? 1 : 0)} t` : fmt(q); }
+function fmtStock(cle, q) { return ['carburant', 'ergols', 'materiaux'].includes(cle) ? `${fmt(q / 1000, q < 10000 ? 1 : 0)} t` : fmt(q); }
 function decrireContenu(c) { return Object.entries(c).filter(([, q]) => q > 0).map(([k, q]) => `${fmtStock(k, q)} ${NOMS_STOCK[k]}`).join(', '); }
 
 // Ravitos lancés par le joueur : contenus types (capacité d'un cargo lourd).
 const CONTENUS_CARGO = {
   expedition: {
-    nom: 'Kit d’expédition', description: 'De quoi repartir plus loin : carburant de l’orbiteur, ergols et atterrisseurs, sondes, kits de station et de base, robots.',
+    nom: 'Kit d’expédition', description: 'De quoi repartir plus loin : carburant de l’orbiteur, ergols et atterrisseurs, sondes, kits de station et de base, robots.',
     contenu: { carburant: 60000, ergols: 60000, atterrisseurs: 2, sondes: 4, kits: 2, kitsBase: 1, robots: 2 },
   },
   extension: {
-    nom: 'Extension de base', description: 'Agrandit la base de l’astre : plus de production, puis une mine de matériaux (à partir du niveau 2).',
+    nom: 'Extension de base', description: 'Agrandit la base de l’astre : plus de production, puis une mine de matériaux (à partir du niveau 2).',
     contenu: { extensions: 1, materiaux: 15000 },
   },
   ergols: { nom: 'Ergols', description: 'Carburant pour l’orbiteur et ergols pour les atterrisseurs.', contenu: { carburant: 60000, ergols: 60000 } },
-  materiaux: { nom: 'Matériaux', description: 'Pour l’atelier de la station : sondes, robots, atterrisseurs, kits.', contenu: { materiaux: 40000, kitsBase: 1 } },
+  materiaux: { nom: 'Matériaux', description: 'Pour l’atelier de la station : sondes, robots, atterrisseurs, kits.', contenu: { materiaux: 40000, kitsBase: 1 } },
   extensionStation: {
     nom: 'Extension de station', description: 'Agrandit la station de destination d’un niveau (plus de stockage, chantiers plus rapides, habitat, puis chantier interstellaire).',
     contenu: { extensionsStation: 1, materiaux: 10000 },
@@ -295,13 +295,13 @@ const CONTENUS_CARGO = {
 
 // Atelier d'une station : ce qu'on fabrique avec les matériaux (et les ergols) du stock.
 const RECETTES = {
-  sondes: { nom: 'Sonde', materiaux: 2000 },
+  sondes: { nom: 'Sonde', fem: true, materiaux: 2000 },
   robots: { nom: 'Robot', materiaux: 3000 },
   atterrisseurs: { nom: 'Atterrisseur', materiaux: 8000 },
   kitsBase: { nom: 'Kit de base', materiaux: 15000 },
   kits: { nom: 'Kit de station', materiaux: 20000 },
-  extensions: { nom: 'Extension de base', materiaux: 12000 },
-  extensionsStation: { nom: 'Extension de station', materiaux: 30000, duree: 5 * JOUR },
+  extensions: { nom: 'Extension de base', fem: true, materiaux: 12000 },
+  extensionsStation: { nom: 'Extension de station', fem: true, materiaux: 30000, duree: 5 * JOUR },
   // Vénus : lanceur à deux étages et son ballon, construit en orbite puis envoyé au sol sous parachute.
   lanceurRetour: { nom: 'Lanceur de retour (ballon + Aphrodite)', materiaux: 20000, ergols: 37000, duree: 20 * JOUR },
 };
@@ -359,7 +359,7 @@ function productionMateriaux(a, niveau) { return a.type === 'solide' && niveau >
 
 // Module qui descend une extension de la station à la base : il se pose et devient le niveau suivant.
 function moduleExtension(a) {
-  if (a.id === 'venus') return { nom: 'Ballon-module', duree: 6 * 3600, description: 'capsule blindée, bouclier thermique puis ballon gonflé à 55 km, qui s’amarre à l’aérostat' };
+  if (a.id === 'venus') return { nom: 'Ballon-module', duree: 6 * 3600, description: 'capsule blindée, bouclier thermique puis ballon gonflé à 55 km, qui s’amarre à l’aérostat' };
   if (a.type !== 'solide') return { nom: 'Module-sonde', duree: 4 * 3600, description: 'module flottant amarré à la base' };
   if (a.atm && a.atm.p0 > 0.5) return { nom: 'Module à parachute', duree: 3 * 3600, description: 'bouclier thermique, parachutes puis rétrofusées' };
   if (a.atm && a.atm.p0 > 0.001) return { nom: 'Module de descente', duree: 2 * 3600, description: 'bouclier thermique, parachute supersonique puis rétrofusées' };
@@ -403,8 +403,8 @@ function descriptionConception(c) {
   if (!c.ok) return c.raison;
   const p = (cat) => piece(cat, c.choix[cat]).nom;
   if (c.aerostat) {
-    return `module blindé (moteur ${p('moteur')}, réservoir ${p('reservoir')}, coque ${p('coque')}, bouclier ${p('bouclier')}) qui reste au sol ; ` +
-      `remontée : lanceur de retour construit par une station en orbite et envoyé au sol sous parachute ` +
+    return `module blindé (moteur ${p('moteur')}, réservoir ${p('reservoir')}, coque ${p('coque')}, bouclier ${p('bouclier')}) qui reste au sol ; ` +
+      `remontée : lanceur de retour construit par une station en orbite et envoyé au sol sous parachute ` +
       `(ballon jusqu’à ${fmtAlt(AEROSTAT.venus.alt)}, puis ${LANCEUR_ASCENSION.nom} à 2 étages, Δv ${fmtV(deltaVAscension())})`;
   }
   return `moteur ${p('moteur')}, réservoir ${p('reservoir')}, coque ${p('coque')}, bouclier ${p('bouclier')}, panneau ${p('panneau')} — Δv ${fmtV(c.dv)} pour ${fmtV(c.besoin / 1.2)} nécessaires`;

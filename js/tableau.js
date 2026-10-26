@@ -9,13 +9,13 @@ function manquePourNiveau(v, b) {
   if (n >= 5) return { texte: 'niveau maximal atteint', pret: false };
   if (b.descente) return { texte: `extension en descente, posée dans ${fmtDuree(b.descente.fin - v.t)}`, pret: false };
   const st = v.stations.find((s) => s.centre === b.astre);
-  if (!st) return { texte: `il faut une station en orbite de ${a.nom} pour recevoir l’extension`, pret: false };
-  if ((st.stock.extensions || 0) > 0) return { texte: `extension prête à ${st.nom}`, pret: true, station: st };
+  if (!st) return { texte: `il faut une station ${enOrbite(a)} pour recevoir l’extension`, pret: false };
+  if ((st.stock.extensions || 0) > 0) return { texte: `extension prête ${au(st)}`, pret: true, station: st };
   const r = RECETTES.extensions;
   const enChantier = (st.chantiers || []).some((c) => c.cle === 'extensions');
   return {
-    texte: enChantier ? `extension en fabrication à ${st.nom}`
-      : `1 extension de base à ${st.nom} : ravito « Extension de base », ou atelier (${fmtStock('materiaux', r.materiaux)} de matériaux, ${fmtStock('materiaux', st.stock.materiaux || 0)} en stock)`,
+    texte: enChantier ? `extension en fabrication ${au(st)}`
+      : `1 extension de base ${au(st)} : ravito « Extension de base », ou atelier (${fmtStock('materiaux', r.materiaux)} de matériaux, ${fmtStock('materiaux', st.stock.materiaux || 0)} en stock)`,
     pret: false, station: st,
   };
 }
@@ -37,25 +37,25 @@ function ouvrirLogistique(v, actif) {
   const besoins = [];
   for (const b of v.bases) {
     const mq = manquePourNiveau(v, b);
-    if ((b.niveau || 1) < 5 && !mq.pret && !b.descente) besoins.push({ astre: b.astre, texte: `Base ${ASTRES_PAR_ID[b.astre].nom} → niveau ${(b.niveau || 1) + 1} : ${mq.texte}`, station: mq.station });
-    if (mq.pret) besoins.push({ astre: b.astre, texte: `Base ${ASTRES_PAR_ID[b.astre].nom} : ${mq.texte}, à envoyer (tableau de bord de l’astre)` });
+    if ((b.niveau || 1) < 5 && !mq.pret && !b.descente) besoins.push({ astre: b.astre, texte: `${nomBase(ASTRES_PAR_ID[b.astre])} → niveau ${(b.niveau || 1) + 1} : ${mq.texte}`, station: mq.station });
+    if (mq.pret) besoins.push({ astre: b.astre, texte: `${nomBase(ASTRES_PAR_ID[b.astre])} : ${mq.texte}, à envoyer (tableau de bord de l’astre)` });
   }
   for (const st of v.stations) {
     if (estOrigine(st.centre)) continue;     // autour de la planète d'origine, rien ne manque jamais
-    if ((st.stock.ergols || 0) < 20000) besoins.push({ astre: st.centre, texte: `${st.nom} : peu d’ergols (${fmtStock('ergols', st.stock.ergols || 0)})`, station: st });
-    if ((st.stock.materiaux || 0) < 10000) besoins.push({ astre: st.centre, texte: `${st.nom} : peu de matériaux (${fmtStock('materiaux', st.stock.materiaux || 0)})`, station: st });
+    if ((st.stock.ergols || 0) < 20000) besoins.push({ astre: st.centre, texte: `${st.nom} : peu d’ergols (${fmtStock('ergols', st.stock.ergols || 0)})`, station: st });
+    if ((st.stock.materiaux || 0) < 10000) besoins.push({ astre: st.centre, texte: `${st.nom} : peu de matériaux (${fmtStock('materiaux', st.stock.materiaux || 0)})`, station: st });
   }
   const lignes = astres.map((a) => {
     const bases = v.bases.filter((b) => b.astre === a.id);
     const sts = v.stations.filter((s) => s.centre === a.id);
     const ech = (v.echantillonsRapportes || {})[a.id] || 0;
-    const prod = bases.map((b) => { const n = b.niveau || 1; const e = ressourceLocale(a)[1] * n, mt = productionMateriaux(a, n); return `niv. ${n}${e ? ` · ${fmt(e / 1000, 1)} t ergols/j` : ''}${mt ? ` · ${fmt(mt / 1000, 1)} t mat./j` : ''}`; }).join('<br>') || '—';
-    const stock = sts.map((s) => `${s.nom} (niv. ${s.niveau || 1}${s.agrandissement ? ' ⬆' : ''}) : ${fmtStock('ergols', s.stock.ergols || 0)} ergols, ${fmtStock('materiaux', s.stock.materiaux || 0)} mat.${(s.chantiers || []).length ? ` · 🔧 ${s.chantiers.length}` : ''}`).join('<br>') || '—';
+    const prod = bases.map((b) => { const n = b.niveau || 1; const e = ressourceLocale(a)[1] * n, mt = productionMateriaux(a, n); return `niveau ${n}${e ? ` · ${fmt(e / 1000, 1)} t d’ergols/jour` : ''}${mt ? ` · ${fmt(mt / 1000, 1)} t de matériaux/jour` : ''}`; }).join('<br>') || '—';
+    const stock = sts.map((s) => `${s.nom} (niveau ${s.niveau || 1}${s.agrandissement ? ' ⬆' : ''}) : ${fmtStock('ergols', s.stock.ergols || 0)} d’ergols, ${fmtStock('materiaux', s.stock.materiaux || 0)} de matériaux${(s.chantiers || []).length ? ` · 🔧 ${s.chantiers.length}` : ''}`).join('<br>') || '—';
     return `<tr><td><button class="lien-astre" data-id="${a.id}">${a.nom}</button></td><td>${v.visites[a.id] && v.visites[a.id].pose ? '✓' : ''}</td><td>${ech || ''}</td><td>${prod}</td><td>${stock}</td></tr>`;
   }).join('');
   const enRoute = [...(v.cargos || []).map((c) => `📦 ${c.nom}`), ...v.sondesEnVol.map((s) => `🛰 ${s.nom} (${s.etat === 'vol' ? 'en route' : 'en orbite'})`)];
   m.innerHTML = `<div class="fenetre large"><header class="entete"><div><h2>📊 Logistique de l’exploration</h2>
-    <p>Production totale des bases : <b>${fmt(ergolsJour / 1000, 1)} t d’ergols</b> et <b>${fmt(matJour / 1000, 1)} t de matériaux</b> par jour. ${v.stations.length} station${v.stations.length > 1 ? 's' : ''}, ${v.bases.length} base${v.bases.length > 1 ? 's' : ''}.</p></div><button class="fermer">✕</button></header>
+    <p>Production totale des bases : <b>${fmt(ergolsJour / 1000, 1)} t d’ergols</b> et <b>${fmt(matJour / 1000, 1)} t de matériaux</b> par jour. ${v.stations.length} station${v.stations.length > 1 ? 's' : ''}, ${v.bases.length} base${v.bases.length > 1 ? 's' : ''}.</p></div><button class="fermer">✕</button></header>
     <section><h3>Astres</h3>${astres.length ? `<div class="defile"><table class="logistique"><thead><tr><th>Astre</th><th>Posé</th><th>Échant.</th><th>Bases</th><th>Stations</th></tr></thead><tbody>${lignes}</tbody></table></div>` : '<p class="doux">Aucun astre exploré ni équipé pour l’instant.</p>'}</section>
     <section><h3>À faire pour progresser</h3>${besoins.length ? `<ul class="sondes">${besoins.map((b, i) => `<li>${b.texte} ${actif && b.station ? `<button data-rav="${b.station.id}">📦 Ravito</button>` : ''}</li>`).join('')}</ul>` : '<p class="doux">Rien d’urgent.</p>'}</section>
     ${SYSTEME.retour !== false ? `<section><h3>Avant de quitter le ${SYSTEME.nom}</h3>${htmlListeDepart(v)}</section>` : ''}
@@ -96,15 +96,15 @@ function ouvrirRessources(v, famille = 'eau', tout = false) {
   const liste = astresPourRessource(famille).map((x) => ({ ...x, d: V.norm(V.sub(etatAbsolu(x.a.id, v.t).r, ici)) }))
     .sort((p, q) => q.richesse - p.richesse || p.d - q.d);
   const montrees = tout ? liste : liste.slice(0, 40);
-  const fmtD = (km) => (km > 0.05 * UA_KM ? `${fmt(km / UA_KM, 2)} UA` : `${fmt(km)} km`);
+  const fmtD = (km) => (km > 0.05 * UA_KM ? `${fmt(km / UA_KM, 2)} UA` : `${fmt(km)} km`);
   const f = FAMILLES_RESSOURCES.find((x) => x.id === famille);
-  m.innerHTML = `<div class="fenetre large"><header class="entete"><div><h2>⛏ Où miner quoi ?</h2>
-    <p>Choisissez une ressource : les astres où une base peut l’exploiter, les plus riches d’abord, puis les plus proches ${v.orb ? 'de l’orbiteur' : `de ${SYSTEME.nomOrigine}`}.</p></div><button class="fermer">✕</button></header>
+  m.innerHTML = `<div class="fenetre large"><header class="entete"><div><h2>⛏ Où miner quoi ?</h2>
+    <p>Choisissez une ressource : les astres où une base peut l’exploiter, les plus riches d’abord, puis les plus proches ${v.orb ? 'de l’orbiteur' : `de ${SYSTEME.nomOrigine}`}.</p></div><button class="fermer">✕</button></header>
     <div class="orientations">${FAMILLES_RESSOURCES.map((x) => `<button data-famille="${x.id}" class="${x.id === famille ? 'principal' : ''}">${x.nom}</button>`).join('')}</div>
-    <p class="doux">${f.nom} : ${f.def}. ${liste.length} astre${liste.length > 1 ? 's' : ''}.</p>
+    <p class="doux">${f.nom} : ${f.def}. ${liste.length} astre${liste.length > 1 ? 's' : ''}.</p>
     <div class="defile"><table class="logistique"><thead><tr><th>Astre</th><th>Ressource</th><th>Richesse</th><th>Distance</th><th></th></tr></thead><tbody>${montrees.map((x) => {
       const b = baseSur(v, x.a.id);
-      return `<tr><td><button class="lien-astre" data-id="${x.a.id}">${x.a.nom}</button>${b ? ` <span class="doux">🏠 niv. ${b.niveau || 1}</span>` : ''}</td><td>${x.texte}</td><td>${fmt(x.richesse / 1000, 1)} t/jour</td><td>${fmtD(x.d)}</td><td>${v.orb ? `<button data-cible="${x.a.id}" ${v.cible === x.a.id ? 'disabled' : ''}>🎯 Cible</button>` : ''}</td></tr>`;
+      return `<tr><td><button class="lien-astre" data-id="${x.a.id}">${x.a.nom}</button>${b ? ` <span class="doux">🏠 niveau ${b.niveau || 1}</span>` : ''}</td><td>${x.texte}</td><td>${fmt(x.richesse / 1000, 1)} t/jour</td><td>${fmtD(x.d)}</td><td>${v.orb ? `<button data-cible="${x.a.id}" ${v.cible === x.a.id ? 'disabled' : ''}>🎯 Cible</button>` : ''}</td></tr>`;
     }).join('')}</tbody></table></div>
     ${!tout && liste.length > montrees.length ? `<p><button id="res-tout">Voir les ${liste.length} astres</button></p>` : ''}</div>`;
   m.classList.remove('cache');
@@ -115,7 +115,7 @@ function ouvrirRessources(v, famille = 'eau', tout = false) {
   m.querySelectorAll('[data-cible]').forEach((b) => {
     b.onclick = () => {
       v.cible = b.dataset.cible; Orbiteur.etape = null; Orbiteur.auto = false;
-      Orbiteur.log(`Nouvelle cible : ${ASTRES_PAR_ID[v.cible].nom} (${f.nom.replace(/^\S+\s/, '')}).`);
+      Orbiteur.log(`Nouvelle cible : ${ASTRES_PAR_ID[v.cible].nom} (${f.nom.replace(/^\S+\s/, '')}).`);
       Infos.fermer(); Orbiteur.majHud(true);
     };
   });
@@ -129,42 +129,42 @@ function tableauAstre(v, a, actif) {
   const ligne = (k, val) => `<dt>${k}</dt><dd>${val}</dd>`;
 
   // ---------- Sur place ----------
-  let sur = '', orbConteneurs = '';
+  let surPlaceTxt = '', orbConteneurs = '';
   const visite = v.visites[a.id];
-  sur += ligne('Exploration', visite && visite.pose ? 'posé ici' : 'jamais posé');
+  surPlaceTxt += ligne('Exploration', visite && visite.pose ? 'posé ici' : 'jamais posé');
   const ech = (v.echantillonsRapportes || {})[a.id] || 0, aBord = (v.echantillonsABord || {})[a.id] || 0;
-  if (ech || aBord) sur += ligne('Échantillons', `${ech} rapporté${ech > 1 ? 's' : ''} sur Terre${aBord ? `, ${aBord} à bord de l’orbiteur` : ''}`);
+  if (ech || aBord) surPlaceTxt += ligne('Échantillons', `${ech} rapporté${ech > 1 ? 's' : ''} sur Terre${aBord ? `, ${aBord} à bord de l’orbiteur` : ''}`);
   const drapeaux = drapeauxSur(a.id);
-  if (drapeaux.length) sur += ligne('Drapeaux', drapeaux.map((d) => d.par || 'drapeau').join(', '));
+  if (drapeaux.length) surPlaceTxt += ligne('Drapeaux', drapeaux.map((d) => d.par || 'drapeau').join(', '));
   const site = (v.sites || {})[a.id];
-  if (a.type === 'solide' && !estOrigine(a.id)) sur += ligne('Zone de base', site ? `repérée${site.prod ? ` — ${site.ressource}` : ' — pas de ressource locale'}` : 'non repérée : envoyez une sonde');
+  if (a.type === 'solide' && !estOrigine(a.id)) surPlaceTxt += ligne('Zone de base', site ? `repérée${site.prod ? ` — ${site.ressource}` : ' — pas de ressource locale'}` : 'non repérée : envoyez une sonde');
   const [res, prod] = ressourceLocale(a);
-  if (estOrigine(a.id)) sur += ligne('Ressources', `tout est disponible sur ${SYSTEME.origineSans}, sans base ni extraction : plein gratuit en orbite, ravitos illimités`);
-  else if (a.type === 'solide') sur += ligne('Ressource locale', prod ? `${res} (${fmt(prod / 1000, 1)} t d’ergols par jour et par niveau de base)` : 'aucune connue');
+  if (estOrigine(a.id)) surPlaceTxt += ligne('Ressources', `tout est disponible sur ${SYSTEME.origineSans}, sans base ni extraction : plein gratuit en orbite, ravitos illimités`);
+  else if (a.type === 'solide') surPlaceTxt += ligne('Ressource locale', prod ? `${res} (${fmt(prod / 1000, 1)} t d’ergols par jour et par niveau de base)` : 'aucune connue');
   const bases = v.bases.filter((b) => b.astre === a.id);
   for (const b of bases) {
     const n = b.niveau || 1, mat = productionMateriaux(a, n), manque = manquePourNiveau(v, b);
     const idx = v.bases.indexOf(b);
-    sur += `<dt>🏠 Base, niveau ${n}</dt><dd>${prod ? `${fmt((prod * n) / 1000, 1)} t d’ergols/jour` : 'pas d’ergols'}${mat ? `, ${fmt(mat / 1000, 1)} t de matériaux/jour` : ''} ; ${fmt((b.stock || 0) / 1000, 1)} t en stock au sol</dd>`;
-    sur += `<dt>Niveau ${Math.min(5, n + 1)}</dt><dd>${manque.texte} ${manque.pret ? bouton(`extension:${idx}`, '⬇ Envoyer l’extension') : ''}</dd>`;
+    surPlaceTxt += `<dt>🏠 Base, niveau ${n}</dt><dd>${prod ? `${fmt((prod * n) / 1000, 1)} t d’ergols/jour` : 'pas d’ergols'}${mat ? `, ${fmt(mat / 1000, 1)} t de matériaux/jour` : ''} ; ${fmt((b.stock || 0) / 1000, 1)} t en stock au sol</dd>`;
+    surPlaceTxt += `<dt>Niveau ${Math.min(5, n + 1)}</dt><dd>${manque.texte} ${manque.pret ? bouton(`extension:${idx}`, '⬇ Envoyer l’extension') : ''}</dd>`;
   }
   if (!bases.length && a.type === 'solide' && !estOrigine(a.id)) {
     const pb = actif ? Orbiteur.peutDeployerBase(a) : 'orbiteur fermé';
-    sur += ligne('Base', pb ? `aucune (kit de base + station en orbite + zone repérée) — ${pb}` : `aucune ${bouton(`deployer:${a.id}`, '🏠 Déployer depuis l’orbite')}`);
+    surPlaceTxt += ligne('Base', pb ? `aucune (kit de base + station en orbite + zone repérée) — ${pb}` : `aucune ${bouton(`deployer:${a.id}`, '🏠 Déployer depuis l’orbite')}`);
   }
-  for (const b of bases.filter((x) => x.deploiement)) sur += ligne('🏠 Base en cours', `module de descente posé dans ${fmtDuree(b.deploiement.fin - v.t)}`);
+  for (const b of bases.filter((x) => x.deploiement)) surPlaceTxt += ligne('🏠 Base en cours', `module de descente posé dans ${fmtDuree(b.deploiement.fin - v.t)}`);
   const surPlace = (v.equipe || []).filter((m) => m.etat === 'mission' && m.mission.astre === a.id);
-  if (surPlace.length) sur += ligne('🧑‍🚀 Équipe', surPlace.map((m) => `${m.nom} (retour dans ${fmtDuree(m.mission.fin - v.t)})`).join(', '));
+  if (surPlace.length) surPlaceTxt += ligne('🧑‍🚀 Équipe', surPlace.map((m) => `${m.nom} (retour dans ${fmtDuree(m.mission.fin - v.t)})`).join(', '));
   const robotsIci = (v.robotsAuto || []).filter((r) => r.astre === a.id);
-  if (robotsIci.length) sur += ligne('🤖 Robots de prélèvement', robotsIci.map((r) => `conteneur lancé dans ${fmtDuree(r.fin - v.t)}`).join(', '));
+  if (robotsIci.length) surPlaceTxt += ligne('🤖 Robots de prélèvement', robotsIci.map((r) => `conteneur lancé dans ${fmtDuree(r.fin - v.t)}`).join(', '));
   const conteneurs = (v.conteneurs || []).filter((c) => c.astre === a.id);
   if (conteneurs.length) orbConteneurs = conteneurs.map((c) => `${c.n} échantillons`).join(', ');
-  sections.push(['📍 Sur place', sur]);
+  sections.push(['📍 Sur place', surPlaceTxt]);
 
   // ---------- En orbite ----------
   let orb = '';
   if (orbConteneurs) orb += ligne('📦 Conteneurs d’échantillons', `${orbConteneurs} — l’orbiteur les récupère en passant en orbite`);
-  if (v.orb && v.orb.centre === a.id) orb += ligne('🚀 Orbiteur', `ici — ${fmt(v.carburant / 1000, 1)} t de carburant, ${fmt(v.ergolsAtt / 1000, 1)} t d’ergols atterrisseur`);
+  if (v.orb && v.orb.centre === a.id) orb += ligne('🚀 Orbiteur', `ici — ${fmt(v.carburant / 1000, 1)} t de carburant, ${fmt(v.ergolsAtt / 1000, 1)} t d’ergols atterrisseur`);
   const stations = v.stations.filter((s) => s.centre === a.id);
   for (const st of stations) {
     const k = st.stock;
@@ -176,7 +176,7 @@ function tableauAstre(v, a, actif) {
     if (n >= 5) suivant = 'niveau maximal atteint';
     else if (st.agrandissement) suivant = `assemblage en cours, terminé dans ${fmtDuree(st.agrandissement.fin - v.t)}`;
     else if ((k.extensionsStation || 0) > 0) suivant = `${NIVEAUX_STATION[n + 1].apport} ${bouton(`agrandir:${st.id}`, `⬆ Agrandir (niveau ${n + 1})`)}`;
-    else suivant = `${NIVEAUX_STATION[n + 1].apport} — il faut 1 extension de station (atelier : ${fmtStock('materiaux', RECETTES.extensionsStation.materiaux)} de matériaux, ou ravito « Extension de station »)`;
+    else suivant = `${NIVEAUX_STATION[n + 1].apport} — il faut 1 extension de station (atelier : ${fmtStock('materiaux', RECETTES.extensionsStation.materiaux)} de matériaux, ou ravito « Extension de station »)`;
     if (n < 5 || st.agrandissement) orb += `<dt>Niveau ${Math.min(5, n + 1)}</dt><dd>${suivant}</dd>`;
     if (niveauStation(st).habitat && v.equipe) orb += `<dt>Habitat</dt><dd>équipe ${survivants(v).length}/${capaciteEquipe(v)} ${v.equipe.length < capaciteEquipe(v) ? bouton('recruter', '🧑‍🚀 Accueillir une recrue') : ''}</dd>`;
     for (const ch of st.chantiers || []) orb += ligne('🔧 Chantier', `${RECETTES[ch.cle].nom}, prêt dans ${fmtDuree(ch.fin - v.t)}`);

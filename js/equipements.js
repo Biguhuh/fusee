@@ -40,7 +40,7 @@ const EQUIPEMENTS = {
   },
   coque: {
     titre: 'Renforts de coque',
-    aide: 'Pression supportée sans dégâts. Au-delà, la coque se déforme puis cède (vite après +10 %).',
+    aide: 'Pression supportée sans dégâts. Au-delà, la coque se déforme puis cède (très vite au-delà de +10 %).',
     options: [
       { id: 'aucun', nom: 'Aucun', pressionMax: FUSEE_BASE.pressionMax, masse: 0 },
       { id: 'leger', nom: 'Léger', pressionMax: 15, masse: 300 },
@@ -64,7 +64,7 @@ const EQUIPEMENTS = {
   },
   panneau: {
     titre: 'Panneau anti-vent solaire',
-    aide: 'Blindage contre le rayonnement : la dose reçue à bord (Sv/jour) est divisée par ce facteur. L’équipage meurt au-delà de 4 Sv.',
+    aide: 'Blindage contre le rayonnement : la dose reçue à bord (Sv/jour) est divisée par ce facteur. L’équipage meurt au-delà de 4 Sv.',
     options: [
       { id: 'aucun', nom: 'Aucun', protection: FUSEE_BASE.protection, masse: 0 },
       { id: 'leger', nom: 'Léger', protection: 5, masse: 100 },

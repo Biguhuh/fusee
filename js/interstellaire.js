@@ -13,12 +13,12 @@ const TECHNOLOGIES = {
     detail: 'Des lasers géants restés dans le Système solaire poussent une voile de plusieurs kilomètres. À l’arrivée, une boucle supraconductrice déployée freine contre le vent de l’étoile pendant des années.',
   },
   antimatiere: {
-    nom: 'Antimatière', vitesse: 0.5, accel: 1, frein: 1, plausible: 'théorique : produire assez d’antimatière est hors de portée aujourd’hui',
+    nom: 'Antimatière', vitesse: 0.5, accel: 1, frein: 1, plausible: 'théorique : produire assez d’antimatière est hors de portée aujourd’hui',
     detail: 'La matière et l’antimatière s’annihilent en énergie pure. À la moitié de la vitesse de la lumière, le temps passe moins vite à bord que sur Terre (relativité).',
   },
   saut: {
-    nom: 'Saut (pure fiction)', jours: 21, plausible: 'pure fiction : aucune physique connue ne le permet',
-    detail: 'Une bulle de distorsion contracte l’espace devant le vaisseau et le dilate derrière (« métrique d’Alcubierre »). Quelques semaines, quelle que soit la distance.',
+    nom: 'Saut (pure fiction)', jours: 21, plausible: 'pure fiction : aucune physique connue ne le permet',
+    detail: 'Une bulle de distorsion contracte l’espace devant le vaisseau et le dilate derrière (« métrique d’Alcubierre »). Quelques semaines, quelle que soit la distance.',
   },
 };
 
@@ -58,7 +58,7 @@ function envoyerSondesInterstellaires(v, sys, log) {
   const reception = arrivee + d * ANNEE_S;                  // les données reviennent à la vitesse de la lumière
   v.sondesInterstellaires = v.sondesInterstellaires || [];
   v.sondesInterstellaires.push({ systeme: sys, depart: v.t, arrivee, reception, n: SONDES_GRAPPE_INTERSTELLAIRE });
-  log(`Grappe de ${SONDES_GRAPPE_INTERSTELLAIRE} sondes à voile laser lancée vers ${DONNEES_ETOILES[sys].nom} : arrivée vers ${fmtAnnee(anneeDuJeu(arrivee))}, données reçues vers ${fmtAnnee(anneeDuJeu(reception))}.`);
+  log(`Grappe de ${SONDES_GRAPPE_INTERSTELLAIRE} sondes à voile laser lancée vers ${le(DONNEES_ETOILES[sys])} : arrivée vers ${fmtAnnee(anneeDuJeu(arrivee))}, données reçues vers ${fmtAnnee(anneeDuJeu(reception))}.`);
 }
 // Données reçues : les sondes ont cartographié les planètes et repéré une zone de base sur chaque astre solide.
 function mettreAJourSondesInterstellaires(v, log) {
@@ -73,7 +73,7 @@ function mettreAJourSondesInterstellaires(v, log) {
     v.systemesSondes = v.systemesSondes || {};
     v.systemesSondes[s.systeme] = { recu: v.t, sites };
     const n = Object.keys(sites).length;
-    log(`Données reçues des sondes de ${DONNEES_ETOILES[s.systeme].nom} : ${sys.astres.filter((a) => a.type !== 'etoile').length} astre(s) cartographié(s), ${n} zone${n > 1 ? 's' : ''} de base repérée${n > 1 ? 's' : ''}. On peut choisir la planète où s’installer.`);
+    log(`Données reçues des sondes ${de(DONNEES_ETOILES[s.systeme])} : ${sys.astres.filter((a) => a.type !== 'etoile').length} astre(s) cartographié(s), ${n} zone${n > 1 ? 's' : ''} de base repérée${n > 1 ? 's' : ''}. On peut choisir la planète où s’installer.`);
   }
   if (v.sondesInterstellaires) v.sondesInterstellaires = v.sondesInterstellaires.filter((s) => v.t < s.reception);
 }
@@ -162,11 +162,11 @@ class TransitInterstellaire {
     // Panneau
     const ans = i.ans * f, bord = i.ansBord * f;
     const lignes = [
-      [`Vers ${DONNEES_ETOILES[i.systeme].nom}`, '#ffffff', 600, 17],
+      [`Vers ${le(DONNEES_ETOILES[i.systeme])}`, '#ffffff', 600, 17],
       [T.nom, '#ffd666', 600, 13],
-      [`Phase : ${ph} · vitesse ${i.tech === 'saut' ? '— (espace distordu)' : `${fmt(vit * 100, 1)} % de la vitesse de la lumière`}`, '#cfd8e3', 400, 13],
-      [`Distance restante : ${fmt(i.distanceAL * (1 - (i.tech === 'saut' ? f : Math.min(1, f * 1.02))), 2)} années-lumière`, '#cfd8e3', 400, 13],
-      [`Date du jeu : ${fmtAnnee(i.anneeDepart + ans)} · temps vécu à bord : ${fmtDureeAnnees(bord)}`, '#bfe0ff', 400, 13],
+      [`Phase : ${ph} · vitesse ${i.tech === 'saut' ? '— (espace distordu)' : `${fmt(vit * 100, 1)} % de la vitesse de la lumière`}`, '#cfd8e3', 400, 13],
+      [`Distance restante : ${fmt(i.distanceAL * (1 - (i.tech === 'saut' ? f : Math.min(1, f * 1.02))), 2)} années-lumière`, '#cfd8e3', 400, 13],
+      [`Date du jeu : ${fmtAnnee(i.anneeDepart + ans)} · temps vécu à bord : ${fmtDureeAnnees(bord)}`, '#bfe0ff', 400, 13],
       [f >= 1 ? `Arrivée par l’extérieur du système, cap sur ${i.nomBase}.` : `Arrivée prévue vers ${fmtAnnee(i.anneeDepart + i.ans)}.`, '#e6edf6', 400, 13],
     ];
     ctx.save(); ctx.textAlign = 'left'; ctx.textBaseline = 'top';
@@ -175,7 +175,7 @@ class TransitInterstellaire {
     ctx.fillStyle = 'rgba(8,14,28,0.78)'; ctx.beginPath(); ctx.roundRect(14, 14, w, hh, 10); ctx.fill();
     let yy = 24; for (const [txt, col, gr, ta] of lignes) { ctx.font = `${gr} ${ta}px system-ui, sans-serif`; ctx.fillStyle = col; yy = ecrireLignes(ctx, txt, 26, yy, w - 24, ta + 9); }
     ctx.restore();
-    texteSurFond(ctx, 'Entrée, Espace ou toucher : passer', W / 2, H - 14, { police: '12px system-ui, sans-serif', couleur: '#8fa3b8' });
+    texteSurFond(ctx, 'Entrée, Espace ou toucher : passer', W / 2, H - 14, { police: '12px system-ui, sans-serif', couleur: '#8fa3b8' });
   }
 }
 
@@ -198,7 +198,7 @@ function arriverDansSysteme(v, info) {
   v.carburant = ORBITEUR.carburantMax;
   const r1 = r0 * 1.02;
   const station = {
-    id: 's' + Date.now(), nom: `Station ${a.nom}`, centre: a.id, r: [0, r1], v: [-Math.sqrt(a.gm / r1), 0], t0: v.t, terrestre: false, niveau: 1,
+    id: 's' + Date.now(), nom: nomStation(a), centre: a.id, r: [0, r1], v: [-Math.sqrt(a.gm / r1), 0], t0: v.t, terrestre: false, niveau: 1,
     stock: { ...STOCK_VIDE(), carburant: k.carburant || 0, ergols: k.ergols || 0, materiaux: k.materiaux || 0, lanceurRetour: k.lanceurRetour || 0, extensions: k.extensions || 0, extensionsStation: k.extensionsStation || 0 },
     chantiers: [],
   };
@@ -207,6 +207,6 @@ function arriverDansSysteme(v, info) {
   v.sites = { ...((v.systemesSondes && v.systemesSondes[info.systeme] && v.systemesSondes[info.systeme].sites) || {}) };
   v.visites = {}; v.echantillonsABord = {}; v.echantillonsRapportes = {}; v.cible = null;
   if (v.equipe) for (const m of v.equipe) { if (m.etat === 'mission') m.etat = 'bord'; delete m.mission; }
-  v.journal.push({ t: v.t, texte: `Arrivée dans le ${SYSTEME.nom} après ${fmtDureeAnnees(info.ans)} (${fmtDureeAnnees(info.ansBord)} vécus à bord). ${station.nom} déployée en orbite de ${a.nom}. Prochaine étape : se poser et construire la base.` });
+  v.journal.push({ t: v.t, texte: `Arrivée dans le ${SYSTEME.nom} après ${fmtDureeAnnees(info.ans)} (${fmtDureeAnnees(info.ansBord)} vécus à bord). ${Le(station)} est déployée ${enOrbite(a)}. Prochaine étape : se poser et construire la base.` });
   return station;
 }

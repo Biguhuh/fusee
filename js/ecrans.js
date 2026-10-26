@@ -83,7 +83,7 @@ function importerSauvegarde(fichier, fini) {
     // Essai à blanc : la sauvegarde doit pouvoir être chargée sans erreur.
     try {
       if (d.sauvegarde.voyage) { const v = migrerVoyage(d.sauvegarde.voyage); resumeCampagne(v); }
-    } catch (e) { return fini('Sauvegarde abîmée : elle ne peut pas être chargée.'); }
+    } catch (e) { return fini('Sauvegarde abîmée : elle ne peut pas être chargée.'); }
     try {
       // On garde l'ancienne sauvegarde de côté, au cas où.
       const avant = localStorage.getItem(CLE_SAUVEGARDE);
@@ -99,10 +99,10 @@ function importerSauvegarde(fichier, fini) {
 // ---------- Hangar ----------
 function descriptionPiece(cat, o) {
   switch (cat) {
-    case 'moteur': return `${fmt(o.poussee / 1000)} kN · Isp ${o.isp} s`;
-    case 'reservoir': return `${fmt(o.carburant)} kg de carburant`;
-    case 'coque': return `jusqu'à ${fmt(o.pressionMax)} bar`;
-    case 'bouclier': return `jusqu'à ${fmt(o.tempMax)} °C`;
+    case 'moteur': return `${fmt(o.poussee / 1000)} kN · Isp ${o.isp} s`;
+    case 'reservoir': return `${fmt(o.carburant)} kg de carburant`;
+    case 'coque': return `jusqu’à ${fmt(o.pressionMax)} bar`;
+    case 'bouclier': return `jusqu’à ${fmt(o.tempMax)} °C`;
     case 'panneau': return o.protection > 1 ? `dose à bord ÷ ${fmt(o.protection)}` : 'pas de protection';
   }
   return '';
@@ -131,7 +131,7 @@ function afficherHangar(etat, auChangement) {
     for (const o of def.options) {
       const b = document.createElement('button');
       b.className = 'option' + (etat.equipement[cat] === o.id ? ' choisi' : '');
-      b.innerHTML = `<span class="nom">${o.nom}</span><span class="stat">${descriptionPiece(cat, o)}</span><span class="masse">${o.masse ? '+ ' + fmt(o.masse) + ' kg' : 'aucun poids'}</span>`;
+      b.innerHTML = `<span class="nom">${o.nom}</span><span class="stat">${descriptionPiece(cat, o)}</span><span class="masse">${o.masse ? '+ ' + fmt(o.masse) + ' kg' : 'aucun poids'}</span>`;
       b.onclick = () => { etat.equipement[cat] = o.id; sauver(etat); afficherHangar(etat, auChangement); };
       opts.appendChild(b);
     }
@@ -144,15 +144,15 @@ function afficherHangar(etat, auChangement) {
   const twrTerre = f.poussee / (f.masseTotale * ASTRES_PAR_ID.terre.g);
   const twrJup = f.poussee / (f.masseTotale * ASTRES_PAR_ID.jupiter.g);
   $('resume-fusee').innerHTML = `
-    <dt>Masse à vide</dt><dd>${fmt(f.masseSeche)} kg</dd>
-    <dt>Masse au départ</dt><dd>${fmt(f.masseTotale)} kg</dd>
-    <dt>Poussée</dt><dd>${fmt(f.poussee / 1000)} kN</dd>
-    <dt>Δv disponible</dt><dd>${fmt(deltaV(f))} m/s</dd>
-    <dt>Poussée/poids Lune</dt><dd style="color:${twrLune < 1 ? 'var(--danger)' : 'inherit'}">${fmt(twrLune, 2)}</dd>
-    <dt>Poussée/poids Terre</dt><dd style="color:${twrTerre < 1 ? 'var(--danger)' : 'inherit'}">${fmt(twrTerre, 2)}</dd>
-    <dt>Poussée/poids Jupiter</dt><dd style="color:${twrJup < 1 ? 'var(--danger)' : 'inherit'}">${fmt(twrJup, 2)}</dd>
-    <dt>Pression max</dt><dd>${fmt(f.pressionMax)} bar</dd>
-    <dt>Température max</dt><dd>${fmt(f.tempMax)} °C</dd>
+    <dt>Masse à vide</dt><dd>${fmt(f.masseSeche)} kg</dd>
+    <dt>Masse au départ</dt><dd>${fmt(f.masseTotale)} kg</dd>
+    <dt>Poussée</dt><dd>${fmt(f.poussee / 1000)} kN</dd>
+    <dt>Δv disponible</dt><dd>${fmt(deltaV(f))} m/s</dd>
+    <dt>Poussée/poids sur la Lune</dt><dd style="color:${twrLune < 1 ? 'var(--danger)' : 'inherit'}">${fmt(twrLune, 2)}</dd>
+    <dt>Poussée/poids sur Terre</dt><dd style="color:${twrTerre < 1 ? 'var(--danger)' : 'inherit'}">${fmt(twrTerre, 2)}</dd>
+    <dt>Poussée/poids sur Jupiter</dt><dd style="color:${twrJup < 1 ? 'var(--danger)' : 'inherit'}">${fmt(twrJup, 2)}</dd>
+    <dt>Pression max</dt><dd>${fmt(f.pressionMax)} bar</dd>
+    <dt>Température max</dt><dd>${fmt(f.tempMax)} °C</dd>
     <dt>Protection rayonnement</dt><dd>dose à bord ÷ ${fmt(f.protection)}</dd>`;
 
   const cv = $('apercu');
@@ -241,36 +241,36 @@ function verifications(a, f) {
   const dv = deltaV(f);
 
   if (a.type === 'etoile') {
-    ajoute('danger', `Température de la photosphère : ${fmt(a.tempSurface)} °C. Aucun bouclier ne tient : vous brûlerez avant d'arriver.`);
+    ajoute('danger', `Température de la photosphère : ${fmt(a.tempSurface)} °C. Aucun bouclier ne tient : vous brûlerez avant d’arriver.`);
     const c = conditions(a, a.depart.alt);
     const sv = doseLocale(a, a.depart.alt, c) / f.protection;
-    ajoute(sv > DOSE_MORTELLE ? 'danger' : 'alerte', `Rayonnement au départ : ${fmtDose(sv)} à bord (dose mortelle : ${DOSE_MORTELLE} Sv), il augmente en 1/d².`);
-    ajoute(c.t > f.tempMax ? 'danger' : 'alerte', `Chaleur au départ : ${fmt(c.t)} °C (bouclier ${fmt(f.tempMax)} °C).`);
+    ajoute(sv > DOSE_MORTELLE ? 'danger' : 'alerte', `Rayonnement au départ : ${fmtDose(sv)} à bord (dose mortelle : ${DOSE_MORTELLE} Sv), il augmente en 1/d².`);
+    ajoute(c.t > f.tempMax ? 'danger' : 'alerte', `Chaleur au départ : ${fmt(c.t)} °C (bouclier ${fmt(f.tempMax)} °C).`);
     return res;
   }
 
   const twr = f.poussee / (f.masseTotale * a.g);
   if (a.type === 'gazeuse') {
-    ajoute(twr < 1 ? 'danger' : twr < 1.4 ? 'alerte' : 'ok', `Poussée/poids : ${fmt(twr, 2)}. ${twr < 1 ? 'Impossible de remonter.' : 'Il faut plus de 1 pour remonter.'}`);
+    ajoute(twr < 1 ? 'danger' : twr < 1.4 ? 'alerte' : 'ok', `Poussée/poids : ${fmt(twr, 2)}. ${twr < 1 ? 'Impossible de remonter.' : 'Il faut plus de 1 pour remonter.'}`);
     const pc = a.cible;
-    ajoute(pc > f.pressionMax ? 'danger' : pc * 2 > f.pressionMax ? 'alerte' : 'ok', `Pression visée : ${fmt(pc)} bar (coque ${fmt(f.pressionMax)} bar). Elle grimpe sans fin en descendant.`);
+    ajoute(pc > f.pressionMax ? 'danger' : pc * 2 > f.pressionMax ? 'alerte' : 'ok', `Pression visée : ${fmt(pc)} bar (coque ${fmt(f.pressionMax)} bar). Elle grimpe sans fin en descendant.`);
     const tc = conditions(a, profondeurPour(a, pc)).t;
-    ajoute(tc > f.tempMax ? 'danger' : tc > f.tempMax - 50 ? 'alerte' : 'ok', `Température à ${fmt(pc)} bar : ${fmt(tc)} °C (bouclier ${fmt(f.tempMax)} °C).`);
+    ajoute(tc > f.tempMax ? 'danger' : tc > f.tempMax - 50 ? 'alerte' : 'ok', `Température à ${fmt(pc)} bar : ${fmt(tc)} °C (bouclier ${fmt(f.tempMax)} °C).`);
   } else {
-    const aide = a.atm && a.atm.rho0 > 0.5 ? " L'air freine aussi." : '';
-    ajoute(twr < 1 ? 'danger' : twr < 1.3 ? 'alerte' : 'ok', `Poussée/poids au sol : ${fmt(twr, 2)}. ${twr < 1 ? 'Le moteur ne peut pas freiner la chute.' : 'Plus de 1 : vous pouvez freiner et redécoller.'}${aide}`);
+    const aide = a.atm && a.atm.rho0 > 0.5 ? " L’air freine aussi." : '';
+    ajoute(twr < 1 ? 'danger' : twr < 1.3 ? 'alerte' : 'ok', `Poussée/poids au sol : ${fmt(twr, 2)}. ${twr < 1 ? 'Le moteur ne peut pas freiner la chute.' : 'Plus de 1 : vous pouvez freiner et redécoller.'}${aide}`);
     const p = a.atm ? a.atm.p0 : 0;
-    ajoute(p > f.pressionMax ? 'danger' : p * 1.3 > f.pressionMax ? 'alerte' : 'ok', `Pression au sol : ${fmtP(p)} (coque : ${fmt(f.pressionMax)} bar sans dégâts${p > f.pressionMax ? ', au-delà elle s\'abîme puis cède' : ''}).`);
-    ajoute(a.tempSurface > f.tempMax ? 'danger' : a.tempSurface > f.tempMax - 50 ? 'alerte' : 'ok', `Température au sol : ${fmt(a.tempSurface)} °C (bouclier : ${fmt(f.tempMax)} °C sans dégâts${a.tempSurface > f.tempMax ? ', au-delà la coque brûle peu à peu' : ''}).`);
+    ajoute(p > f.pressionMax ? 'danger' : p * 1.3 > f.pressionMax ? 'alerte' : 'ok', `Pression au sol : ${fmtP(p)} (coque : ${fmt(f.pressionMax)} bar sans dégâts${p > f.pressionMax ? ', au-delà elle s’abîme puis cède' : ''}).`);
+    ajoute(a.tempSurface > f.tempMax ? 'danger' : a.tempSurface > f.tempMax - 50 ? 'alerte' : 'ok', `Température au sol : ${fmt(a.tempSurface)} °C (bouclier : ${fmt(f.tempMax)} °C sans dégâts${a.tempSurface > f.tempMax ? ', au-delà la coque brûle peu à peu' : ''}).`);
     const besoin = a.depart.vitesse + Math.sqrt(2 * a.g * a.depart.alt) * (a.atm && a.atm.rho0 > 0.5 ? 0.3 : 1);
-    ajoute(dv < besoin ? 'danger' : dv < besoin * 1.5 ? 'alerte' : 'ok', `Δv : ${fmt(dv)} m/s (≈ ${fmt(besoin)} m/s pour se poser sans air pour freiner).`);
+    ajoute(dv < besoin ? 'danger' : dv < besoin * 1.5 ? 'alerte' : 'ok', `Δv : ${fmt(dv)} m/s (≈ ${fmt(besoin)} m/s pour se poser sans l’aide de l’air).`);
     const retour = besoinRetourOrbite(a);
-    ajoute(dv < besoin + retour ? 'alerte' : 'ok', `Retour en orbite : ≈ ${fmt(retour)} m/s de plus (vitesse orbitale ${fmtV(vitesseOrbitale(a, altitudeOrbite(a)))}).${dv < besoin + retour ? ' Pas assez pour repartir : prenez un plus gros réservoir.' : ''}`);
+    ajoute(dv < besoin + retour ? 'alerte' : 'ok', `Retour en orbite : ≈ ${fmt(retour)} m/s de plus (vitesse orbitale ${fmtV(vitesseOrbitale(a, altitudeOrbite(a)))}).${dv < besoin + retour ? ' Pas assez pour repartir : prenez un plus gros réservoir.' : ''}`);
   }
   // Rayonnement : combien de temps l'équipage peut rester (dose mortelle 4 Sv), à bord ou dehors.
   const svSol = doseLocale(a, a.type === 'gazeuse' ? a.depart.alt : 0), svBord = svSol / f.protection;
   const tBord = tempsAvantDoseMortelle(svBord);
-  ajoute(tBord < 86400 ? 'danger' : tBord < 10 * 86400 ? 'alerte' : 'ok', `Rayonnement ${a.type === 'gazeuse' ? 'à l’arrivée' : 'au sol'} : ${fmtDose(svSol)}, ${fmtDose(svBord)} à bord : dose mortelle (${DOSE_MORTELLE} Sv) en ${fmtDureeLongue(tBord)}${a.type === 'solide' ? `, ${fmtDureeLongue(tempsAvantDoseMortelle(svSol))} en sortie` : ''}.${tBord < 10 * 86400 ? ' Prenez un panneau plus épais.' : ''}`);
+  ajoute(tBord < 86400 ? 'danger' : tBord < 10 * 86400 ? 'alerte' : 'ok', `Rayonnement ${a.type === 'gazeuse' ? 'à l’arrivée' : 'au sol'} : ${fmtDose(svSol)}, ${fmtDose(svBord)} à bord : dose mortelle (${DOSE_MORTELLE} Sv) en ${fmtDureeLongue(tBord)}${a.type === 'solide' ? `, ${fmtDureeLongue(tempsAvantDoseMortelle(svSol))} en sortie` : ''}.${tBord < 10 * 86400 ? ' Prenez un panneau plus épais.' : ''}`);
   return res;
 }
 
@@ -282,20 +282,20 @@ function afficherFiche(etat) {
   const f = assemblerFusee(etat.equipement);
   const typeTxt = { solide: 'Astre solide', gazeuse: 'Géante gazeuse — pas de sol', etoile: 'Étoile' }[a.type];
   const atm = a.atm
-    ? `<dt>Pression ${a.type === 'solide' ? 'au sol' : 'de référence'}</dt><dd>${fmtP(a.atm.p0)}</dd><dt>Densité de l'air</dt><dd>${a.atm.rho0 < 0.01 ? a.atm.rho0.toExponential(1).replace('.', ',') : fmt(a.atm.rho0, 3)} kg/m³</dd>`
+    ? `<dt>Pression ${a.type === 'solide' ? 'au sol' : 'de référence'}</dt><dd>${fmtP(a.atm.p0)}</dd><dt>Densité de l’air</dt><dd>${a.atm.rho0 < 0.01 ? a.atm.rho0.toExponential(1).replace('.', ',') : fmt(a.atm.rho0, 3)} kg/m³</dd>`
     : '<dt>Atmosphère</dt><dd>aucune</dd>';
   fiche.innerHTML = `
     <div>
       <h2>${a.nom}</h2>
       <p class="note">${typeTxt}. ${a.note}</p>
       <dl>
-        <dt>Rayon</dt><dd>${fmt(a.rayonKm)} km</dd>
-        <dt>Gravité ${a.type === 'solide' ? 'de surface' : ''}</dt><dd>${fmt(a.g, 2)} m/s² (${fmt(a.g / G0, 2)} g)</dd>
+        <dt>Rayon</dt><dd>${fmt(a.rayonKm)} km</dd>
+        <dt>Gravité ${a.type === 'solide' ? 'de surface' : ''}</dt><dd>${fmt(a.g, 2)} m/s² (${fmt(a.g / G0, 2)} g)</dd>
         ${atm}
-        <dt>Température</dt><dd>${fmt(a.tempSurface)} °C</dd>
+        <dt>Température</dt><dd>${fmt(a.tempSurface)} °C</dd>
         <dt>Surface</dt><dd>${a.surface}</dd>
-        ${a.type === 'solide' ? `<dt>Vitesse d'atterrissage max</dt><dd>${a.vMax} m/s</dd>` : ''}
-        <dt>Distance ${SYSTEME.distanceA}</dt><dd>${a.distanceUA ? fmt(a.distanceUA, 2) + ' UA' : '—'}</dd>
+        ${a.type === 'solide' ? `<dt>Vitesse d’atterrissage max</dt><dd>${a.vMax} m/s</dd>` : ''}
+        <dt>Distance ${SYSTEME.distanceA}</dt><dd>${a.distanceUA ? fmt(a.distanceUA, 2) + ' UA' : '—'}</dd>
         <dt>Départ</dt><dd>${fmtAlt(a.depart.alt)}, ${fmtV(a.depart.vitesse)} ↓</dd>
       </dl>
     </div>
@@ -310,7 +310,7 @@ function afficherFiche(etat) {
       $('adapter-info').textContent = 'Vols d’essai en cours…';
       setTimeout(() => {
         const c = concevoirAtterrisseur(a);
-        if (c.ok) { etat.equipement = { ...c.choix }; sauver(etat); afficherFiche(etat); $('adapter-info').textContent = 'Fusée équipée : ' + descriptionConception(c); }
+        if (c.ok) { etat.equipement = { ...c.choix }; sauver(etat); afficherFiche(etat); $('adapter-info').textContent = 'Fusée équipée : ' + descriptionConception(c); }
         else $('adapter-info').textContent = c.raison;
       }, 30);
     };
@@ -324,40 +324,40 @@ function texteResultat(r) {
   switch (r.cause) {
     case 'ecrasee': {
       const raisons = [];
-      if (i.vv > a.vMax) raisons.push(`vitesse verticale ${fmt(i.vv, 1)} m/s`);
-      if (i.vh > a.vMax) raisons.push(`vitesse horizontale ${fmt(i.vh, 1)} m/s`);
+      if (i.vv > a.vMax) raisons.push(`vitesse verticale ${fmt(i.vv, 1)} m/s`);
+      if (i.vh > a.vMax) raisons.push(`vitesse horizontale ${fmt(i.vh, 1)} m/s`);
       if (i.inc > INCLINAISON_MAX) raisons.push(`inclinaison ${fmt(i.inc)}°`);
       if (i.pente > INCLINAISON_MAX) raisons.push(`sol en pente de ${fmt(i.pente)}°`);
-      const suite = i.exces < MARGE_RUPTURE ? ` La coque, déjà abîmée (${fmt(i.integriteAvant)} %), n'a pas tenu le choc.` : '';
-      return ['Écrasée', 'echec', `Contact trop brutal avec le sol de ${a.nom} : ${raisons.join(', ')}. Sans dégâts : ${a.vMax} m/s, ${INCLINAISON_MAX}° d'inclinaison et de pente au maximum.${suite}`];
+      const suite = i.exces < MARGE_RUPTURE ? ` La coque, déjà abîmée (${fmt(i.integriteAvant)} %), n’a pas tenu le choc.` : '';
+      return ['Écrasée', 'echec', `Contact trop brutal avec le sol ${de(a)} : ${raisons.join(', ')}. Sans dégâts : ${a.vMax} m/s, ${INCLINAISON_MAX}° d’inclinaison et de pente au maximum.${suite}`];
     }
     case 'carburant':
-      return ['À court de carburant', 'echec', `Réservoir vide à ${fmtAlt(Math.max(0, r.carburantVideAlt || 0))} d'altitude. Sans moteur pour freiner, le module s'est écrasé à ${fmt(i.vv, 1)} m/s (maximum ${a.vMax} m/s).`];
+      return ['À court de carburant', 'echec', `Réservoir vide à ${fmtAlt(Math.max(0, r.carburantVideAlt || 0))} d’altitude. Sans moteur pour freiner, le module s’est écrasé à ${fmt(i.vv, 1)} m/s (maximum ${a.vMax} m/s).`];
     case 'bloque':
-      return ['Posé… mais à court de carburant', 'partiel', `Le module est intact sur ${a.nom}, mais le réservoir est vide : impossible de redécoller.`];
+      return ['Posé… mais à court de carburant', 'partiel', `Le module est intact ${sur(a)}, mais le réservoir est vide : impossible de redécoller.`];
     case 'brulee':
       return ['Brûlée', 'echec', a.type === 'etoile'
-        ? `La coque a chauffé jusqu'à ${fmt(r.temp)} °C à ${fmtAlt(r.stats.altMin)} de la photosphère, au-delà des ${fmt(f.tempMax)} °C du bouclier, et a fini par fondre. Se poser sur le Soleil est impossible : tout brûle bien avant.`
-        : `La coque a chauffé jusqu'à ${fmt(r.temp)} °C, au-delà des ${fmt(f.tempMax)} °C du bouclier, et s'est consumée peu à peu. Extérieur : ${fmt(c.t)} °C.`];
+        ? `La coque a chauffé jusqu’à ${fmt(r.temp)} °C à ${fmtAlt(r.stats.altMin)} de la photosphère, au-delà des ${fmt(f.tempMax)} °C du bouclier, et a fini par fondre. Se poser sur le Soleil est impossible : tout brûle bien avant.`
+        : `La coque a chauffé jusqu’à ${fmt(r.temp)} °C, au-delà des ${fmt(f.tempMax)} °C du bouclier, et s’est consumée peu à peu. Extérieur : ${fmt(c.t)} °C.`];
     case 'pressurisee':
-      return ['Pressurisée', 'echec', `La pression extérieure est montée jusqu'à ${fmtP(c.p)} pour une coque prévue pour ${fmt(f.pressionMax)} bar : elle s'est déformée puis a cédé.` +
-        (a.type === 'gazeuse' ? (r.carburantRestant <= 0 ? ` Réservoir vide, la sonde a sombré vers le centre de ${a.nom}.` : ` Plus on descend dans ${a.nom}, plus la pression monte.`) : '')];
+      return ['Pressurisée', 'echec', `La pression extérieure est montée jusqu’à ${fmtP(c.p)} pour une coque prévue pour ${fmt(f.pressionMax)} bar : elle s’est déformée puis a cédé.` +
+        (a.type === 'gazeuse' ? (r.carburantRestant <= 0 ? ` Réservoir vide, la sonde a sombré vers le centre ${de(a)}.` : ` Plus on descend dans ${le(a)}, plus la pression monte.`) : '')];
     case 'irradiee':
-      return ['Irradiée', 'echec', `L’équipage a reçu une dose mortelle : ${fmtDoseTotale(r.doseSv || DOSE_MORTELLE)} (${fmtDose(r.svBord || 0)} à bord à la fin, panneau : dose ÷ ${fmt(f.protection)}). Il faut un panneau anti-vent solaire plus épais, ou rester moins longtemps.`];
+      return ['Irradiée', 'echec', `L’équipage a reçu une dose mortelle : ${fmtDoseTotale(r.doseSv || DOSE_MORTELLE)} (${fmtDose(r.svBord || 0)} à bord à la fin, panneau : dose ÷ ${fmt(f.protection)}). Il faut un panneau anti-vent solaire plus épais, ou rester moins longtemps.`];
     case 'pose':
-      return [`Réussite : posé sur ${a.nom}`, 'succes', `Contact à ${fmt(i ? i.vv : 0, 1)} m/s.` +
-        (i && i.degats > 0 ? ` Atterrissage dur : la coque a perdu ${fmt(i.degats)} %.` : '') +
+      return [`Réussite : posé ${sur(a)}`, 'succes', `Contact à ${fmt(i ? i.vv : 0, 1)} m/s.` +
+        (i && i.degats > 0 ? ` Atterrissage dur : la coque a perdu ${fmt(i.degats)} %.` : '') +
         ' Pour la réussite totale, redécollez et atteignez la vitesse orbitale.'];
     case 'orbite': {
       // La vitesse est comparée à la vitesse circulaire à cette altitude : le jeu valide l'orbite à 97 %,
       // l'orbiteur fait l'appoint au rendez-vous.
-      const pct = r.vOrbitale ? ` (${fmt((r.vitesse / r.vOrbitale) * 100)} % de la vitesse orbitale à cette altitude, ${fmtV(r.vOrbitale)} : l’orbiteur fait l’appoint au rendez-vous)` : '';
-      return ['Réussite totale : retour en orbite', 'succes', `Posé sur ${a.nom}, puis mis en orbite à ${fmtAlt(Math.max(0, r.altitude))} et ${fmtV(r.vitesse)}${pct}. L’orbiteur vous récupère.`];
+      const pct = r.vOrbitale ? ` (${fmt((r.vitesse / r.vOrbitale) * 100)} % de la vitesse orbitale à cette altitude, ${fmtV(r.vOrbitale)} : l’orbiteur fait l’appoint au rendez-vous)` : '';
+      return ['Réussite totale : retour en orbite', 'succes', `Posé ${sur(a)}, puis mis en orbite à ${fmtAlt(Math.max(0, r.altitude))} et ${fmtV(r.vitesse)}${pct}. L’orbiteur vous récupère.`];
     }
     case 'liberation':
-      return ['Réussite totale : libéré de la gravité', 'succes', `Posé sur ${a.nom}, puis parti à ${fmtV(r.vitesse)}, au-delà de la vitesse de libération : l'orbiteur vous récupère.`];
+      return ['Réussite totale : libéré de la gravité', 'succes', `Posé ${sur(a)}, puis parti à ${fmtV(r.vitesse)}, au-delà de la vitesse de libération : l’orbiteur vous récupère.`];
     case 'plongee':
-      return [`Réussite : plongée dans ${a.nom}`, 'succes', `Descente jusqu'à ${fmt(a.cible)} bar puis remontée jusqu'au niveau 1 bar.`];
+      return [`Réussite : plongée dans ${le(a)}`, 'succes', `Descente jusqu’à ${fmt(a.cible)} bar puis remontée jusqu’au niveau 1 bar.`];
     case 'abandon':
       return ['Mission abandonnée', 'partiel', `L’engin a quitté ${a.nom} sans terminer la mission.`];
   }
@@ -371,19 +371,19 @@ function afficherResultat(r) {
   if (r.messageLancement) { titre = 'Lancement réussi'; classe = 'succes'; message = r.messageLancement; }
   // « Échec du lancement » ne concerne que les méga-fusées parties de la Terre
   // (pas le lanceur de remontée de Vénus, qui a aussi plusieurs étages).
-  else if (r.lancementTerre) { titre = 'Échec du lancement : ' + titre.toLowerCase(); }
+  else if (r.lancementTerre) { titre = 'Échec du lancement : ' + titre.toLowerCase(); }
   // Le sort de l'équipage est séparé de celui de l'engin : on dit clairement ce qui s'est passé.
   const pertes = r.pertes || [];
   const equipage = pertes.find((p) => p.qui === 'spationaute');
   const robot = pertes.find((p) => p.qui === 'robot');
   if (equipage) {
     if (classe === 'succes') {
-      titre = `Réussite partielle : ${titre.replace(/^Réussite( totale)? : /, '').toLowerCase()}, mais ${nomSpatio()} est perdu${acc()}`;
+      titre = `Réussite partielle : ${titre.replace(/^Réussite( totale)? : /, '').toLowerCase()}, mais ${nomSpatio()} est perdu${acc()}`;
       classe = 'partiel';
     }
-    message += ` Pendant la sortie à la surface : ${minuscule(equipage.texte)}`;
+    message += ` Pendant la sortie à la surface : ${minuscule(equipage.texte)}`;
   }
-  if (robot) message += ` Le robot a été perdu : ${minuscule(robot.texte)}`;
+  if (robot) message += ` Le robot a été perdu : ${minuscule(robot.texte)}`;
   const h = $('res-titre');
   h.textContent = titre;
   h.className = classe;
@@ -393,11 +393,11 @@ function afficherResultat(r) {
     <dt>Durée du vol</dt><dd>${fmtDuree(r.temps)}</dd>
     <dt>Vitesse max</dt><dd>${fmtV(r.stats.vMax)}</dd>
     <dt>Pression max</dt><dd>${fmtP(r.stats.pMax)}</dd>
-    <dt>Température coque max</dt><dd>${fmt(r.stats.tMax)} °C</dd>
-    <dt>Intégrité de la coque</dt><dd>${fmt(Math.max(0, r.integrite))} %</dd>
-    <dt>Dégâts pression / chaleur / chocs</dt><dd>${fmt(r.degats.pression)} / ${fmt(r.degats.chaleur)} / ${fmt(r.degats.impact)} %</dd>
-    <dt>Carburant restant</dt><dd>${fmt(r.carburantRestant)} kg</dd>
-    <dt>Dose de rayonnement (équipage)</dt><dd>${fmtDoseTotale(r.doseSv || 0)} (${fmt(Math.min(100, r.dose))} % de la dose mortelle)</dd>`;
+    <dt>Température max de la coque</dt><dd>${fmt(r.stats.tMax)} °C</dd>
+    <dt>Intégrité de la coque</dt><dd>${fmt(Math.max(0, r.integrite))} %</dd>
+    <dt>Dégâts pression / chaleur / chocs</dt><dd>${fmt(r.degats.pression)} / ${fmt(r.degats.chaleur)} / ${fmt(r.degats.impact)} %</dd>
+    <dt>Carburant restant</dt><dd>${fmt(r.carburantRestant)} kg</dd>
+    <dt>Dose de rayonnement (équipage)</dt><dd>${fmtDoseTotale(r.doseSv || 0)} (${fmt(Math.min(100, r.dose))} % de la dose mortelle)</dd>`;
   // Lancement : la chronologie, du compte à rebours à la mise en orbite.
   if (r.fusee && r.fusee.mega && r.chrono && r.chrono.length) {
     $('res-stats').innerHTML = `<dt>Lanceur</dt><dd>${r.fusee.nomLanceur}</dd><dt>Durée de la montée</dt><dd>${fmtDuree(r.chrono[r.chrono.length - 1].t)}</dd>` +
