@@ -369,6 +369,17 @@ pre.erreur { white-space: pre-wrap; background: #1a0d0d; border: 1px solid #5a23
 }
 #replique.visible { opacity: 0.92; }
 
+/* Journal à deux niveaux : une ligne par entrée essentielle, détail sur demande, alertes en rouge. */
+.barre-journal { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; margin: 4px 0 8px; }
+.journal-niveaux li { cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.journal-niveaux li .j-complet { display: none; }
+.journal-niveaux li.deplie { white-space: normal; }
+.journal-niveaux li.deplie .j-complet { display: inline; }
+.journal-niveaux li.deplie > .doux, .journal-niveaux li.deplie .j-resume { display: none; }
+.journal-niveaux li.detail { display: none; opacity: 0.72; }
+.journal-niveaux.tout li.detail { display: list-item; }
+.journal-niveaux li.alerte { color: #ff8a80; }
+
 /* Conseil « paysage » : petite bulle en haut, qui s'efface. */
 #conseil-paysage {
   position: fixed; z-index: 45; left: 50%; transform: translateX(-50%);

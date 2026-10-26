@@ -827,8 +827,8 @@ const Orbiteur = {
     const a = ASTRES_PAR_ID[b.astre];
     const st = v.stations.find((s) => s.centre === b.astre);
     if (!st) return this.log(`Pas de station ${enOrbite(a)} pour envoyer une extension.`);
-    if ((b.niveau || 1) >= 5) return this.log(`La base ${a.nom} est déjà au niveau maximal (5).`);
-    if (b.descente) return this.log(`Un module de descente est déjà en route vers la base ${a.nom}.`);
+    if ((b.niveau || 1) >= 5) return this.log(`${Le(nomBase(a))} est déjà au niveau maximal (5).`);
+    if (b.descente) return this.log(`Un module de descente est déjà en route vers ${le(nomBase(a))}.`);
     if ((st.stock.extensions || 0) <= 0) return this.log(`${Le(st)} n’a pas d’extension de base en stock : envoyez un ravito « Extension de base » ou fabriquez-en une à l’atelier.`);
     st.stock.extensions -= 1;
     const m = moduleExtension(a);

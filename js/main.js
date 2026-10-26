@@ -582,7 +582,7 @@ function reprendreDepuis(id) {
   v.cible = null;
   const c = concevoirAtterrisseur(a);
   if (!c.ok) { Orbiteur.log(c.raison); return allerNavigation(); }
-  Orbiteur.log(`Reprise à la base ${a.nom} (niveau ${b.niveau || 1}) : l’atterrisseur est posé à côté.`);
+  Orbiteur.log(`Reprise à ${le(nomBase(a))} (niveau ${b.niveau || 1}) : l’atterrisseur est posé à côté.`);
   sauver(etat);
   etat.destination = a.id;
   lancer({ voyage: true, fusee: c.fusee, bases: basesSur(a.id), site: { x: b.x, xDescente: b.x - 90 }, depuisSol: true });
@@ -661,10 +661,11 @@ Orbiteur.contexte = {
     const m = $('modale');
     m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>Journal de bord</h2></div><button class="fermer">✕</button></header>
       ${htmlTrouvailles()}
-      <ol class="journal">${etat.voyage.journal.slice().reverse().map((j) => `<li><span class="doux">${fmtDate(j.t)}</span> ${j.texte}</li>`).join('')}</ol></div>`;
+      ${htmlJournal(etat.voyage)}</div>`;
     brancherTrouvailles(m);
+    const marquerLues = brancherJournal(m, etat.voyage);
     m.classList.remove('cache');
-    m.querySelector('.fermer').onclick = () => Infos.fermer();
+    m.querySelector('.fermer').onclick = () => { marquerLues(); sauver(etat); Infos.fermer(); };
   },
   alerte: (texte) => { Orbiteur.messages.push({ texte, vie: 8 }); },
 };
