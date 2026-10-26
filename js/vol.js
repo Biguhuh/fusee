@@ -839,7 +839,8 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
     const lr = vol.lanceurRetour;
     const altCadre = lr && lr.etat === 'descente' ? Math.max(alt, Math.min(4000, (lr.y - vol.sol(lr.x)) * 1.2)) : alt;
     echelle = echelleCamera(a, altCadre, W, H);
-    fuseeY = H * 0.8 - alt * echelle;
+    // Téléphone en paysage : les boutons d'action occupent le bas de l'écran, le sol remonte pour rester visible.
+    fuseeY = H * (ecranPaysageTactile(W, H) ? 0.6 : 0.8) - alt * echelle;
     solY = fuseeY + vol.y * echelle;
   }
 
@@ -2152,6 +2153,8 @@ const ECRAN_TACTILE = typeof matchMedia === 'function' && (matchMedia('(pointer:
 
 // Petit écran (téléphone) : tableau de bord réduit à l'essentiel ; un appui dessus affiche le détail.
 function ecranCompact(W, H) { return W < 720 || H < 520; }
+// Téléphone tenu en paysage : écran tactile, plus large que haut, peu de hauteur.
+function ecranPaysageTactile(W, H) { return ECRAN_TACTILE && W > H && H < 520; }
 let ZONE_HUD = null;   // rectangle du tableau de bord quand il est compact (pour l'appui)
 
 // Géantes gazeuses (pas de sol) : position par rapport au niveau 1 bar, et objectif de la plongée.
@@ -2371,8 +2374,13 @@ function dessinerHudSuite(ctx, vol, W, H, warp, compact, twr) {
 
   // Manette des gaz : barre verticale à droite.
   const bx = W - 46;
-  const bh = compact ? Math.max(60, Math.min(150, (portrait ? H * 0.2 : H * 0.2))) : Math.min(240, H * 0.4);
-  const by = compact ? hautDroite + (portrait ? 110 : 66) : H / 2 - bh / 2;
+  let bh = compact ? Math.max(60, Math.min(150, (portrait ? H * 0.2 : H * 0.2))) : Math.min(240, H * 0.4);
+  let by = compact ? hautDroite + (portrait ? 110 : 66) : H / 2 - bh / 2;
+  if (ecranPaysageTactile(W, H)) {
+    // Paysage : sous le bloc du temps et du pilote auto, au-dessus des boutons ▲ ▼ (environ 140 px en bas).
+    by = hautDroite + (vol.autopilote ? 112 : 70);
+    bh = Math.max(36, Math.min(H * 0.2, H - 150 - by - 26));
+  }
   ctx.fillStyle = 'rgba(0,0,0,0.55)';
   ctx.fillRect(bx - 12, by - 30, 50, bh + 58);
   ctx.fillStyle = 'rgba(255,255,255,0.15)';

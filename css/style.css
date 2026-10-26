@@ -334,6 +334,19 @@ pre.erreur { white-space: pre-wrap; background: #1a0d0d; border: 1px solid #5a23
   .fenetre { padding: 12px; }
   .sections { grid-template-columns: 1fr; }
 }
+/* Téléphone en paysage : peu de hauteur. La barre de l'orbiteur tient sur une rangée qui défile de côté. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .barre-haut { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .barre-haut::-webkit-scrollbar { display: none; }
+  .barre-haut > * { flex: 0 0 auto; }
+  .barre-haut .date { width: auto; }
+  .barre-haut .groupe { flex-wrap: nowrap; white-space: nowrap; }
+  .barre-haut .petit-seul { order: -1; }          /* État et Actions d'abord : toujours à portée de doigt */
+  /* Panneaux sur le côté, sous la barre : la carte reste visible à côté. */
+  .panneau { top: 58px; bottom: 6px; max-height: none; width: min(440px, 58vw); }
+  .panneau.droite { left: auto !important; right: 4px !important; }
+  .panneau.gauche { left: 4px !important; right: auto !important; }
+}
 /* Écrans tactiles : des cibles assez grandes pour un doigt (≈ 36 px de haut au moins). */
 @media (pointer: coarse) {
   #hud-nav button { min-height: 36px; }
@@ -355,6 +368,15 @@ pre.erreur { white-space: pre-wrap; background: #1a0d0d; border: 1px solid #5a23
   opacity: 0; transition: opacity 0.9s;
 }
 #replique.visible { opacity: 0.92; }
+
+/* Conseil « paysage » : petite bulle en haut, qui s'efface. */
+#conseil-paysage {
+  position: fixed; z-index: 45; left: 50%; transform: translateX(-50%);
+  top: 34vh; max-width: 86vw;
+  display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 12px; border-radius: 12px;
+  background: rgba(10, 16, 30, 0.88); border: 1px solid rgba(255, 255, 255, 0.25); color: #e6edf6; font-size: 13px;
+}
+#conseil-paysage button { min-width: 32px; min-height: 32px; padding: 2px 8px; }
 
 /* Aide : onglets sur grand écran, sections dépliables sur téléphone. */
 .aide-fenetre { max-width: 860px; }

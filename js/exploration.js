@@ -463,7 +463,8 @@ class Exploration {
     const a = this.astre, p = this.p;
     const echelle = this.type === 'robot' ? 26 : 30; // px par mètre
     const yCam = p.y + 2.5;
-    const camY = H * 0.55;
+    // Téléphone en paysage : la scène remonte pour laisser la place aux boutons du bas.
+    const camY = H * (ecranPaysageTactile(W, H) ? 0.4 : 0.55);
     const versEcran = (x, y) => [W / 2 + (x - p.x) * echelle, camY + (yCam - y) * echelle];
     dessinerFond(ctx, a, this.c, W, H, false, tempsCiel(this.vol), this.vol);
     if (this.terre) dessinerNuages(ctx, W, H, p.x * echelle);

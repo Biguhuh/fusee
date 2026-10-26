@@ -32,7 +32,8 @@ const ONGLETS_AIDE = [
     <h3>La sauvegarde</h3>
     <p>La partie s’enregistre seule dans ce navigateur, toutes les 5 secondes. Pour la garder ailleurs, téléchargez la sauvegarde depuis l’accueil, puis rechargez-la sur un autre appareil.</p>
     <h3>Sur téléphone</h3>
-    <p>Le jeu est jouable sur téléphone, avec des boutons tactiles. La maniabilité reste moyenne : l’écran est petit pour tout ce qu’il y a à voir.</p>` },
+    <p>Le jeu est jouable sur téléphone, avec des boutons tactiles. La maniabilité reste moyenne : l’écran est petit pour tout ce qu’il y a à voir.</p>
+    <p>Le paysage est conseillé pour le vol et l’exploration au sol : on voit plus loin devant soi. Les fenêtres de gestion (ravitaillement, logistique, aide) se lisent mieux en portrait. Le jeu suit le téléphone dans les deux sens.</p>` },
 
   { id: 'debut', titre: '👣 Premiers pas', html: () => `
     <p>La campagne, en huit étapes.</p>

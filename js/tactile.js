@@ -62,7 +62,7 @@ const Tactile = {
         b.push({ zone: 'actions', label, code: 'KeyT', principal: true });
       }
       if (v.pose && solide && !v.lancement && !v.promenade) {
-        b.push({ zone: 'actions', label: '🧑‍🚀 Sortir', code: 'KeyE' });
+        b.push({ zone: 'actions', label: '🚶 Sortir', code: 'KeyE' });
         b.push({ zone: 'actions', label: '🤖 Robot', code: 'KeyR' });
         if (etat.enVoyage && etat.voyage && baseSur(etat.voyage, v.astre.id)) b.push({ zone: 'actions', label: '🏗 Base ✓', code: 'KeyB', desactive: 'Base déjà installée sur cet astre' });
         else if (etat.enVoyage) b.push({ zone: 'actions', label: '🏗 Base', code: 'KeyB' });

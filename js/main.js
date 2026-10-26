@@ -68,6 +68,24 @@ function montrer(ecran) {
   $('ecran-spatio').classList.toggle('cache', ecran !== 'spatio');
   Infos.infobulle(0, 0, null);
   window.scrollTo(0, 0);
+  if (ecran === 'vol' || ecran === 'explo') conseillerPaysage();
+}
+
+// Téléphone tenu en portrait pendant un vol ou une sortie : une bulle discrète conseille le paysage.
+// Jamais forcé ; une fois par chargement de page, et plus du tout si on la ferme.
+let conseilPaysageVu = false;
+function conseillerPaysage() {
+  if (conseilPaysageVu || !ECRAN_TACTILE || innerWidth > innerHeight) return;
+  try { if (localStorage.getItem('fusee-conseil-paysage') === 'non') return; } catch (e) { /* stockage indisponible */ }
+  conseilPaysageVu = true;
+  const el = document.createElement('div');
+  el.id = 'conseil-paysage';
+  el.innerHTML = '<span>📱↻ Astuce : en paysage, on voit plus loin devant soi.</span><button aria-label="Ne plus afficher">✕</button>';
+  document.body.appendChild(el);
+  const fermer = () => el.remove();
+  el.querySelector('button').onclick = () => { try { localStorage.setItem('fusee-conseil-paysage', 'non'); } catch (e) { /* ignoré */ } fermer(); };
+  setTimeout(fermer, 7000);
+  window.addEventListener('resize', function quand() { if (innerWidth > innerHeight) { fermer(); window.removeEventListener('resize', quand); } });
 }
 
 function allerHangar() {
