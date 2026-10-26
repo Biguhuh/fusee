@@ -584,6 +584,51 @@ const Orbiteur = {
     return duree;
   },
 
+  // ---------- Échantillons renvoyés par sonde ----------
+  // Une sonde emporte les échantillons dans une petite capsule de rentrée : trajet calculé vers la planète
+  // d'origine (repli : demi-orbite de Hohmann autour de l'étoile), puis amerrissage. L'équipage reste sur place.
+  dureeRetourEchantillons() {
+    const v = this.v, cible = planeteOrigine().id;
+    try {
+      const p = this.planTrajet({ centre: v.orb.centre, r: v.orb.r.slice(), v: v.orb.v.slice(), transfert: null, cible });
+      if (p.fin === 'arrivee') return p.tFin - p.t0 + 2 * JOUR;
+    } catch (e) { /* repli ci-dessous */ }
+    const planete = (id) => { let a = ASTRES_PAR_ID[id]; while (a.orbite && ASTRES_PAR_ID[a.orbite.centre].type !== 'etoile') a = ASTRES_PAR_ID[a.orbite.centre]; return a; };
+    const p1 = planete(v.orb.centre), p2 = planete(cible), etoile = ASTRES_PAR_ID[p2.orbite.centre];
+    const r1 = V.norm(etatAbsolu(p1.id, v.t).r), r2 = V.norm(etatAbsolu(p2.id, v.t).r);
+    return Math.PI * Math.sqrt(((r1 + r2) / 2) ** 3 / etoile.gm) + 10 * JOUR;
+  },
+  peutRenvoyerParSonde() {
+    const v = this.v;
+    return ressourcesIllimitees() && v.orb && !estOrigine(v.orb.centre) && this.orbiteFermee()
+      && Object.values(v.echantillonsABord || {}).some((n) => n > 0);
+  },
+  renvoyerParSonde() {
+    const v = this.v;
+    if (!this.peutRenvoyerParSonde()) return;
+    if (v.sondes <= 0) return this.log('Plus de sonde à bord pour renvoyer les échantillons.');
+    const duree = this.dureeRetourEchantillons();
+    const contenu = { ...v.echantillonsABord };
+    const n = Object.values(contenu).reduce((s, k) => s + k, 0);
+    v.sondes--;
+    v.echantillonsABord = {};
+    (v.retoursEchantillons = v.retoursEchantillons || []).push({ contenu, depart: v.orb.centre, tDepart: v.t, tArrivee: v.t + duree });
+    this.log(`📦 Sonde de retour lancée ${enOrbite(ASTRES_PAR_ID[v.orb.centre])} avec ${n} échantillon${n > 1 ? 's' : ''} : amerrissage prévu le ${fmtDate(v.t + duree, false)} (dans ${fmtDuree(duree)}). L’équipage reste sur place.`);
+    sauver(etat);
+    this.majHud(true);
+  },
+  arriveesEchantillons() {
+    const v = this.v;
+    if (!v.retoursEchantillons || !v.retoursEchantillons.length) return;
+    for (const r of v.retoursEchantillons.filter((x) => v.t >= x.tArrivee)) {
+      let n = 0;
+      for (const [id, k] of Object.entries(r.contenu)) { v.echantillonsRapportes[id] = (v.echantillonsRapportes[id] || 0) + k; n += k; }
+      const liste = Object.entries(r.contenu).map(([id, k]) => `${k} ${de(ASTRES_PAR_ID[id])}`).join(', ');
+      this.log(`📦 La capsule de la sonde de retour a amerri sur ${SYSTEME.origineSans} : ${n} échantillon${n > 1 ? 's' : ''} rapporté${n > 1 ? 's' : ''} (${liste}).`);
+    }
+    v.retoursEchantillons = v.retoursEchantillons.filter((x) => v.t < x.tArrivee);
+  },
+
   lancerCargo(origineId, destId, contenu, nom) {
     const v = this.v;
     const dest = v.stations.find((s) => s.id === destId);
@@ -746,6 +791,7 @@ const Orbiteur = {
     const v = this.v;
     if (v.equipe) mettreAJourEquipe(v, (t) => this.log(t));
     if (v.sondesInterstellaires && v.sondesInterstellaires.length) mettreAJourSondesInterstellaires(v, (t) => this.log(t));
+    this.arriveesEchantillons();
     for (const s of v.stations) {
       s.stock = { ...STOCK_VIDE(), ...(s.stock || {}) };
       // Chantiers de l'atelier terminés
@@ -1710,7 +1756,7 @@ const Orbiteur = {
     const v = this.v;
     if (!v.stations.some((s) => s.terrestre) && estOrigine(v.orb.centre)) return 'Construisez la station spatiale en orbite terrestre (bouton 🏗).';
     if (!Object.keys(v.visites).some((id) => v.visites[id].pose)) return 'Choisissez une cible (la Lune ?), allez-y, posez-vous et rapportez des échantillons.';
-    if (Object.keys(v.echantillonsABord).length) return 'Échantillons à bord : rentrez sur Terre pour les rapporter (cible Terre, puis 🏠).';
+    if (Object.keys(v.echantillonsABord).length) return 'Échantillons à bord : rentrez sur Terre pour les rapporter (cible Terre, puis 🏠), ou renvoyez-les par sonde depuis l’orbite où vous êtes (📦).';
     if (v.stations.length < 2) return 'Construisez une station autour d’un autre astre : elle sera ravitaillée depuis la Terre.';
     if (!v.bases.length) return 'Posez-vous sous une de vos stations et construisez une base (touche B une fois posé).';
     return '';
@@ -1770,6 +1816,7 @@ const Orbiteur = {
     ];
     const ech = Object.entries(v.echantillonsABord);
     if (ech.length) lignes.push(['Échantillons à bord', ech.map(([id, n]) => `${n} ${ASTRES_PAR_ID[id].nom}`).join(', ')]);
+    for (const r of v.retoursEchantillons || []) lignes.push(['📦 Sonde de retour', `${Object.values(r.contenu).reduce((s, k) => s + k, 0)} échantillons, amerrissage le ${fmtDate(r.tArrivee, false)}`]);
     if (v.provisions.fleurs + v.provisions.fruits) lignes.push(['Douceurs de la Terre', `${v.provisions.fleurs} 🌸 ${v.provisions.fruits} 🍎`]);
     let html = '<h3>Orbiteur</h3><dl>' + lignes.map(([k, x]) => `<dt>${k}</dt><dd>${x}</dd>`).join('') + '</dl>';
     if (v.mode === 'libre') {
@@ -1813,6 +1860,7 @@ const Orbiteur = {
     const fermee = this.orbiteFermee();
     if (estOrigine(c.id) && fermee) d += `<button id="nav-rentrer" class="principal">🏠 Rentrer sur ${SYSTEME.origineSans} (capsule)</button>`;
     if (estOrigine(c.id) && fermee && Object.values(v.echantillonsABord || {}).some((n) => n > 0)) d += '<button id="nav-capsule-ech">📦 Renvoyer les échantillons seuls (capsule sans équipage)</button>';
+    if (this.peutRenvoyerParSonde()) d += `<button id="nav-sonde-ech" ${v.sondes > 0 ? '' : 'disabled title="Plus de sonde à bord"'}>📦 Renvoyer les échantillons par sonde (${v.sondes} sonde${v.sondes > 1 ? 's' : ''} à bord)</button>`;
     if (c.id === 'terre' && fermee) d += '<button id="nav-iss">🛰 Rendez-vous avec la Station spatiale internationale</button>';
     if (estOrigine(c.id) && fermee) d += `<button id="nav-plein-origine">🌍 Faire le plein depuis ${SYSTEME.nomOrigine} (gratuit)</button>`;
     if (SYSTEME.retour !== false) d += `<button id="nav-depart">🌌 Quitter le ${SYSTEME.nom}</button>`;
@@ -1887,6 +1935,7 @@ const Orbiteur = {
     bind('nav-robot', () => this.ouvrirLargageRobot(o.centre));
     bind('nav-rentrer', () => this.contexte.rentrer());
     bind('nav-capsule-ech', () => this.contexte.renvoyerEchantillons());
+    bind('nav-sonde-ech', () => this.renvoyerParSonde());
     bind('nav-depart', () => Depart.ouvrir(this.v));
     bind('nav-plein-origine', () => { this.pleinDepuisOrigine(); this.majHud(true); });
     bind('nav-iss', () => this.rendezVousISS());

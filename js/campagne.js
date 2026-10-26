@@ -196,7 +196,7 @@ function configurerEtage(f, i) {
 
 // ---------- Stocks des stations ----------
 const CAPACITES_STATION = {
-  carburant: 200000, ergols: 200000, materiaux: 150000, sondes: 10, kits: 4, kitsBase: 3, robots: 4, atterrisseurs: 4, extensions: 4, lanceurRetour: 2, extensionsStation: 2, propulseurs: 1,
+  carburant: 400000, ergols: 400000, materiaux: 300000, sondes: 10, kits: 4, kitsBase: 3, robots: 4, atterrisseurs: 4, extensions: 4, lanceurRetour: 2, extensionsStation: 2, propulseurs: 1,
 };
 const STOCK_VIDE = () => ({ carburant: 0, ergols: 0, materiaux: 0, sondes: 0, kits: 0, kitsBase: 0, robots: 0, atterrisseurs: 0, extensions: 0, lanceurRetour: 0, extensionsStation: 0, propulseurs: 0 });
 const NOMS_STOCK = {
@@ -291,8 +291,9 @@ const CONTENUS_CARGO = {
     nom: 'Extension de base', description: 'Agrandit la base de l’astre : plus de production, puis une mine de matériaux (à partir du niveau 2).',
     contenu: { extensions: 1, materiaux: 15000 },
   },
-  ergols: { nom: 'Ergols', description: 'Carburant pour l’orbiteur et ergols pour les atterrisseurs.', contenu: { carburant: 60000, ergols: 60000 } },
-  materiaux: { nom: 'Matériaux', description: 'Pour l’atelier de la station : sondes, robots, atterrisseurs, kits.', contenu: { materiaux: 40000, kitsBase: 1 } },
+  // Cargos spécialisés (citerne, vrac) : trois fois ce qu'emporte un kit d'expédition, qui partage sa place avec le matériel.
+  ergols: { nom: 'Ergols', description: 'Cargo-citerne, trois fois plus qu’un kit d’expédition. Carburant pour l’orbiteur et ergols pour les atterrisseurs.', contenu: { carburant: 180000, ergols: 180000 } },
+  materiaux: { nom: 'Matériaux', description: 'Cargo de vrac (120 t), trois fois plus qu’un kit d’expédition. Pour l’atelier de la station : sondes, robots, atterrisseurs, kits.', contenu: { materiaux: 120000, kitsBase: 1 } },
   extensionStation: {
     nom: 'Extension de station', description: 'Agrandit la station de destination d’un niveau (plus de stockage, chantiers plus rapides, habitat, puis chantier interstellaire).',
     contenu: { extensionsStation: 1, materiaux: 10000 },
