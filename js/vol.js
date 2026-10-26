@@ -614,11 +614,11 @@ class Vol {
       this.maxQAnnonce = true;
       this.noter(`Max Q : pression aérodynamique maximale (${fmt(this.qMax / 1000)} kPa) à ${fmtAlt(this.y)}`);
     }
-    if (!this.coiffeLarguee && this.y > 110000) {
+    if (!this.coiffeLarguee && coiffeALarguer(this.astre, this.y, this.y - this.sol(this.x))) {
       this.coiffeLarguee = true;
       // Les deux demi-coiffes s'écartent : on découvre l'orbiteur et son atterrisseur.
       if (this.f.charge) this.coiffeDebris = { x: this.x, y: this.y, vx: this.vx, vy: this.vy, angle: this.angle, t: 0 };
-      this.noter('Largage de la coiffe : l’atmosphère est trop ténue pour la charge utile');
+      this.noter(TEXTES_COIFFE[typeAtmosphere(this.astre)]);
     }
   }
   abandonner() { if (!this.fin) this.terminer(this.pose ? 'pose' : 'abandon'); }
@@ -991,6 +991,26 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
   }
 
   dessinerHUD(ctx, vol, W, H, warp);
+}
+
+// ---------- Coiffe ----------
+// La coiffe protège la charge utile de l'air. On la largue quand l'air est devenu assez rare :
+// la densité qu'a l'atmosphère terrestre vers 110 km (≈ 3 × 10⁻⁶ kg/m³ dans notre modèle).
+// Sans atmosphère, elle ne sert à rien : on la largue dès que la fusée a quitté le pas de tir.
+const RHO_COIFFE = 1.225 * Math.exp(-110 / 8.5);
+const TEXTES_COIFFE = {
+  dense: 'Éjection de la coiffe, les couches denses sont derrière nous.',
+  tenue: 'Atmosphère ténue, éjection de la coiffe.',
+  vide: 'Dans le vide, éjection de la coiffe.',
+};
+// Dense à partir de 0,1 bar au sol (Terre, Vénus, Titan) ; ténue en dessous (Mars, Pluton, Triton).
+function typeAtmosphere(a) {
+  if (!a.atm || !a.atm.p0) return 'vide';
+  return a.atm.p0 >= 0.1 ? 'dense' : 'tenue';
+}
+function coiffeALarguer(a, alt, hauteurSol) {
+  if (hauteurSol < 1000) return false;
+  return typeAtmosphere(a) === 'vide' || conditions(a, alt).rho < RHO_COIFFE;
 }
 
 // Débris (étage vide, demi-coiffes) : mouvement balistique, comme la fusée mais sans poussée.
