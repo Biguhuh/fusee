@@ -213,6 +213,7 @@ class Vol {
     this.stats.altMin = Math.min(this.stats.altMin, this.y);
 
     this.dangers(c, v, dt);
+    verifierCassini(this);
     if (this.fin) return;
     this.prelever();
 

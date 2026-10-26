@@ -41,6 +41,16 @@ const EASTER_EGGS = [
     texte: 'Une soucoupe minuscule, pas plus grande qu’un ballon, et une petite peluche d’ours qui attend son héros.' },
   { id: 'titania', astre: 'titania', dx: -450, dessin: 'palaisGlace',
     texte: 'Un palais de cristaux de glace, au milieu de nulle part. Une cape rouge sèche sur une stalagmite.' },
+  { id: 'titan', astre: 'titan', dx: 320, dessin: 'capsuleRouge',
+    texte: 'Une petite capsule de secours rouge, cabossée. On dit que son pilote ressemblait à un chien bleu, aussi farceur qu’en quête d’une famille.' },
+  { id: 'miranda', astre: 'l705', dx: -350, dessin: 'semelle',
+    texte: 'Miranda porte une marque de semelle en pleine figure. Un ranger du Texas est passé par là, et personne ne pose de questions.' },
+  { id: 'prospero', astre: 'l718', dx: 220, dessin: 'infini',
+    texte: 'Prospero a défié un ranger du Texas de compter jusqu’à l’infini. Le ranger a fini. Deux fois.' },
+  { id: 'tauceti-oeuf', astre: 'tauceti_ast1', dx: -300, dessin: 'oeuf',
+    texte: 'Un œuf au cuir épais, entrouvert. Vide. Mieux vaut ne pas chercher ce qui en est sorti.' },
+  { id: 'epseri-main', astre: 'epseri_ast2', dx: 300, dessin: 'mainLevee',
+    texte: 'Une main levée, doigts écartés en deux paires. Longue vie et prospérité.' },
   { id: 'trappist-e', astre: 'trappist1_p4', dx: 350, dessin: 'longCou',
     texte: 'Un petit être scrute le ciel. Il voudrait téléphoner à la maison.' },
   { id: 'proxima-b', astre: 'proxima_p2', dx: -400, dessin: 'villePluie',
@@ -84,6 +94,73 @@ const TRACES_REELLES = {
     { id: 'huygens', dx: 250, nom: 'Site de Huygens', annee: 2005, materiel: 'sonde européenne, l’atterrissage le plus lointain jamais réalisé', objets: [['huygens', 0]] },
   ],
 };
+
+// Easter eggs en orbite : l'équipage de l'orbiteur les aperçoit après avoir tourné un moment autour de l'astre
+// (une révolution, 30 jours au plus). Une sonde arrivée là signale seulement « Objet inhabituel ».
+const EGGS_ORBITE = [
+  { id: 'saturne', astre: 'saturne', titre: 'Space Oddity',
+    texte: 'Une capsule vide dérive. Personne n’a répondu depuis longtemps.' },
+  { id: 'tauceti-balise', astre: 'tauceti_p4',
+    texte: 'Une vieille balise rouillée, frappée du sigle d’une grande compagnie interstellaire : Weyland. Elle répète le nom d’une survivante, Ripley, et parle d’un chat.' },
+  { id: 'trappist-f', astre: 'trappist1_p5',
+    texte: 'Un paquebot de luxe flotte au-dessus des vagues. Les vacances sont réussies.' },
+  { id: 'alphacen', astre: 'alphacen_etoile',
+    texte: 'Une plaque au nom d’un pilote qui aurait inventé le vol plus rapide que la lumière. Il aurait pris sa retraite ici.' },
+];
+const DUREE_MAX_OBSERVATION = 30 * 86400;
+
+// Appelé par l'orbiteur à chaque avancée du temps.
+function verifierEggsOrbite(orb, dt) {
+  const v = orb.v;
+  const e = EGGS_ORBITE.find((x) => x.astre === v.orb.centre);
+  if (!e || eggTrouve(e.id) || !orb.orbiteFermee()) { v.observation = null; return; }
+  const a = ASTRES_PAR_ID[e.astre];
+  if (!v.observation || v.observation.astre !== e.astre) v.observation = { astre: e.astre, duree: 0 };
+  v.observation.duree += dt;
+  const periode = elements(v.orb.r, v.orb.v, a.gm).periode;
+  if (v.observation.duree < Math.min(periode, DUREE_MAX_OBSERVATION)) return;
+  etat.decouvertes = etat.decouvertes || {};
+  etat.decouvertes[e.id] = { astre: e.astre, quand: v.t, par: 'l’équipage de l’orbiteur' };
+  v.observation = null;
+  orb.log(`✨ Découverte ${enOrbite(a)} : ${e.texte}${e.titre ? ` — « ${e.titre} »` : ''}`);
+  sauver(etat);
+}
+
+// Sonde arrivée en orbite : un mot sur l'objet inhabituel, sans rien révéler.
+function signalSonde(astreId) {
+  const e = EGGS_ORBITE.find((x) => x.astre === astreId);
+  if (!e || eggTrouve(e.id)) return '';
+  etat.reperes = etat.reperes || {};
+  etat.reperes[e.id] = true;
+  return ' Objet inhabituel en orbite. Une exploration humaine permettrait de l’examiner.';
+}
+
+// Plongée dans Saturne : la fin de Cassini.
+function verifierCassini(vol) {
+  if (vol.astre.id !== 'saturne' || vol.cassiniVu || vol.pose) return;
+  if (vol.y > vol.astre.depart.alt * 0.8) return;
+  vol.cassiniVu = true;
+  const texte = '15 septembre 2017 : c’est ici que Cassini a plongé, après treize ans autour de Saturne, pour ne pas risquer de contaminer Encelade ou Titan.';
+  vol.messageExplo = { texte: '📍 ' + texte, vie: 12 };
+  if (etat.enVoyage && etat.voyage) etat.voyage.journal.push({ t: etat.voyage.t, texte: '📍 ' + texte });
+}
+
+// Bételgeuse, dans « Se promener » : découverte en zoomant au plus près.
+const EGG_BETELGEUSE = { id: 'betelgeuse', texte: 'Près de l’épaule d’Orion, quelqu’un prétend avoir vu des choses incroyables. Personne ne l’a cru.' };
+function verifierBetelgeuse(obs) {
+  if (obs.o.id !== 'betelgeuse' || obs.zoom < 4) return null;
+  if (!eggTrouve(EGG_BETELGEUSE.id)) {
+    etat.decouvertes = etat.decouvertes || {};
+    etat.decouvertes[EGG_BETELGEUSE.id] = { astre: 'betelgeuse', quand: null, par: nomSpatio() };
+    sauver(etat);
+  }
+  return '✨ ' + EGG_BETELGEUSE.texte;
+}
+
+// Mimas : pas d'easter egg, seulement un fait réel dans sa fiche.
+if (typeof ASTRES_PAR_ID !== 'undefined' && ASTRES_PAR_ID.l601 && !/Herschel/.test(ASTRES_PAR_ID.l601.note || '')) {
+  ASTRES_PAR_ID.l601.note = `${ASTRES_PAR_ID.l601.note || ''} Son cratère Herschel, large de 139 km, lui donne une célèbre allure de station spatiale de science-fiction.`.trim();
+}
 
 function eggsSur(astreId) { return EASTER_EGGS.filter((e) => e.astre === astreId); }
 function tracesSur(astreId) { return TRACES_REELLES[astreId] || []; }
@@ -479,6 +556,44 @@ const DESSINS_EGGS = {
     ctx.beginPath(); ctx.moveTo(x + 2.4 * s, y); ctx.lineTo(x + 2.55 * s, y - 1.1 * s); ctx.lineTo(x + 2.7 * s, y); ctx.fill();
     ctx.fillStyle = '#c62828';
     ctx.beginPath(); ctx.moveTo(x + 2.48 * s, y - 0.9 * s); ctx.lineTo(x + 2.62 * s, y - 0.9 * s); ctx.lineTo(x + 2.75 * s, y - 0.25 * s); ctx.lineTo(x + 2.35 * s, y - 0.25 * s); ctx.fill();
+  },
+  capsuleRouge(ctx, x, y, s) {
+    ctx.save(); ctx.translate(x, y - 0.6 * s); ctx.rotate(0.25);
+    ctx.fillStyle = '#c62828'; ctx.beginPath(); ctx.ellipse(0, 0, 1.1 * s, 0.55 * s, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(150,210,255,0.7)'; ctx.beginPath(); ctx.ellipse(0.25 * s, -0.25 * s, 0.45 * s, 0.25 * s, 0, Math.PI, 0); ctx.fill();
+    ctx.strokeStyle = '#7f1d1d'; ctx.lineWidth = 0.04 * s;
+    ctx.beginPath(); ctx.moveTo(-0.6 * s, 0.1 * s); ctx.lineTo(-0.3 * s, 0.25 * s); ctx.lineTo(-0.5 * s, 0.35 * s); ctx.stroke();   // cabossée
+    ctx.restore();
+  },
+  semelle(ctx, x, y, s) {
+    // Une falaise, et dessus l'empreinte géante d'une botte de cow-boy.
+    ctx.fillStyle = '#6f6a63'; ctx.beginPath(); ctx.moveTo(x - 3 * s, y); ctx.lineTo(x - 2.6 * s, y - 6 * s); ctx.lineTo(x + 2.8 * s, y - 6.4 * s); ctx.lineTo(x + 3 * s, y); ctx.fill();
+    ctx.fillStyle = '#3e3a35';
+    ctx.beginPath(); ctx.ellipse(x, y - 4 * s, 0.9 * s, 1.6 * s, 0.15, 0, Math.PI * 2); ctx.fill();       // semelle
+    ctx.beginPath(); ctx.ellipse(x + 0.25 * s, y - 1.8 * s, 0.6 * s, 0.55 * s, 0.15, 0, Math.PI * 2); ctx.fill();   // talon
+  },
+  infini(ctx, x, y, s) {
+    rect(ctx, x - 0.8 * s, y - 1.2 * s, 1.6 * s, 1.2 * s, '#77706a');
+    ctx.strokeStyle = '#e8e2d8'; ctx.lineWidth = 0.06 * s;
+    for (const dy of [-0.85, -0.45]) {
+      ctx.beginPath(); ctx.ellipse(x - 0.2 * s, y + dy * s, 0.2 * s, 0.12 * s, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(x + 0.2 * s, y + dy * s, 0.2 * s, 0.12 * s, 0, 0, Math.PI * 2); ctx.stroke();
+    }
+  },
+  oeuf(ctx, x, y, s) {
+    ctx.fillStyle = '#6d5c4a'; ctx.beginPath(); ctx.ellipse(x, y - 0.45 * s, 0.32 * s, 0.45 * s, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#2b2018';
+    ctx.beginPath(); ctx.moveTo(x - 0.25 * s, y - 0.75 * s); ctx.lineTo(x, y - 0.6 * s); ctx.lineTo(x + 0.25 * s, y - 0.75 * s); ctx.lineTo(x, y - 0.9 * s); ctx.fill();   // ouvert en quatre
+    ctx.strokeStyle = '#4e4134'; ctx.lineWidth = 0.02 * s;
+    for (const k of [-0.15, 0, 0.15]) { ctx.beginPath(); ctx.moveTo(x + k * s, y - 0.05 * s); ctx.lineTo(x + k * 0.6 * s, y - 0.55 * s); ctx.stroke(); }
+  },
+  mainLevee(ctx, x, y, s) {
+    rect(ctx, x - 0.12 * s, y - 0.9 * s, 0.24 * s, 0.9 * s, '#8d8478');                 // socle
+    const c = '#d7ccc8', b = y - 0.9 * s;
+    rect(ctx, x - 0.18 * s, b - 0.3 * s, 0.36 * s, 0.3 * s, c);                            // paume
+    // Doigts en deux paires, écartés au milieu.
+    for (const [dx, h] of [[-0.17, 0.32], [-0.08, 0.36], [0.08, 0.36], [0.17, 0.32]]) rect(ctx, x + dx * s - 0.035 * s + (dx < 0 ? -0.03 : 0.03) * s, b - 0.3 * s - h * s, 0.07 * s, h * s, c);
+    rect(ctx, x + 0.18 * s, b - 0.22 * s, 0.14 * s, 0.07 * s, c);                          // pouce
   },
   longCou(ctx, x, y, s) {
     const c = '#8d6e63';

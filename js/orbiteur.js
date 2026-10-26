@@ -193,6 +193,7 @@ const Orbiteur = {
 
     this.mettreAJourSondes(dt);
     this.mettreAJourLogistique();
+    verifierEggsOrbite(this, dt);
     this.piloteAuto();
   },
 
@@ -665,6 +666,7 @@ const Orbiteur = {
           (prod ? ` Ressource détectée : ${ressource}.` : ' Aucune ressource exploitable détectée : tout viendra de la Terre.');
       } else texte += ' Aucune zone assez plate pour une base.';
     }
+    texte += signalSonde(a.id);
     this.log(texte);
   },
 
@@ -945,6 +947,16 @@ const Orbiteur = {
     }
     st.stock[cle] = (st.stock[cle] || 0) + 1;
     this.log(`Atelier ${de(st)} : ${r.nom.toLowerCase()} fabriqué${r.fem ? 'e' : ''} avec ${cout}.`);
+  },
+
+  // La vraie Station spatiale internationale, en orbite terrestre : un amarrage, et un clin d’œil.
+  rendezVousISS() {
+    const v = this.v, terre = ASTRES_PAR_ID.terre;
+    const alt = (Math.hypot(v.orb.r[0], v.orb.r[1]) - terre.rayonKm) * 1000;
+    jouerScene(new Amarrage(terre, alt, { nom: 'Station spatiale internationale', alt: 415000, vaisseau: true }, v.t, 'Orbiteur'), () => {
+      this.log('📍 Amarré à la Station spatiale internationale, habitée sans interruption depuis novembre 2000. Un ingénieur de fiction y a séjourné, et s’en plaint encore.');
+      allerNavigation();
+    });
   },
 
   amarrer() {
@@ -1711,6 +1723,7 @@ const Orbiteur = {
     d += '<h3>Actions</h3><div class="actions-nav">';
     const fermee = this.orbiteFermee();
     if (estOrigine(c.id) && fermee) d += `<button id="nav-rentrer" class="principal">🏠 Rentrer sur ${SYSTEME.origineSans} (capsule)</button>`;
+    if (c.id === 'terre' && fermee) d += '<button id="nav-iss">🛰 Rendez-vous avec la Station spatiale internationale</button>';
     if (estOrigine(c.id) && fermee) d += `<button id="nav-plein-origine">🌍 Faire le plein depuis ${SYSTEME.nomOrigine} (gratuit)</button>`;
     if (SYSTEME.retour !== false) d += `<button id="nav-depart">🌌 Quitter le ${SYSTEME.nom}</button>`;
     if (this.peutDescendre()) {
@@ -1785,6 +1798,7 @@ const Orbiteur = {
     bind('nav-rentrer', () => this.contexte.rentrer());
     bind('nav-depart', () => Depart.ouvrir(this.v));
     bind('nav-plein-origine', () => { this.pleinDepuisOrigine(); this.majHud(true); });
+    bind('nav-iss', () => this.rendezVousISS());
     bind('nav-deployer-base', () => { this.deployerBase(v.orb.centre); this.majHud(true); });
     bind('nav-logistique', () => ouvrirLogistique(this.v, true));
     bind('nav-ressources', () => ouvrirRessources(this.v));

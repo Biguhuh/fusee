@@ -563,6 +563,8 @@ class Observation {
     const x0 = 14, w = compact ? W - 28 : Math.min(420, W * 0.36), taille = compact ? 12.5 : 13.5;
     const lignes = [[this.o.nom, '#ffffff', `600 ${taille + 5}px system-ui, sans-serif`], [this.o.type, '#ffd666', `600 ${taille}px system-ui, sans-serif`],
       [`Distance : ${this.o.distance}`, '#bfe0ff', `${taille}px system-ui, sans-serif`], [this.o.texte, '#e6edf6', `${taille}px system-ui, sans-serif`]];
+    const egg = verifierBetelgeuse(this);
+    if (egg) lignes.push([egg, '#ffd54f', `italic ${taille}px system-ui, sans-serif`]);
     ctx.save(); ctx.textAlign = 'left'; ctx.textBaseline = 'top';
     const ecrire = (dessiner) => { let yy = 22; for (const [t, c, f] of lignes) { ctx.font = f; ctx.fillStyle = c; yy = ecrireLignes(ctx, t, x0 + 12, yy, w - 24, taille + 8, dessiner) + 4; } return yy; };
     const h = ecrire(false) - 14 + 8;
