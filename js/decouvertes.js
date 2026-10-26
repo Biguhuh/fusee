@@ -213,13 +213,14 @@ function astreMasque(a) { return !!(a.id === 'roadster' && eggTrouve('voiture-2'
 function aCoteDe(v, id) { return v.orb && v.orb.centre === id && V.norm(v.orb.r) < 20 && V.norm(v.orb.v) < 0.01; }
 function recetteVisible(cle, st) {
   if (cle === 'lanceurRetour') return !!AEROSTAT[st.centre];
-  if (cle === 'propulseurs') return eggTrouve('voiture-1') && !eggTrouve('voiture-3') && SYSTEME.id === 'solaire';
+  // Le propulseur solaire est à préparer avant d'aller à la voiture : proposé tant qu'elle tourne encore.
+  if (cle === 'propulseurs') return !eggTrouve('voiture-2') && SYSTEME.id === 'solaire';
   return true;
 }
 
 const TEXTES_VOITURE = {
   1: 'Une voiture de sport en orbite autour du Soleil. Aucun instrument scientifique, beaucoup de publicité.',
-  2: 'Vous avez ramassé un déchet vaniteux. L’espace s’en porte mieux.',
+  2: 'Amarrage à la voiture, propulseur solaire installé : le déchet vaniteux part vers son funeste rendez-vous avec le Soleil.',
   3: '2,21 gigowatts reçus. Le déchet vaniteux est bien cuit.',
 };
 function etapeVoiture(n, orb) {
@@ -242,41 +243,42 @@ function verifierVoiture(orb) {
 function actionsVoiture(orb) {
   const v = orb.v;
   if (SYSTEME.id !== 'solaire' || eggTrouve('voiture-3')) return '';
+  if (v.voiture && v.voiture.etat === 'chute') return `<p class="doux">☀️ La voiture tombe vers le Soleil : arrivée dans ${fmtDuree(v.voiture.fin - v.t)}.</p>`;
   if (v.orb.centre === 'roadster' && !eggTrouve('voiture-2')) {
-    if (!aCoteDe(v, 'roadster')) return '<p class="doux">🚗 La voiture est dans la zone de rendez-vous : approchez-vous à quelques km et annulez la vitesse relative (cible « Voiture rouge », assistant ou pilote auto) pour la capturer.</p>';
-    return '<button id="nav-voiture" class="principal">🧲 Capturer la voiture (équipage)</button>';
+    if (!aCoteDe(v, 'roadster')) return '<p class="doux">🚗 La voiture est dans la zone de rendez-vous : approchez-vous à quelques km et annulez la vitesse relative (cible « Voiture rouge », assistant ou pilote auto) pour vous y amarrer.</p>';
+    if (!v.propulseurs) return '<p class="doux">🚗 À côté de la voiture, mais pas de propulseur solaire à bord : impossible de l’envoyer dans le Soleil. Il se fabrique à l’atelier d’une station, et se charge en s’amarrant à la station.</p>';
+    return '<button id="nav-voiture" class="principal">🔗 S’amarrer à la voiture et l’envoyer dans le Soleil (propulseur solaire)</button>';
   }
+  // Ancienne partie : voiture capturée à bord, en attente de son propulseur.
   if (v.voiture && v.voiture.etat === 'a_bord') {
     if (!v.propulseurs) return '<p class="doux">🚗 La voiture est à bord. Il faut un propulseur solaire (atelier d’une station, puis amarrage) pour l’envoyer dans le Soleil.</p>';
-    if (v.orb.centre !== 'soleil' && v.orb.centre !== 'roadster') return '<p class="doux">🚗 La voiture est à bord : sortez des sphères d’influence des planètes pour la lancer vers le Soleil.</p>';
     return '<button id="nav-voiture" class="principal">☀️ Lancer la voiture vers le Soleil (propulseur)</button>';
   }
-  if (v.voiture && v.voiture.etat === 'chute') return `<p class="doux">☀️ La voiture tombe vers le Soleil : arrivée dans ${fmtDuree(v.voiture.fin - v.t)}.</p>`;
   return '';
 }
+// Amarrage à la voiture : on y installe le propulseur solaire (ionique, environ 18 km/s), qui annule sa vitesse
+// orbitale ; elle tombe presque en ligne droite vers le Soleil, en (π/2)·√(r³ / 2GM). La voiture n'existe plus
+// sur la carte ; l'orbiteur, désamarré, reste là où elle était (autour du Soleil).
 function actionVoiture(orb) {
   const v = orb.v;
+  const lancer = (r) => {
+    v.propulseurs -= 1;
+    const duree = (Math.PI / 2) * Math.sqrt(Math.pow(r, 3) / (2 * GM_SOLEIL));
+    v.voiture = { etat: 'chute', fin: v.t + duree };
+    orb.log(`☀️ Propulseur solaire allumé : la voiture perd sa vitesse orbitale et tombe vers le Soleil. Arrivée dans ${fmtDuree(duree)}.`);
+  };
   if (v.orb.centre === 'roadster' && !eggTrouve('voiture-2')) {
-    if (!aCoteDe(v, 'roadster')) return;
-    v.voiture = { etat: 'a_bord' };
-    // La voiture quitte son orbite : on retire l'astre de la carte et la navigation reprend autour du Soleil.
+    if (!aCoteDe(v, 'roadster') || !(v.propulseurs > 0)) return;
     const car = ASTRES_PAR_ID.roadster, abs = etatAbsolu('roadster', v.t), soleil = etatAbsolu('soleil', v.t);
     v.orb = { centre: 'soleil', r: V.add(V.sub(abs.r, soleil.r), v.orb.r), v: V.add(V.sub(abs.v, soleil.v), v.orb.v), transfert: null };
     car.cachee = true;
     if (v.cible === 'roadster') v.cible = null;
     orb.etape = null;
     etapeVoiture(2, orb);
+    lancer(V.norm(V.sub(abs.r, soleil.r)));
     return;
   }
-  if (v.voiture && v.voiture.etat === 'a_bord' && v.propulseurs > 0) {
-    // Le propulseur (ionique, environ 18 km/s) annule la vitesse orbitale de la voiture : chute presque radiale.
-    // Durée de chute depuis la distance r : (π/2)·√(r³ / 2GM).
-    v.propulseurs -= 1;
-    const r = V.norm(etatAbsoluOrbiteur(orb));
-    const duree = (Math.PI / 2) * Math.sqrt(Math.pow(r, 3) / (2 * GM_SOLEIL));
-    v.voiture = { etat: 'chute', fin: v.t + duree };
-    orb.log(`☀️ Propulseur solaire allumé : la voiture perd sa vitesse orbitale et tombe vers le Soleil. Arrivée dans ${fmtDuree(duree)}.`);
-  }
+  if (v.voiture && v.voiture.etat === 'a_bord' && v.propulseurs > 0) lancer(V.norm(etatAbsoluOrbiteur(orb)));
 }
 function etatAbsoluOrbiteur(orb) { return orb.absolu(orb.v.orb); }
 

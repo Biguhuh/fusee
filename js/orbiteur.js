@@ -1100,6 +1100,7 @@ const Orbiteur = {
     this.log(`Nouvelle cible : ${a.nom}${detail ? ` (${detail})` : ''}.`);
     this.majHud(true);
     if (a.observatoire) return this.avertirObservatoire(a);
+    if (a.id === 'roadster') return this.conseilVoiture(a);
     if (a.artificiel) return;
     const p = a.orbite && ASTRES_PAR_ID[a.orbite.centre];
     if (!p || p.type === 'etoile') return;
@@ -1119,6 +1120,22 @@ const Orbiteur = {
     m.querySelector('.fermer').onclick = () => Infos.fermer();
     $('obs-annuler').onclick = renoncer;
     $('obs-garder').onclick = () => Infos.fermer();
+  },
+  // Viser la voiture : ce qu'il faut emporter (de quoi revenir, et le propulseur solaire).
+  conseilVoiture(a) {
+    const v = this.v, m = $('modale');
+    const n = v.propulseurs || 0;
+    m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>🚗 Expédition vers la voiture rouge</h2>
+      <p>Elle tourne seule autour du Soleil, entre 0,99 et 1,66 UA, loin de toute planète. Avant de partir :</p></div><button class="fermer">✕</button></header>
+      <section><ul>
+        <li><b>Des ergols pour revenir</b> : assez pour la rejoindre, puis pour repartir vers la planète la plus proche (Terre ou Mars). Le pilote auto donne le Δv de chaque manœuvre ; à bord : ${fmtV(deltaVOrbiteur(v.carburant))}.</li>
+        <li><b>Un propulseur solaire</b>, indispensable : on s’amarre à la voiture, on l’installe, et elle part vers son funeste rendez-vous avec le Soleil. Il se fabrique à l’atelier d’une station, et se charge en s’amarrant à la station. À bord : ${n ? `<b>${n}</b>` : '<b style="color:var(--alerte)">aucun</b>'}.</li>
+        <li>Une fois au Soleil, la voiture n’existe plus.</li>
+      </ul></section>
+      <div class="actions"><span></span><button id="cv-ok" class="principal">Compris</button></div></div>`;
+    m.classList.remove('cache');
+    m.querySelector('.fermer').onclick = () => Infos.fermer();
+    $('cv-ok').onclick = () => Infos.fermer();
   },
   conseilLune(a, p) {
     const v = this.v, m = $('modale');
@@ -1147,6 +1164,7 @@ const Orbiteur = {
   // Actions proposées dans la fiche d'un astre.
   actionsPour(a) {
     const l = [];
+    if (astreMasque(a)) return [{ texte: '☀️ Partie dans le Soleil', desactive: 'La voiture n’existe plus' }];
     if (a.type !== 'etoile') l.push({ texte: '🎯 Choisir comme cible', action: () => this.choisirCible(a.id) });
     l.push({ texte: '🔭 Centrer la vue', action: () => this.centrerSur(a.id) });
     if (a.artificiel) return l;   // pas de sonde ni de grappe vers un objet artificiel

@@ -283,7 +283,7 @@ const Infos = {
       }
       groupes.push(['Ceinture d’astéroïdes', ASTRES.filter((a) => a.asteroide)]);
       // Objets artificiels (voiture, télescopes, sondes), où qu'ils tournent.
-      groupes.push(['Objets artificiels', ASTRES.filter((a) => a.artificiel && !a.cachee)]);
+      groupes.push(['Objets artificiels', ASTRES.filter((a) => a.artificiel && !a.cachee && !astreMasque(a))]);
     }
     const html = groupes.map(([titre, liste, def]) => {
       const l = liste.filter(visible);
