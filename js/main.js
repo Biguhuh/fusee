@@ -399,10 +399,15 @@ function descendre(id) {
       if (!confirm(`Aucun lanceur de retour n’est prêt : ${pourquoi}.\n\nSans lui, le module ne pourra pas repartir ${de(a)} tant qu’il n’aura pas été construit et envoyé.\n\nDescendre quand même ?`)) return;
     }
   }
-  if (v.ergolsAtt < c.fusee.carburant) return Orbiteur.log(`Pas assez d’ergols pour l’atterrisseur (${fmt(v.ergolsAtt / 1000, 1)} t sur ${fmt(c.fusee.carburant / 1000, 1)} t) : ravitaillez à une station.`);
-  v.ergolsAtt -= c.fusee.carburant;
+  // Réserve insuffisante : on prévient (l'équipage ne pourra pas remonter), mais on laisse descendre avec ce qu'il reste.
+  const plein = c.fusee.carburant, dispo = Math.min(plein, v.ergolsAtt);
+  if (dispo < plein) {
+    const gaz = a.type === 'gazeuse';
+    if (!confirm(`⚠ Attention : il ne reste que ${fmt(dispo / 1000, 1)} t d’ergols pour l’atterrisseur, sur ${fmt(plein / 1000, 1)} t nécessaires.\n\nSi vous descendez, l’équipage ne pourra pas remonter ${gaz ? 'des profondeurs ' + de(a) : de(a)} : ${gaz ? 'la plongée' : 'la descente'} serait un aller simple.\n\nRavitaillez plutôt à une station. Descendre quand même ?`)) return;
+  }
+  v.ergolsAtt -= dispo;
   etat.destination = id;
-  lancer({ voyage: true, fusee: c.fusee, bases: basesSur(id), site: siteDescente(id) });
+  lancer({ voyage: true, fusee: c.fusee, carburant: dispo, bases: basesSur(id), site: siteDescente(id) });
 }
 
 // Zone repérée par une sonde : la descente vise un peu à côté (l'aire d'atterrissage de la base).
