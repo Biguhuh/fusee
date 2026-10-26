@@ -122,7 +122,7 @@ function ouvrirRessources(v, famille = 'eau', tout = false) {
 
 // Sections du tableau de bord (HTML) et branchement des boutons. actif : l'orbiteur est ouvert (actions permises).
 function tableauAstre(v, a, actif) {
-  if (!v || a.type === 'etoile') return null;
+  if (!v || a.type === 'etoile' || a.artificiel) return null;
   const sections = [];
   const bouton = (action, texte, desactive) => (actif ? `<button data-tb="${action}" ${desactive ? 'disabled' : ''}>${texte}</button>` : '');
   const ligne = (k, val) => `<dt>${k}</dt><dd>${val}</dd>`;
