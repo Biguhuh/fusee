@@ -14,6 +14,8 @@ const REPLIQUES = {
   europe: { texte: 'Tous ces mondes sont à vous, sauf Europe.', source: '2010 (Arthur C. Clarke)', originale: 'Tous les mondes vous sont ouverts. Celui-ci, on vous le déconseille.' },
   route: { texte: 'La route ? Là où on va, on n’a pas besoin de route !', source: 'Retour vers le futur (1985)', originale: 'Une route ? À partir d’ici, il n’y en a plus.' },
   startrek: { texte: 'Là où personne n’est jamais allé.', source: 'Star Trek (1966)' },
+  troisiemeType: { texte: 'Cinq notes, et tout le monde se comprend.', source: 'Rencontres du troisième type (1977)' },
+  bienvenue: { texte: 'Bienvenue sur Terre !', source: 'Independence Day (1996)' },
   silence: { texte: 'Ici, le silence a une épaisseur.' },
   chat: { texte: 'Un caillou, un chat, aucune explication.' },
   pression: { texte: 'La pression monte, le moral aussi.' },

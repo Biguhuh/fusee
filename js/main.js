@@ -451,6 +451,7 @@ function afficherRetourTerre(res, equipage, nom = nomSpatio()) {
   $('vers-hangar').textContent = '← Accueil';
   $('rejouer').classList.add('cache');
   montrer('resultat');
+  if (equipage) replique('bienvenue');
 }
 
 function terminerExpedition(texte) {

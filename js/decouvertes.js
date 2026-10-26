@@ -11,6 +11,10 @@ const EASTER_EGGS = [
     texte: 'Une petite fusée à damier rouge et blanc, posée là depuis 1954. Personne ne sait qui l’a garée.' },
   { id: 'mars', astre: 'mars', dx: 500, dessin: 'martien',
     texte: 'Au loin, un petit Martien tout vert agite la main. Il a l’air d’avoir passé une drôle de journée.' },
+  { id: 'mars-tripode', astre: 'mars', dx: -1030, dessin: 'tripode',
+    texte: 'Un tripode géant, rouillé, couché dans une herbe rouge. Ses pilotes ont été tués par les bactéries de la Terre : les plus petits de ses habitants ont gagné la guerre.' },
+  { id: 'ceres', astre: 'a1', dx: 300, dessin: 'cinqLumieres',
+    texte: 'Au pied d’une montagne solitaire au sommet plat, cinq lumières clignotent. Elles jouent toujours les mêmes cinq notes.' },
   { id: 'phobos', astre: 'l401', dx: 150, dessin: 'disqueOr', elvis: true,
     texte: 'Un disque d’or brille dans la poussière grise. Quelqu’un l’a laissé tomber en partant.' },
   { id: 'deimos', astre: 'l402', dx: 200, dessin: 'jouetAstronaute',
@@ -111,6 +115,8 @@ const TRACES_REELLES = {
 // Easter eggs en orbite : l'équipage de l'orbiteur les aperçoit après avoir tourné un moment autour de l'astre
 // (une révolution, 30 jours au plus). Une sonde arrivée là signale seulement « Objet inhabituel ».
 const EGGS_ORBITE = [
+  { id: 'lune-soucoupe', astre: 'lune',
+    texte: 'Derrière la Lune, une soucoupe grande comme un pays attend le 4 juillet. Quelqu’un lui a déjà envoyé un virus.' },
   { id: 'saturne', astre: 'saturne', titre: 'Space Oddity',
     texte: 'Une capsule vide dérive. Personne n’a répondu depuis longtemps.' },
   { id: 'tauceti-balise', astre: 'tauceti_p4',
@@ -763,6 +769,23 @@ const DESSINS_EGGS = {
     // Doigts en deux paires, écartés au milieu.
     for (const [dx, h] of [[-0.17, 0.32], [-0.08, 0.36], [0.08, 0.36], [0.17, 0.32]]) rect(ctx, x + dx * s - 0.035 * s + (dx < 0 ? -0.03 : 0.03) * s, b - 0.3 * s - h * s, 0.07 * s, h * s, c);
     rect(ctx, x + 0.18 * s, b - 0.22 * s, 0.14 * s, 0.07 * s, c);                          // pouce
+  },
+  cinqLumieres(ctx, x, y, s) {
+    // Ahuna Mons : une montagne solitaire au sommet plat, et cinq lumières qui s'allument à tour de rôle.
+    ctx.fillStyle = '#6e6862';
+    ctx.beginPath(); ctx.moveTo(x - 9 * s, y); ctx.lineTo(x - 4 * s, y - 9 * s); ctx.lineTo(x + 4 * s, y - 9.3 * s); ctx.lineTo(x + 9 * s, y); ctx.fill();
+    const couleurs = ['#ff5252', '#ffd740', '#69f0ae', '#40c4ff', '#e040fb'];
+    const k = Math.floor(performance.now() / 450) % 6;
+    couleurs.forEach((c, i) => disque(ctx, x + (i - 2) * 1.4 * s, y - 0.6 * s, 0.35 * s, i === k ? c : 'rgba(255,255,255,0.15)'));
+  },
+  tripode(ctx, x, y, s) {
+    for (let k = -8; k <= 8; k++) trait(ctx, [[x + k * 0.6 * s, y], [x + (k * 0.6 + 0.15) * s, y - (0.4 + (k % 3) * 0.15) * s]], '#b71c1c', 0.06 * s);   // herbe rouge
+    const r = '#7b4a2e';
+    trait(ctx, [[x - 4 * s, y], [x - 1 * s, y - 1.6 * s]], r, 0.25 * s);
+    trait(ctx, [[x + 1.5 * s, y], [x - 0.6 * s, y - 1.4 * s]], r, 0.25 * s);
+    trait(ctx, [[x + 4.5 * s, y - 0.1 * s], [x + 0.5 * s, y - 1.5 * s]], r, 0.25 * s);
+    ctx.fillStyle = '#8d5a3a'; ctx.beginPath(); ctx.ellipse(x - 0.3 * s, y - 1.7 * s, 2 * s, 0.9 * s, -0.25, 0, Math.PI * 2); ctx.fill();   // coque couchée
+    disque(ctx, x + 1.2 * s, y - 2 * s, 0.25 * s, '#3e2a1e');
   },
   cabane(ctx, x, y, s) {
     ctx.fillStyle = 'rgba(160,190,170,0.35)'; ctx.beginPath(); ctx.ellipse(x, y - 1 * s, 4 * s, 1.2 * s, 0, 0, Math.PI * 2); ctx.fill();   // brume

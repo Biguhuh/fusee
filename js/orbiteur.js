@@ -672,6 +672,8 @@ const Orbiteur = {
     }
     texte += signalSonde(a.id);
     this.log(texte);
+    // Première sonde lointaine (au-delà de la ceinture d’astéroïdes) : un clin d’œil à Rencontres du troisième type.
+    if (SYSTEME.id === 'solaire' && (a.distanceUA || 0) > 4.5) replique('troisiemeType');
   },
 
   // ---------- Stations ----------
