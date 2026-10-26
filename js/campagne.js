@@ -346,6 +346,7 @@ const RESSOURCES = {
   a1: ['argiles hydratées et glace', 1500],
 };
 function ressourceLocale(a) {
+  if (a.ressource) return a.ressource;          // autres systèmes : ressource supposée, décrite avec l'astre
   if (RESSOURCES[a.id]) return RESSOURCES[a.id];
   if (a.nomJpl === 'Enceladus') return RESSOURCES.encelade;
   if (a.type === 'solide' && a.tempSurface < -120) return ['glace d’eau', 1000];

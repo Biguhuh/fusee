@@ -11,6 +11,10 @@ function migrerVoyage(v) {
   if (!v) return v;
   const neuf = Orbiteur.nouveauVoyage();
   const m = { ...neuf, ...v };
+  // Système stellaire de la partie (les parties d'avant n'en avaient pas : le Système solaire).
+  // On s'y place d'abord : les astres de la suite (stations, bases) lui appartiennent.
+  m.systeme = v.systeme || 'solaire';
+  choisirSystemeCampagne(m);
   for (const cle of ['visites', 'echantillonsABord', 'echantillonsRapportes']) m[cle] = m[cle] || {};
   m.provisions = { fleurs: 0, fruits: 0, ...(v.provisions || {}) };
   m.bases = (m.bases || []).map((b) => ({ niveau: 1, ...b }));
@@ -22,7 +26,7 @@ function migrerVoyage(v) {
     ...s,
     terrestre: s.terrestre || !!s.base,
     stock: { ...STOCK_VIDE(), ...(s.stock || {}) },
-    prochainCargo: s.prochainCargo || m.t + intervalleCargo(s.centre),
+    prochainCargo: s.prochainCargo || (ressourcesIllimitees() ? m.t + intervalleCargo(s.centre) : null),
   }));
   if (m.orb) {
     // Expédition en cours avec l'ancien format : on lui donne le chargement actuel.
@@ -32,9 +36,6 @@ function migrerVoyage(v) {
     if (!m.expeditions) m.expeditions = 1;
   }
   delete m.carburantAtt;
-  // Système stellaire de la partie (les parties d'avant n'en avaient pas : le Système solaire).
-  m.systeme = m.systeme || 'solaire';
-  choisirSysteme(m.systeme);
   // Expédition d'avant l'équipe : on lui en donne une.
   if (m.orb && !m.equipe) initialiserEquipe(m);
   // Une seule station, base et sonde par astre : les doublons des anciennes parties sont fusionnés.
@@ -90,10 +91,15 @@ function allerAccueil() {
     const f = v.fin;
     $('progres-accueil').innerHTML = `<b>Campagne terminée.</b> Partie en ${f.anneeDepart} vers ${f.nomEtoile} (${fmt(f.distanceAL, 2)} années-lumière) à ${fmt(f.vitesse, 1)} km/s : arrivée vers ${fmtAnnee(f.arriveeJeu)} (temps de jeu), vers ${fmtAnnee(f.arriveeVraie)} dans la vraie vie.`;
   } else if (v) {
+    // La progression se compte dans le système de la campagne (qui peut être une autre étoile).
+    choisirSystemeCampagne(v);
     const vus = Object.keys(v.visites).filter((id) => v.visites[id].pose && ASTRES_PAR_ID[id]);
     const nPrinc = SYSTEME.objectifs.filter((id) => vus.includes(id)).length;
-    $('progres-accueil').innerHTML = `Progression : <b>${vus.length} astre${vus.length > 1 ? 's' : ''} visité${vus.length > 1 ? 's' : ''}</b> sur ${astresAVisiter().length} (dont ${nPrinc} des ${SYSTEME.objectifs.length} principaux). ` + resumeCampagne(v);
+    $('progres-accueil').innerHTML = (SYSTEME.id !== 'solaire' ? `<b>Campagne dans le ${SYSTEME.nom}</b> (${fmt(SYSTEME.distanceAL, 2)} années-lumière). ` : '') +
+      `Progression : <b>${vus.length} astre${vus.length > 1 ? 's' : ''} visité${vus.length > 1 ? 's' : ''}</b> sur ${astresAVisiter().length} (dont ${nPrinc} des ${SYSTEME.objectifs.length} principaux). ` + resumeCampagne(v);
   } else $('progres-accueil').innerHTML = '';
+  // Hors campagne (visite rapide, promenade, encyclopédie), on est dans le Système solaire.
+  choisirSysteme('solaire');
   $('spatio-resume').textContent = resumeSpatio();
   montrer('accueil');
   animerAccueil();
@@ -475,8 +481,13 @@ function promenadeSurTerre() {
 function allerNavigation() {
   if (!etat.voyage) etat.voyage = Orbiteur.nouveauVoyage();
   if (etat.voyage.fin) return allerAccueil();      // campagne terminée (départ vers une autre étoile)
-  // Pas d'expédition en cours : tout part de la Terre, depuis le centre de lancement.
-  if (!etat.voyage.orb) return allerLancement();
+  choisirSystemeCampagne(etat.voyage);
+  if (!etat.voyage.orb) {
+    // Autre système : pas de centre de lancement ici, l'expédition perdue ne se remplace pas.
+    if (!ressourcesIllimitees()) { alert(`Plus d’orbiteur dans le ${SYSTEME.nom} : il n’y a pas de centre de lancement ici. Reprenez depuis une station ou une base.`); return allerAccueil(); }
+    // Pas d'expédition en cours : tout part de la Terre, depuis le centre de lancement.
+    return allerLancement();
+  }
   Orbiteur.charger(etat.voyage);
   if (etat.reprendreAuto) { Orbiteur.auto = true; etat.reprendreAuto = false; }
   Orbiteur.construireHud();
@@ -495,13 +506,14 @@ function allerNavigation() {
 function ouvrirReprise() {
   const v = etat.voyage;
   if (!v || v.fin) return allerNavigation();
+  choisirSystemeCampagne(v);
   const basesOk = v.bases.filter((b) => !AEROSTAT[b.astre] && ASTRES_PAR_ID[b.astre]);
   if (!v.stations.length && !basesOk.length) return allerNavigation();
   const choix = [];
   if (v.orb) choix.push(['ici', `▶ Là où vous étiez`, `en orbite de ${ASTRES_PAR_ID[v.orb.centre].nom}`]);
   for (const s of v.stations) choix.push(['station:' + s.id, `🛰 ${s.nom}`, `en orbite de ${ASTRES_PAR_ID[s.centre].nom}, amarré à la station`]);
   for (const b of basesOk) choix.push(['base:' + v.bases.indexOf(b), `🏠 Base ${ASTRES_PAR_ID[b.astre].nom}, niveau ${b.niveau || 1}`, `au sol, l’atterrisseur garé à côté ; l’orbiteur attend en orbite`]);
-  choix.push(['terre', `🚀 Depuis ${SYSTEME.nomOrigine}`, v.orb ? 'centre de lancement (l’expédition en cours reste où elle est)' : 'centre de lancement, nouvelle méga-fusée']);
+  if (ressourcesIllimitees()) choix.push(['terre', `🚀 Depuis ${SYSTEME.nomOrigine}`, v.orb ? 'centre de lancement (l’expédition en cours reste où elle est)' : 'centre de lancement, nouvelle méga-fusée']);
   const m = $('modale');
   m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>▶ Reprendre la campagne</h2><p>Choisissez d’où repartir.</p></div><button class="fermer">✕</button></header>
     <section>${choix.map(([id, nom, detail], i) => `<label class="choix-ravito"><input type="radio" name="reprise" value="${id}" ${i === 0 ? 'checked' : ''}> <b>${nom}</b><br><span class="doux">${detail}</span></label>`).join('')}</section>
@@ -521,7 +533,11 @@ function reprendreDepuis(id) {
   if (id === 'ici') return allerNavigation();
   if (id === 'terre') return allerLancement();
   Orbiteur.charger(v);
-  if (!v.orb) Orbiteur.demarrerExpedition();        // nouvelle expédition, montée à bord à la station ou à la base
+  if (!v.orb) {
+    // Autre système : pas de nouvelle expédition possible (rien ne vient de la Terre).
+    if (!ressourcesIllimitees()) { alert('Plus d’orbiteur : dans ce système, une nouvelle expédition ne peut pas être lancée.'); return allerAccueil(); }
+    Orbiteur.demarrerExpedition();        // nouvelle expédition, montée à bord à la station ou à la base
+  }
   Orbiteur.camPlacee = false;
   if (id.startsWith('station:')) {
     const st = v.stations.find((s) => s.id === id.slice(8));
@@ -571,7 +587,35 @@ function terminerParDepart(info) {
   $('rejouer').classList.add('cache');
   montrer('resultat');
 }
-Depart.contexte = { terminer: (info) => terminerParDepart(info) };
+// Départ science-fiction : traversée animée, puis arrivée et nouvelle campagne dans l'autre système.
+function partirVersSysteme(info) {
+  const v = etat.voyage;
+  Orbiteur.log(`Départ pour ${info.nomSysteme} en ${TECHNOLOGIES[info.tech].nom.toLowerCase()} : ${fmtDureeAnnees(info.ans)} de voyage, installation prévue sur ${info.nomBase}.`);
+  sauver(etat);
+  jouerScene(new TransitInterstellaire(info), () => {
+    const st = arriverDansSysteme(v, info);
+    Orbiteur.charger(v);
+    Orbiteur.camPlacee = false;
+    sauver(etat);
+    const h = $('res-titre');
+    h.textContent = `Arrivée dans le ${SYSTEME.nom}`;
+    h.className = 'succes';
+    $('res-message').textContent = `Après ${fmtDureeAnnees(info.ans)} de voyage (${fmtDureeAnnees(info.ansBord)} vécus à bord), l’expédition est entrée dans le système par l’extérieur et s’est placée en orbite de ${info.nomBase}. ${st.nom} est déployée avec le chargement. À vous de vous poser et de construire la base.`;
+    $('res-stats').innerHTML = `
+      <dt>Propulsion</dt><dd>${TECHNOLOGIES[info.tech].nom}</dd>
+      <dt>Distance</dt><dd>${fmt(info.distanceAL, 2)} années-lumière</dd>
+      <dt>Date d’arrivée</dt><dd>${fmtAnnee(info.anneeDepart + info.ans)}</dd>
+      <dt>Planète de base</dt><dd>${info.nomBase}</dd>
+      <dt>Station</dt><dd>${decrireContenu(st.stock) || 'stock vide'}</dd>
+      <dt>À bord de l’orbiteur</dt><dd>${v.kitsBase} kits de base, ${v.kits} kits de station, ${v.atterrisseurs} atterrisseurs, ${v.robots} robots, ${v.sondes} sondes</dd>
+      <dt>Équipe</dt><dd>${v.equipe ? survivants(v).map((m) => m.nom).join(', ') : nomSpatio()}</dd>`;
+    etat.suiteResultat = 'nav';
+    $('vers-hangar').textContent = 'Aller à l’orbiteur';
+    $('rejouer').classList.add('cache');
+    montrer('resultat');
+  });
+}
+Depart.contexte = { terminer: (info) => terminerParDepart(info), partirSF: (info) => partirVersSysteme(info), log: (t) => { Orbiteur.log(t); sauver(etat); } };
 
 Orbiteur.contexte = {
   equipement: () => etat.equipement,

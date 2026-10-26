@@ -71,7 +71,8 @@ const CHARGEMENT_DEPART = [
 function stationDeDepart(v) {
   return v.stations.slice().sort((a, b) => (b.niveau || 1) - (a.niveau || 1))[0] || null;
 }
-function verifierDepart(v) {
+// sf : { sys, base } pour le départ science-fiction (sondes arrivées et planète de base choisie).
+function verifierDepart(v, sf) {
   const st = stationDeDepart(v), k = st ? st.stock : {};
   const aBord = { kitsBase: v.kitsBase, kits: v.kits, atterrisseurs: v.atterrisseurs, robots: v.robots, sondes: v.sondes, ergols: v.ergolsAtt, lanceurRetour: 0, materiaux: 0 };
   const items = [];
@@ -82,21 +83,24 @@ function verifierDepart(v) {
   }
   const vivants = v.equipe ? survivants(v).length : (v.equipagePerdu ? 0 : 1);
   items.push({ nom: `Équipe de ${TAILLE_EQUIPE} spationautes`, ok: vivants >= TAILLE_EQUIPE, detail: `${vivants} en vie` });
-  items.push({ nom: 'Grappe de sondes envoyée vers le système visé, planète de base choisie', ok: false, detail: 'avec le départ science-fiction (prochaine étape)' });
+  const es = sf && sf.sys ? etatSondesSysteme(v, sf.sys) : null;
+  items.push({ nom: 'Grappe de sondes arrivée dans le système visé, planète de base choisie', ok: !!(es && es.recu && sf.base),
+    detail: !sf || !sf.sys ? 'choisissez un système' : !es ? 'aucune sonde envoyée' : es.enRoute ? `données attendues vers ${fmtAnnee(anneeDuJeu(es.reception))}` : sf.base ? 'données reçues, planète choisie' : 'données reçues : choisissez la planète de base' });
   return items;
 }
-function htmlListeDepart(v) {
-  const items = verifierDepart(v);
+function htmlListeDepart(v, sf) {
+  const items = verifierDepart(v, sf);
   const n = items.filter((i) => i.ok).length;
   return `<p class="doux">${n} sur ${items.length} prêts. Obligatoire pour s’installer dans un autre système (départ science-fiction) ; un départ réaliste part avec ce qu’il a.</p><ul class="liste-depart">${
     items.map((i) => `<li class="${i.ok ? 'ok' : 'manque'}">${i.ok ? '✅' : '⬜'} <b>${i.nom}</b> <span class="doux">— ${i.detail}</span></li>`).join('')}</ul>`;
 }
 
 const Depart = {
-  contexte: null,      // { terminer(info) } fourni par main.js
+  contexte: null,      // { terminer(info), partirSF(info), log(texte) } fourni par main.js
+  choix: { etoile: 'proxima', type: 'realiste', tech: 'fusion', base: null },
 
   ouvrir(v) {
-    const m = $('modale');
+    const m = $('modale'), ch = this.choix;
     const vOrb = vitesseSortieOrbiteur(v);
     const profils = [
       { id: 'voyager', nom: 'Assistances gravitationnelles, comme Voyager 1', vitesse: VITESSE_VOYAGER,
@@ -105,46 +109,104 @@ const Depart = {
         detail: vOrb > 0 ? `${fmt(deltaVOrbiteur(v.carburant) / 1000, 1)} km/s de Δv brûlés d’ici, en profitant de la vitesse acquise` : 'pas assez de Δv pour sortir du système d’ici' },
     ];
     const meilleur = vOrb > VITESSE_VOYAGER ? 'orbiteur' : 'voyager';
-    m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>🌌 Quitter le ${SYSTEME.nom}</h2>
-      <p>Partir vers une autre étoile. Les distances se comptent en années-lumière : un départ réaliste prend des dizaines de milliers d’années, et c’est la fin du jeu.</p></div><button class="fermer">✕</button></header>
+    m.innerHTML = `<div class="fenetre large"><header class="entete"><div><h2>🌌 Quitter le ${SYSTEME.nom}</h2>
+      <p>Partir vers une autre étoile. Départ réaliste : des dizaines de milliers d’années, c’est la fin du jeu. Départ science-fiction : une technologie avancée, une installation sur une planète de l’autre système, et la partie continue là-bas.</p></div><button class="fermer">✕</button></header>
       <div class="sections">
-        <section><h3>Destination</h3>${ETOILES_PROCHES.map((e, i) => `<label class="choix-ravito"><input type="radio" name="dep-etoile" value="${e.id}" ${i === 0 ? 'checked' : ''}>
+        <section><h3>Destination</h3>${ETOILES_PROCHES.map((e) => `<label class="choix-ravito"><input type="radio" name="dep-etoile" value="${e.id}" ${e.id === ch.etoile ? 'checked' : ''}>
           <b>${e.nom}</b> — ${fmt(e.distanceAL, 2)} années-lumière<br><span class="doux">${e.type} · ${e.planetes}</span></label>`).join('')}</section>
         <section><h3>Type de départ</h3>
-          <label class="choix-ravito"><input type="radio" name="dep-type" value="realiste" checked> <b>Réaliste</b> — la technologie d’aujourd’hui et celle de l’orbiteur. Fin du jeu.</label>
-          <label class="choix-ravito"><input type="radio" name="dep-type" value="scifi" disabled> <b>Science-fiction</b> — fusion, voile laser… <span class="doux">(prochaine étape)</span></label>
-          <h3>Propulsion</h3>${profils.map((p) => `<label class="choix-ravito"><input type="radio" name="dep-profil" value="${p.id}" ${p.id === meilleur ? 'checked' : ''} ${p.vitesse > 0 ? '' : 'disabled'}>
-            <b>${p.nom}</b>${p.vitesse > 0 ? ` — ${fmt(p.vitesse, 1)} km/s` : ''}<br><span class="doux">${p.detail}</span></label>`).join('')}
+          <label class="choix-ravito"><input type="radio" name="dep-type" value="realiste" ${ch.type === 'realiste' ? 'checked' : ''}> <b>Réaliste</b> — la technologie d’aujourd’hui et celle de l’orbiteur. Fin du jeu.</label>
+          <label class="choix-ravito"><input type="radio" name="dep-type" value="scifi" ${ch.type === 'scifi' ? 'checked' : ''}> <b>Science-fiction</b> — fusion, voile laser, antimatière ou saut. On s’installe là-bas.</label>
+          <div id="dep-real"><h3>Propulsion</h3>${profils.map((p) => `<label class="choix-ravito"><input type="radio" name="dep-profil" value="${p.id}" ${p.id === meilleur ? 'checked' : ''} ${p.vitesse > 0 ? '' : 'disabled'}>
+            <b>${p.nom}</b>${p.vitesse > 0 ? ` — ${fmt(p.vitesse, 1)} km/s` : ''}<br><span class="doux">${p.detail}</span></label>`).join('')}</div>
         </section>
       </div>
       <div id="dep-resume" class="encart"></div>
-      <details class="encart"><summary><b>Avant de partir : liste de chargement</b></summary>${htmlListeDepart(v)}</details>
-      <div class="actions"><button id="dep-annuler">Annuler</button><button id="dep-partir" class="principal">🌌 Partir (fin du jeu)</button></div></div>`;
+      <div id="dep-sf"></div>
+      <details class="encart" id="dep-liste-real"><summary><b>Avant de partir : liste de chargement</b></summary>${htmlListeDepart(v)}</details>
+      <div class="actions"><button id="dep-annuler">Annuler</button><button id="dep-partir" class="principal">🌌 Partir</button></div></div>`;
     m.classList.remove('cache');
-    const lire = () => {
-      const etoile = ETOILES_PROCHES.find((e) => e.id === m.querySelector('input[name=dep-etoile]:checked').value);
-      const profil = profils.find((p) => p.id === m.querySelector('input[name=dep-profil]:checked').value);
-      return { etoile, profil, est: estimationVoyage(etoile, profil.vitesse, v.t) };
-    };
-    const maj = () => {
-      const { etoile, profil, est } = lire();
-      $('dep-resume').innerHTML = `<p>Vers <b>${etoile.nom}</b> à ${fmt(profil.vitesse, 1)} km/s (${fmt((profil.vitesse / 299792.458) * 100, 4)} % de la vitesse de la lumière) :
+    const etoile = () => ETOILES_PROCHES.find((e) => e.id === ch.etoile);
+    const majReel = () => {
+      const p = profils.find((x) => x.id === m.querySelector('input[name=dep-profil]:checked').value);
+      const est = estimationVoyage(etoile(), p.vitesse, v.t);
+      $('dep-resume').innerHTML = `<p>Vers <b>${etoile().nom}</b> à ${fmt(p.vitesse, 1)} km/s (${fmt((p.vitesse / 299792.458) * 100, 4)} % de la vitesse de la lumière) :
         <b>${fmtDureeAnnees(est.ans)}</b> de voyage.</p>
         <p>Arrivée estimée : vers <b>${fmtAnnee(est.arriveeJeu)}</b> en temps de jeu (départ en ${anneeDuJeu(v.t)}), et vers <b>${fmtAnnee(est.arriveeVraie)}</b> dans la vraie vie si le temps s’écoulait normalement à partir d’aujourd’hui.</p>
         <p class="doux">Au temps accéléré maximal du jeu (×100 millions), il faudrait encore ${fmtDuree(est.auTempsMax)} de jeu pour arriver.</p>`;
+      $('dep-partir').textContent = '🌌 Partir (fin du jeu)';
+      $('dep-partir').disabled = false;
+      return { p, est };
     };
-    m.querySelectorAll('input').forEach((i) => { i.onchange = maj; });
+    // Science-fiction : sondes vers le système, technologie (avec son vaisseau), planète de base, liste stricte.
+    const majSF = () => {
+      const sys = ch.etoile, es = etatSondesSysteme(v, sys), d = DONNEES_ETOILES[sys];
+      const bases = planetesDeBase(v, sys);
+      if (ch.base && !bases.some((b) => b.a.id === ch.base && b.site)) ch.base = null;
+      const sondes = !es
+        ? `<p>Aucune sonde n’a encore exploré ce système. Une grappe de ${SONDES_GRAPPE_INTERSTELLAIRE} sondes à voile laser (20 % de la vitesse de la lumière) arriverait vers ${fmtAnnee(anneeDuJeu(v.t) + d.distanceAL / VITESSE_SONDES_INTERSTELLAIRES)}, et ses données reviendraient à la vitesse de la lumière vers ${fmtAnnee(anneeDuJeu(v.t) + d.distanceAL / VITESSE_SONDES_INTERSTELLAIRES + d.distanceAL)}.</p>
+           <button id="dep-sondes" ${sondesDisponibles(v) < SONDES_GRAPPE_INTERSTELLAIRE ? 'disabled' : ''}>🛰 Envoyer la grappe (${sondesDisponibles(v)} sondes disponibles)</button>`
+        : es.enRoute ? `<p>🛰 Grappe en route : arrivée vers ${fmtAnnee(anneeDuJeu(es.arrivee))}, données reçues vers ${fmtAnnee(anneeDuJeu(es.reception))}. Accélérez le temps à l’orbiteur.</p>`
+          : `<p>✅ Données reçues : les planètes sont cartographiées.</p>`;
+      const techs = Object.entries(TECHNOLOGIES).map(([cle, T]) => {
+        const du = dureeTechnologie(cle, d.distanceAL);
+        return `<label class="choix-tech"><input type="radio" name="dep-tech" value="${cle}" ${cle === ch.tech ? 'checked' : ''}>
+          <canvas class="img-tech" data-tech="${cle}" width="220" height="90"></canvas>
+          <b>${T.nom}</b><span class="doux">${T.jours ? 'quelques semaines' : `${fmt(T.vitesse * 100)} % de c`} · ${fmtDureeAnnees(du.ans)} de voyage${du.gamma && du.gamma > 1.01 ? `, ${fmtDureeAnnees(du.ansBord)} à bord` : ''}</span>
+          <span class="doux">${T.detail} <i>(${T.plausible})</i></span></label>`;
+      }).join('');
+      const listeBases = bases.length
+        ? bases.map((b) => `<label class="choix-ravito"><input type="radio" name="dep-base" value="${b.a.id}" ${b.a.id === ch.base ? 'checked' : ''} ${b.site ? '' : 'disabled'}>
+            <b>${b.a.nom}</b> <span class="doux">— ${b.a.tempSurface} °C, ${fmtG(b.a.g)}, ${fmtDose(doseSurface(b.a).svJour)}${b.connu ? (b.site ? ` · zone de base repérée${b.site.prod ? ` · ${b.site.ressource}` : ' · pas de ressource'}` : ' · aucune zone plate') : ' · inconnue (envoyez des sondes)'}</span></label>`).join('')
+        : '<p>Aucune planète solide connue dans ce système : impossible de s’y installer pour l’instant.</p>';
+      const T = TECHNOLOGIES[ch.tech], du = dureeTechnologie(ch.tech, d.distanceAL);
+      const items = verifierDepart(v, { sys, base: ch.base });
+      const pret = items.every((i) => i.ok);
+      $('dep-sf').innerHTML = `<div class="sections"><section><h3>1. Sondes vers ${d.nom}</h3>${sondes}</section>
+        <section><h3>2. Planète où s’installer</h3>${listeBases}</section></div>
+        <section><h3>3. Propulsion</h3><div class="cartes-tech">${techs}</div></section>
+        <section><h3>4. Liste avant de partir</h3>${htmlListeDepart(v, { sys, base: ch.base })}</section>`;
+      $('dep-resume').innerHTML = `<p>Vers <b>${d.nom}</b> (${fmt(d.distanceAL, 2)} années-lumière) en <b>${T.nom.toLowerCase()}</b> : <b>${fmtDureeAnnees(du.ans)}</b> de voyage${du.ansBord < du.ans * 0.98 ? `, ${fmtDureeAnnees(du.ansBord)} vécus à bord` : ''}. Arrivée vers <b>${fmtAnnee(anneeDuJeu(v.t) + du.ans)}</b> en temps de jeu.</p>`;
+      m.querySelectorAll('canvas.img-tech').forEach((cv) => { const c = cv.getContext('2d'); c.fillStyle = '#02030a'; c.fillRect(0, 0, cv.width, cv.height); dessinerVaisseauInterstellaire(c, cv.dataset.tech, 110, 45, 120, 1, 1); });
+      m.querySelectorAll('input[name=dep-tech]').forEach((i) => { i.onchange = () => { ch.tech = i.value; majSF(); }; });
+      m.querySelectorAll('input[name=dep-base]').forEach((i) => { i.onchange = () => { ch.base = i.value; majSF(); }; });
+      const bs = $('dep-sondes');
+      if (bs) bs.onclick = () => { envoyerSondesInterstellaires(v, sys, (t) => this.contexte.log(t)); majSF(); };
+      $('dep-partir').textContent = pret ? `🚀 Partir vers ${d.nom}` : '🚀 Partir (liste incomplète)';
+      $('dep-partir').disabled = !pret;
+    };
+    const maj = () => {
+      ch.etoile = m.querySelector('input[name=dep-etoile]:checked').value;
+      ch.type = m.querySelector('input[name=dep-type]:checked').value;
+      const sf = ch.type === 'scifi';
+      $('dep-real').style.display = sf ? 'none' : '';
+      $('dep-liste-real').style.display = sf ? 'none' : '';
+      $('dep-sf').style.display = sf ? '' : 'none';
+      if (sf) majSF(); else majReel();
+    };
+    m.querySelectorAll('input[name=dep-etoile], input[name=dep-type], input[name=dep-profil]').forEach((i) => { i.onchange = maj; });
     maj();
     const fermer = () => Infos.fermer();
     m.querySelector('.fermer').onclick = fermer;
     $('dep-annuler').onclick = fermer;
     $('dep-partir').onclick = () => {
-      const { etoile, profil, est } = lire();
-      if (!confirm(`Partir pour ${etoile.nom} ? Le voyage dure ${fmtDureeAnnees(est.ans)} : c’est la fin de la partie.`)) return;
+      const e = etoile();
+      if (ch.type === 'scifi') {
+        const d = DONNEES_ETOILES[ch.etoile], du = dureeTechnologie(ch.tech, d.distanceAL), base = SYSTEMES[ch.etoile].astres.find((a) => a.id === ch.base);
+        if (!base || !confirm(`Partir pour ${d.nom} et s’installer sur ${base.nom} ? Le voyage dure ${fmtDureeAnnees(du.ans)}. Le ${SYSTEME.nom} reste derrière vous (aller simple).`)) return;
+        fermer();
+        this.contexte.partirSF({
+          systeme: ch.etoile, nomSysteme: d.nom, distanceAL: d.distanceAL, tech: ch.tech, base: base.id, nomBase: base.nom,
+          tDepart: v.t, anneeDepart: anneeDuJeu(v.t), ans: du.ans, ansBord: du.ansBord, tArrivee: v.t + du.ans * ANNEE_S,
+        });
+        return;
+      }
+      const { p, est } = majReel();
+      if (!confirm(`Partir pour ${e.nom} ? Le voyage dure ${fmtDureeAnnees(est.ans)} : c’est la fin de la partie.`)) return;
       fermer();
       this.contexte.terminer({
-        etoile: etoile.id, nomEtoile: etoile.nom, distanceAL: etoile.distanceAL, profil: profil.id, nomProfil: profil.nom,
-        vitesse: profil.vitesse, tDepart: v.t, anneeDepart: anneeDuJeu(v.t), ans: est.ans,
+        etoile: e.id, nomEtoile: e.nom, distanceAL: e.distanceAL, profil: p.id, nomProfil: p.nom,
+        vitesse: p.vitesse, tDepart: v.t, anneeDepart: anneeDuJeu(v.t), ans: est.ans,
         arriveeJeu: est.arriveeJeu, arriveeVraie: est.arriveeVraie, dateVraieDepart: new Date().toISOString(),
       });
     };

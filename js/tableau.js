@@ -58,7 +58,7 @@ function ouvrirLogistique(v, actif) {
     <p>Production totale des bases : <b>${fmt(ergolsJour / 1000, 1)} t d’ergols</b> et <b>${fmt(matJour / 1000, 1)} t de matériaux</b> par jour. ${v.stations.length} station${v.stations.length > 1 ? 's' : ''}, ${v.bases.length} base${v.bases.length > 1 ? 's' : ''}.</p></div><button class="fermer">✕</button></header>
     <section><h3>Astres</h3>${astres.length ? `<div class="defile"><table class="logistique"><thead><tr><th>Astre</th><th>Posé</th><th>Échant.</th><th>Bases</th><th>Stations</th></tr></thead><tbody>${lignes}</tbody></table></div>` : '<p class="doux">Aucun astre exploré ni équipé pour l’instant.</p>'}</section>
     <section><h3>À faire pour progresser</h3>${besoins.length ? `<ul class="sondes">${besoins.map((b, i) => `<li>${b.texte} ${actif && b.station ? `<button data-rav="${b.station.id}">📦 Ravito</button>` : ''}</li>`).join('')}</ul>` : '<p class="doux">Rien d’urgent.</p>'}</section>
-    <section><h3>Avant de quitter le ${SYSTEME.nom}</h3>${htmlListeDepart(v)}</section>
+    ${SYSTEME.retour !== false ? `<section><h3>Avant de quitter le ${SYSTEME.nom}</h3>${htmlListeDepart(v)}</section>` : ''}
     <section><h3>En route</h3>${enRoute.length ? `<ul class="sondes">${enRoute.map((t) => `<li>${t}</li>`).join('')}</ul>` : '<p class="doux">Rien en route.</p>'}</section></div>`;
   m.classList.remove('cache');
   m.querySelector('.fermer').onclick = () => Infos.fermer();
@@ -92,7 +92,7 @@ function astresPourRessource(famille) {
 
 function ouvrirRessources(v, famille = 'eau', tout = false) {
   const m = $('modale');
-  const ici = v.orb ? V.add(etatAbsolu(v.orb.centre, v.t).r, v.orb.r) : etatAbsolu(SYSTEME.origine, v.t).r;
+  const ici = v.orb ? V.add(etatAbsolu(v.orb.centre, v.t).r, v.orb.r) : etatAbsolu(astreAncrage(), v.t).r;
   const liste = astresPourRessource(famille).map((x) => ({ ...x, d: V.norm(V.sub(etatAbsolu(x.a.id, v.t).r, ici)) }))
     .sort((p, q) => q.richesse - p.richesse || p.d - q.d);
   const montrees = tout ? liste : liste.slice(0, 40);
@@ -148,7 +148,11 @@ function tableauAstre(v, a, actif) {
     sur += `<dt>🏠 Base, niveau ${n}</dt><dd>${prod ? `${fmt((prod * n) / 1000, 1)} t d’ergols/jour` : 'pas d’ergols'}${mat ? `, ${fmt(mat / 1000, 1)} t de matériaux/jour` : ''} ; ${fmt((b.stock || 0) / 1000, 1)} t en stock au sol</dd>`;
     sur += `<dt>Niveau ${Math.min(5, n + 1)}</dt><dd>${manque.texte} ${manque.pret ? bouton(`extension:${idx}`, '⬇ Envoyer l’extension') : ''}</dd>`;
   }
-  if (!bases.length && a.type === 'solide' && !estOrigine(a.id)) sur += ligne('Base', 'aucune (kit de base + station en orbite + zone repérée)');
+  if (!bases.length && a.type === 'solide' && !estOrigine(a.id)) {
+    const pb = actif ? Orbiteur.peutDeployerBase(a) : 'orbiteur fermé';
+    sur += ligne('Base', pb ? `aucune (kit de base + station en orbite + zone repérée) — ${pb}` : `aucune ${bouton(`deployer:${a.id}`, '🏠 Déployer depuis l’orbite')}`);
+  }
+  for (const b of bases.filter((x) => x.deploiement)) sur += ligne('🏠 Base en cours', `module de descente posé dans ${fmtDuree(b.deploiement.fin - v.t)}`);
   const surPlace = (v.equipe || []).filter((m) => m.etat === 'mission' && m.mission.astre === a.id);
   if (surPlace.length) sur += ligne('🧑‍🚀 Équipe', surPlace.map((m) => `${m.nom} (retour dans ${fmtDuree(m.mission.fin - v.t)})`).join(', '));
   const robotsIci = (v.robotsAuto || []).filter((r) => r.astre === a.id);
@@ -198,6 +202,7 @@ function tableauAstre(v, a, actif) {
         if (type === 'extension') Orbiteur.envoyerExtension(Number(p1));
         if (type === 'fab') Orbiteur.fabriquer(p1, p2);
         if (type === 'agrandir') Orbiteur.agrandirStation(p1);
+        if (type === 'deployer') Orbiteur.deployerBase(p1);
         if (type === 'recruter') recruter(v, (t) => Orbiteur.log(t));
         if (type === 'ravito') return Orbiteur.ouvrirRavito(p1);
         Orbiteur.majHud(true);

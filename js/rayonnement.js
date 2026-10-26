@@ -18,7 +18,7 @@ const DOSES_REFERENCE = {
 // flux : lumière de l'étoile hôte reçue (1 = la Terre) ; la part stellaire lui est proportionnelle.
 function doseCosmique(flux) { return 0.0011 + 0.0003 * flux; }
 // Flux reçu par un astre (via sa distance à l'étoile, en UA).
-function fluxAstre(a) { return fluxStellaire(a.distanceUA || 1); }
+function fluxAstre(a) { return a.flux !== undefined ? a.flux : fluxStellaire(a.distanceUA || 1); }
 
 // Ceintures de Jupiter : dose selon la distance à la planète (rayons joviens), entre les lunes connues.
 const CEINTURES_JUPITER = [[5.9, 36], [9.4, 5.4], [15, 0.5], [26.3, 0.0001]];
