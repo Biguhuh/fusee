@@ -13,8 +13,29 @@ const ECHANTILLONS_MAX_MISSION = 8;
 
 function capaciteEquipe(v) { return v.stations.some((s) => niveauStation(s).habitat) ? TAILLE_EQUIPE_HABITAT : TAILLE_EQUIPE; }
 
+// ---------- Pertes de l'expédition (pour le message du retour sur Terre) ----------
+// Chaque perte : { nom, astre, cause, t }. Remises à zéro à chaque nouvelle expédition.
+function noterPerte(v, nom, astreId, cause) { (v.pertesEquipage = v.pertesEquipage || []).push({ nom, astre: astreId, cause, t: v.t }); }
+function causeSortie(texte) {
+  if (/pression/.test(texte)) return 'combinaison écrasée par la pression';
+  if (/chaleur/.test(texte)) return 'combinaison détruite par la chaleur';
+  if (/rayonnement/.test(texte)) return 'dose mortelle de rayonnement';
+  if (/oxygène/.test(texte)) return 'plus d’oxygène';
+  if (/libération/.test(texte)) return 'perdu dans l’espace';
+  return 'perdu pendant une sortie';
+}
+function causeVol(c) {
+  return { ecrasee: 'atterrisseur écrasé', brulee: 'atterrisseur brûlé', pressurisee: 'atterrisseur écrasé par la pression', irradiee: 'dose mortelle de rayonnement', carburant: 'atterrisseur à court de carburant', pose: 'laissé au sol avec l’atterrisseur' }[c] || 'atterrisseur perdu';
+}
+// « Inès — dose mortelle de rayonnement, sur Callisto ; Notre spationaute — combinaison écrasée par la pression, sur Vénus »
+function textePertes(v) {
+  return (v.pertesEquipage || []).map((p) => `${majuscule(p.nom)} — ${p.cause}, ${sur(ASTRES_PAR_ID[p.astre] || { nom: p.astre })}`).join(' ; ');
+}
+
 // Nouvelle équipe au départ d'une expédition.
 function initialiserEquipe(v) {
+  v.equipagePerdu = false;       // nouvelle équipe, nouveau départ (voir le point 10 de la carte 4)
+  v.pertesEquipage = [];
   const pris = new Set();
   const nom = () => { const libres = NOMS_EQUIPE.filter((n) => !pris.has(n)); const n = libres[Math.floor(Math.random() * libres.length)] || 'Recrue'; pris.add(n); return n; };
   v.equipe = [{ id: 'e0', nom: nomSpatio(), principal: true, dose: 0, etat: 'bord' }];
@@ -74,6 +95,7 @@ function mettreAJourEquipe(v, log) {
     v.visites[a.id] = { ...(v.visites[a.id] || {}), pose: true };
     if (m.dose >= DOSE_MORTELLE) {
       m.etat = 'perdu';
+      noterPerte(v, m.nom, a.id, 'dose mortelle de rayonnement pendant sa mission');
       log(`${m.nom} n’a pas survécu à sa mission ${sur(a)} : dose de ${fmtDoseTotale(m.dose)}. L’atterrisseur est remonté seul.`);
     } else {
       const n = echantillonsMission(jours);

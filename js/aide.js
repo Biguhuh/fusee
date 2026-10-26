@@ -45,7 +45,7 @@ const ONGLETS_AIDE = [
       <li>Arrivé en orbite, descendez avec l’atterrisseur.</li>
       <li>Posé, sortez le spationaute (E) ou le robot (R).</li>
       <li>Ramassez des échantillons (E près d’un repère ◆), puis rentrez au module.</li>
-      <li>Remontez en orbite, revenez vers la Terre et rentrez en capsule (🏠).</li>
+      <li>Remontez en orbite, revenez vers la Terre et rentrez en capsule (🏠). Ou renvoyez seulement les échantillons dans une capsule sans équipage (📦), et l’expédition continue.</li>
     </ol>
     <p>Ensuite : des stations autour d’autres astres, des bases au sol, des robots, des sondes, une équipe plus grande… et un jour, une autre étoile.</p>` },
 

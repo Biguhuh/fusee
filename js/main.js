@@ -40,6 +40,14 @@ function migrerVoyage(v) {
   delete m.carburantAtt;
   // Expédition d'avant l'équipe : on lui en donne une.
   if (m.orb && !m.equipe) initialiserEquipe(m);
+  // Drapeau « équipage perdu » resté levé d'une expédition précédente (perdue sans retour en capsule) :
+  // s'il n'y a eu aucune perte depuis le départ de l'expédition en cours, on le baisse.
+  if (m.equipagePerdu && m.orb && !(m.pertesEquipage || []).length) {
+    const j = m.journal || [];
+    const depart = j.map((e) => /^Expédition n°/.test(e.texte)).lastIndexOf(true);
+    const perteDepuis = j.slice(depart + 1).some((e) => /Atterrisseur perdu|n’a pas survécu|a écrasé|a eu raison|Le rayonnement a |Plus d’oxygène|dans l’espace/.test(e.texte));
+    if (depart >= 0 && !perteDepuis) m.equipagePerdu = false;
+  }
   // Une seule station, base et sonde par astre : les doublons des anciennes parties sont fusionnés.
   for (const texte of fusionnerDoublons(m)) m.journal.push({ t: m.t, texte });
   // Noms des stations : « Station Lune » est devenu « Station lunaire », « Station Europe » « Station d’Europe ».
@@ -260,9 +268,17 @@ function finVol(r) {
       v.ergolsAtt += r.carburantRestant;
       if (etat.vol.echantillons) v.echantillonsABord[a] = (v.echantillonsABord[a] || 0) + etat.vol.echantillons;
       Orbiteur.log(`Atterrisseur récupéré ${enOrbite(r.astre)}${etat.vol.echantillons ? ` avec ${etat.vol.echantillons} échantillon(s)` : ''}.`);
+    } else if (r.cause === 'abandon' && !r.dejaPose) {
+      // Descente interrompue sans s'être posé : l'atterrisseur remonte à l'orbiteur, équipage compris ;
+      // seuls les ergols brûlés sont perdus.
+      v.ergolsAtt += r.carburantRestant;
+      Orbiteur.log(`Descente interrompue ${sur(r.astre)} : l’atterrisseur est revenu à l’orbiteur.`);
     } else {
       v.atterrisseurs = Math.max(0, v.atterrisseurs - 1);
-      if (!etat.vol.robotSeul) v.equipagePerdu = true;     // l'équipage était à bord de l'atterrisseur
+      if (!etat.vol.robotSeul) {                           // l'équipage était à bord de l'atterrisseur
+        v.equipagePerdu = true;
+        noterPerte(v, nomSpatio(), a, causeVol(r.cause));
+      }
       Orbiteur.log(`Atterrisseur perdu ${sur(r.astre)}${etat.vol.echantillons ? ' avec ses échantillons' : ''}. Il en reste ${v.atterrisseurs}.`);
     }
     v.visites[a] = { ...(v.visites[a] || {}), pose: r.dejaPose || r.cause === 'pose' };
@@ -461,14 +477,42 @@ function rentrerSurTerre() {
   sauver(etat);
   jouerScene(new RetourTerre({ equipage, echantillons: res.n, nom }), () => afficherRetourTerre(res, equipage, nom));
 }
+// Capsule sans équipage : depuis l'orbite terrestre, les échantillons rentrent seuls ; l'expédition continue.
+function renvoyerEchantillons() {
+  const v = etat.voyage;
+  let n = 0;
+  for (const id in v.echantillonsABord) {
+    v.echantillonsRapportes[id] = (v.echantillonsRapportes[id] || 0) + v.echantillonsABord[id];
+    n += v.echantillonsABord[id];
+  }
+  if (!n) return;
+  const liste = Object.entries(v.echantillonsABord).map(([id, k]) => `${k} ${de(ASTRES_PAR_ID[id])}`).join(', ');
+  v.echantillonsABord = {};
+  Orbiteur.log(`Capsule sans équipage envoyée vers la Terre avec ${n} échantillon${n > 1 ? 's' : ''} (${liste}).`);
+  sauver(etat);
+  jouerScene(new RetourTerre({ equipage: false, echantillons: n, nom: '' }), () => {
+    const h = $('res-titre');
+    h.textContent = 'Échantillons rapportés sur Terre';
+    h.className = 'succes';
+    $('res-message').textContent = `Capsule vide : retour sans équipage, comme prévu. Un navire a hissé la capsule à bord avec sa grue. ${n} échantillon${n > 1 ? 's' : ''} rapporté${n > 1 ? 's' : ''} : ${liste}.`;
+    $('res-stats').innerHTML = resumeCampagne(v).split(' · ').map((x) => `<dt>•</dt><dd style="text-align:left">${x}</dd>`).join('');
+    etat.suiteResultat = 'nav';
+    $('vers-hangar').textContent = 'Aller à l’orbiteur';
+    $('rejouer').classList.add('cache');
+    montrer('resultat');
+  });
+}
+
 function afficherRetourTerre(res, equipage, nom = nomSpatio()) {
   const h = $('res-titre');
   h.textContent = equipage ? 'Retour sur Terre' : 'Retour sur Terre : capsule vide';
   h.className = equipage ? 'succes' : 'partiel';
   const ech = res.n ? `${res.n} échantillon${res.n > 1 ? 's' : ''} rapporté${res.n > 1 ? 's' : ''} : ${res.liste}.` : 'Pas d’échantillon cette fois.';
+  // Qui n'est pas revenu, où et pourquoi (pertes notées pendant l'expédition).
+  const pertes = textePertes(etat.voyage);
   $('res-message').textContent = equipage
-    ? `La capsule a amerri sous ses parachutes et l’hélicoptère a hélitreuillé ${nom}. ${ech}`
-    : `Capsule vide : l’équipage n’est pas revenu. Un navire a hissé la capsule à bord avec sa grue. ${ech}`;
+    ? `La capsule a amerri sous ses parachutes et l’hélicoptère a hélitreuillé ${nom}.${pertes ? ` Manquent à l’appel : ${pertes}.` : ''} ${ech}`
+    : `Capsule vide : ${pertes ? `${pertes}.` : 'l’équipage n’est pas revenu.'} Un navire a hissé la capsule à bord avec sa grue. ${ech}`;
   $('res-stats').innerHTML = resumeCampagne(etat.voyage).split(' · ').map((x) => `<dt>•</dt><dd style="text-align:left">${x}</dd>`).join('');
   etat.suiteResultat = 'accueil';
   $('vers-hangar').textContent = '← Accueil';
@@ -656,6 +700,7 @@ Orbiteur.contexte = {
   descendre: (id) => descendre(id),
   larguerRobot: (id, blindage) => larguerRobot(id, blindage),
   rentrer: () => rentrerSurTerre(),
+  renvoyerEchantillons: () => renvoyerEchantillons(),
   finExpedition: (texte) => terminerExpedition(texte),
   journal: () => {
     const m = $('modale');
@@ -884,7 +929,12 @@ addEventListener('keydown', (e) => {
   if (e.key === '-' || e.code === 'NumpadSubtract' || e.code === 'Minus') etat.warp = PALIERS_TEMPS[Math.max(0, i - 1)];
   if (e.code === 'KeyP') etat.pause = !etat.pause;
   if (e.code === 'Enter') v.finirAuSol();
-  if (e.code === 'Escape') v.abandonner();
+  if (e.code === 'Escape') {
+    // Campagne, posé : quitter laisse l'atterrisseur et l'équipage sur place, pour toujours. On demande d'abord.
+    if (etat.enVoyage && v.pose && !v.robotSeul && !v.lancement && !v.fin
+      && !confirm(`Laisser l’atterrisseur et ${nomSpatio()} ${sur(v.astre)} ? Ils ne reviendront pas.\n\nPour repartir, décollez plutôt (T).`)) return;
+    v.abandonner();
+  }
 });
 addEventListener('keyup', (e) => touches.delete(e.code));
 addEventListener('blur', () => touches.clear());
@@ -1025,7 +1075,10 @@ function image(t) {
       // Une sortie qui tourne mal est notée : l'écran de résultat en parlera, même si la remontée réussit.
       if (x.fin.issue === 'perdu' && !x.terre) (etat.vol.pertes = etat.vol.pertes || []).push({ qui: x.type, texte: x.fin.texte });
       // Campagne : l'équipage perdu ne reviendra pas (la capsule rentrera vide).
-      if (x.fin.issue === 'perdu' && x.type === 'spationaute' && !x.terre && etat.enVoyage && etat.voyage) etat.voyage.equipagePerdu = true;
+      if (x.fin.issue === 'perdu' && x.type === 'spationaute' && !x.terre && etat.enVoyage && etat.voyage) {
+        etat.voyage.equipagePerdu = true;
+        noterPerte(etat.voyage, nomSpatio(), etat.vol.astre.id, causeSortie(x.fin.texte));
+      }
       if (etat.voyage && etat.enVoyage) etat.voyage.journal.push({ t: etat.voyage.t, texte: `${etat.vol.astre.nom} : ${x.fin.texte}` });
       etat.explo = null;
       touches.clear();
