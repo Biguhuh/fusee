@@ -18,7 +18,8 @@ const REPLIQUES = {
   chat: { texte: 'Un caillou, un chat, aucune explication.' },
   pression: { texte: 'La pression monte, le moral aussi.' },
 };
-const AFFICHER_SOURCE_REPLIQUE = true;
+// Choix de l'auteur du jeu (carte 4) : clins d'œil purs, sans la source affichée.
+const AFFICHER_SOURCE_REPLIQUE = false;
 
 // Affiche la réplique si elle n'a pas encore été vue dans cette partie.
 function replique(id) {
