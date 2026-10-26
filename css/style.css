@@ -355,5 +355,33 @@ pre.erreur { white-space: pre-wrap; background: #1a0d0d; border: 1px solid #5a23
   opacity: 0; transition: opacity 0.9s;
 }
 #replique.visible { opacity: 0.92; }
+
+/* Aide : onglets sur grand écran, sections dépliables sur téléphone. */
+.aide-fenetre { max-width: 860px; }
+.onglets-aide { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px; }
+.onglets-aide button { padding: 6px 10px; }
+.onglets-aide button[aria-selected="true"] { background: var(--accent, #ff8f00); color: #111; border-color: transparent; font-weight: 600; }
+.panneau-aide > summary { display: none; }
+.panneau-aide:not(.actif) { display: none; }
+.corps-aide { line-height: 1.5; }
+.corps-aide h3 { margin: 14px 0 6px; }
+.corps-aide ul, .corps-aide ol { margin: 4px 0 8px; padding-left: 1.3em; }
+.corps-aide li { margin: 3px 0; }
+.corps-aide table { border-collapse: collapse; width: 100%; margin: 4px 0 8px; }
+.corps-aide td { padding: 4px 8px; border-bottom: 1px solid rgba(255,255,255,0.08); vertical-align: top; }
+.corps-aide td:first-child { white-space: nowrap; font-weight: 600; width: 1%; }
+.fiche-aide { border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 10px 12px; margin: 10px 0; }
+.fiche-aide h4 { margin: 0 0 6px; font-size: 1.05em; }
+.fiche-aide dl { display: grid; grid-template-columns: 9.5em 1fr; gap: 4px 12px; margin: 0; }
+.fiche-aide dt { opacity: 0.7; }
+.fiche-aide dd { margin: 0; text-align: left; }
+@media (max-width: 700px) {
+  .onglets-aide { display: none; }
+  .panneau-aide, .panneau-aide:not(.actif) { display: block; border-top: 1px solid rgba(255,255,255,0.12); }
+  .panneau-aide > summary { display: block; cursor: pointer; padding: 12px 2px; font-weight: 600; font-size: 1.05em; }
+  .fiche-aide dl { grid-template-columns: 1fr; }
+  .fiche-aide dt { margin-top: 4px; }
+  .corps-aide td:first-child { white-space: normal; }
+}
 #replique .replique-source { display: block; font-size: 11.5px; font-style: normal; color: #b9c6d6; margin-top: 1px; }
 @media (max-width: 600px) { #replique { font-size: 13.5px; top: 28vh; } }

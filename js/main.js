@@ -704,6 +704,8 @@ const CONTEXTE_PROMENADE = {
 };
 $('accueil-promenade').onclick = () => ouvrirPromenade(CONTEXTE_PROMENADE);
 $('accueil-spatio').onclick = () => afficherCreationSpatio(allerAccueil);
+$('accueil-aide').onclick = () => ouvrirAide();
+document.querySelectorAll('.ouvrir-aide').forEach((b) => { b.onclick = () => ouvrirAide(); });
 $('exporter').onclick = () => { exporterSauvegarde(etat); $('sauvegarde-info').textContent = 'Fichier téléchargé.'; };
 $('importer').onclick = () => $('fichier-sauvegarde').click();
 $('fichier-sauvegarde').onchange = (e) => {
