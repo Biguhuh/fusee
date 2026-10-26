@@ -241,6 +241,7 @@ function finVol(r) {
   const v = etat.voyage;
   const reussi = ['orbite', 'liberation', 'plongee'].includes(r.cause);
   etat.suiteResultat = etat.enVoyage ? 'nav' : 'visite';
+  etat.repriseCrash = null;
   if (etat.vol.lancement) {
     // Lancement de la méga-fusée depuis la Terre.
     if (reussi) {
@@ -521,16 +522,45 @@ function afficherRetourTerre(res, equipage, nom = nomSpatio()) {
   if (equipage) replique('bienvenue');
 }
 
+// Point de reprise : l'expédition telle qu'elle était dans sa dernière orbite, quand on a choisi une cible.
+// Après un crash, on peut recommencer de là, ou acter la perte et continuer. Gardé à part de la sauvegarde.
+const CLE_REPRISE = CLE_SAUVEGARDE + '-reprise';
+function noterPointReprise(v) {
+  try { localStorage.setItem(CLE_REPRISE, JSON.stringify({ expedition: v.expeditions, t: v.t, centre: v.orb.centre, voyage: v })); } catch (e) { /* stockage plein : pas de reprise */ }
+}
+function lirePointReprise(v) {
+  try {
+    const p = JSON.parse(localStorage.getItem(CLE_REPRISE));
+    return p && v && !v.orb && p.voyage && p.expedition === v.expeditions && ASTRES_PAR_ID[p.centre] ? p : null;
+  } catch (e) { return null; }
+}
+function oublierPointReprise() { try { localStorage.removeItem(CLE_REPRISE); } catch (e) { /* ignoré */ } }
+function textePointReprise(p) { return `${enOrbite(ASTRES_PAR_ID[p.centre])}, le ${fmtDate(p.t, false)}`; }
+function reprendreAvantCrash(p) {
+  const v = p.voyage;
+  v.warp = 1;
+  if (v.tempsReel && v.tempsReel.actif) Object.assign(v.tempsReel, { departJeu: v.t, departReel: Date.now(), vuLe: Date.now() });
+  etat.voyage = v;
+  etat.repriseCrash = null;
+  Orbiteur.camPlacee = false;
+  allerNavigation();
+  Orbiteur.log(`Expédition reprise avant le crash : ${textePointReprise(p)}.`);
+  sauver(etat);
+}
+
 function terminerExpedition(texte) {
   sauver(etat);
+  const p = lirePointReprise(etat.voyage);
   const h = $('res-titre');
   h.textContent = 'Expédition perdue';
   h.className = 'echec';
-  $('res-message').textContent = texte;
+  $('res-message').textContent = texte + (p ? ` Vous pouvez recommencer cette étape depuis la dernière orbite (${textePointReprise(p)}), avec le même équipage, ou acter la perte et poursuivre la campagne avec une nouvelle expédition.` : '');
   $('res-stats').innerHTML = '';
   etat.suiteResultat = 'accueil';
-  $('vers-hangar').textContent = '← Accueil';
-  $('rejouer').classList.add('cache');
+  etat.repriseCrash = p;
+  $('vers-hangar').textContent = p ? '✝ Acter la perte et continuer' : '← Accueil';
+  $('rejouer').textContent = p ? '↺ Recommencer avant le crash' : 'Rejouer';
+  $('rejouer').classList.toggle('cache', !p);
   montrer('resultat');
 }
 
@@ -579,8 +609,10 @@ function ouvrirReprise() {
   if (!v || v.fin) return allerNavigation();
   choisirSystemeCampagne(v);
   const basesOk = v.bases.filter((b) => !AEROSTAT[b.astre] && ASTRES_PAR_ID[b.astre]);
-  if (!v.stations.length && !basesOk.length) return allerNavigation();
+  const pr = lirePointReprise(v);   // orbiteur écrasé, perte pas encore actée
+  if (!pr && !v.stations.length && !basesOk.length) return allerNavigation();
   const choix = [];
+  if (pr) choix.push(['crash', '↺ Recommencer avant le crash', `${textePointReprise(pr)}, même équipage, même chargement`]);
   if (v.orb) choix.push(['ici', `▶ Là où vous étiez`, `${enOrbite(ASTRES_PAR_ID[v.orb.centre])}`]);
   for (const s of v.stations) choix.push(['station:' + s.id, `🛰 ${s.nom}`, `${enOrbite(ASTRES_PAR_ID[s.centre])}, amarré à la station`]);
   for (const b of basesOk) choix.push(['base:' + v.bases.indexOf(b), `🏠 ${nomBase(ASTRES_PAR_ID[b.astre])}, niveau ${b.niveau || 1}`, `au sol, l’atterrisseur garé à côté ; l’orbiteur attend en orbite`]);
@@ -602,6 +634,8 @@ function ouvrirReprise() {
 function reprendreDepuis(id) {
   const v = etat.voyage;
   if (id === 'ici') return allerNavigation();
+  if (id === 'crash') { const p = lirePointReprise(v); return p ? reprendreAvantCrash(p) : allerNavigation(); }
+  if (lirePointReprise(v)) oublierPointReprise();   // repartir d'ailleurs : la perte est actée
   if (id === 'terre') return allerLancement();
   Orbiteur.charger(v);
   if (!v.orb) {
@@ -754,11 +788,15 @@ $('vers-carte').onclick = allerCarte;
 $('retour-hangar').onclick = allerHangar;
 $('lancer').onclick = lancerVisite;
 $('vers-hangar').onclick = () => {
+  if (etat.repriseCrash) { etat.repriseCrash = null; oublierPointReprise(); }   // perte actée
   if (etat.suiteResultat === 'nav' && etat.voyage && etat.voyage.orb) allerNavigation();
   else if (etat.suiteResultat === 'visite') allerCarte();
   else allerAccueil();
 };
-$('rejouer').onclick = () => (etat.vol && etat.vol.lancement ? lancerMegaFusee() : rejouerVisite());
+$('rejouer').onclick = () => {
+  if (etat.repriseCrash) return reprendreAvantCrash(etat.repriseCrash);
+  return etat.vol && etat.vol.lancement ? lancerMegaFusee() : rejouerVisite();
+};
 $('accueil-campagne').onclick = () => $('voyage-nouveau').click();
 $('accueil-reprendre').onclick = ouvrirReprise;
 $('accueil-visite').onclick = allerCarte;

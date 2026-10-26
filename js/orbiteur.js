@@ -131,8 +131,25 @@ const Orbiteur = {
       for (const p of PALIERS_NAV) if (p * (1 / 60) <= reste / 2) w = p;
       return w;
     }
-    if (this.enPoussee()) return Math.min(this.v.warp, 1000);
-    return this.v.warp;
+    const w = this.enPoussee() ? Math.min(this.v.warp, 1000) : this.v.warp;
+    return Math.min(w, this.warpAvantImpact());
+  },
+  // Trajectoire qui touche la surface : le temps ralentit à l'approche, pour laisser le temps de manœuvrer
+  // (une petite lune comme Miranda n'a qu'une sphère d'influence de quelques centaines de km : à grande vitesse
+  // de temps, l'impact tomberait entre deux images).
+  warpAvantImpact() {
+    const o = this.v.orb, c = ASTRES_PAR_ID[o.centre];
+    if (!o || !c || c.type === 'etoile') return Infinity;
+    const el = elements(o.r, o.v, c.gm), r = V.norm(o.r), rv = V.dot(o.r, o.v);
+    if (el.rp >= c.rayonKm || rv >= 0) { this.alerteImpact = null; return Infinity; }
+    const t = (r - c.rayonKm) / Math.max(Math.abs(rv) / r, 1e-3);   // ordre de grandeur du temps avant impact (s)
+    if (this.alerteImpact !== c.id && t < 30 * 86400) {
+      this.alerteImpact = c.id;
+      this.log(`⚠ Trajectoire de collision avec ${le(c)} : le temps ralentit pour vous laisser manœuvrer.`);
+    }
+    let w = 1;
+    for (const p of PALIERS_NAV) if (p / 60 <= t / 20) w = p;
+    return w;
   },
 
   // ---------- Simulation ----------
@@ -427,7 +444,16 @@ const Orbiteur = {
   piloteAuto() {
     const v = this.v;
     if (!v.cible || v.mode === 'libre') { this.etape = null; return; }
-    if (!this.etape) this.etape = prochaineEtape(v.orb, v.t, v.cible);
+    if (!this.etape) {
+      this.etape = prochaineEtape(v.orb, v.t, v.cible);
+      // Assistant : une manœuvre à faire tout de suite (en entrant dans une sphère d'influence, par exemple)
+      // ramène le temps à ×1, comme les manœuvres programmées.
+      const n = this.etape;
+      if (v.mode === 'assistant' && !this.auto && n.dv && !n.attenteEvenement && n.tExec <= v.t + 1 && v.warp > 1 && !(v.tempsReel && v.tempsReel.actif)) {
+        v.warp = 1; this.avance = false;
+        this.log('Manœuvre prête : « ' + n.texte + ' ».');
+      }
+    }
     const e = this.etape;
     if (e.type === 'fini') {
       if (this.auto) this.log(`Arrivée en orbite basse ${de(ASTRES_PAR_ID[v.cible])}.`);
@@ -1007,6 +1033,39 @@ const Orbiteur = {
     this.log(`Amarré ${au(s)}${pris.length ? ' : ' + pris.join(', ') : ' : stock vide, attendez le prochain cargo'}.`);
   },
 
+  // Nouvelle cible. Point de reprise si l'on part d'une orbite (pour pouvoir recommencer après un crash).
+  // Lune d'une autre planète : conseil de s'établir d'abord autour de la planète, et d'y envoyer une grappe de sondes.
+  choisirCible(id, detail) {
+    const v = this.v, a = ASTRES_PAR_ID[id];
+    if (!a || !v.orb) return;
+    if (this.orbiteFermee()) noterPointReprise(v);
+    v.cible = id; this.etape = null; this.auto = false;
+    this.log(`Nouvelle cible : ${a.nom}${detail ? ` (${detail})` : ''}.`);
+    this.majHud(true);
+    const p = a.orbite && ASTRES_PAR_ID[a.orbite.centre];
+    if (!p || p.type === 'etoile') return;
+    // Déjà dans le système de cette planète (autour d'elle ou d'une de ses lunes) : rien à conseiller.
+    for (let c = ASTRES_PAR_ID[v.orb.centre]; c; c = c.orbite && ASTRES_PAR_ID[c.orbite.centre]) if (c.id === p.id) return;
+    this.conseilLune(a, p);
+  },
+  conseilLune(a, p) {
+    const v = this.v, m = $('modale');
+    const libres = [p, ...(ENFANTS[p.id] || [])].filter((x) => x.type !== 'etoile' && !sondeVers(v, x.id)).length;
+    m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>🎯 ${a.nom}, lune ${de(p)}</h2>
+      <p>${majuscule(le(a))} tourne autour ${de(p)}. Conseil : établissez-vous d’abord ${enOrbite(p)} (ou sur une de ses lunes), puis partez de là vers ${le(a)}. Arriver directement depuis une autre planète, c’est entrer à plusieurs km/s dans la petite sphère d’influence ${de(a)} (${fmt(a.soi)} km de rayon) : il reste très peu de temps pour freiner.</p>
+      <p>Avant d’y aller, une grappe de sondes vers ${le(p)} et ses lunes cartographie le système et repère les zones de base et les ressources.</p></div><button class="fermer">✕</button></header>
+      <div class="actions">
+        <button id="cl-planete">🎯 Viser ${le(p)} d’abord</button>
+        <button id="cl-grappe" ${v.sondes > 0 && libres ? '' : 'disabled'}>🛰 Envoyer une grappe de sondes${v.sondes > 0 ? ` (${v.sondes} à bord)` : ' (plus de sonde à bord)'}</button>
+        <button id="cl-garder" class="principal">Garder ${a.nom} comme cible</button>
+      </div></div>`;
+    m.classList.remove('cache');
+    m.querySelector('.fermer').onclick = () => Infos.fermer();
+    $('cl-garder').onclick = () => Infos.fermer();
+    $('cl-planete').onclick = () => { Infos.fermer(); this.choisirCible(p.id); };
+    $('cl-grappe').onclick = () => this.ouvrirGrappe(p.id);
+  },
+
   // Peut-on descendre avec l'atterrisseur ?
   peutDescendre() {
     const c = ASTRES_PAR_ID[this.v.orb.centre];
@@ -1016,7 +1075,7 @@ const Orbiteur = {
   // Actions proposées dans la fiche d'un astre.
   actionsPour(a) {
     const l = [];
-    if (a.type !== 'etoile') l.push({ texte: '🎯 Choisir comme cible', action: () => { this.v.cible = a.id; this.etape = null; this.auto = false; this.majHud(true); } });
+    if (a.type !== 'etoile') l.push({ texte: '🎯 Choisir comme cible', action: () => this.choisirCible(a.id) });
     l.push({ texte: '🔭 Centrer la vue', action: () => this.centrerSur(a.id) });
     if (a.type !== 'etoile' && sondeVers(this.v, a.id)) l.push({ texte: '🛰 Sonde déjà envoyée', desactive: 'Une seule sonde par astre' });
     else if (a.type !== 'etoile' && this.v.sondes > 0) l.push({ texte: '🛰 Lancer une sonde', action: () => this.lancerSonde(a.id) });
