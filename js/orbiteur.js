@@ -1,6 +1,7 @@
 'use strict';
 // Écran de l'orbiteur : carte du système solaire vue de dessus, pilotage, sondes, stations.
 
+const DV_PROPULSEUR_SOLAIRE = 20;   // km/s de poussées possibles pour ramener l'orbiteur (propulseur ionique)
 const PALIERS_NAV = [1, 10, 100, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8];
 const DATE_DEBUT = (2461336.5 - J2000_JD) * JOUR; // 23 octobre 2026
 
@@ -467,6 +468,10 @@ const Orbiteur = {
     }
     const e = this.etape;
     if (e.type === 'fini') {
+      if (v.propulsionSolaire && v.cible === v.propulsionSolaire.dest) {
+        this.log(`☀️ Arrivée ${enOrbite(ASTRES_PAR_ID[v.cible])} grâce au propulseur solaire, largué ensuite.`);
+        v.propulsionSolaire = null;
+      }
       if (this.auto) this.log(ASTRES_PAR_ID[v.cible].artificiel ? `${e.texte}.` : `Arrivée en orbite basse ${de(ASTRES_PAR_ID[v.cible])}.`);
       this.auto = false; this.avance = false;
       return;
@@ -488,6 +493,15 @@ const Orbiteur = {
     const v = this.v, e = this.etape;
     if (!e || !e.dv) return;
     const dv = e.dv(v.orb, v.t);
+    // Retour au propulseur solaire : la poussée vient de lui, pas des ergols (dans la limite de son Δv).
+    const ps = v.propulsionSolaire;
+    if (ps && V.norm(dv) <= ps.dvRestant) {
+      v.orb.v = V.add(v.orb.v, dv);
+      ps.dvRestant -= V.norm(dv);
+      this.log(`${e.texte} — poussée de ${fmtV(V.norm(dv) * 1000)} (propulseur solaire, reste ${fmtV(ps.dvRestant * 1000)}).`);
+      this.flash = 1; this.prevision = null; this.etape = null;
+      return;
+    }
     const reservoir = { kg: v.carburant };
     if (!appliquerImpulsion(v.orb, dv, reservoir)) {
       this.log(`Carburant insuffisant pour « ${e.texte} » (${fmtV(V.norm(dv) * 1000)} nécessaires).`);
@@ -1121,6 +1135,43 @@ const Orbiteur = {
     $('obs-annuler').onclick = renoncer;
     $('obs-garder').onclick = () => Infos.fermer();
   },
+  // ---------- Retour au propulseur solaire ----------
+  // Perdu autour du Soleil sans assez d'ergols : un propulseur solaire (ionique) de plus ramène l'orbiteur vers la
+  // planète la plus proche. Le pilote auto calcule le trajet ; les poussées viennent du propulseur (Δv limité).
+  propulseursLibres() {
+    const v = this.v;
+    const garde = SYSTEME.id === 'solaire' && !eggTrouve('voiture-2') && v.orb && v.orb.centre === 'roadster' ? 1 : 0;   // celui de la voiture
+    return Math.max(0, (v.propulseurs || 0) - garde);
+  },
+  planeteLaPlusProche() {
+    const v = this.v, ici = this.absolu(v.orb);
+    let meilleure = null, dMin = Infinity;
+    for (const id of SYSTEME.principaux) {
+      const p = ASTRES_PAR_ID[id];
+      if (!p || p.type === 'etoile') continue;
+      // « Plus proche » au sens du voyage : l'orbite la plus proche de la nôtre (distance au Soleil), pas la position du moment.
+      const d = Math.abs(p.orbite.a - V.norm(ici));
+      if (d < dMin) { dMin = d; meilleure = p; }
+    }
+    return meilleure;
+  },
+  boutonRetourSolaire() {
+    const v = this.v;
+    if (!v.orb || v.propulsionSolaire || !['soleil', 'roadster'].includes(v.orb.centre) && !ASTRES_PAR_ID[v.orb.centre].artificiel) return '';
+    if (!this.propulseursLibres()) return '';
+    const p = this.planeteLaPlusProche();
+    return p ? `<button id="nav-retour-solaire">☀️ Rentrer vers ${le(p)} avec un propulseur solaire (sans ergols)</button>` : '';
+  },
+  retourSolaire() {
+    const v = this.v, p = this.planeteLaPlusProche();
+    if (!p || !this.propulseursLibres()) return;
+    v.propulseurs -= 1;
+    v.propulsionSolaire = { dest: p.id, dvRestant: DV_PROPULSEUR_SOLAIRE };
+    v.cible = p.id; v.mode = 'pilote'; this.etape = null; this.auto = true;
+    this.log(`☀️ Propulseur solaire installé sur l’orbiteur : le pilote auto ramène l’expédition vers ${le(p)}, sans toucher aux ergols (jusqu’à ${fmtV(DV_PROPULSEUR_SOLAIRE * 1000)} de poussées).`);
+    this.majHud(true);
+  },
+
   // Viser la voiture : ce qu'il faut emporter (de quoi revenir, et le propulseur solaire).
   conseilVoiture(a) {
     const v = this.v, m = $('modale');
@@ -1128,7 +1179,8 @@ const Orbiteur = {
     m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>🚗 Expédition vers la voiture rouge</h2>
       <p>Elle tourne seule autour du Soleil, entre 0,99 et 1,66 UA, loin de toute planète. Avant de partir :</p></div><button class="fermer">✕</button></header>
       <section><ul>
-        <li><b>Des ergols pour revenir</b> : assez pour la rejoindre, puis pour repartir vers la planète la plus proche (Terre ou Mars). Le pilote auto donne le Δv de chaque manœuvre ; à bord : ${fmtV(deltaVOrbiteur(v.carburant))}.</li>
+        <li><b>De quoi revenir</b> : des ergols, ou un <b>second propulseur solaire</b>, qui ramène l’orbiteur vers la planète la plus proche sans toucher aux ergols (bouton « ☀️ Rentrer… », une fois autour du Soleil).</li>
+        <li><b>Avec des ergols seulement</b> : assez pour la rejoindre, puis pour repartir vers la planète la plus proche (Terre ou Mars). Le pilote auto donne le Δv de chaque manœuvre ; à bord : ${fmtV(deltaVOrbiteur(v.carburant))}.</li>
         <li><b>Un propulseur solaire</b>, indispensable : on s’amarre à la voiture, on l’installe, et elle part vers son funeste rendez-vous avec le Soleil. Il se fabrique à l’atelier d’une station, et se charge en s’amarrant à la station. À bord : ${n ? `<b>${n}</b>` : '<b style="color:var(--alerte)">aucun</b>'}.</li>
         <li>Une fois au Soleil, la voiture n’existe plus.</li>
       </ul></section>
@@ -1139,14 +1191,16 @@ const Orbiteur = {
   },
   conseilLune(a, p) {
     const v = this.v, m = $('modale');
-    const libres = [p, ...(ENFANTS[p.id] || [])].filter((x) => x.type !== 'etoile' && !sondeVers(v, x.id)).length;
-    m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>🎯 ${a.nom}, lune ${de(p)}</h2>
-      <p>${majuscule(le(a))} tourne autour ${de(p)}. Conseil : établissez-vous d’abord ${enOrbite(p)} (ou sur une de ses lunes), puis partez de là vers ${le(a)}. Arriver directement depuis une autre planète, c’est entrer à plusieurs km/s dans la petite sphère d’influence ${de(a)} (${fmt(a.soi)} km de rayon) : il reste très peu de temps pour freiner.</p>
-      <p>Avant d’y aller, une grappe de sondes vers ${le(p)} et ses lunes cartographie le système et repère les zones de base et les ressources.</p></div><button class="fermer">✕</button></header>
+    const libres = [p, ...(ENFANTS[p.id] || [])].filter((x) => x.type !== 'etoile' && !x.artificiel && !sondeVers(v, x.id)).length;
+    const nLunes = (ENFANTS[p.id] || []).filter((x) => !x.artificiel).length;   // une seule lune : « sa lune »
+    const petite = a.soi < 20000;
+    m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>🎯 ${majuscule(le(a))}, ${nLunes > 1 ? 'lune' : 'seule lune'} ${de(p)}</h2>
+      <p>${majuscule(le(a))} tourne autour ${de(p)}. Conseil : établissez-vous d’abord ${enOrbite(p)}${nLunes > 1 ? ' (ou sur une de ses autres lunes)' : ''}, puis partez de là vers ${le(a)}. Arriver directement de loin, c’est entrer à plusieurs km/s dans la ${petite ? 'petite ' : ''}sphère d’influence ${de(a)} (${fmt(a.soi)} km de rayon) : ${petite ? 'il reste très peu de temps pour freiner' : 'il faut bien viser et freiner à temps'}.</p>
+      <p>Avant d’y aller, une grappe de sondes vers ${le(p)} et ${nLunes > 1 ? 'ses lunes' : 'sa lune'} cartographie le système et repère les zones de base et les ressources.</p></div><button class="fermer">✕</button></header>
       <div class="actions">
         <button id="cl-planete">🎯 Viser ${le(p)} d’abord</button>
         <button id="cl-grappe" ${v.sondes > 0 && libres ? '' : 'disabled'}>🛰 Envoyer une grappe de sondes${v.sondes > 0 ? ` (${v.sondes} à bord)` : ' (plus de sonde à bord)'}</button>
-        <button id="cl-garder" class="principal">Garder ${a.nom} comme cible</button>
+        <button id="cl-garder" class="principal">Garder ${le(a)} comme cible</button>
       </div></div>`;
     m.classList.remove('cache');
     m.querySelector('.fermer').onclick = () => Infos.fermer();
@@ -1901,6 +1955,7 @@ const Orbiteur = {
     } else d += '<h3>Pas de cible</h3><p class="doux">Cliquez sur un astre puis « Choisir comme cible ».</p>';
     d += '<h3>Actions</h3><div class="actions-nav">';
     d += actionsVoiture(this);
+    d += this.boutonRetourSolaire();
     const fermee = this.orbiteFermee();
     if (estOrigine(c.id) && fermee) d += `<button id="nav-rentrer" class="principal">🏠 Rentrer sur ${SYSTEME.origineSans} (capsule)</button>`;
     if (estOrigine(c.id) && fermee && Object.values(v.echantillonsABord || {}).some((n) => n > 0)) d += '<button id="nav-capsule-ech">📦 Renvoyer les échantillons seuls (capsule sans équipage)</button>';
@@ -1984,6 +2039,7 @@ const Orbiteur = {
     bind('nav-plein-origine', () => { this.pleinDepuisOrigine(); this.majHud(true); });
     bind('nav-iss', () => this.rendezVousISS());
     bind('nav-voiture', () => { actionVoiture(this); this.majHud(true); });
+    bind('nav-retour-solaire', () => this.retourSolaire());
     bind('nav-deployer-base', () => { this.deployerBase(v.orb.centre); this.majHud(true); });
     bind('nav-logistique', () => ouvrirLogistique(this.v, true));
     bind('nav-ressources', () => ouvrirRessources(this.v));
