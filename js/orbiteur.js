@@ -2235,15 +2235,36 @@ const Orbiteur = {
         : `<p class="doux">Aucune zone de base repérée ${sur(c)} : envoyez une sonde.</p>`;
       if (!this.peutDeployerBase(c)) d += `<button id="nav-deployer-base">🏠 Déployer la base depuis l’orbite (kit de base)</button>`;
     }
-    // Station de l'astre courant : stock, prochain ravitaillement courant, atelier
+    // Stocks : deux onglets, ce qu'il y a à bord de l'orbiteur, et ce qu'il y a dans la station de cet astre.
     if (st) {
       const k = st.stock;
-      d += `<h3>${st.nom}</h3><dl>` + Object.keys(NOMS_STOCK).map((cle) => `<dt>${NOMS_STOCK[cle]}</dt><dd>${fmtStock(cle, k[cle] || 0)}</dd>`).join('') + '</dl>';
-      if (ressourcesIllimitees() && st.prochainCargo) d += `<p class="doux">Ravitaillement courant de la Terre dans ${fmtDuree(st.prochainCargo - v.t)}.</p>`;
-      d += `<p class="doux"><b>🔧 Atelier : construire</b> avec les matériaux et les ergols du stock (cliquez pour lancer la fabrication) :</p><div class="orientations">` +
-        Object.entries(RECETTES).filter(([cle]) => recetteVisible(cle, st)).map(([cle, r]) =>
-          `<button data-fab="${cle}" ${k.materiaux < r.materiaux || (r.ergols && k.ergols < r.ergols) ? 'disabled' : ''}>${r.nom} · ${fmtStock('materiaux', r.materiaux)}${r.ergols ? ` + ${fmtStock('ergols', r.ergols)} d’ergols` : ''}${r.duree ? ` · ${fmtDuree(r.duree)}` : ''}</button>`).join('') + '</div>';
-      for (const ch of st.chantiers || []) d += `<p class="doux">🔧 Chantier : ${RECETTES[ch.cle].nom}, prêt le ${fmtDate(ch.fin)} (dans ${fmtDuree(ch.fin - v.t)}).</p>`;
+      const onglet = this.ongletStock === 'orbiteur' ? 'orbiteur' : 'station';
+      d += `<div class="groupe-vue onglets-stock"><button data-onglet-stock="orbiteur" class="${onglet === 'orbiteur' ? 'choisi' : ''}">🚀 Orbiteur</button><button data-onglet-stock="station" class="${onglet === 'station' ? 'choisi' : ''}">🛰 ${st.nom}</button></div>`;
+      if (onglet === 'orbiteur') {
+        const ech = Object.values(v.echantillonsABord || {}).reduce((s, n) => s + n, 0);
+        const lignesOrb = [
+          ['carburant', 'Carburant (orbiteur)', v.carburant, ORBITEUR.carburantMax],
+          ['ergols', 'Ergols (atterrisseur)', v.ergolsAtt, ORBITEUR.ergolsAtt],
+          ['sondes', 'Sondes', v.sondes, ORBITEUR.sondes],
+          ['kits', 'Kits de station', v.kits, ORBITEUR.kits + 1],
+          ['kitsBase', 'Kits de base', v.kitsBase, 2],
+          ['robots', 'Robots', v.robots, ORBITEUR.robots],
+          ['drones', 'Drones', v.drones || 0, ORBITEUR.drones],
+          ['atterrisseurs', 'Atterrisseurs', v.atterrisseurs, ORBITEUR.atterrisseurs],
+          ['propulseurs', 'Propulseurs solaires', v.propulseurs || 0, 2],
+        ];
+        d += '<dl>' + lignesOrb.map(([cle, nom, n, max]) => `<dt>${nom}</dt><dd>${fmtStock(cle, n || 0)} <span class="doux">/ ${fmtStock(cle, max)}</span></dd>`).join('') +
+          `<dt>Échantillons à bord</dt><dd>${ech}</dd></dl>`;
+        d += `<p class="doux">À bord de l’orbiteur, ce qu’il emporte en expédition. ${this.estAmarre(st) ? '« ⛽ Faire le plein » le complète avec le stock de la station.' : 'Amarré à la station, « ⛽ Faire le plein » le complète avec son stock.'}</p>`;
+      } else {
+        d += '<dl>' + Object.keys(NOMS_STOCK).map((cle) => `<dt>${NOMS_STOCK[cle]}</dt><dd>${fmtStock(cle, k[cle] || 0)}</dd>`).join('') + '</dl>';
+        d += '<p class="doux">Stock de la station : il reste dans la station tant que l’orbiteur ne vient pas le prendre (amarrage, « ⛽ Faire le plein »).</p>';
+        if (ressourcesIllimitees() && st.prochainCargo) d += `<p class="doux">Ravitaillement courant de la Terre dans ${fmtDuree(st.prochainCargo - v.t)}.</p>`;
+        d += `<p class="doux"><b>🔧 Atelier : construire</b> avec les matériaux et les ergols du stock (cliquez pour lancer la fabrication) :</p><div class="orientations">` +
+          Object.entries(RECETTES).filter(([cle]) => recetteVisible(cle, st)).map(([cle, r]) =>
+            `<button data-fab="${cle}" ${k.materiaux < r.materiaux || (r.ergols && k.ergols < r.ergols) ? 'disabled' : ''}>${r.nom} · ${fmtStock('materiaux', r.materiaux)}${r.ergols ? ` + ${fmtStock('ergols', r.ergols)} d’ergols` : ''}${r.duree ? ` · ${fmtDuree(r.duree)}` : ''}</button>`).join('') + '</div>';
+        for (const ch of st.chantiers || []) d += `<p class="doux">🔧 Chantier : ${RECETTES[ch.cle].nom}, prêt le ${fmtDate(ch.fin)} (dans ${fmtDuree(ch.fin - v.t)}).</p>`;
+      }
     }
     const bases = v.bases.filter((b) => ancetres(b.astre).includes(c.id) || b.astre === c.id);
     if (bases.length) {
@@ -2287,6 +2308,7 @@ const Orbiteur = {
     bind('nav-deployer-base', () => { this.deployerBase(v.orb.centre); this.majHud(true); });
     bind('nav-logistique', () => ouvrirLogistique(this.v, true));
     bind('nav-ressources', () => ouvrirRessources(this.v));
+    document.querySelectorAll('[data-onglet-stock]').forEach((bt) => { bt.onclick = () => { this.ongletStock = bt.dataset.ongletStock; this.majHud(true); }; });
     bind('nav-amarrer', () => { this.amarrer(); this.majHud(true); });
     bind('nav-rdv-annuler', () => { this.v.rdvStation = null; this.log('Rendez-vous avec la station annulé (le Δv dépensé ne revient pas).'); this.majHud(true); });
     bind('nav-station', () => { this.construireStation(); this.majHud(true); });

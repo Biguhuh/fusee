@@ -214,6 +214,8 @@ dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .filtre-cat small { color: var(--doux); margin-left: 2px; }
 .filtre-cat.choisi, .groupe-vue button.choisi { border-color: var(--accent); background: #2a1810; }
 .groupe-vue { display: inline-flex; gap: 0; }
+.onglets-stock { display: flex; margin: 12px 0 6px; }
+.onglets-stock button { flex: 1; }
 .groupe-vue button { border-radius: 0; padding: 8px 12px; }
 .groupe-vue button:first-child { border-radius: 8px 0 0 8px; }
 .groupe-vue button:last-child { border-radius: 0 8px 8px 0; }
