@@ -1,6 +1,22 @@
 'use strict';
 // Écran de l'orbiteur : carte du système solaire vue de dessus, pilotage, sondes, stations.
 
+// Action impossible (pas assez d'ergols, plus de sonde…) : bandeau rouge bien visible, en plus du journal.
+const MOTIFS_REFUS = /insuffisant|[Pp]as assez|Plus de (sonde|robot|kit|carburant|propulseur|place|matériau)|Plus aucun|[Ii]mpossible|Il faut |n’a pas d’|n’a plus|déjà (installée|envoyée|en cours)|Personne à bord|une seule (station|sonde|base)|Aucun (module|lanceur)/;
+function afficherAlerte(texte) {
+  let el = document.getElementById('alerte-jeu');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'alerte-jeu';
+    el.setAttribute('role', 'alert');
+    document.body.appendChild(el);
+  }
+  el.innerHTML = `<span>⚠ ${texte}</span><button title="Fermer">✕</button>`;
+  el.querySelector('button').onclick = () => el.classList.remove('visible');
+  el.classList.add('visible');
+  clearTimeout(afficherAlerte.minuteur);
+  afficherAlerte.minuteur = setTimeout(() => el.classList.remove('visible'), 8000);
+}
 const CHAMP_ORBITEUR = { ergols: 'ergolsAtt' };   // clé du stock d'une station → champ de l'orbiteur
 const DV_PROPULSEUR_SOLAIRE = 20;   // km/s de poussées possibles pour ramener l'orbiteur (propulseur ionique)
 const PALIERS_NAV = [1, 10, 100, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8];
@@ -54,6 +70,7 @@ const Orbiteur = {
     initialiserEquipe(v);
     const station = v.stations.find((s) => s.centre === origine.id);
     if (station) { const e = this.etatStation(station); v.orb.r = e.r; v.orb.v = e.v; }
+    v.amarre = station ? station.id : null;   // la nouvelle expédition part amarrée à la station terrestre
     Object.assign(v, {
       carburant: ORBITEUR.carburantMax, ergolsAtt: ORBITEUR.ergolsAtt, sondes: ORBITEUR.sondes,
       kits: ORBITEUR.kits + (station ? 0 : 1), kitsBase: ORBITEUR.kitsBase, robots: ORBITEUR.robots,
@@ -113,6 +130,7 @@ const Orbiteur = {
     return { centre: s.centre, r: p.r, v: p.v };
   },
   log(texte) {
+    if (MOTIFS_REFUS.test(texte)) afficherAlerte(texte);
     this.v.journal.push({ t: this.v.t, texte });
     if (this.v.journal.length > 200) this.v.journal.shift();
     // En temps accéléré, les événements s'enchaînent : on les laisse plus longtemps à l'écran.
@@ -192,6 +210,7 @@ const Orbiteur = {
     }
 
     const centreAvant = v.orb.centre;
+    if (this.enPoussee() && v.amarre) { v.amarre = null; this.log('Désamarrage : l’orbiteur quitte la station.'); }
     if (this.enPoussee()) {
       let reste = dt;
       while (reste > 0) {
@@ -222,6 +241,13 @@ const Orbiteur = {
       if (res === 'impact') return this.crash();
     }
     if (v.orb.centre !== centreAvant) this.etape = null;
+    if (this.verifierChaleurEtoile()) return;
+    // Amarré : l'orbiteur suit exactement la station (sinon les petites erreurs de calcul l'en écartent).
+    if (v.amarre) {
+      const s = v.stations.find((x) => x.id === v.amarre);
+      if (!s || s.centre !== v.orb.centre) v.amarre = null;
+      else { const e = this.etatStation(s); v.orb.r = e.r; v.orb.v = e.v; v.orb.transfert = null; }
+    }
 
     this.mettreAJourSondes(dt);
     this.mettreAJourLogistique();
@@ -444,16 +470,46 @@ const Orbiteur = {
     }
   },
 
-  crash() {
-    const ici = sur(ASTRES_PAR_ID[this.v.orb.centre]);
+  // brule : l'orbiteur a fondu trop près de l'étoile (au lieu de s'écraser).
+  crash(brule = false) {
+    const a = ASTRES_PAR_ID[this.v.orb.centre], ici = sur(a);
+    const quoi = brule ? `L’orbiteur a fondu à l’approche ${de(a)}` : `L’orbiteur s’est écrasé ${ici}`;
     this.auto = false; this.avance = false;
-    regExpeditionPerdue(this.v, 'orbiteur écrasé', this.v.orb.centre);
-    this.log(`L’orbiteur s’est écrasé ${ici} !`);
-    this.log(`L’expédition est perdue. Il faudra lancer une nouvelle méga-fusée depuis la Terre.`);
+    regExpeditionPerdue(this.v, brule ? 'orbiteur fondu près de l’étoile' : 'orbiteur écrasé', this.v.orb.centre);
+    this.log(`${quoi} !`);
+    this.log('L’expédition est perdue. Il faudra lancer une nouvelle méga-fusée depuis la Terre.');
     this.v.orb = null;
     this.v.echantillonsABord = {};
     this.etape = null;
-    if (this.contexte) this.contexte.finExpedition(`L’orbiteur s’est écrasé ${ici}. L’expédition est perdue.`);
+    if (this.contexte) this.contexte.finExpedition(`${quoi}. L’expédition est perdue.`);
+  },
+  // Trop près de l'étoile (moins de 0,1 UA, 100 fois le flux reçu par la Terre) : l'orbiteur fond.
+  verifierChaleurEtoile() {
+    const o = this.v.orb, c = o && ASTRES_PAR_ID[o.centre];
+    if (c && c.type === 'etoile' && V.norm(o.r) < Math.max(0.1 * UA_KM, c.rayonKm * 3)) { this.crash(true); return true; }
+    return false;
+  },
+
+  // Viser le Soleil : on prévient (l'orbiteur fondra), et l'on propose d'y envoyer l'orbiteur vide.
+  avertirSoleil(a) {
+    const v = this.v, m = $('modale');
+    const equipage = v.equipe ? survivants(v).length : (v.equipagePerdu ? 0 : 1);
+    const peutVider = equipage > 0 && estOrigine(v.orb.centre) && this.orbiteFermee();
+    m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>☀️ Cap sur ${le(a)}</h2>
+      <p>Vous savez ce qui va se passer : à moins de 0,1 UA (15 millions de km), l’orbiteur reçoit cent fois la lumière qui chauffe la Terre, et il fond.${equipage ? ` <b>L’équipage à bord (${equipage}) n’y survivra pas.</b>` : ''}</p>
+      ${peutVider ? '<p>Vous pouvez aussi faire rentrer l’équipage en capsule, puis envoyer l’orbiteur vide vers le Soleil : il y finira sa course, sans personne à bord.</p>' : equipage ? `<p class="doux">Pour envoyer l’orbiteur vide, ramenez-le d’abord en orbite ${de(planeteOrigine())} : l’équipage rentrera en capsule.</p>` : ''}</div><button class="fermer">✕</button></header>
+      <div class="actions"><button id="soleil-annuler">Renoncer</button>${peutVider ? '<button id="soleil-vide" class="principal">🏠 Rentrer l’équipage, puis envoyer l’orbiteur vide</button>' : ''}<button id="soleil-garder">Viser ${le(a)} quand même</button></div></div>`;
+    m.classList.remove('cache');
+    m.querySelector('.fermer').onclick = () => Infos.fermer();
+    $('soleil-garder').onclick = () => Infos.fermer();
+    $('soleil-annuler').onclick = () => { Infos.fermer(); v.cible = null; this.etape = null; this.majHud(true); };
+    if (peutVider) $('soleil-vide').onclick = () => {
+      Infos.fermer();
+      v.orbiteurVersSoleil = true;
+      v.cible = null; this.etape = null;
+      this.log(`☀️ L’équipage rentre en capsule ; l’orbiteur vide, programmé, partira seul vers ${le(a)}.`);
+      this.contexte.rentrer();
+    };
   },
 
   // Exécution automatique des étapes (pilote auto, ou assistant « avancer »).
@@ -499,6 +555,7 @@ const Orbiteur = {
     const v = this.v, e = this.etape;
     if (!e || !e.dv) return;
     let dv = e.dv(v.orb, v.t);
+    if (v.amarre) { v.amarre = null; this.log('Désamarrage : l’orbiteur quitte la station.'); }
     // Équipage traumatisé : la manœuvre peut être ratée (poussée trop forte ou trop faible).
     if (rateParTrauma(v)) {
       const k = Math.random() < 0.5 ? 0.6 + 0.2 * Math.random() : 1.2 + 0.2 * Math.random();
@@ -801,6 +858,7 @@ const Orbiteur = {
   stationIci() { return this.v.stations.find((s) => s.centre === this.v.orb.centre); },
   // Amarré : même position et même vitesse que la station.
   estAmarre(s) {
+    if (this.v.amarre === s.id) return true;
     const o = this.v.orb, e = this.etatStation(s);
     return V.norm(V.sub(o.r, e.r)) < 1 && V.norm(V.sub(o.v, e.v)) < 0.01;
   },
@@ -1155,6 +1213,7 @@ const Orbiteur = {
     if (!finRendezVous && !this.procheStation(s) && !this.estAmarre(s)) return this.lancerRendezVous();
     const e = this.etatStation(s);
     v.orb.r = e.r; v.orb.v = e.v; v.orb.transfert = null;
+    v.amarre = s.id;   // reste amarré : l'orbiteur suit la station jusqu'à la prochaine poussée
     // On prend ce que la station a en stock, dans la limite de ce que l'orbiteur peut emporter.
     const pris = [];
     const prendre = (cle, max, nom, unite = '') => {
@@ -1188,6 +1247,7 @@ const Orbiteur = {
     this.log(`Nouvelle cible : ${a.nom}${detail ? ` (${detail})` : ''}.`);
     this.majHud(true);
     if (a.observatoire) return this.avertirObservatoire(a);
+    if (a.type === 'etoile') return this.avertirSoleil(a);
     if (a.id === 'roadster') return this.conseilVoiture(a);
     if (a.artificiel) return;
     const p = a.orbite && ASTRES_PAR_ID[a.orbite.centre];
@@ -1323,7 +1383,7 @@ const Orbiteur = {
   actionsPour(a) {
     const l = [];
     if (astreMasque(a)) return [{ texte: '☀️ Partie dans le Soleil', desactive: 'La voiture n’existe plus' }];
-    if (a.type !== 'etoile') l.push({ texte: '🎯 Choisir comme cible', action: () => this.choisirCible(a.id) });
+    if (a.type !== 'etoile' || a.id === SYSTEME.etoile) l.push({ texte: '🎯 Choisir comme cible', action: () => this.choisirCible(a.id) });
     l.push({ texte: '🔭 Centrer la vue', action: () => this.centrerSur(a.id) });
     if (a.artificiel) return l;   // pas de sonde ni de grappe vers un objet artificiel
     if (a.type !== 'etoile' && sondeVers(this.v, a.id)) l.push({ texte: '🛰 Sonde déjà envoyée', desactive: 'Une seule sonde par astre' });

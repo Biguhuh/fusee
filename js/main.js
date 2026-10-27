@@ -418,6 +418,20 @@ function descendre(id) {
   lancer({ voyage: true, fusee: c.fusee, carburant: carb, bases: basesSur(id), site: siteDescente(id) });
 }
 
+// Dangers d'une sortie (spationaute ou robot) là où l'on est posé : pression, chaleur, rayonnement.
+// Pour le rayonnement, le temps maximal dehors avant la dose mortelle.
+function dangersSortie(vol, type) {
+  const d = EXPLORATEURS[type], c = vol.c || conditions(vol.astre, vol.y), l = [];
+  const qui = type === 'robot' ? 'le robot' : 'la combinaison';
+  if (c.p > d.pressionMax) l.push(`Pression ${fmtP(c.p)} : ${qui} ne résiste qu’à ${fmt(d.pressionMax, 1)} bar. ${type === 'robot' ? 'Il' : 'Elle'} se déformera puis cédera.`);
+  if (c.t > d.tempMax) l.push(`Température ${fmt(c.t)} °C : ${qui} ne supporte que ${fmt(d.tempMax)} °C.`);
+  if (type === 'spationaute') {
+    const ir = doseSurface(vol.astre), t = tempsAvantDoseMortelle(ir.svJour, vol.doseSv || 0);
+    if (t < d.autonomie) l.push(`Rayonnement ${fmtDose(ir.svJour)} : dose mortelle en ${fmtDuree(t)}. Temps de sortie maximal : ${fmtDuree(Math.max(0, t * 0.8))} (retour au module compris), au-delà c’est la mort.`);
+  }
+  return l;
+}
+
 // Zone repérée par une sonde : la descente vise un peu à côté (l'aire d'atterrissage de la base).
 function siteDescente(id) {
   const s = etat.voyage && (etat.voyage.sites || {})[id];
@@ -538,6 +552,13 @@ function afficherRetourTerre(res, equipage, nom = nomSpatio()) {
   $('res-message').textContent = equipage
     ? `La capsule a amerri sous ses parachutes et l’hélicoptère a hélitreuillé ${nom}.${pertes ? ` Manquent à l’appel : ${pertes}.` : ''} ${ech}`
     : `Capsule vide : ${pertes ? `${pertes}.` : 'l’équipage n’est pas revenu.'} Un navire a hissé la capsule à bord avec sa grue. ${ech}`;
+  // Orbiteur vide envoyé vers le Soleil : il y fond, sans personne à bord (environ deux mois et demi de chute).
+  if (etat.voyage.orbiteurVersSoleil) {
+    etat.voyage.orbiteurVersSoleil = false;
+    const texte = '☀️ Pendant ce temps, l’orbiteur vide file vers le Soleil. Dans environ deux mois et demi, il fondra en passant à moins de 15 millions de km du Soleil, sans personne à bord.';
+    $('res-message').textContent += ' ' + texte;
+    etat.voyage.journal.push({ t: etat.voyage.t, texte });
+  }
   $('res-stats').innerHTML = resumeCampagne(etat.voyage).split(' · ').map((x) => `<dt>•</dt><dd style="text-align:left">${x}</dd>`).join('');
   etat.suiteResultat = 'accueil';
   $('vers-hangar').textContent = '← Accueil';
@@ -678,6 +699,7 @@ function reprendreDepuis(id) {
     const st = v.stations.find((s) => s.id === id.slice(8));
     const e = Orbiteur.etatStation(st);
     v.orb = { centre: st.centre, r: e.r, v: e.v, transfert: null };
+    v.amarre = st.id;
     v.cible = null;
     Orbiteur.log(`Reprise ${au(st)}, ${enOrbite(ASTRES_PAR_ID[st.centre])}.`);
     return allerNavigation();
@@ -992,7 +1014,11 @@ addEventListener('keydown', (e) => {
     refus(v.astre.type !== 'solide' ? 'Pas de sol ici : ni spationaute ni robot ne peuvent sortir.' : `${e.code === 'KeyE' ? 'Sortir le spationaute' : 'Sortir le robot'} : il faut d’abord être posé.`);
   }
   if ((e.code === 'KeyE' || e.code === 'KeyR') && v.pose && v.astre.type === 'solide') {
-    etat.explo = new Exploration(v, e.code === 'KeyE' ? 'spationaute' : 'robot', etat.science);
+    const type = e.code === 'KeyE' ? 'spationaute' : 'robot';
+    // Dehors, c'est mortel (pression, chaleur, rayonnement) : on prévient, mais on laisse sortir.
+    const dangers = dangersSortie(v, type);
+    if (dangers.length && !confirm(`⚠ Sortie dangereuse ${sur(v.astre)} :\n\n• ${dangers.join('\n• ')}\n\nSortir quand même ?`)) return;
+    etat.explo = new Exploration(v, type, etat.science);
     touches.clear();
     montrer('explo');
     return;
