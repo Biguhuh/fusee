@@ -187,7 +187,9 @@ function afficherCarte(etat, choisir) {
     const b = document.createElement('button');
     b.className = 'astre' + (etat.destination === id ? ' choisi' : '');
     const d = Math.max(12, tailleDisque(a));
-    b.innerHTML = `<span class="disque" style="width:${d}px;height:${d}px;background:${a.couleurs.disque}"></span><span>${a.nom}</span><span class="badge">${badge(etat.records[id])}</span>`;
+    // ★ / ✓ : meilleur vol, tous modes confondus ; 🏳 : posé pendant la campagne en cours.
+    const campagne = etat.voyage && etat.voyage.visites && etat.voyage.visites[id] && etat.voyage.visites[id].pose;
+    b.innerHTML = `<span class="disque" style="width:${d}px;height:${d}px;background:${a.couleurs.disque}"></span><span>${a.nom}</span><span class="badge">${badge(etat.records[id])}${campagne ? ' <span title="Posé pendant la campagne">🏳</span>' : ''}</span>`;
     b.onclick = () => choisir(id);
     return b;
   };

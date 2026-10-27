@@ -112,6 +112,16 @@ function allerHangar() {
 // « Aller partout » : les astres où l'on peut se poser (ou plonger), hors planète d'origine et étoile.
 function astresAVisiter() { return ASTRES.filter((a) => a.type !== 'etoile' && !estOrigine(a.id)); }
 
+// Astres où l'on s'est posé pendant la campagne. Corrige les parties où une visite sans atterrissage avait
+// effacé un atterrissage précédent : une base, des échantillons rapportés ou une sortie y prouvent la visite.
+function reconstituerVisites(v) {
+  const poser = (id) => { if (id && ASTRES_PAR_ID[id]) v.visites[id] = { ...(v.visites[id] || {}), pose: true }; };
+  for (const b of v.bases || []) poser(b.astre);
+  for (const [id, n] of Object.entries(v.echantillonsRapportes || {})) if (n > 0) poser(id);
+  for (const [id, n] of Object.entries(v.echantillonsABord || {})) if (n > 0) poser(id);
+  for (const f of Object.values((typeof etat !== 'undefined' && etat.registre) || {})) for (const id of Object.keys(f.astres || {})) poser(id);
+}
+
 function allerAccueil() {
   const v = etat.voyage;
   // Campagne terminée par un départ vers une autre étoile : on ne la reprend plus.
@@ -129,10 +139,11 @@ function allerAccueil() {
   } else if (v) {
     // La progression se compte dans le système de la campagne (qui peut être une autre étoile).
     choisirSystemeCampagne(v);
+    reconstituerVisites(v);
     const vus = Object.keys(v.visites).filter((id) => v.visites[id].pose && ASTRES_PAR_ID[id]);
     const nPrinc = SYSTEME.objectifs.filter((id) => vus.includes(id)).length;
     $('progres-accueil').innerHTML = (SYSTEME.id !== 'solaire' ? `<b>Campagne dans le ${SYSTEME.nom}</b> (${fmt(SYSTEME.distanceAL, 2)} années-lumière). ` : '') +
-      `Progression : <b>${vus.length} astre${vus.length > 1 ? 's' : ''} visité${vus.length > 1 ? 's' : ''}</b> sur ${astresAVisiter().length} (dont ${nPrinc} des ${SYSTEME.objectifs.length} principaux). ` + resumeCampagne(v);
+      `Progression : <b>${vus.length} astre${vus.length > 1 ? 's' : ''} visité${vus.length > 1 ? 's' : ''} (posé${vus.length > 1 ? 's' : ''} en campagne 🏳)</b> sur ${astresAVisiter().length} (dont ${nPrinc} des ${SYSTEME.objectifs.length} principaux). ` + resumeCampagne(v);
   } else $('progres-accueil').innerHTML = '';
   // Easter eggs : rien tant que le premier n'est pas trouvé.
   const nEggs = nombreEggsTrouves();
@@ -291,7 +302,8 @@ function finVol(r) {
       }
       Orbiteur.log(`Atterrisseur perdu ${sur(r.astre)}${etat.vol.echantillons ? ' avec ses échantillons' : ''}. Il en reste ${v.atterrisseurs}.`);
     }
-    v.visites[a] = { ...(v.visites[a] || {}), pose: r.dejaPose || r.cause === 'pose' };
+    // Une fois posé, l'astre reste visité : une visite suivante sans atterrissage ne l'efface pas.
+    v.visites[a] = { ...(v.visites[a] || {}), pose: !!(v.visites[a] && v.visites[a].pose) || !!r.dejaPose || r.cause === 'pose' };
   }
   sauver(etat);
   afficherResultat(r);
