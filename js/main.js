@@ -1095,7 +1095,11 @@ addEventListener('resize', redim);
 // Le joueur choisit l'écoulement du temps. Près du sol, on le limite pour qu'il reste toujours
 // au moins 2 secondes réelles avant le contact : une descente lente sur une petite lune peut être accélérée,
 // une arrivée rapide repasse d'elle-même à ×1.
+// Séparation d'un étage ou de la coiffe : 4 s à ×1 pour la voir (sinon l'étage traverse l'écran en un éclair).
+const DUREE_RALENTI_SEPARATION = 4000;
+function separationRecente(v) { return !!(v.tSeparation && performance.now() - v.tSeparation < DUREE_RALENTI_SEPARATION); }
 function warpEffectif(v) {
+  if (separationRecente(v)) return 1;
   if (v.astre.type !== 'solide' || v.pose || v.fin) return etat.warp;
   const alt = v.altSol();
   const vDesc = Math.max(0.05, -v.vy, Math.abs(v.vx) * 0.2);
@@ -1169,7 +1173,9 @@ function image(t) {
       const total = dt * w;
       const n = Math.min(20000, Math.max(1, Math.ceil(total / PAS_PHYSIQUE)));
       const cmd = commandes();
-      for (let i = 0; i < n && !v.fin; i++) v.step(total / n, cmd);
+      // Une séparation pendant cette image : on s'arrête là (la suite repart à ×1).
+      const tSep = v.tSeparation;
+      for (let i = 0; i < n && !v.fin && v.tSeparation === tSep; i++) v.step(total / n, cmd);
     }
     touchesBreves.clear();
     if (etat.enVoyage) pleinALaBase(v);
