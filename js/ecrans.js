@@ -330,7 +330,12 @@ function afficherFiche(etat) {
 const CAUSES_MORTELLES = ['ecrasee', 'carburant', 'brulee', 'pressurisee'];
 function texteResultat(r) {
   const res = texteResultatModule(r);
-  const robot = typeof etat !== 'undefined' && etat.vol && (etat.vol.robotSeul || etat.vol.lancement);
+  // Drone : sa propre fin de mission (il reste sur place, avec ce qu'il a repéré).
+  if (typeof etat !== 'undefined' && etat.vol && etat.vol.droneSeul && (r.cause === 'abandon' || r.cause === 'bloque')) {
+    const n = Object.keys(etat.vol.vusDrone || {}).length;
+    return ['Mission du drone terminée', 'succes', `Le drone reste ${sur(r.astre)}${r.cause === 'bloque' ? ', batterie vide' : ''}. ${n ? `${n} repérage${n > 1 ? 's' : ''} photographié${n > 1 ? 's' : ''} : une exploration humaine permettra d’examiner les objets inhabituels.` : 'Rien de remarquable repéré cette fois : volez bas, autour du point de largage.'}`];
+  }
+  const robot = typeof etat !== 'undefined' && etat.vol && (etat.vol.robotSeul || etat.vol.droneSeul || etat.vol.lancement);
   if (CAUSES_MORTELLES.includes(r.cause) && !robot && res) {
     // Une seule personne descend avec l'atterrisseur : les autres attendent à bord de l'orbiteur.
     const v = etat.enVoyage && etat.voyage;

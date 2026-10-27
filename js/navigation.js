@@ -14,7 +14,8 @@ const ORBITEUR = {
   sondes: 6,
   kits: 2,                // kits de station orbitale
   kitsBase: 1,            // kits de base au sol
-  robots: 2,              // robots largables (aller simple)
+  robots: 2,
+  drones: 2,              // drones à rotors (astres avec atmosphère)              // robots largables (aller simple)
   atterrisseurs: 2,
   ergolsAtt: 60000,       // kg d'ergols réservés à l'atterrisseur
 };

@@ -562,7 +562,14 @@ class Exploration {
     // Fusée posée, à l'échelle (sur Terre : la maison d'où part la promenade)
     const [fx, fy] = versEcran(this.xFusee, this.sol(this.xFusee));
     if (this.terre) dessinerMaison(ctx, fx, fy, echelle);
-    else if (this.moduleRobot) dessinerModuleRobot(ctx, fx, fy, echelle, this.presDeLaFusee());
+    else if (this.moduleRobot) {
+      dessinerModuleRobot(ctx, fx, fy, echelle, this.presDeLaFusee());
+      // Drone arrimé, posé à côté du module tant qu'il n'a pas décollé (H).
+      if (this.vol.droneEmbarque && !this.droneParti) {
+        const xd = this.xFusee - 2.2, [dx, dy] = versEcran(xd, this.sol(xd));
+        dessinerDrone(ctx, { angle: 0, throttle: 0, t: 0 }, dx, dy, (echelle * HAUTEUR_MODULE) / 3);
+      }
+    }
     else dessinerFusee(ctx, { f: this.vol.f, angle: this.vol.angle, throttle: 0, temp: this.vol.temp, integrite: this.vol.integrite, degats: this.vol.degats, taux: { pression: 0, chaleur: 0 }, enDegats: () => false }, fx, fy, HAUTEUR_MODULE * echelle);
 
     // Rover garé

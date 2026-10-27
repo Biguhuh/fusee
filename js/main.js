@@ -289,6 +289,23 @@ function finVol(r) {
       Orbiteur.log('Échec du lancement de la méga-fusée.');
       etat.suiteResultat = 'accueil';
     }
+  } else if (etat.enVoyage && etat.vol.droneSeul) {
+    // Drone : pas d'équipage ni d'atterrisseur en jeu ; il reste sur place. Les repérages sont déjà notés.
+    const a = r.astre.id, n = Object.keys(etat.vol.vusDrone || {}).length;
+    const fin = { ecrasee: 'écrasé', carburant: 'tombé, batterie vide', bloque: 'posé, batterie vide', pressurisee: 'écrasé par la pression', brulee: 'brûlé', abandon: 'laissé sur place' }[r.cause] || 'mission terminée';
+    v.visites[a] = { ...(v.visites[a] || {}), drone: true };
+    Orbiteur.log(`🚁 Mission du drone terminée ${sur(r.astre)} : ${fin}${n ? `, ${n} repérage${n > 1 ? 's' : ''}` : ''}.`);
+    // Drone parti du robot : on revient au robot, qui continue son exploration.
+    if (etat.retourRobot) {
+      const rr = etat.retourRobot;
+      etat.retourRobot = null;
+      etat.vol = rr.vol; etat.explo = rr.explo;
+      rr.explo.dire(`🚁 Fin du vol du drone : ${fin}${n ? `, ${n} repérage${n > 1 ? 's' : ''} photographié${n > 1 ? 's' : ''}` : ''}. Retour au robot.`);
+      sauver(etat);
+      touches.clear();
+      montrer('explo');
+      return;
+    }
   } else if (etat.enVoyage) {
     const a = r.astre.id;
     if (!etat.vol.robotSeul && etat.vol.doseSv) regDose(piloteDuVol(v), etat.vol.doseSv);   // registre des équipages
@@ -493,14 +510,51 @@ function larguerRobot(id, blindage) {
   etat.vol.robotSeul = true;
   etat.enVoyage = true;
   Orbiteur.log(`Robot largué ${sur(a)} (blindage ${BLINDAGES_ROBOT[blindage].nom.toLowerCase()}, rayonnement ${fmtDose(doseSurface(a).svJour)}).`);
+  // Avec de l'air, le drone voyage avec le robot dans la même capsule (comme Ingenuity avec Perseverance).
+  const avecDrone = droneVolePossible(a) && v.drones > 0;
+  if (avecDrone) { v.drones--; etat.vol.droneEmbarque = true; Orbiteur.log(`🚁 Le drone accompagne le robot ${sur(a)}.`); }
   // Petite animation : parachute (ou rétrofusées), ballons, rebonds, dégonflage ; puis l'exploration.
   jouerScene(new DescenteRobot(etat.vol), () => {
     etat.explo = new Exploration(etat.vol, 'robot', etat.science, { blindage });
+    if (avecDrone) etat.explo.dire('🚁 Le drone est arrimé au robot : H (ou le bouton 🚁) pour le faire décoller. Il vole sur batterie et repère les objets en vol bas.');
     replique('reviendrai');
     touches.clear();
     redim();
     montrer('explo');
   });
+}
+
+// Drone arrimé au robot : il décolle d'à côté du robot, se pilote comme un module, puis on revient au robot.
+function deployerDrone() {
+  const x = etat.explo;
+  if (!x || x.fin) return;
+  if (x.type !== 'robot' || !x.vol.droneEmbarque) return x.dire('Pas de drone ici : il arrive avec le robot, sur les astres qui ont de l’air.');
+  if (x.droneParti) return x.dire('Le drone a déjà volé : sa mission est terminée.');
+  x.droneParti = true;
+  const a = x.astre;
+  etat.retourRobot = { explo: x, vol: etat.vol };
+  const vd = new Vol(a, fuseeDrone(a), { voyage: true, depuisSol: true, bases: x.vol.bases });
+  vd.x = x.p.x + 2; vd.y = vd.sol(vd.x) + 0.01;
+  vd.xDepart = x.xFusee;            // les repérages se placent comme pour le robot
+  vd.droneSeul = true; vd.equipier = null;
+  vd.messageExplo = { texte: '🚁 Drone prêt : mettez les gaz pour décoller. Volez bas (moins de 60 m) pour repérer. Échap : fin du vol, retour au robot.', vie: 9 };
+  etat.vol = vd; etat.explo = null; etat.enVoyage = true; etat.warp = 1;
+  touches.clear();
+  montrer('vol');
+}
+
+// Drone : largué depuis l'orbite dans une petite capsule, il se pilote ensuite comme un module d'atterrissage.
+function larguerDrone(id) {
+  const v = etat.voyage, a = ASTRES_PAR_ID[id];
+  if (!droneVolePossible(a)) return Orbiteur.log(`Impossible de faire voler un drone ${sur(a)} : il faut de l’air pour ses rotors.`);
+  if (!(v.drones > 0)) return Orbiteur.log('Plus de drone à bord : l’atelier d’une station en fabrique.');
+  v.drones--;
+  etat.destination = id;
+  lancer({ voyage: true, fusee: fuseeDrone(a), bases: basesSur(id), site: siteDescente(id) });
+  etat.vol.droneSeul = true;
+  etat.vol.equipier = null;   // pas d'équipage
+  etat.vol.messageExplo = { texte: `🚁 Drone largué ${sur(a)} : pilotez-le comme un module (gaz, inclinaison, L pour le pilote auto). Volez bas pour repérer. Échap : fin de la mission.`, vie: 9 };
+  Orbiteur.log(`🚁 Drone largué ${sur(a)} (portance des rotors : air à ${fmtNombre(conditions(a, 0).rho, 3)} kg/m³ au sol).`);
 }
 
 function construireBase() {
@@ -820,7 +874,20 @@ function partirVersSysteme(info) {
     montrer('resultat');
   });
 }
-Depart.contexte = { terminer: (info) => terminerParDepart(info), partirSF: (info) => partirVersSysteme(info), log: (t) => { Orbiteur.log(t); sauver(etat); } };
+// Avant de quitter le système : proposer de télécharger la partie, pour pouvoir la recharger plus tard.
+function proposerSauvegardeAvantDepart(suite) {
+  const m = $('modale');
+  m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>💾 Avant de quitter le ${SYSTEME.nom}</h2>
+    <p>Téléchargez la partie : vous pourrez la recharger plus tard (accueil → « Charger une sauvegarde ») et reprendre d’ici, juste avant le départ.</p></div><button class="fermer">✕</button></header>
+    <div class="actions"><button id="dep-annuler">Annuler</button><button id="dep-sans">Partir sans télécharger</button><button id="dep-telecharger" class="principal">⬇ Télécharger, puis partir</button></div></div>`;
+  m.classList.remove('cache');
+  const fermer = () => Infos.fermer();
+  m.querySelector('.fermer').onclick = fermer;
+  $('dep-annuler').onclick = fermer;
+  $('dep-sans').onclick = () => { fermer(); suite(); };
+  $('dep-telecharger').onclick = () => { exporterSauvegarde(etat); fermer(); suite(); };
+}
+Depart.contexte = { terminer: (info) => proposerSauvegardeAvantDepart(() => terminerParDepart(info)), partirSF: (info) => proposerSauvegardeAvantDepart(() => partirVersSysteme(info)), log: (t) => { Orbiteur.log(t); sauver(etat); } };
 
 Orbiteur.contexte = {
   equipement: () => etat.equipement,
@@ -831,6 +898,7 @@ Orbiteur.contexte = {
   hangar: () => { sauver(etat); allerAccueil(); },
   descendre: (id) => descendre(id),
   larguerRobot: (id, blindage) => larguerRobot(id, blindage),
+  larguerDrone: (id) => larguerDrone(id),
   rentrer: () => rentrerSurTerre(),
   renvoyerEchantillons: () => renvoyerEchantillons(),
   finExpedition: (texte) => terminerExpedition(texte),
@@ -1023,6 +1091,7 @@ addEventListener('keydown', (e) => {
     const x = etat.explo;
     if (e.code === 'KeyE') x.agir();
     if (e.code === 'KeyV') x.basculerRover();
+    if (e.code === 'KeyH') deployerDrone();
     if (e.code === 'KeyF') x.planterDrapeau();
     if (e.code === 'Escape') {
       if (x.terre) x.terminer('retour', `Fin de la promenade : ${x.bouquet || 0} fleurs, ${x.panier || 0} fruits, ${x.bieres} bière(s).`);
@@ -1082,7 +1151,8 @@ addEventListener('keydown', (e) => {
   if (e.code === 'Enter') v.finirAuSol();
   if (e.code === 'Escape') {
     // Campagne, posé : quitter laisse l'atterrisseur et l'équipage sur place, pour toujours. On demande d'abord.
-    if (etat.enVoyage && v.pose && !v.robotSeul && !v.lancement && !v.fin
+    if (etat.enVoyage && v.droneSeul && !v.fin && !confirm(`Arrêter la mission du drone ? Il reste ${v.pose ? 'posé' : 'là où il est'} ${sur(v.astre)} : on ne le récupère pas.`)) return;
+    if (etat.enVoyage && v.pose && !v.robotSeul && !v.droneSeul && !v.lancement && !v.fin
       && !confirm(`Laisser l’atterrisseur et ${(etat.vol.equipier || equipierDescente(null)).nom} ${sur(v.astre)} ? Ils ne reviendront pas.\n\nPour repartir, décollez plutôt (T).`)) return;
     v.abandonner();
   }
