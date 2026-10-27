@@ -206,13 +206,14 @@ function configurerEtage(f, i) {
 
 // ---------- Stocks des stations ----------
 const CAPACITES_STATION = {
-  carburant: 400000, ergols: 400000, materiaux: 300000, sondes: 10, kits: 4, kitsBase: 3, robots: 4, atterrisseurs: 4, extensions: 4, lanceurRetour: 2, extensionsStation: 2, propulseurs: 1,
+  carburant: 400000, ergols: 400000, materiaux: 300000, sondes: 10, kits: 4, kitsBase: 3, robots: 4, atterrisseurs: 4, extensions: 4, lanceurRetour: 2, extensionsStation: 2, propulseurs: 1, drones: 4,
 };
-const STOCK_VIDE = () => ({ carburant: 0, ergols: 0, materiaux: 0, sondes: 0, kits: 0, kitsBase: 0, robots: 0, atterrisseurs: 0, extensions: 0, lanceurRetour: 0, extensionsStation: 0, propulseurs: 0 });
+const STOCK_VIDE = () => ({ carburant: 0, ergols: 0, materiaux: 0, sondes: 0, kits: 0, kitsBase: 0, robots: 0, atterrisseurs: 0, extensions: 0, lanceurRetour: 0, extensionsStation: 0, propulseurs: 0, drones: 0 });
 const NOMS_STOCK = {
   carburant: 'carburant', ergols: 'ergols', materiaux: 'matériaux', sondes: 'sondes', kits: 'kits de station',
   kitsBase: 'kits de base', robots: 'robots', atterrisseurs: 'atterrisseurs', extensions: 'extensions de base',
   lanceurRetour: 'lanceurs de retour', extensionsStation: 'extensions de station', propulseurs: 'propulseurs solaires',
+  drones: 'drones',
 };
 
 // Une seule station, une seule base et une seule sonde par astre.
@@ -323,6 +324,7 @@ const RECETTES = {
   lanceurRetour: { nom: 'Lanceur de retour (ballon + Aphrodite)', materiaux: 20000, ergols: 37000, duree: 20 * JOUR },
   // Propulseur ionique largable (environ 18 km/s pour 1,3 t) : il envoie la voiture rouge dans le Soleil.
   propulseurs: { nom: 'Propulseur solaire', materiaux: 6000, ergols: 3000, duree: 5 * JOUR },
+  drones: { nom: 'Drone', materiaux: 1500, duree: 2 * JOUR },
 };
 
 // Extensions encore utiles à une station (cle 'extensionsStation') ou à la base de son astre (cle 'extensions') :

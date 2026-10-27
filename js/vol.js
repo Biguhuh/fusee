@@ -70,9 +70,11 @@ class Vol {
       this.dejaPose = true;
     }
     this.c = conditions(astre, this.y);
+    this.xDepart = this.x;   // repère des découvertes (drone)
   }
 
-  masse() { return this.f.masseSeche + this.carburant; }
+  // Drone : la batterie ne pèse rien de plus quand elle se vide.
+  masse() { return this.f.drone ? this.f.masseSeche : this.f.masseSeche + this.carburant; }
   // Rotation : vitesse et accélération angulaires maximales selon l'engin.
   // Un grand lanceur pivote lentement (≈ 3,4°/s au plus, ≈ 1°/s en vrai pendant le virage),
   // un module d'atterrissage léger beaucoup plus vite (≈ 40°/s).
@@ -95,7 +97,7 @@ class Vol {
     if (Math.abs(pas) > Math.abs(dA)) this.omega = 0;
     return dA;
   }
-  twr() { return this.f.poussee / (this.masse() * this.c.g); }
+  twr() { return (this.f.poussee * (this.f.drone ? facteurAirDrone(this) : 1)) / (this.masse() * this.c.g); }
   // Sol, terrassé à plat sous les bases (raccord en douceur entre 110 et 140 m du centre).
   sol(x) {
     if (!this.terrain) return 0;
@@ -159,9 +161,10 @@ class Vol {
 
     const th = this.carburant > 0 ? this.manette : 0;
     this.throttle = th;
-    const F = f.poussee * th;
-    if (F > 0) {
-      this.carburant = Math.max(0, this.carburant - F / (f.isp * G0) * dt);
+    // Drone : les rotors portent selon la densité de l'air ; la batterie se vide selon la puissance.
+    const F = f.poussee * th * (f.drone ? facteurAirDrone(this) : 1);
+    if (F > 0 || (f.drone && th > 0)) {
+      this.carburant = Math.max(0, this.carburant - (f.drone ? th * dt : F / (f.isp * G0) * dt));
       // Méga-fusée : étage vide → séparation, l'étage suivant s'allume.
       if (this.carburant === 0 && f.etages && f.etage < f.etages.length - 1) {
         configurerEtage(f, f.etage + 1);
@@ -222,6 +225,7 @@ class Vol {
 
     if (this.terrain && this.y <= this.sol(this.x)) this.contact();
     if (this.fin) return;
+    if (f.drone) reperagesDrone(this);
     this.objectifs();
   }
 
@@ -670,6 +674,11 @@ class Vol {
 
   objectifTexte() {
     const a = this.astre;
+    // Drone : pas d'orbite à rejoindre ; on vole, on repère, on se pose quand on veut.
+    if (this.f.drone) {
+      if (this.pose) return `Drone posé ${sur(a)} : remettez les gaz pour redécoller · Échap : fin de la mission`;
+      return `Drone ${sur(a)} : volez bas (moins de 60 m) pour repérer · posez-vous à moins de ${a.vMax} m/s · Échap : fin de la mission`;
+    }
     switch (this.phase) {
       case 'descente': return `Posez-vous en douceur : moins de ${a.vMax} m/s, module droit, sol pas trop pentu`;
       case 'au sol':
@@ -1382,6 +1391,7 @@ function dessinerGeoKourou(ctx, vol, pts, haut, W, H, alt) {
 
 // Fumée quand la coque est abîmée, étincelles quand elle encaisse des dégâts.
 function emettreParticules(vol, x, y, h, dt) {
+  if (vol.f && vol.f.drone) return;   // un drone n'a pas de flamme : des rotors
   const usure = 1 - vol.integrite / 100;
   const cy = y - h * 0.45;
   // Grands nuages de fumée au décollage (eau du déluge vaporisée et gaz des moteurs).
@@ -1611,6 +1621,7 @@ function dessinerFusee(ctx, vol, x, y, h) {
   // Grands lanceurs : fusées. Géantes gazeuses : sonde atmosphérique. Ailleurs : module d'atterrissage.
   if (vol.astre && vol.astre.type === 'gazeuse' && !(vol.f && vol.f.mega)) return dessinerSondeAtmo(ctx, vol, x, y, h * 1.3);
   if (vol.phase === 'ballon') return dessinerBallon(ctx, vol, x, y, h / HAUTEUR_MODULE);
+  if (vol.f && vol.f.drone) return dessinerDrone(ctx, vol, x, y, h);
   if (!(vol.f && vol.f.mega)) return dessinerModule(ctx, vol, x, y, h);
   return dessinerLanceur(ctx, vol, x, y, h);
 }
@@ -2301,7 +2312,10 @@ function corpsHudDetail(ctx, vol, x, larg, compact, dessiner) {
   }
 
   const fc = vol.carburant / f.carburant;
-  ligne('Carburant', fmt(vol.carburant) + ' kg', fc < 0.15 ? '#ef5350' : '#fff');
+  if (f.drone) {
+    ligne('Batterie', `${fmt(fc * 100)} % (${fmtDuree(vol.carburant)} à pleine puissance)`, fc < 0.15 ? '#ef5350' : '#fff');
+    ligne('Portance', `${fmt(facteurAirDrone(vol) * 100)} % (air : ${fmtNombre(c.rho, 3)} kg/m³)`, facteurAirDrone(vol) < 0.5 ? '#ffca28' : '#fff');
+  } else ligne('Carburant', fmt(vol.carburant) + ' kg', fc < 0.15 ? '#ef5350' : '#fff');
   jauge(ctx, x, y - 4, larg, fc, fc < 0.15 ? '#ef5350' : '#42a5f5'); y += 6;
 
   const fi = vol.integrite / 100;

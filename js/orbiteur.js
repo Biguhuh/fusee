@@ -52,7 +52,7 @@ const Orbiteur = {
       t: DATE_DEBUT,
       systeme: SYSTEME.id,
       orb: null,
-      carburant: 0, ergolsAtt: 0, sondes: 0, kits: 0, kitsBase: 0, robots: 0, atterrisseurs: 0,
+      carburant: 0, ergolsAtt: 0, sondes: 0, kits: 0, kitsBase: 0, robots: 0, drones: 0, atterrisseurs: 0,
       sondesEnVol: [], stations: [], bases: [],
       journal: [{ t: DATE_DEBUT, texte: 'Début de la campagne. Première étape : lancer la méga-fusée et construire la station spatiale.' }],
       mode: 'assistant', cible: null, manette: 0, orientation: 'prograde', warp: 1,
@@ -75,7 +75,7 @@ const Orbiteur = {
     v.amarre = station ? station.id : null;   // la nouvelle expédition part amarrée à la station terrestre
     Object.assign(v, {
       carburant: ORBITEUR.carburantMax, ergolsAtt: ORBITEUR.ergolsAtt, sondes: ORBITEUR.sondes,
-      kits: ORBITEUR.kits + (station ? 0 : 1), kitsBase: ORBITEUR.kitsBase, robots: ORBITEUR.robots,
+      kits: ORBITEUR.kits + (station ? 0 : 1), kitsBase: ORBITEUR.kitsBase, robots: ORBITEUR.robots, drones: ORBITEUR.drones,
       atterrisseurs: ORBITEUR.atterrisseurs, echantillonsABord: {}, cible: null, manette: 0,
     });
     // Orbiteur garé : on retrouve ce qu'il restait à bord (la station le complètera : « Faire le plein »).
@@ -123,7 +123,7 @@ const Orbiteur = {
     // avec le lanceur d'équipage. Sauf s'il part vide vers le Soleil.
     const st = v.stations.find((s) => s.terrestre);
     if (st && !v.orbiteurVersSoleil) {
-      v.orbiteurGare = { carburant: v.carburant, ergolsAtt: v.ergolsAtt, sondes: v.sondes, kits: v.kits, kitsBase: v.kitsBase, robots: v.robots, atterrisseurs: v.atterrisseurs, propulseurs: v.propulseurs || 0 };
+      v.orbiteurGare = { carburant: v.carburant, ergolsAtt: v.ergolsAtt, sondes: v.sondes, kits: v.kits, kitsBase: v.kitsBase, robots: v.robots, drones: v.drones || 0, atterrisseurs: v.atterrisseurs, propulseurs: v.propulseurs || 0 };
       this.log(`L’orbiteur reste garé ${au(st)} : la prochaine équipe pourra le reprendre (lanceur d’équipage Aube).`);
     }
     v.orb = null;
@@ -880,7 +880,7 @@ const Orbiteur = {
   // La station a-t-elle encore quelque chose à donner à l'orbiteur ?
   stockAPrendre(s) {
     const v = this.v, k = s.stock;
-    const max = { carburant: ORBITEUR.carburantMax, ergols: ORBITEUR.ergolsAtt, sondes: ORBITEUR.sondes, kits: ORBITEUR.kits + 1, kitsBase: 2, robots: ORBITEUR.robots, atterrisseurs: ORBITEUR.atterrisseurs, propulseurs: 2 };
+    const max = { carburant: ORBITEUR.carburantMax, ergols: ORBITEUR.ergolsAtt, sondes: ORBITEUR.sondes, kits: ORBITEUR.kits + 1, kitsBase: 2, robots: ORBITEUR.robots, drones: ORBITEUR.drones, atterrisseurs: ORBITEUR.atterrisseurs, propulseurs: 2 };
     return Object.entries(max).some(([c, m]) => (k[c] || 0) > 0 && (v[CHAMP_ORBITEUR[c] || c] || 0) < m - (c === 'carburant' || c === 'ergols' ? 1 : 0));
   },
   orbiteFermee() {
@@ -1243,6 +1243,7 @@ const Orbiteur = {
     prendre('kits', ORBITEUR.kits + 1, 'kits de station');
     prendre('kitsBase', 2, 'kits de base');
     prendre('robots', ORBITEUR.robots, 'robots');
+    prendre('drones', ORBITEUR.drones, 'drones');
     prendre('atterrisseurs', ORBITEUR.atterrisseurs, 'atterrisseurs');
     // Propulseurs solaires : 2 au plus (un pour la voiture, un pour rentrer sans ergols).
     v.propulseurs = v.propulseurs || 0;
@@ -2121,7 +2122,7 @@ const Orbiteur = {
       ['Période', isFinite(el.periode) ? fmtDuree(el.periode) : '—'],
       ['Carburant', `${fmt(v.carburant / 1000, 1)} t (Δv ${fmtV(dvRestant)})`],
       ['Ergols atterrisseur', `${fmt(v.ergolsAtt / 1000, 1)} t`],
-      ['Atterrisseurs / robots', `${v.atterrisseurs} / ${v.robots}`],
+      ['Atterrisseurs / robots / drones', `${v.atterrisseurs} / ${v.robots} / ${v.drones || 0}`],
       ['Sondes', `${v.sondes}`],
       ['Kits station / base', `${v.kits} / ${v.kitsBase}`],
     ];
@@ -2187,6 +2188,7 @@ const Orbiteur = {
       } else d += `<p class="doux">⚠ ${conc.raison}</p>`;
       if (c.type === 'solide' && v.robots > 0) d += `<button id="nav-robot">🤖 Larguer un robot (aller simple)</button>`;
     }
+    if (fermee && droneVolePossible(c)) d += `<button id="nav-drone" ${v.drones > 0 ? '' : 'disabled title="Plus de drone à bord (atelier d’une station)"'}>🚁 Larguer un drone (${v.drones || 0} à bord)</button>`;
     const st = this.stationIci();
     if (st) {
       // Déjà amarré : « S'amarrer » grisé ; à côté, « Faire le plein » quand la station a de quoi compléter l'orbiteur.
@@ -2266,6 +2268,7 @@ const Orbiteur = {
     bind('nav-plein-origine', () => { this.pleinDepuisOrigine(); this.majHud(true); });
     bind('nav-iss', () => this.rendezVousISS());
     bind('nav-voiture', () => { actionVoiture(this); this.majHud(true); });
+    bind('nav-drone', () => this.contexte.larguerDrone(this.v.orb.centre));
     bind('nav-retour-solaire', () => this.retourSolaire());
     bind('nav-deployer-base', () => { this.deployerBase(v.orb.centre); this.majHud(true); });
     bind('nav-logistique', () => ouvrirLogistique(this.v, true));
