@@ -67,6 +67,13 @@ function regVisite(m, astreId, echantillons, type) {
   f.echantillons += echantillons || 0;
   if (type === 'mission') f.missions++; else f.sorties++;
 }
+// Durée d'une sortie : la plus longue est gardée (avec son astre), et le total.
+function regDureeSortie(m, secondes, astreId) {
+  if (!m || !(secondes > 0)) return;
+  const f = ficheDe(m);
+  f.tempsSorties = (f.tempsSorties || 0) + secondes;
+  if (!f.sortieMax || secondes > f.sortieMax.duree) f.sortieMax = { duree: secondes, astre: astreId };
+}
 function regDose(m, sv) { if (m && sv > 0) ficheDe(m).doseSv += sv; }
 function regArtefact(m, idEgg) { const f = m ? ficheDe(m) : fichePersonne(ID_JOUEUR); if (!f.artefacts.includes(idEgg)) f.artefacts.push(idEgg); }
 // Artefact vu depuis l'orbiteur : tout l'équipage à bord le partage.
@@ -193,13 +200,45 @@ function fmtTempsEspace(s) { return s >= 365.25 * 86400 ? fmtDureeAnnees(s / (36
 function nomAstrePartout(id) { const a = typeof astrePartout === 'function' ? astrePartout(id) : ASTRES_PAR_ID[id]; return a ? a.nom : id; }
 const STATUTS_REGISTRE = { vivant: '🟢 vivant', expedition: '🛰 en expédition', route: '🌌 en route vers une autre étoile', mort: '✝ mort' };
 
+// Écussons : à qui détient chaque record (ex æquo compris). { idFiche: [{ icone, court, titre }] }
+function ecussonsRegistre(fiches) {
+  const res = {};
+  const donner = (f, e) => (res[f.id] = res[f.id] || []).push(e);
+  const record = (valeur, icone, court, texte) => {
+    const max = Math.max(0, ...fiches.map(valeur));
+    if (!(max > 0)) return;
+    for (const f of fiches) if (valeur(f) === max) donner(f, { icone, court, titre: texte(f, max) });
+  };
+  record((f) => f.expeditions.length, '🚀', 'expéditions', (f, n) => `Le plus d’expéditions : ${n}`);
+  record((f) => f.sorties, '🚶', 'sorties', (f, n) => `Le plus de sorties : ${n}`);
+  record((f) => f.missions, '🎖', 'missions', (f, n) => `Le plus de missions en solo : ${n}`);
+  record((f) => (f.sortieMax ? f.sortieMax.duree : 0), '⏱', 'plus longue sortie', (f) => `Plus longue sortie : ${fmtDuree(f.sortieMax.duree)} ${sur(astrePartout(f.sortieMax.astre))}`);
+  record((f) => f.tempsEspace, '🌌', 'temps dans l’espace', (f) => `Le plus longtemps dans l’espace : ${fmtTempsEspace(f.tempsEspace)}`);
+  record((f) => Object.keys(f.astres).length, '🪐', 'astres', (f, n) => `Le plus d’astres explorés : ${n}`);
+  record((f) => f.echantillons, '🧪', 'échantillons', (f, n) => `Le plus d’échantillons : ${n}`);
+  record((f) => f.artefacts.length, '✨', 'artefacts', (f, n) => `Le plus d’artefacts : ${n}`);
+  // Plus haut saut : le record de chaque astre est gardé avec le nom de qui l'a fait.
+  let saut = null;
+  for (const [astre, s] of Object.entries((typeof etat !== 'undefined' && etat.sauts) || {})) if (!saut || s.h > saut.h) saut = { ...s, astre };
+  if (saut) {
+    for (const f of fiches) {
+      if (f.nom && saut.par && f.nom.toLowerCase() === String(saut.par).toLowerCase()) {
+        donner(f, { icone: '🦘', court: 'plus haut saut', titre: `Plus haut saut : ${saut.h < 10 ? fmt(saut.h, 2) + ' m' : fmtAlt(saut.h)} ${sur(astrePartout(saut.astre))}` });
+      }
+    }
+  }
+  return res;
+}
+
 function ouvrirRegistre() {
   const r = registre();
   if (SPATIO && !r[ID_JOUEUR] && etat.voyage) fichePersonne(ID_JOUEUR);
   const ordre = { expedition: 0, vivant: 1, route: 2, mort: 3 };
   const fiches = Object.values(r).sort((a, b) => (ordre[a.statut] - ordre[b.statut]) || (b.expeditions.length - a.expeditions.length));
   const m = $('modale');
+  const ecussons = ecussonsRegistre(fiches);
   const ligne = (f, i) => {
+    const ec = ecussons[f.id] || [];
     const astres = Object.entries(f.astres).sort((a, b) => b[1] - a[1]).map(([id]) => nomAstrePartout(id));
     const artefacts = f.artefacts.map((id) => {
       if (id.startsWith('voiture-')) return 'Roadster';
@@ -207,16 +246,18 @@ function ouvrirRegistre() {
       const e = tousLesEggs().find((x) => x.id === id);
       return e ? nomAstrePartout(e.astre) : id;
     });
-    const mort = f.mort ? `${f.mort.cause}${f.mort.astre ? `, ${sur(astrePartout(f.mort.astre))}` : ''}, le ${fmtDate(f.mort.t, false)}` : '';
+    const mort = f.mort && f.statut === 'mort' ?`${f.mort.cause}${f.mort.astre ? `, ${sur(astrePartout(f.mort.astre))}` : ''}, le ${fmtDate(f.mort.t, false)}` : '';
     return `<article class="fiche-registre ${f.statut === 'mort' ? 'mort' : ''}">
       <canvas width="70" height="86" data-portrait="${i}"></canvas>
       <div class="corps-registre">
         <h3>${majuscule(f.nom)}${f.id === ID_JOUEUR ? ' <span class="doux">(vous)</span>' : f.ancienJoueur ? ' <span class="doux">(votre spationaute d’avant)</span>' : ''}</h3>
+        ${ec.length ? `<div class="ecussons">${ec.map((e) => `<span class="ecusson" title="${e.titre}">🏆 ${e.icone} ${e.court}</span>`).join('')}</div>` : ''}
         <p class="doux">${STATUTS_REGISTRE[f.statut] || f.statut}${mort ? ` — ${mort}` : ''}</p>
         <dl>
           <dt>Expéditions</dt><dd>${f.expeditions.length ? f.expeditions.map((n) => 'n° ' + n).join(', ') : '—'}</dd>
           <dt>Astres explorés</dt><dd>${astres.length ? astres.join(', ') : '—'}</dd>
           <dt>Sorties, missions</dt><dd>${f.sorties} sortie${f.sorties > 1 ? 's' : ''}, ${f.missions} mission${f.missions > 1 ? 's' : ''}</dd>
+          ${f.sortieMax ? `<dt>Plus longue sortie</dt><dd>${fmtDuree(f.sortieMax.duree)} ${sur(astrePartout(f.sortieMax.astre))}</dd>` : ''}
           <dt>Échantillons</dt><dd>${f.echantillons}</dd>
           <dt>Artefacts</dt><dd>${artefacts.length ? `✨ ${artefacts.length} (${artefacts.join(', ')})` : '—'}</dd>
           <dt>Dose reçue</dt><dd>${fmtDoseTotale(f.doseSv)}</dd>

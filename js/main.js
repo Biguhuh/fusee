@@ -1192,7 +1192,10 @@ function image(t) {
         perdrePilote(etat.voyage, etat.vol.astre.id, causeSortie(x.fin.texte), etat.vol.equipier);
       }
       if (etat.voyage && etat.enVoyage) etat.voyage.journal.push({ t: etat.voyage.t, texte: `${etat.vol.astre.nom} : ${x.fin.texte}` });
-      if (x.type === 'spationaute' && !x.terre && etat.enVoyage && etat.voyage) regVisite(piloteDuVol(etat.voyage), etat.vol.astre.id, x.recoltes || 0, 'sortie');
+      if (x.type === 'spationaute' && !x.terre && etat.enVoyage && etat.voyage) {
+        regVisite(piloteDuVol(etat.voyage), etat.vol.astre.id, x.recoltes || 0, 'sortie');
+        regDureeSortie(piloteDuVol(etat.voyage), x.dureeSortie || 0, etat.vol.astre.id);
+      }
       etat.explo = null;
       touches.clear();
       sauver(etat);
