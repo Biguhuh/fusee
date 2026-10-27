@@ -874,7 +874,20 @@ function partirVersSysteme(info) {
     montrer('resultat');
   });
 }
-Depart.contexte = { terminer: (info) => terminerParDepart(info), partirSF: (info) => partirVersSysteme(info), log: (t) => { Orbiteur.log(t); sauver(etat); } };
+// Avant de quitter le système : proposer de télécharger la partie, pour pouvoir la recharger plus tard.
+function proposerSauvegardeAvantDepart(suite) {
+  const m = $('modale');
+  m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>💾 Avant de quitter le ${SYSTEME.nom}</h2>
+    <p>Téléchargez la partie : vous pourrez la recharger plus tard (accueil → « Charger une sauvegarde ») et reprendre d’ici, juste avant le départ.</p></div><button class="fermer">✕</button></header>
+    <div class="actions"><button id="dep-annuler">Annuler</button><button id="dep-sans">Partir sans télécharger</button><button id="dep-telecharger" class="principal">⬇ Télécharger, puis partir</button></div></div>`;
+  m.classList.remove('cache');
+  const fermer = () => Infos.fermer();
+  m.querySelector('.fermer').onclick = fermer;
+  $('dep-annuler').onclick = fermer;
+  $('dep-sans').onclick = () => { fermer(); suite(); };
+  $('dep-telecharger').onclick = () => { exporterSauvegarde(etat); fermer(); suite(); };
+}
+Depart.contexte = { terminer: (info) => proposerSauvegardeAvantDepart(() => terminerParDepart(info)), partirSF: (info) => proposerSauvegardeAvantDepart(() => partirVersSysteme(info)), log: (t) => { Orbiteur.log(t); sauver(etat); } };
 
 Orbiteur.contexte = {
   equipement: () => etat.equipement,
