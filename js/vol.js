@@ -171,6 +171,7 @@ class Vol {
         const lenLargue = f.etages[f.etage - 1].hauteur - f.hauteur;
         this.y += lenLargue * Math.cos(this.angle); this.x += lenLargue * Math.sin(this.angle);
         this.etageLargue = { x: this.x, y: this.y, vx: this.vx, vy: this.vy - 3, angle: this.angle, h: lenLargue, etage: f.etage - 1, t: 0 };
+        this.tSeparation = performance.now();   // le temps ralentit à ×1 pour voir l'étage s'éloigner
       }
       if (this.carburant === 0 && this.carburantVideAlt === null) this.carburantVideAlt = this.altSol();
     }
@@ -628,7 +629,7 @@ class Vol {
     if (!this.coiffeLarguee && coiffeALarguer(this.astre, this.y, this.y - this.sol(this.x))) {
       this.coiffeLarguee = true;
       // Les deux demi-coiffes s'écartent : on découvre l'orbiteur et son atterrisseur.
-      if (this.f.charge) this.coiffeDebris = { x: this.x, y: this.y, vx: this.vx, vy: this.vy, angle: this.angle, t: 0 };
+      if (this.f.charge) { this.coiffeDebris = { x: this.x, y: this.y, vx: this.vx, vy: this.vy, angle: this.angle, t: 0 }; this.tSeparation = performance.now(); }
       this.noter(TEXTES_COIFFE[typeAtmosphere(this.astre)]);
     }
   }
@@ -2475,7 +2476,7 @@ function dessinerHudSuite(ctx, vol, W, H, warp, compact, twr) {
   const y0 = hautDroite;
   ctx.font = compact ? 'bold 12px system-ui, sans-serif' : 'bold 14px system-ui, sans-serif';
   ctx.fillStyle = warp > 1 ? '#ffca28' : 'rgba(255,255,255,0.6)';
-  const limite = vol.warpChoisi > warp ? (compact ? ` (×${vol.warpChoisi} limité)` : ` (×${vol.warpChoisi} demandé, limité près du sol)`) : '';
+  const limite = vol.warpChoisi > warp ? (compact ? ` (×${vol.warpChoisi} limité)` : ` (×${vol.warpChoisi} demandé, ${typeof separationRecente === 'function' && separationRecente(vol) ? 'ralenti pour la séparation' : 'limité près du sol'})`) : '';
   const texteTemps = 'Temps ×' + warp + limite + (ECRAN_TACTILE ? '' : '  +/−');
   ctx.fillText(texteTemps, W - 14, y0 + 28);
   dessinerBoutonsTemps(ctx, W - 14 - ctx.measureText(texteTemps).width - 8, y0 + 28);

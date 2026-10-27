@@ -2066,7 +2066,7 @@ const Orbiteur = {
   objectif() {
     const v = this.v;
     if (!v.stations.some((s) => s.terrestre) && estOrigine(v.orb.centre)) return 'Construisez la station spatiale en orbite terrestre (bouton 🏗).';
-    if (!Object.keys(v.visites).some((id) => v.visites[id].pose)) return 'Choisissez une cible (la Lune ?), allez-y, posez-vous et rapportez des échantillons.';
+    if (!Object.keys(v.visites).some((id) => astreVisite(v, id))) return 'Choisissez une cible (la Lune ?), allez-y, posez-vous et rapportez des échantillons.';
     if (Object.keys(v.echantillonsABord).length) return 'Échantillons à bord : rentrez sur Terre pour les rapporter (cible Terre, puis 🏠), ou renvoyez-les par sonde depuis l’orbite où vous êtes (📦).';
     if (v.stations.length < 2) return 'Construisez une station autour d’un autre astre : elle sera ravitaillée depuis la Terre.';
     if (!v.bases.length) return 'Posez-vous sous une de vos stations et construisez une base (touche B une fois posé).';
