@@ -140,8 +140,18 @@ function calculerConception(a) {
 }
 
 // ---------- Lanceurs (départ de la Terre) ----------
-// Deux destinations, deux fusées.
+// Trois fusées : l'équipage seul vers l'orbiteur garé à la station, l'expédition complète, ou la Lune.
 const LANCEURS = {
+  equipage: {
+    nom: 'Aube', destination: 'la station spatiale terrestre (équipage seul)',
+    description: 'Lanceur moyen à 2 étages et capsule d’équipage. Ne monte que l’équipage : l’orbiteur garé à la station l’attend, ravitaillé par la station.',
+    chargeUtile: 14000,
+    charge: { hauteur: 8, largeur: 4 },
+    etages: [
+      { nom: '1er étage', masseSeche: 25000, carburant: 400000, poussee: 7.6e6, isp: 300, hauteur: 42, largeur: 3.7, moteurs: 9 },
+      { nom: '2e étage', masseSeche: 4000, carburant: 100000, poussee: 0.98e6, isp: 348, hauteur: 14, largeur: 3.7, moteurs: 1 },
+    ],
+  },
   station: {
     nom: 'Hercule', destination: 'la station spatiale (orbite basse, 400 km)',
     description: 'Lanceur lourd à 2 étages. Met 110 t en orbite basse : orbiteur, atterrisseur, kits et ergols.',
@@ -178,7 +188,7 @@ function megaFusee(type = 'station') {
   const f = {
     mega: true, lanceur: type, nomLanceur: l.nom, etages: l.etages, chargeUtile: l.chargeUtile, charge: l.charge,
     choix: { moteur: 'raptor', reservoir: 'titanesque', coque: 'renforce', bouclier: 'ablatif', panneau: 'aucun' },
-    pressionMax: 5, tempMax: 1200, protection: 5, largeurRel: type === 'lune' ? 0.09 : 0.11,
+    pressionMax: 5, tempMax: 1200, protection: 5, largeurRel: type === 'lune' ? 0.09 : type === 'equipage' ? 0.075 : 0.11,
   };
   configurerEtage(f, 0);
   return f;

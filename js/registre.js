@@ -126,7 +126,9 @@ function apercuMembre(cv, profil) {
   dessinerSpationaute(c, W / 2, H - 12, (H - 24) / 2, { dir: 1, pas: 0.12 }, true, profil);
 }
 
-function ouvrirComposition(v, suite) {
+// Page « Équipage » : avant le choix du lanceur. Votre spationaute occupe la première place ; les autres sont
+// tirées au hasard (vétérans disponibles ou nouvelles recrues) et restent modifiables. Puis : choisir le lanceur.
+function allerEquipage(v) {
   // Votre spationaute est mort lors d'une expédition précédente : on en crée un nouveau d'abord.
   if (spationauteMort()) {
     const ancien = archiverSpationaute();
@@ -135,14 +137,13 @@ function ouvrirComposition(v, suite) {
     sauverSpatio();
     v.equipePrevue = null;
     Infos.fermer();
-    return afficherCreationSpatio(() => { allerLancement(); ouvrirComposition(v, suite); }, {
+    return afficherCreationSpatio(() => allerEquipage(v), {
       titre: 'Un nouveau spationaute',
       intro: `${majuscule(ancien.nom)} est mort${accAncien}${ancien.mort ? ` (${ancien.mort.cause})` : ''}. Sa fiche reste au registre des équipages. Choisissez qui prend sa place à la tête de la prochaine expédition.`,
     });
   }
   v.equipePrevue = v.equipePrevue && v.equipePrevue.length ? v.equipePrevue : equipeProposee(v);
   const l = v.equipePrevue;
-  const m = $('modale');
   const resume = (p) => {
     if (p.principal) return 'Votre spationaute';
     const f = registre()[p.regId];
@@ -150,35 +151,30 @@ function ouvrirComposition(v, suite) {
     const astres = Object.keys(f.astres).length;
     return `Vétéran : ${f.expeditions.length} expédition${f.expeditions.length > 1 ? 's' : ''}, ${astres} astre${astres > 1 ? 's explorés' : ' exploré'}`;
   };
+  const zone = $('cartes-equipage');
+  $('equipage-intro').textContent = `${TAILLE_EQUIPE} places. Votre spationaute en tête ; les autres places sont attribuées au hasard (vétérans disponibles ou nouvelles recrues). Chacune peut changer : 🎲 nouvelle recrue, ou un vétéran au choix. Prénom et apparence se modifient aussi.`;
   const rendu = () => {
-    const prisIds = l.map((p) => p.regId);
-    const dispo = personnesDisponibles(v, prisIds);
-    m.innerHTML = `<div class="fenetre large"><header class="entete"><div><h2>👥 Équipage de l’expédition</h2>
-      <p>${TAILLE_EQUIPE} places. Les vétérans disponibles sont proposés d’abord ; chaque place peut aussi prendre une nouvelle recrue. Changez prénom et apparence avant le lancement.</p></div><button class="fermer">✕</button></header>
-      <div class="cartes-equipage">${l.map((p, i) => `<article class="carte-membre">
+    const dispo = personnesDisponibles(v, l.map((p) => p.regId));
+    zone.innerHTML = l.map((p, i) => `<article class="carte-membre">
         <canvas width="110" height="130" data-apercu="${i}"></canvas>
         <div><b>${p.principal ? majuscule(nomSpatio()) : p.profil.prenom || 'Recrue'}</b><br><span class="doux">${resume(p)}</span></div>
         <div class="boutons-membre">
           <button data-modifier="${i}">✏ Prénom et apparence</button>
           ${p.principal ? '' : `<button data-hasard="${i}">🎲 Nouvelle recrue</button>`}
           ${p.principal || !dispo.length ? '' : `<select data-veteran="${i}"><option value="">Vétéran disponible…</option>${dispo.map((f) => `<option value="${f.id}">${f.nom} (${f.expeditions.length} exp.)</option>`).join('')}</select>`}
-        </div></article>`).join('')}</div>
-      <div class="actions"><span></span><button id="equipage-ok" class="principal">🚀 Valider l’équipage et aller sur le pas de tir</button></div></div>`;
-    m.classList.remove('cache');
-    m.querySelectorAll('[data-apercu]').forEach((cv) => { const p = l[Number(cv.dataset.apercu)]; apercuMembre(cv, p.principal ? SPATIO : p.profil); });
-    m.querySelector('.fermer').onclick = () => Infos.fermer();
-    m.querySelectorAll('[data-hasard]').forEach((b) => { b.onclick = () => {
-      const i = Number(b.dataset.hasard), p = profilAleatoire(l.map((x) => (x.profil ? x.profil.prenom : '')).concat([nomSpatio()]));
-      l[i] = { regId: nouvelIdPersonne(), nom: p.prenom, profil: p }; rendu();
+        </div></article>`).join('');
+    zone.querySelectorAll('[data-apercu]').forEach((cv) => { const p = l[Number(cv.dataset.apercu)]; apercuMembre(cv, p.principal ? SPATIO : p.profil); });
+    zone.querySelectorAll('[data-hasard]').forEach((bt) => { bt.onclick = () => {
+      const i = Number(bt.dataset.hasard), np = profilAleatoire(l.map((x) => (x.profil ? x.profil.prenom : '')).concat([nomSpatio()]));
+      l[i] = { regId: nouvelIdPersonne(), nom: np.prenom, profil: np }; rendu();
     }; });
-    m.querySelectorAll('[data-veteran]').forEach((s) => { s.onchange = () => {
-      const f = registre()[s.value]; if (!f) return;
-      l[Number(s.dataset.veteran)] = { regId: f.id, nom: f.nom, profil: { ...f.profil }, veteran: true }; rendu();
+    zone.querySelectorAll('[data-veteran]').forEach((sel) => { sel.onchange = () => {
+      const f = registre()[sel.value]; if (!f) return;
+      l[Number(sel.dataset.veteran)] = { regId: f.id, nom: f.nom, profil: { ...f.profil }, veteran: true }; rendu();
     }; });
-    m.querySelectorAll('[data-modifier]').forEach((b) => { b.onclick = () => {
-      const i = Number(b.dataset.modifier), p = l[i];
-      Infos.fermer();
-      const retour = () => { allerLancement(); ouvrirComposition(v, suite); };
+    zone.querySelectorAll('[data-modifier]').forEach((bt) => { bt.onclick = () => {
+      const i = Number(bt.dataset.modifier), p = l[i];
+      const retour = () => allerEquipage(v);
       if (p.principal) afficherCreationSpatio(retour);
       else afficherCreationSpatio(retour, {
         profil: p.profil, titre: `Membre d’équipage : ${p.profil.prenom || 'recrue'}`,
@@ -186,9 +182,10 @@ function ouvrirComposition(v, suite) {
         surValider: (np) => { l[i] = { ...p, profil: np, nom: np.prenom || 'Recrue' }; },
       });
     }; });
-    $('equipage-ok').onclick = () => { Infos.fermer(); sauver(etat); suite(); };
   };
   rendu();
+  $('equipage-continuer').onclick = () => { sauver(etat); allerLancement(); };
+  montrer('equipage');
 }
 
 // ---------- Fenêtre du registre ----------
