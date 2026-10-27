@@ -57,13 +57,24 @@ function deltaVAscension() {
   return dv;
 }
 // Fusée correspondant à une conception (avec le ballon si besoin).
+// Petit corps (vitesse de libération sous 10 m/s : petites lunes, astéroïdes) : même le plus petit moteur
+// pousserait des milliers de fois le poids de l'atterrisseur, et il rebondirait au moindre coup de gaz.
+// Comme les vraies sondes, il se pose avec ses propulseurs de manœuvre, réglés à 4 fois son poids.
+const PETIT_CORPS_VLIB = 10;   // m/s
+function estPetitCorps(a) { return a.type === 'solide' && vitesseLiberation(a, 0) < PETIT_CORPS_VLIB; }
+function propulseursDeManoeuvre(f, a) {
+  f.poussee = 4 * f.masseTotale * a.g;
+  f.manoeuvre = true;
+  return f;
+}
 function fuseeDeConception(c, a) {
   const f = assemblerFusee(c.choix);
+  if (c.manoeuvre) return propulseursDeManoeuvre(f, a);
   return c.aerostat ? equiperAerostat(f, a) : f;
 }
 
 // Résultats gardés en mémoire, et d'une partie à l'autre (les vols d'essai prennent un peu de temps).
-const VERSION_CONCEPTION = 'v5';   // v5 : panneaux choisis d'après la vraie dose (Sv/jour)
+const VERSION_CONCEPTION = 'v6';   // v6 : petits corps, propulseurs de manœuvre (v5 : panneaux d'après la vraie dose)
 const cacheConception = {};
 function concevoirAtterrisseur(a) {
   if (cacheConception[a.id]) return cacheConception[a.id];
@@ -78,7 +89,7 @@ function concevoirAtterrisseur(a) {
   } catch (e) { /* stockage indisponible */ }
   const res = calculerConception(a);
   cacheConception[a.id] = res;
-  try { localStorage.setItem(cle, JSON.stringify({ ok: res.ok, raison: res.raison, besoin: res.besoin, choix: res.choix, dv: res.dv, twr: res.twr, aerostat: res.aerostat })); } catch (e) { /* ignoré */ }
+  try { localStorage.setItem(cle, JSON.stringify({ ok: res.ok, raison: res.raison, besoin: res.besoin, choix: res.choix, dv: res.dv, twr: res.twr, aerostat: res.aerostat, manoeuvre: res.manoeuvre })); } catch (e) { /* ignoré */ }
   return res;
 }
 
@@ -116,6 +127,13 @@ function calculerConception(a) {
     return { ok: false, raison: `Aucun module ne réussit la descente ${sur(a)} avec son ballon de remontée.` };
   }
   const besoin = besoinAtterrisseur(a) * 1.2;
+  // Petit corps : l'atterrisseur le plus léger, avec ses propulseurs de manœuvre.
+  if (estPetitCorps(a)) {
+    const choix = { moteur: EQUIPEMENTS.moteur.options[0].id, reservoir: EQUIPEMENTS.reservoir.options[0].id, coque: coque.id, bouclier: bouclier.id, panneau: panneau.id };
+    const f = propulseursDeManoeuvre(assemblerFusee(choix), a);
+    if (simulerAllerRetour(a, f)) return { ok: true, besoin, choix, fusee: f, dv: deltaV(f), twr: 4, manoeuvre: true };
+    return { ok: false, besoin, raison: `${majuscule(le(a))} est trop petit${a.art === 'la' ? 'e' : ''} pour s’y poser et repartir, même avec les propulseurs de manœuvre. Larguez plutôt un robot (aller simple).` };
+  }
   // Candidats plausibles, du plus léger au plus lourd ; on garde le premier qui réussit
   // vraiment l'aller-retour en simulation (pilote automatique).
   const candidats = [];
@@ -457,5 +475,6 @@ function descriptionConception(c) {
       `remontée : lanceur de retour construit par une station en orbite et envoyé au sol sous parachute ` +
       `(ballon jusqu’à ${fmtAlt(AEROSTAT.venus.alt)}, puis ${LANCEUR_ASCENSION.nom} à 2 étages, Δv ${fmtV(deltaVAscension())})`;
   }
+  if (c.manoeuvre) return `petit corps : posé avec les propulseurs de manœuvre (4 fois son poids), réservoir ${p('reservoir')}, coque ${p('coque')} — Δv ${fmtV(c.dv)} pour ${fmtV(c.besoin / 1.2)} nécessaires`;
   return `moteur ${p('moteur')}, réservoir ${p('reservoir')}, coque ${p('coque')}, bouclier ${p('bouclier')}, panneau ${p('panneau')} — Δv ${fmtV(c.dv)} pour ${fmtV(c.besoin / 1.2)} nécessaires`;
 }

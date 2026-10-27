@@ -319,7 +319,7 @@ function afficherFiche(etat) {
       setTimeout(() => {
         const c = concevoirAtterrisseur(a);
         if (c.ok) { etat.equipement = { ...c.choix }; sauver(etat); afficherFiche(etat); $('adapter-info').textContent = 'Fusée équipée : ' + descriptionConception(c); }
-        else $('adapter-info').textContent = c.raison;
+        else { $('adapter-info').textContent = '⚠ ' + c.raison; $('adapter-info').className = 'encart-refus'; }
       }, 30);
     };
   }

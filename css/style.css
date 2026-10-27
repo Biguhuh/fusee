@@ -424,6 +424,9 @@ pre.erreur { white-space: pre-wrap; background: #1a0d0d; border: 1px solid #5a23
 .lanceur.indisponible { opacity: 0.6; }
 #ecran-equipage .actions { display: flex; justify-content: space-between; margin-top: 12px; }
 
+/* Refus durable (pas de descente possible ici…) : encadré orangé, bien distinct du texte courant */
+.encart-refus { margin: 8px 0; padding: 8px 10px; border-left: 4px solid #ff9800; border-radius: 6px; background: rgba(255,152,0,0.13); color: #ffe0b2; font-size: 13px; line-height: 1.35; }
+
 /* Action impossible : bandeau rouge en haut de l'écran */
 #alerte-jeu { position: fixed; top: 64px; left: 50%; transform: translate(-50%, -20px); z-index: 60; max-width: min(640px, calc(100vw - 32px));
   display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 10px; background: #b71c1c; color: #fff;
