@@ -117,6 +117,11 @@ function allerAccueil() {
   // Campagne terminée par un départ vers une autre étoile : on ne la reprend plus.
   $('accueil-reprendre').classList.toggle('cache', !v || !!v.fin);
   $('accueil-reprendre').textContent = v && v.orb ? '▶ Reprendre l’expédition' : '▶ Reprendre la campagne';
+  // Pas d'expédition en cours (après un retour sur Terre) : on propose d'abord de composer l'équipage,
+  // puis on enchaîne sur le pas de tir. « Reprendre » devient secondaire.
+  const sansExpedition = !!(v && !v.fin && !v.orb && (!v.systeme || v.systeme === 'solaire'));
+  $('accueil-equipage').classList.toggle('cache', !sansExpedition);
+  $('accueil-reprendre').classList.toggle('principal', !sansExpedition);
   $('accueil-campagne').textContent = v ? '↺ Nouvelle campagne' : '🛰 Commencer';
   if (v && v.fin) {
     const f = v.fin;
@@ -867,6 +872,7 @@ $('rejouer').onclick = () => {
 };
 $('accueil-campagne').onclick = () => $('voyage-nouveau').click();
 $('accueil-reprendre').onclick = ouvrirReprise;
+$('accueil-equipage').onclick = () => allerEquipage(etat.voyage);
 $('accueil-visite').onclick = allerCarte;
 $('accueil-hangar').onclick = allerHangar;
 // « Se promener » : la Terre, ou un objet du ciel lointain observé de loin (puis retour à la liste).
