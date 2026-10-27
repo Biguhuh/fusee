@@ -130,9 +130,9 @@ class Exploration {
 
   agirTerre() {
     const p = this.p;
-    const proche = this.sites.filter((s) => Math.abs(s.x - p.x) < (s.type === 'bar' ? 8 : 2.5))
-      .sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0];
-    if (Math.abs(p.x - this.xFusee) < 4 && !proche) return this.terminer('retour', `Fin de la promenade : ${this.bouquet || 0} fleurs et ${this.panier || 0} fruits pour l’équipage${this.bieres ? `, et ${this.bieres} bière${this.bieres > 1 ? 's' : ''} au bar` : ''}.`);
+    const proche = this.sites.filter((s) => distSol(this.astre, s.x, p.x) < (s.type === 'bar' ? 8 : 2.5))
+      .sort((a, b) => distSol(this.astre, a.x, p.x) - distSol(this.astre, b.x, p.x))[0];
+    if (distSol(this.astre, p.x, this.xFusee) < 4 && !proche) return this.terminer('retour', `Fin de la promenade : ${this.bouquet || 0} fleurs et ${this.panier || 0} fruits pour l’équipage${this.bieres ? `, et ${this.bieres} bière${this.bieres > 1 ? 's' : ''} au bar` : ''}.`);
     if (!proche) return this.dire('Approchez-vous d’une fleur, d’un arbre fruitier ou du bar.');
     const c = this.campagne;
     if (proche.type === 'bar') {
@@ -166,7 +166,7 @@ class Exploration {
       this.enRover = false;
       this.rover.x = p.x;
       this.dire(`Vous descendez de l’astromobile. ${this.sacRover.length} échantillon${this.sacRover.length > 1 ? 's' : ''} dans sa caisse.`);
-    } else if (Math.abs(p.x - this.rover.x) < 4 && p.auSol) {
+    } else if (distSol(this.astre, p.x, this.rover.x) < 4 && p.auSol) {
       this.enRover = true;
       p.x = this.rover.x;
       this.dire('À bord de l’astromobile : jusqu’à ' + fmtV(this.vMaxRover) + ' et 20 échantillons.');
@@ -291,7 +291,7 @@ class Exploration {
       if (this.sautEnCours) this.sautEnCours.max = Math.max(this.sautEnCours.max, p.y - this.sautEnCours.y0);
       // Câble de sécurité : on ne s'éloigne pas à plus de 30 m de la fusée.
       if (this.cable) {
-        const d = Math.hypot(p.x - this.xFusee, p.y - this.sol(this.xFusee));
+        const d = Math.hypot(ecartSol(this.astre, p.x, this.xFusee), p.y - this.sol(this.xFusee));
         if (d > 30) { p.vx *= -0.3; p.vy = Math.min(p.vy, 0) - 0.05; }
       } else if (Math.hypot(p.vx, p.vy) > this.vLib && p.y - this.sol(p.x) > 20) {
         this.terminer('perdu', `${this.def.nom} a dépassé la vitesse de libération (${fmtV(this.vLib)}) et s’est perdu${this.type === 'robot' ? '' : acc()} dans l’espace.`);
@@ -352,7 +352,7 @@ class Exploration {
   siteProche() {
     let best = null, d0 = this.enRover ? 4 : 2.5;
     for (const s of this.sites) {
-      const d = Math.abs(s.x - this.p.x);
+      const d = distSol(this.astre, s.x, this.p.x);
       if (d < d0) { d0 = d; best = s; }
     }
     return best;
@@ -488,7 +488,7 @@ class Exploration {
       if (bx > -4000 && bx < W + 4000) dessinerBase(ctx, bx, (dx) => versEcran(b.x + dx, this.sol(b.x + dx))[1], echelle, b.niveau || 1, productionBase(this.astre) > 0);
     }
     // Zone de base repérée par une sonde
-    if (this.vol.site && !(this.vol.bases || []).some((b) => Math.abs(b.x - this.vol.site.x) < 500)) {
+    if (this.vol.site && !(this.vol.bases || []).some((b) => distSol(this.astre, b.x, this.vol.site.x) < 500)) {
       const [fx2, fy2] = versEcran(this.vol.site.x, this.sol(this.vol.site.x));
       if (fx2 > -200 && fx2 < W + 200) dessinerFanion(ctx, fx2, fy2, echelle, this.vol);
     }
@@ -592,9 +592,9 @@ class Exploration {
     ctx.fillText(`🍎 Fruits : ${this.panier || 0}`, 16, yl + pasL);
     ctx.fillText(`🍺 Bières au bar : ${this.bieres}`, 16, yl + 2 * pasL);
     const proche = this.sites.filter((s) => s.type === 'bar' || (s.type === 'arbre' && s.reste > 0) || (s.type === 'fleur' && !s.cueillie))
-      .reduce((m, x) => (!m || Math.abs(x.x - this.p.x) < Math.abs(m.x - this.p.x) ? x : m), null);
+      .reduce((m, x) => (!m || distSol(this.astre, x.x, this.p.x) < distSol(this.astre, m.x, this.p.x) ? x : m), null);
     if (proche) {
-      const dx = proche.x - this.p.x;
+      const dx = ecartSol(this.astre, proche.x, this.p.x);
       texteSurFond(ctx, `${dx < 0 ? '◀' : '▶'} ${proche.nom} à ${fmt(Math.abs(dx))} m`, W / 2, 30, { police: 'bold 14px system-ui', couleur: '#ffd54f' });
     }
     afficherMessages(ctx, this.messagesVisibles(), W, yMessagesExplo(W, H));
@@ -615,7 +615,7 @@ class Exploration {
       l.push([d.ressource, fmtDuree(this.reserve), fr < 0.2 ? '#ef5350' : '#66bb6a']);
       l.push([this.type === 'robot' ? 'Robot' : 'Combi.', fmt(this.integrite) + ' %', this.integrite > 60 ? '#66bb6a' : this.integrite > 30 ? '#ffca28' : '#ef5350']);
       l.push([this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? `${sc.analyses} (+${this.donneesEnAttente})` : `${this.sac.length}/${d.capacite}` + (this.rover ? ` · astromobile ${this.sacRover.length}/20` : ''), this.donneesEnAttente ? '#ffca28' : '#fff']);
-      l.push(['Module', fmt(Math.abs(this.p.x - this.xFusee)) + ' m', '#fff']);
+      l.push(['Module', fmt(distSol(this.astre, this.p.x, this.xFusee)) + ' m', '#fff']);
       const rp = c.p / d.pressionMax, rt = (c.t + KELVIN) / (d.tempMax + KELVIN), rr = this.type === 'robot' ? 0 : this.irradiation.svJour / DOSE_MORTELLE;
       if (rp > 0.6) l.push(['Pression', fmtP(c.p), couleurRisque(rp)]);
       if (rt > 0.7) l.push(['Temp.', fmt(c.t) + ' °C', couleurRisque(rt)]);
@@ -662,14 +662,14 @@ class Exploration {
     }
     ligne(this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? `${sc.analyses} envoyées, ${this.donneesEnAttente} en mémoire` : `${this.sac.length} / ${d.capacite}` + (this.rover ? `  astromobile ${this.sacRover.length} / 20` : ''), this.donneesEnAttente ? '#ffca28' : '#fff');
     ligne('Sites étudiés ici', String(Object.keys(sc.sites || {}).length));
-    ligne('Distance module', fmt(Math.abs(this.p.x - this.xFusee)) + ' m');
+    ligne('Distance module', fmt(distSol(this.astre, this.p.x, this.xFusee)) + ' m');
     }
 
     // Site le plus proche non étudié
     const libres = this.sites.filter((s) => !this.dejaFait(s));
     if (libres.length) {
-      const s = libres.reduce((m, x) => (Math.abs(x.x - this.p.x) < Math.abs(m.x - this.p.x) ? x : m));
-      const dx = s.x - this.p.x;
+      const s = libres.reduce((m, x) => (distSol(this.astre, x.x, this.p.x) < distSol(this.astre, m.x, this.p.x) ? x : m));
+      const dx = ecartSol(this.astre, s.x, this.p.x);
       texteSurFond(ctx, `${dx < 0 ? '◀' : '▶'} ${s.nom} à ${fmt(Math.abs(dx))} m`, W / 2, 30, { police: 'bold 14px system-ui', couleur: '#ffd54f' });
     }
     if (this.analyse) {

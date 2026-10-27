@@ -399,8 +399,14 @@ function eggTrouve(id) { return !!(typeof etat !== 'undefined' && etat.decouvert
 function verifierDecouvertes(x) {
   const p = x.p, humain = x.type === 'spationaute';
   x.vusIci = x.vusIci || {};
+  // Tour complet de l'astre (le sol boucle sur 2πR) : retour au point de départ.
+  const P = perimetreSol(x.astre), tours = Math.abs(Math.trunc((p.x - x.xFusee) / P));
+  if (tours > (x.toursFaits || 0)) {
+    x.toursFaits = tours;
+    x.dire(`🌍 Tour complet ${de(x.astre)} : ${fmt(P / 1000, P < 100000 ? 1 : 0)} km. Vous voilà revenu${acc()} au point de départ !`);
+  }
   for (const e of eggsSur(x.astre.id)) {
-    const ex = x.xFusee + e.dx, d = Math.abs(p.x - ex);
+    const ex = x.xFusee + e.dx, d = distSol(x.astre, p.x, ex);
     if (humain && d < (x.enRover ? 6 : 4) && !eggTrouve(e.id)) {
       decouvrir(e, x);
     } else if (!humain && d < 20 && !eggTrouve(e.id) && !x.vusIci[e.id]) {
@@ -412,7 +418,7 @@ function verifierDecouvertes(x) {
   }
   for (const t of tracesSur(x.astre.id)) {
     const tx = x.xFusee + t.dx;
-    if (Math.abs(p.x - tx) < 12 && !x.vusIci['t:' + t.id]) {
+    if (distSol(x.astre, p.x, tx) < 12 && !x.vusIci['t:' + t.id]) {
       x.vusIci['t:' + t.id] = true;
       x.dire(`📍 ${t.nom} — ${t.annee} — ${t.materiel}.`);
     }

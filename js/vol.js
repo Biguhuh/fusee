@@ -1899,7 +1899,7 @@ function dessinerBases(ctx, vol, W, echelle, fuseeY) {
     dessinerBase(ctx, sx, (dx) => ecranY(b.x + dx), Math.max(echelle, 0.4), b.niveau || 1, productionBase(vol.astre) > 0);
   }
   // Zone repérée par une sonde, pas encore construite : un fanion vert.
-  if (vol.site && !vol.bases.some((b) => Math.abs(b.x - vol.site.x) < 500)) dessinerFanion(ctx, W / 2 + (vol.site.x - vol.x) * echelle, ecranY(vol.site.x), Math.max(echelle, 0.4), vol);
+  if (vol.site && !vol.bases.some((b) => distSol(vol.astre, b.x, vol.site.x) < 500)) dessinerFanion(ctx, W / 2 + ecartSol(vol.astre, vol.site.x, vol.x) * echelle, ecranY(vol.site.x), Math.max(echelle, 0.4), vol);
   // Drapeaux plantés lors des visites précédentes
   for (const d of drapeauxSur(vol.astre.id)) {
     const sx = W / 2 + ecartSol(vol.astre, d.x, vol.x) * echelle;
