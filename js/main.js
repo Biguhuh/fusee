@@ -873,20 +873,12 @@ $('rejouer').onclick = () => {
 $('accueil-campagne').onclick = () => $('voyage-nouveau').click();
 $('accueil-reprendre').onclick = ouvrirReprise;
 $('accueil-equipage').onclick = () => composerApresAccueil();
-// Composer un équipage, c'est lancer une nouvelle expédition. Si l'orbiteur s'est écrasé et que la perte n'est
-// pas actée, on demande d'abord : recommencer avant le crash, ou acter la perte et composer un nouvel équipage.
+// Composer un équipage, c'est lancer une nouvelle expédition : un crash pas encore acté l'est alors
+// (« Recommencer avant le crash » ne se propose que dans « Reprendre la campagne »).
 function composerApresAccueil() {
-  const v = etat.voyage, p = lirePointReprise(v);
-  if (!p) return allerEquipage(v);
-  const m = $('modale');
-  m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>💥 L’expédition s’est écrasée</h2>
-    <p>Vous pouvez encore recommencer avant le crash (${textePointReprise(p)}), avec le même équipage et le même chargement.</p>
-    <p>Composer un nouvel équipage, c’est acter la perte : l’ancien équipage reste mort au registre, et la prochaine expédition part de la Terre.</p></div><button class="fermer">✕</button></header>
-    <div class="actions"><button id="crash-recommencer" class="principal">↺ Recommencer avant le crash</button><button id="crash-acter">✝ Acter la perte et composer l’équipage</button></div></div>`;
-  m.classList.remove('cache');
-  m.querySelector('.fermer').onclick = () => Infos.fermer();
-  $('crash-recommencer').onclick = () => { Infos.fermer(); reprendreAvantCrash(p); };
-  $('crash-acter').onclick = () => { Infos.fermer(); oublierPointReprise(); allerEquipage(v); };
+  const v = etat.voyage;
+  if (lirePointReprise(v)) oublierPointReprise();
+  allerEquipage(v);
 }
 $('accueil-visite').onclick = allerCarte;
 $('accueil-hangar').onclick = allerHangar;
