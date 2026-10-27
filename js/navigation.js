@@ -161,6 +161,18 @@ function prochaineEtape(vs, t, cibleId) {
         reste: [],
       };
     }
+    // Orbite fermée qui touche le sol (trajectoire déviée, par une lune par exemple) : on évite d'abord
+    // la collision en circularisant là où l'on est, puis on redescend proprement vers l'orbite basse.
+    if (el.rp < cible.rayonKm * 1.01 && r > rBas * 1.05) {
+      return {
+        type: 'evitement', texte: 'Éviter la collision : orbite circulaire à l’altitude actuelle', tExec: t,
+        dv: (s) => {
+          const rr = V.norm(s.r), tu = [-s.r[1] / rr, s.r[0] / rr];
+          return V.sub(V.mul(tu, sens * Math.sqrt(mu / rr)), s.v);
+        },
+        reste: ['Rejoindre l’orbite basse'],
+      };
+    }
     // Orbite fermée : ajuster vers l'orbite basse circulaire.
     if (Math.abs(el.rp - rBas) > 0.15 * rBas) {
       const ru = V.unit(vs.r);

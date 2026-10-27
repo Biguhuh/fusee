@@ -541,6 +541,8 @@ const Orbiteur = {
     }
     const e = this.etape;
     if (e.type === 'fini') {
+      // Retour automatique de l'orbiteur vide : arrivé en orbite terrestre, la capsule redescend.
+      if (v.retourAuto === 'en_cours' && estOrigine(v.cible)) { v.warp = 1; return this.finRetourAuto(); }
       // En orbite (ou au rendez-vous) : le temps revient à ×1.
       if ((this.auto || this.avance) && v.warp > 1 && !(v.tempsReel && v.tempsReel.actif)) v.warp = 1;
       if (v.propulsionSolaire && v.cible === v.propulsionSolaire.dest) {
@@ -1255,6 +1257,7 @@ const Orbiteur = {
   choisirCible(id, detail) {
     const v = this.v, a = ASTRES_PAR_ID[id];
     if (!a || !v.orb) return;
+    if (v.retourAuto) return this.log('Impossible de changer de cible : plus personne à bord, le contrôle au sol ramène l’orbiteur vers la Terre.');
     if (this.orbiteFermee()) noterPointReprise(v);
     v.cible = id; this.etape = null; this.auto = false;
     this.log(`Nouvelle cible : ${a.nom}${detail ? ` (${detail})` : ''}.`);
@@ -1317,6 +1320,39 @@ const Orbiteur = {
     v.cible = p.id; v.mode = 'pilote'; this.etape = null; this.auto = true;
     this.log(`☀️ Propulseur solaire installé sur l’orbiteur : le pilote auto ramène l’expédition vers ${le(p)}, sans toucher aux ergols (jusqu’à ${fmtV(DV_PROPULSEUR_SOLAIRE * 1000)} de poussées).`);
     this.majHud(true);
+  },
+
+  // ---------- Plus personne à bord : retour automatique ----------
+  // Tout l'équipage est mort, l'orbiteur est intact : le contrôle au sol le ramène en orbite terrestre (pilote auto).
+  // À l'arrivée, la capsule vide rapporte les échantillons et l'orbiteur reste garé à la station terrestre.
+  annoncerRetourAuto() {
+    const v = this.v;
+    if (v.retourAuto !== 'a_annoncer' || !v.orb) return;
+    const pertes = textePertes(v);
+    const m = $('modale');
+    m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>🕯 Plus personne à bord</h2>
+      <p>Tout l’équipage est mort${pertes ? ` : ${pertes}` : ''}.</p>
+      <p>L’orbiteur est intact. Le contrôle au sol le ramène seul en orbite ${de(planeteOrigine())} : la capsule vide rapportera les échantillons, et l’orbiteur restera garé à la station. Ensuite : composer un nouvel équipage, puis le pas de tir.</p></div></header>
+      <div class="actions"><span></span><button id="retour-auto-ok" class="principal">🛰 Ramener l’orbiteur</button></div></div>`;
+    m.classList.remove('cache');
+    $('retour-auto-ok').onclick = () => { Infos.fermer(); this.lancerRetourAuto(); };
+  },
+  lancerRetourAuto() {
+    const v = this.v;
+    v.retourAuto = 'en_cours';
+    v.amarre = null; v.rdvStation = null;
+    // Déjà en orbite autour de la Terre : la capsule part tout de suite.
+    if (estOrigine(v.orb.centre) && this.orbiteFermee()) return this.finRetourAuto();
+    v.cible = SYSTEME.origine; v.mode = 'pilote'; this.etape = null; this.auto = true;
+    this.log(`🛰 Contrôle au sol : l’orbiteur vide rentre seul vers ${le(planeteOrigine())} (pilote auto).`);
+    this.majHud(true);
+  },
+  finRetourAuto() {
+    const v = this.v;
+    v.retourAuto = null;
+    this.auto = false;
+    this.log(`🛰 L’orbiteur vide est revenu en orbite ${de(planeteOrigine())} : la capsule vide redescend avec les échantillons.`);
+    this.contexte.rentrer();   // capsule vide, échantillons rapportés, orbiteur garé à la station
   },
 
   // Un membre d'équipage vient de mourir : rappeler les autres sur Terre, ou continuer, traumatisés.

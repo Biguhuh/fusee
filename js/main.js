@@ -664,6 +664,9 @@ function allerNavigation() {
   Orbiteur.rattraperAbsence();
   // Un membre d'équipage vient de mourir : proposer de rappeler les autres sur Terre.
   if (etat.voyage.proposerRappel && !Infos.estOuverte()) Orbiteur.proposerRappel();
+  // Plus personne à bord : l'orbiteur rentre seul (on l'annonce, puis le pilote auto le ramène).
+  if (etat.voyage.retourAuto === 'a_annoncer' && !Infos.estOuverte()) Orbiteur.annoncerRetourAuto();
+  if (etat.voyage.retourAuto === 'en_cours' && !Orbiteur.auto) Orbiteur.lancerRetourAuto();
   sauver(etat);
 }
 
