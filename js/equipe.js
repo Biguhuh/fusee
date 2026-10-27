@@ -20,6 +20,49 @@ function noterPerte(v, nom, astreId, cause) {
   const m = (v.equipe || []).find((x) => x.nom === nom) || (nom === nomSpatio() ? (v.equipe || []).find((x) => x.principal) : null);
   if (m) regMort(v, m, cause, astreId);
 }
+// ---------- Pilote : qui descend avec l'atterrisseur ----------
+// Votre spationaute s'il est en vie ; sinon le premier membre d'équipage à bord de l'orbiteur.
+function pilote(v) {
+  if (!v || !v.equipe) return null;
+  const p = v.equipe.find((m) => m.principal);
+  if (p && !v.equipagePerdu && p.etat !== 'perdu') return p;
+  return v.equipe.find((m) => !m.principal && m.etat === 'bord') || null;
+}
+// Nom, profil et accord de la personne qui descend (hors campagne : votre spationaute).
+function equipierDescente(v) {
+  const m = v && v.equipe ? pilote(v) : null;
+  if (!m || m.principal) return { nom: nomSpatio(), profil: SPATIO, acc: acc(), principal: true };
+  const profil = m.profil || PROFIL_DEFAUT;
+  return { nom: m.nom, profil, acc: (GENRES[profil.genre] || GENRES.aucun).accord, principal: false, id: m.id };
+}
+// Membre d'équipage qui pilote le vol en cours (pour le registre) ; à défaut, votre spationaute.
+function piloteDuVol(v) {
+  const e = typeof etat !== 'undefined' && etat.vol && etat.vol.equipier;
+  if (e && e.id) return ((v && v.equipe) || []).find((m) => m.id === e.id) || null;
+  return principal(v);
+}
+// Le pilote meurt (atterrisseur perdu, sortie fatale) : votre spationaute, ou le membre d'équipage qui descendait.
+function perdrePilote(v, astreId, cause, equipier) {
+  const m = equipier && equipier.id ? v.equipe.find((x) => x.id === equipier.id) : pilote(v);
+  const nom = m && !m.principal ? m.nom : nomSpatio();
+  if (!m || m.principal) v.equipagePerdu = true; else m.etat = 'perdu';
+  noterPerte(v, nom, astreId, cause);
+  // De retour à l'orbiteur : on propose de rappeler l'équipage.
+  v.proposerRappel = { nom, acc: m && !m.principal ? (GENRES[(m.profil || PROFIL_DEFAUT).genre] || GENRES.aucun).accord : acc() };
+}
+
+// ---------- Équipage traumatisé ----------
+// Après une perte, si l'on continue quand même : moral au plus bas, compétences en moins.
+// Risque de rater une manœuvre ou une descente : 30 % × la part de l'équipage perdue (pas pour le retour sur Terre).
+function risqueTrauma(v) {
+  if (!v || !v.traumatise || !v.equipe || !v.equipe.length) return 0;
+  const reste = survivants(v).length / v.equipe.length;
+  return 0.3 * (1 - reste);
+}
+function rateParTrauma(v) {
+  if (v.cible && estOrigine(v.cible)) return false;   // retour sur Terre : automatisé
+  return Math.random() < risqueTrauma(v);
+}
 function causeSortie(texte) {
   if (/pression/.test(texte)) return 'combinaison écrasée par la pression';
   if (/chaleur/.test(texte)) return 'combinaison détruite par la chaleur';
@@ -39,6 +82,7 @@ function textePertes(v) {
 // Nouvelle équipe au départ d'une expédition.
 function initialiserEquipe(v) {
   v.equipagePerdu = false;       // nouvelle équipe, nouveau départ (voir le point 10 de la carte 4)
+  v.traumatise = false; v.proposerRappel = null;
   v.pertesEquipage = [];
   // L'équipe composée au centre de lancement (vétérans ou recrues, apparence choisie), sinon une proposition.
   const prevue = v.equipePrevue && v.equipePrevue.length ? v.equipePrevue : equipeProposee(v);
@@ -107,6 +151,7 @@ function mettreAJourEquipe(v, log) {
     if (m.dose >= DOSE_MORTELLE) {
       m.etat = 'perdu';
       noterPerte(v, m.nom, a.id, 'dose mortelle de rayonnement pendant sa mission');
+      v.proposerRappel = { nom: m.nom, acc: (GENRES[(m.profil || PROFIL_DEFAUT).genre] || GENRES.aucun).accord };
       log(`${m.nom} n’a pas survécu à sa mission ${sur(a)} : dose de ${fmtDoseTotale(m.dose)}. L’atterrisseur est remonté seul.`);
     } else {
       const n = echantillonsMission(jours);

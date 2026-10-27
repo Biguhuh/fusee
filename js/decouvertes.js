@@ -376,6 +376,18 @@ function htmlTrouvailles() {
     h += `<p class="encart">✨ Easter eggs trouvés : <b>${n}</b> <button id="voir-trouvailles">Voir les trouvailles</button></p>
       <ul class="sondes cache" id="liste-trouvailles">${trouves.map((e) => `<li><b>${Le(astrePartout(e.astre))}</b> — ${e.texte}</li>`).join('')}</ul>`;
   }
+  // Autres artefacts : objets des missions précédentes, objets artificiels croisés, vos propres traces.
+  const autres = [];
+  for (const [id, info] of Object.entries(etat.tracesVues || {})) {
+    const t = Object.values(TRACES_REELLES).flat().find((x) => x.id === id);
+    if (t) autres.push(`📍 <b>${t.nom}</b> (${t.annee}), ${sur(astrePartout(info.astre))} — ${t.materiel}`);
+  }
+  const v = etat.voyage;
+  for (const id of Object.keys((v && v.deranges) || {})) { const a = astrePartout(id); autres.push(`🛰 <b>${a.nom}</b> — frôlé${a.art === 'la' ? 'e' : ''}, les scientifiques s’en souviennent`); }
+  for (const id of Object.keys((v && v.voyagersVus) || {})) autres.push(`📡 <b>${id === 'voyager1' ? 'Voyager 1' : 'Voyager 2'}</b> — croisée en route`);
+  for (const [astre, l] of Object.entries(etat.drapeaux || {})) if (l.length) autres.push(`🚩 ${l.length} drapeau${l.length > 1 ? 'x' : ''} planté${l.length > 1 ? 's' : ''} ${sur(astrePartout(astre))}`);
+  for (const b of (v && v.bases) || []) autres.push(`🏠 ${majuscule(nomBase(astrePartout(b.astre)))}, niveau ${b.niveau || 1}`);
+  if (autres.length) h += `<h3>Artefacts et traces</h3><ul class="sondes">${autres.map((x) => `<li>${x}</li>`).join('')}</ul>`;
   if (reperes.length) {
     h += `<h3>À explorer</h3><ul class="sondes">${reperes.map((e) => `<li>Objet inhabituel ${e.orbite ? enOrbite(astrePartout(e.astre)) : sur(astrePartout(e.astre))}</li>`).join('')}</ul>`;
   }
@@ -406,7 +418,7 @@ function verifierDecouvertes(x) {
     x.dire(`🌍 Tour complet ${de(x.astre)} : ${fmt(P / 1000, P < 100000 ? 1 : 0)} km. Vous voilà revenu${acc()} au point de départ !`);
   }
   for (const e of eggsSur(x.astre.id)) {
-    const ex = x.xFusee + e.dx, d = distSol(x.astre, p.x, ex);
+    const ex = x.posLibre(x.xFusee + e.dx), d = distSol(x.astre, p.x, ex);
     if (humain && d < (x.enRover ? 6 : 4) && !eggTrouve(e.id)) {
       decouvrir(e, x);
     } else if (!humain && d < 20 && !eggTrouve(e.id) && !x.vusIci[e.id]) {
@@ -417,10 +429,17 @@ function verifierDecouvertes(x) {
     }
   }
   for (const t of tracesSur(x.astre.id)) {
-    const tx = x.xFusee + t.dx;
+    const tx = x.posLibre(x.xFusee + t.dx);
     if (distSol(x.astre, p.x, tx) < 12 && !x.vusIci['t:' + t.id]) {
       x.vusIci['t:' + t.id] = true;
       x.dire(`📍 ${t.nom} — ${t.annee} — ${t.materiel}.`);
+      // Gardé pour le journal : objets des missions précédentes vus sur place.
+      etat.tracesVues = etat.tracesVues || {};
+      if (!etat.tracesVues[t.id]) {
+        etat.tracesVues[t.id] = { astre: x.astre.id, quand: etat.enVoyage && etat.voyage ? etat.voyage.t : null, par: x.def.nom };
+        if (etat.enVoyage && etat.voyage) regArtefact(piloteDuVol(etat.voyage), 'trace:' + t.id);
+        sauver(etat);
+      }
     }
   }
 }
@@ -428,7 +447,7 @@ function verifierDecouvertes(x) {
 function decouvrir(e, x) {
   etat.decouvertes = etat.decouvertes || {};
   etat.decouvertes[e.id] = { astre: e.astre, quand: etat.enVoyage && etat.voyage ? etat.voyage.t : null, par: nomSpatio() };
-  if (etat.enVoyage && etat.voyage) regArtefact(principal(etat.voyage), e.id);
+  if (etat.enVoyage && etat.voyage) regArtefact(piloteDuVol(etat.voyage), e.id);
   x.dire('✨ ' + e.texte);
   if (e.elvis) x.vol.elvis = true;
   if (e.id === 'chat') replique('chat');
@@ -441,7 +460,7 @@ function decouvrir(e, x) {
 function dessinerDecouvertes(ctx, x, versEcran, s, W) {
   const p = x.p, humain = x.type === 'spationaute';
   for (const t of tracesSur(x.astre.id)) {
-    const tx = x.xFusee + t.dx;
+    const tx = x.posLibre(x.xFusee + t.dx);
     const [sx, sy] = versEcran(tx, x.sol(tx));
     if (sx < -60 * s || sx > W + 60 * s) continue;
     let hMax = 0;
@@ -454,7 +473,7 @@ function dessinerDecouvertes(ctx, x, versEcran, s, W) {
     texteSurFond(ctx, `${t.nom} — ${t.annee}`, sx, sy - hMax * s - 14, { police: '12px system-ui, sans-serif', couleur: '#ffe0a3' });
   }
   for (const e of eggsSur(x.astre.id)) {
-    const ex = x.xFusee + e.dx;
+    const ex = x.posLibre(x.xFusee + e.dx);
     const visible = eggTrouve(e.id) || (humain && Math.abs(p.x - ex) < 25);
     if (!visible) continue;
     const [sx, sy] = versEcran(ex, x.sol(ex));

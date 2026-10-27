@@ -43,6 +43,7 @@ class RetourTerre {
     if (this.phase === 'rentree') return 70;
     if (this.phase === 'pilote') return 20;
     if (this.phase === 'principal') return 55;
+    if (this.phase === 'largage') return 0.7;          // les derniers mètres, presque en temps réel
     const e = this.recup[this.iRecup];
     return e && e[1] ? Math.max(1, e[2] / e[1]) : 1;
   }
@@ -65,7 +66,7 @@ class RetourTerre {
   personneCourante() { const e = this.recup[this.iRecup]; return e && e[3] !== undefined ? this.personnes[e[3]] : null; }
 
   passer() {
-    if (this.phase === 'rentree' || this.phase === 'pilote' || this.phase === 'principal') {
+    if (this.phase === 'rentree' || this.phase === 'pilote' || this.phase === 'principal' || this.phase === 'largage') {
       // On saute directement à la récupération.
       // Temps restant estimé : ≈ 13 min de rentrée depuis 120 km, puis 7 km de parachutes (≈ 7 min).
       this.t += this.h > 7000 ? ((this.h - 7000) / 113000) * 13 * 60 + 7 * 60 : this.h / 15;
@@ -114,6 +115,8 @@ class RetourTerre {
     // Ouverture des parachutes (gonflage progressif sur quelques secondes).
     if (this.phase === 'rentree' && this.h < 7300 && v < 250) { this.phase = 'pilote'; this.tOuverture = this.t; }
     if (this.phase === 'pilote' && this.h < 3000) { this.phase = 'principal'; this.tOuverture = this.t; }
+    // À quelques mètres de l'eau, les parachutes se détachent : chute libre des derniers mètres, puis plouf.
+    if (this.phase === 'principal' && this.h < 6) { this.phase = 'largage'; this.tLargage = this.t; }
     let betaCible = CAPSULE_RETOUR.beta;
     if (this.phase === 'pilote') betaCible = CAPSULE_RETOUR.betaPilote;
     if (this.phase === 'principal') betaCible = CAPSULE_RETOUR.betaPrincipal;
@@ -160,7 +163,9 @@ class RetourTerre {
     const vis = Math.max(0, Math.min(1, (h - 30000) / 40000));
     if (vis > 0) for (const [x, y, b] of this.etoiles) { ctx.fillStyle = `rgba(255,255,255,${b * vis})`; ctx.fillRect(x * W, y * H * 0.6, 1.3, 1.3); }
     // L'océan et la courbure de la Terre : la mer reste en bas tant qu'on est haut, puis monte vers la capsule.
-    const echelle = (H * 0.38) / Math.max(h, 1500);                 // px/m
+    // px/m : vue d'ensemble en altitude ; près de l'eau, on zoome jusqu'à l'échelle de la capsule (≈ 4 m).
+    const tailleCap = Math.min(46, H * 0.07);
+    const echelle = Math.max((H * 0.38) / Math.max(h, 1500), h < 200 ? (tailleCap / 4) * (1 - h / 200) : 0);
     const yMer = cy + h * echelle;
     const Rpx = this.terre.rayonKm * 1000 * echelle;
     ctx.save();
@@ -200,6 +205,13 @@ class RetourTerre {
       ctx.fillStyle = gt; ctx.beginPath(); ctx.moveTo(-taille * 0.5, 0); ctx.lineTo(0, -taille * 6); ctx.lineTo(taille * 0.5, 0); ctx.fill();
     }
     if (this.phase === 'pilote' || this.phase === 'principal') this.dessinerParachutes(ctx, taille);
+    // Parachutes largués : ils s'envolent en s'éloignant de la capsule qui tombe.
+    if (this.phase === 'largage') {
+      const d = (this.t - this.tLargage) * 30;
+      ctx.save(); ctx.translate(d * 1.5, -d * 2); ctx.globalAlpha = Math.max(0, 1 - d / 120);
+      this.dessinerParachutes(ctx, taille);
+      ctx.restore();
+    }
     dessinerCapsule(ctx, taille * 0.5, taille, taille * 1.1);
     ctx.restore();
   }
@@ -284,6 +296,22 @@ class RetourTerre {
     // Balise lumineuse
     if (Math.floor(this.tAnim * 2) % 2 === 0) { ctx.fillStyle = '#ff5252'; ctx.beginPath(); ctx.arc(0, -taille * 1.05, 2.5 * k, 0, 2 * Math.PI); ctx.fill(); }
     ctx.restore();
+    // Plouf : gerbe d'eau au moment de l'amerrissage (début de la phase « flotte »).
+    if (this.phase === 'flotte' && this.tPhase < 1.6) {
+      const f = this.tPhase / 1.6;
+      ctx.save();
+      ctx.globalAlpha = 1 - f;
+      ctx.fillStyle = '#e3f2fd';
+      for (let i = 0; i < 14; i++) {
+        const ang = Math.PI * (0.1 + 0.8 * (i / 13)), v0 = (60 + 50 * hash(i * 3.7)) * k;
+        const px = xCap - Math.cos(ang) * v0 * f * 1.4, py = houle(xCap) - Math.sin(ang) * v0 * f * 2 + 160 * k * f * f;
+        ctx.beginPath(); ctx.arc(px, py, (3 + 3 * hash(i * 1.9)) * k, 0, 2 * Math.PI); ctx.fill();
+      }
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.ellipse(xCap, houle(xCap) + 4 * k, taille * (0.8 + 2 * f), 6 * k * (1 + f), 0, 0, 2 * Math.PI); ctx.stroke();
+      ctx.restore();
+      if (f < 0.7) texteSurFond(ctx, 'PLOUF !', xCap, houle(xCap) - taille * 2.2, { police: `800 ${Math.round(26 * k)}px system-ui, sans-serif`, couleur: '#ffffff' });
+    }
     // Écume autour de la capsule qui flotte
     if (!(this.phase === 'hisse' || this.phase === 'fin')) {
       ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2;
@@ -412,6 +440,7 @@ class RetourTerre {
           : plasma ? 'Rentrée atmosphérique : le bouclier chauffe, le plasma coupe la radio.'
             : 'Rentrée atmosphérique : l’air freine la capsule.';
       } else if (this.phase === 'pilote') etape = 'Parachute de stabilisation ouvert vers 7 km.';
+      else if (this.phase === 'largage') etape = 'Les parachutes se détachent : la capsule tombe les derniers mètres…';
       else etape = 'Parachutes principaux ouverts à 3 km : descente à environ 8 m/s vers l’océan.';
       lignes.push([etape, '#ffffff', true]);
     } else {

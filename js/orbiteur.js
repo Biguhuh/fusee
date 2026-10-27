@@ -215,6 +215,8 @@ const Orbiteur = {
         if (e.type === 'sortie') this.log(`Sortie de la sphère d’influence ${de(ASTRES_PAR_ID[e.de])}.`);
         if (e.type === 'sortie' && e.de === 'terre') replique('infini');
         if (e.type === 'entree' && e.vers === 'europe') replique('europe');
+        // Arrivée près d'un astre : le temps ralentit tout seul (×1 000 au plus).
+        if (e.type === 'entree' && !tempsReel && v.warp > 1000) { v.warp = 1000; this.log(`Temps ralenti à ×1 000 en arrivant près ${de(ASTRES_PAR_ID[e.vers])}.`); }
       }
       if (res === 'impact') return this.crash();
     }
@@ -468,6 +470,8 @@ const Orbiteur = {
     }
     const e = this.etape;
     if (e.type === 'fini') {
+      // En orbite (ou au rendez-vous) : le temps revient à ×1.
+      if ((this.auto || this.avance) && v.warp > 1 && !(v.tempsReel && v.tempsReel.actif)) v.warp = 1;
       if (v.propulsionSolaire && v.cible === v.propulsionSolaire.dest) {
         this.log(`☀️ Arrivée ${enOrbite(ASTRES_PAR_ID[v.cible])} grâce au propulseur solaire, largué ensuite.`);
         v.propulsionSolaire = null;
@@ -492,7 +496,13 @@ const Orbiteur = {
   executerEtape() {
     const v = this.v, e = this.etape;
     if (!e || !e.dv) return;
-    const dv = e.dv(v.orb, v.t);
+    let dv = e.dv(v.orb, v.t);
+    // Équipage traumatisé : la manœuvre peut être ratée (poussée trop forte ou trop faible).
+    if (rateParTrauma(v)) {
+      const k = Math.random() < 0.5 ? 0.6 + 0.2 * Math.random() : 1.2 + 0.2 * Math.random();
+      dv = V.mul(dv, k);
+      this.log(`😰 L’équipage, traumatisé, rate la manœuvre « ${e.texte.split(' : ')[0]} » : poussée ${k < 1 ? 'trop faible' : 'trop forte'} (${fmt(k * 100)} %). Il faudra corriger.`);
+    }
     // Retour au propulseur solaire : la poussée vient de lui, pas des ergols (dans la limite de son Δv).
     const ps = v.propulsionSolaire;
     if (ps && V.norm(dv) <= ps.dvRestant) {
@@ -787,6 +797,17 @@ const Orbiteur = {
 
   // ---------- Stations ----------
   stationIci() { return this.v.stations.find((s) => s.centre === this.v.orb.centre); },
+  // Amarré : même position et même vitesse que la station.
+  estAmarre(s) {
+    const o = this.v.orb, e = this.etatStation(s);
+    return V.norm(V.sub(o.r, e.r)) < 1 && V.norm(V.sub(o.v, e.v)) < 0.01;
+  },
+  // La station a-t-elle encore quelque chose à donner à l'orbiteur ?
+  stockAPrendre(s) {
+    const v = this.v, k = s.stock;
+    const max = { carburant: ORBITEUR.carburantMax, ergols: ORBITEUR.ergolsAtt, sondes: ORBITEUR.sondes, kits: ORBITEUR.kits + 1, kitsBase: 2, robots: ORBITEUR.robots, atterrisseurs: ORBITEUR.atterrisseurs, propulseurs: 2 };
+    return Object.entries(max).some(([c, m]) => (k[c] || 0) > 0 && (v[c] || 0) < m - (c === 'carburant' || c === 'ergols' ? 1 : 0));
+  },
   orbiteFermee() {
     const o = this.v.orb, c = ASTRES_PAR_ID[o.centre];
     const el = elements(o.r, o.v, c.gm);
@@ -831,6 +852,8 @@ const Orbiteur = {
         this.log(`${Le(s)} est agrandie : niveau ${s.niveau} — ${niveauStation(s).apport}.`);
       }
       // Ravitaillement courant depuis la Terre : seulement dans le Système solaire.
+      // Extension de station en stock : l'assemblage démarre tout seul (plus besoin de cliquer « Agrandir »).
+      if (!s.agrandissement && (s.niveau || 1) < 5 && (s.stock.extensionsStation || 0) > 0) this.agrandirStation(s.id);
       if (!ressourcesIllimitees()) continue;
       if (!s.prochainCargo) s.prochainCargo = v.t + intervalleCargo(s.centre);
       let n = 0;
@@ -1098,7 +1121,9 @@ const Orbiteur = {
     prendre('kitsBase', 2, 'kits de base');
     prendre('robots', ORBITEUR.robots, 'robots');
     prendre('atterrisseurs', ORBITEUR.atterrisseurs, 'atterrisseurs');
-    if ((s.stock.propulseurs || 0) > 0 && !(v.propulseurs > 0)) { s.stock.propulseurs -= 1; v.propulseurs = 1; pris.push('1 propulseur solaire'); }
+    // Propulseurs solaires : 2 au plus (un pour la voiture, un pour rentrer sans ergols).
+    v.propulseurs = v.propulseurs || 0;
+    prendre('propulseurs', 2, 'propulseurs solaires');
     // Les échantillons peuvent attendre à la station ; ils repartent vers la Terre avec le cargo.
     this.etape = null;
     this.log(`Amarré ${au(s)}${pris.length ? ' : ' + pris.join(', ') : ' : stock vide, attendez le prochain cargo'}.`);
@@ -1170,6 +1195,36 @@ const Orbiteur = {
     v.cible = p.id; v.mode = 'pilote'; this.etape = null; this.auto = true;
     this.log(`☀️ Propulseur solaire installé sur l’orbiteur : le pilote auto ramène l’expédition vers ${le(p)}, sans toucher aux ergols (jusqu’à ${fmtV(DV_PROPULSEUR_SOLAIRE * 1000)} de poussées).`);
     this.majHud(true);
+  },
+
+  // Un membre d'équipage vient de mourir : rappeler les autres sur Terre, ou continuer, traumatisés.
+  proposerRappel() {
+    const v = this.v, info = v.proposerRappel;
+    if (!info || !v.orb) return;
+    v.proposerRappel = null;
+    const reste = survivants(v), total = (v.equipe || []).length || 1;
+    const risque = 0.3 * (1 - reste.length / total);
+    const m = $('modale');
+    const peutRappeler = ressourcesIllimitees() && reste.length > 0;
+    m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>🕯 ${majuscule(info.nom)} est mort${info.acc || ''}</h2>
+      <p>L’équipage est sous le choc : ${reste.length} sur ${total} encore en vie (${reste.map((x) => (x.principal ? majuscule(nomSpatio()) : x.nom)).join(', ') || 'personne'}).</p>
+      <p><b>Mieux vaut ne pas continuer</b> : rappelez l’équipage sur Terre. Le pilote auto ramène l’orbiteur en orbite terrestre, puis la capsule rentre.</p>
+      <p class="doux">Vous pouvez continuer quand même, mais l’équipage a le moral dans les chaussettes et il lui manque désormais des compétences : chaque manœuvre et chaque descente risque d’être ratée (${fmt(risque * 100)} % de risque), sauf le retour sur Terre, automatisé.</p></div></header>
+      <div class="actions">${peutRappeler ? '<button id="rappel-oui" class="principal">🏠 Rappeler l’équipage sur Terre</button>' : '<span></span>'}<button id="rappel-non">Continuer la mission malgré tout</button></div></div>`;
+    m.classList.remove('cache');
+    if (peutRappeler) $('rappel-oui').onclick = () => {
+      Infos.fermer();
+      v.traumatise = false;
+      v.cible = SYSTEME.origine; v.mode = 'pilote'; this.etape = null; this.auto = true;
+      this.log(`🏠 Équipage rappelé : le pilote auto ramène l’orbiteur vers ${le(planeteOrigine())}. Ensuite, « 🏠 Rentrer sur Terre (capsule) ».`);
+      this.majHud(true);
+    };
+    $('rappel-non').onclick = () => {
+      Infos.fermer();
+      v.traumatise = true;
+      this.log(`😔 La mission continue malgré la perte ${de({ nom: info.nom })}. L’équipage traumatisé risque de rater ses manœuvres (${fmt(risque * 100)} %).`);
+      this.majHud(true);
+    };
   },
 
   // Viser la voiture : ce qu'il faut emporter (de quoi revenir, et le propulseur solaire).
@@ -1975,7 +2030,13 @@ const Orbiteur = {
       if (c.type === 'solide' && v.robots > 0) d += `<button id="nav-robot">🤖 Larguer un robot (aller simple)</button>`;
     }
     const st = this.stationIci();
-    if (st) d += `<button id="nav-amarrer">⚓ S’amarrer ${au(st)}</button>`;
+    if (st) {
+      // Déjà amarré : bouton grisé, sauf s'il reste du stock à prendre (arrivé depuis).
+      const amarre = this.estAmarre(st);
+      if (!amarre) d += `<button id="nav-amarrer">⚓ S’amarrer ${au(st)}</button>`;
+      else if (this.stockAPrendre(st)) d += `<button id="nav-amarrer">⚓ Amarré : reprendre le stock ${de(st)}</button>`;
+      else d += `<button disabled title="L’orbiteur est déjà amarré et a pris tout ce qu’il peut emporter">⚓ Amarré ${au(st)}</button>`;
+    }
     // Une seule station et une seule sonde par astre : bouton grisé avec la raison.
     if (st && c.type !== 'etoile' && c.type !== 'objet') d += `<button disabled title="Une seule station par astre">🏗 Station déjà installée sur cet astre</button>`;
     else if (v.kits > 0 && fermee && c.type !== 'etoile' && c.type !== 'objet') d += `<button id="nav-station" ${estOrigine(c.id) ? 'class="principal"' : ''}>🏗 Construire une station ici</button>`;
@@ -1996,7 +2057,7 @@ const Orbiteur = {
       const k = st.stock;
       d += `<h3>${st.nom}</h3><dl>` + Object.keys(NOMS_STOCK).map((cle) => `<dt>${NOMS_STOCK[cle]}</dt><dd>${fmtStock(cle, k[cle] || 0)}</dd>`).join('') + '</dl>';
       if (ressourcesIllimitees() && st.prochainCargo) d += `<p class="doux">Ravitaillement courant de la Terre dans ${fmtDuree(st.prochainCargo - v.t)}.</p>`;
-      d += `<p class="doux"><b>Atelier</b> (avec les matériaux et les ergols du stock) :</p><div class="orientations">` +
+      d += `<p class="doux"><b>🔧 Atelier : construire</b> avec les matériaux et les ergols du stock (cliquez pour lancer la fabrication) :</p><div class="orientations">` +
         Object.entries(RECETTES).filter(([cle]) => recetteVisible(cle, st)).map(([cle, r]) =>
           `<button data-fab="${cle}" ${k.materiaux < r.materiaux || (r.ergols && k.ergols < r.ergols) ? 'disabled' : ''}>${r.nom} · ${fmtStock('materiaux', r.materiaux)}${r.ergols ? ` + ${fmtStock('ergols', r.ergols)} d’ergols` : ''}${r.duree ? ` · ${fmtDuree(r.duree)}` : ''}</button>`).join('') + '</div>';
       for (const ch of st.chantiers || []) d += `<p class="doux">🔧 Chantier : ${RECETTES[ch.cle].nom}, prêt le ${fmtDate(ch.fin)} (dans ${fmtDuree(ch.fin - v.t)}).</p>`;

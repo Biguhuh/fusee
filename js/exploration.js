@@ -1,4 +1,5 @@
 'use strict';
+const ZONE_BASE = 150;   // m de part et d'autre d'une base : ni site d'échantillon, ni artefact dessus
 // Exploration de la surface en vue de côté, par un spationaute ou un robot.
 // La gravité locale change tout : sauts immenses sur les petites lunes, démarche lourde sur Terre.
 
@@ -51,7 +52,7 @@ class Exploration {
     this.astre = vol.astre;
     this.type = type;
     this.def = { ...EXPLORATEURS[type] };
-    if (type === 'spationaute') this.def.nom = nomSpatio();
+    if (type === 'spationaute') this.def.nom = this.equipier().nom;
     this.science = science;         // { [astreId]: { sites: {k: true}, echantillons } }
     this.xFusee = vol.x;
     const x = vol.x + 2;
@@ -74,7 +75,7 @@ class Exploration {
     this.acc = Math.min(type === 'robot' ? 1 : 4, 0.6 * g + 0.001);
     this.saut = type === 'robot' ? 0 : Math.min(2.2, 0.5 * this.vLib);
     this.cable = type === 'spationaute' && this.vLib < 4.4;
-    if (this.cable) this.dire(`Gravité minuscule (libération à ${fmtV(this.vLib)}) : ${nomSpatio()} reste attaché${acc()} par un câble.`);
+    if (this.cable) this.dire(`Gravité minuscule (libération à ${fmtV(this.vLib)}) : ${this.def.nom} reste attaché${this.equipier().acc} par un câble.`);
     // Promenade sur Terre : fleurs, fruits et bar, pas de science.
     this.terre = !!options.terre;
     this.campagne = options.provisions || null;
@@ -173,13 +174,28 @@ class Exploration {
     } else this.dire('Approchez-vous de l’astromobile (à côté du module) pour monter dedans.');
   }
 
+  // La personne qui sort : celle qui pilotait la descente (votre spationaute, ou un membre d'équipage).
+  equipier() { return this.vol.equipier || equipierDescente(null); }
+
+  // Position d'un artefact ou d'une trace, poussée hors de l'emprise d'une base (pas de superposition).
+  posLibre(x) {
+    for (const b of this.vol.bases || []) {
+      const d = ecartSol(this.astre, x, b.x);
+      if (Math.abs(d) < ZONE_BASE) return b.x + Math.sign(d || 1) * (ZONE_BASE + Math.abs(d));
+    }
+    return x;
+  }
+
   genererSites() {
     const a = this.astre;
     const liste = typesEchantillons(a);
     const sites = [];
     for (let k = -40; k <= 40; k++) {
       if (k === 0 || hash2(k, 50) < 0.45) continue;
-      const x = this.xFusee + k * 45 + (hash2(k, 51) - 0.5) * 30;
+      const x0 = this.xFusee + k * 45 + (hash2(k, 51) - 0.5) * 30;
+      // Pas de site d'échantillon sous une base : on le saute.
+      if ((this.vol.bases || []).some((b) => distSol(this.astre, x0, b.x) < ZONE_BASE)) continue;
+      const x = x0;
       const [nom, texte] = liste[Math.floor(hash2(k, 52) * liste.length)];
       sites.push({ k, x, nom, texte });
     }
@@ -193,7 +209,7 @@ class Exploration {
     const rec = recordSaut(this.astre.id);
     const txt = h < 10 ? `${fmt(h, 2)} m` : fmtAlt(h);
     if (!rec || h > rec.h) {
-      enregistrerSaut(this.astre.id, h, nomSpatio());
+      enregistrerSaut(this.astre.id, h, this.def.nom);
       this.dire(`🏅 Saut de ${txt} : record ${sur(this.astre)}${rec ? ` (l’ancien : ${rec.h < 10 ? fmt(rec.h, 2) + ' m' : fmtAlt(rec.h)})` : ''} !`);
     } else this.dire(`Saut de ${txt} (record ${sur(this.astre)} : ${rec.h < 10 ? fmt(rec.h, 2) + ' m' : fmtAlt(rec.h)}).`);
   }
@@ -294,7 +310,7 @@ class Exploration {
         const d = Math.hypot(ecartSol(this.astre, p.x, this.xFusee), p.y - this.sol(this.xFusee));
         if (d > 30) { p.vx *= -0.3; p.vy = Math.min(p.vy, 0) - 0.05; }
       } else if (Math.hypot(p.vx, p.vy) > this.vLib && p.y - this.sol(p.x) > 20) {
-        this.terminer('perdu', `${this.def.nom} a dépassé la vitesse de libération (${fmtV(this.vLib)}) et s’est perdu${this.type === 'robot' ? '' : acc()} dans l’espace.`);
+        this.terminer('perdu', `${this.def.nom} a dépassé la vitesse de libération (${fmtV(this.vLib)}) et s’est perdu${this.type === 'robot' ? '' : this.equipier().acc} dans l’espace.`);
         return;
       }
       if (p.y <= this.sol(p.x)) {
@@ -319,7 +335,7 @@ class Exploration {
     this.reserve -= dt * (this.type === 'robot' ? effort : 1);
     if (this.moduleRobot && this.presDeLaFusee()) this.reserve = Math.min(this.def.autonomie, this.reserve + dt * 20);
     if (this.reserve <= 0) {
-      return this.terminer('perdu', this.type === 'robot' ? 'Batterie vide : le robot s’est arrêté pour toujours.' : `Plus d’oxygène : ${nomSpatio()} n’a pas pu rentrer à temps.`);
+      return this.terminer('perdu', this.type === 'robot' ? 'Batterie vide : le robot s’est arrêté pour toujours.' : `Plus d’oxygène : ${this.def.nom} n’a pas pu rentrer à temps.`);
     }
 
     // Dangers (dégradation progressive, comme la coque de la fusée)
@@ -337,7 +353,7 @@ class Exploration {
       this.dose = (100 * this.doseSv) / DOSE_MORTELLE;
     }
     if (this.integrite <= 0) return this.terminer('perdu', tp >= tc ? `La pression (${fmtP(this.c.p)}) a écrasé ${this.type === 'robot' ? 'le robot' : 'la combinaison'}.` : `La chaleur (${fmt(this.c.t)} °C) a eu raison ${this.type === 'robot' ? 'du robot' : 'de la combinaison'}.`);
-    if (this.dose >= 100) return this.terminer('perdu', `Le rayonnement a ${this.type === 'robot' ? 'grillé l’électronique du robot' : `été mortel pour ${nomSpatio()}`}.`);
+    if (this.dose >= 100) return this.terminer('perdu', `Le rayonnement a ${this.type === 'robot' ? 'grillé l’électronique du robot' : `été mortel pour ${this.def.nom}`}.`);
   }
 
   // Temps qu'il reste au robot avant que le rayonnement grille son électronique.
@@ -415,7 +431,7 @@ class Exploration {
     if (liste.some((d) => distSol(this.astre, d.x, this.p.x) < 20)) return this.dire('Un drapeau flotte déjà ici.');
     const x = this.p.x + (robot ? 1.6 : 1.2) * (this.p.dir || 1);
     const premier = liste.length === 0;
-    liste.push({ x, par: robot ? 'robot' : nomSpatio(), robot, quand: etat.voyage && etat.enVoyage ? etat.voyage.t : null });
+    liste.push({ x, par: robot ? 'robot' : this.def.nom, robot, quand: etat.voyage && etat.enVoyage ? etat.voyage.t : null });
     sauver(etat);
     this.poussiere(10);
     if (robot) this.brasDrapeau = 1.5;   // le bras du robot reste sorti un instant
@@ -440,7 +456,17 @@ class Exploration {
   // Échap : le spationaute (et le rover) rentrent à la fusée avec ce qu'ils portent ; le robot s'arrête.
   agirRappel() {
     if (this.type === 'robot') {
-      const pres = this.presDeLaFusee();
+      // Loin de sa base : le robot y retourne d'abord (son module, ou la base la plus proche) et transmet.
+      // Échap de nouveau pour revenir à l'orbiteur.
+      const bases = [{ x: this.xFusee, nom: 'à son module' }, ...(this.vol.bases || []).map((b) => ({ x: b.x, nom: 'à la base' }))];
+      const proche = bases.reduce((m, b) => (distSol(this.astre, b.x, this.p.x) < distSol(this.astre, m.x, this.p.x) ? b : m));
+      if (distSol(this.astre, proche.x, this.p.x) > 4) {
+        const x = this.p.x + ecartSol(this.astre, proche.x, this.p.x) + (proche.x === this.xFusee ? 2 : 0);
+        Object.assign(this.p, { x, y: this.sol(x), vx: 0, vy: 0, auSol: true });
+        const n = this.transmettre();
+        return this.dire(`🤖 Le robot est revenu ${proche.nom} : ${n ? `${n} analyse${n > 1 ? 's' : ''} transmise${n > 1 ? 's' : ''}` : 'rien à transmettre'}. Échap de nouveau pour revenir à l’orbiteur.`);
+      }
+      const pres = this.presDeLaFusee() || distSol(this.astre, proche.x, this.p.x) <= 4;
       const n = pres ? this.transmettre() : 0;
       const perdues = this.donneesEnAttente;
       if (this.moduleRobot) {
@@ -565,7 +591,7 @@ class Exploration {
     // Les véhicules suivent la pente (en l'air, ils gardent leur dernière inclinaison).
     if (p.auSol) this.inclinaison = this.penteSous(p.x);
     if (this.enRover) dessinerRover(ctx, sx, sy, echelle, p, true, this.inclinaison || 0);
-    else if (this.type === 'spationaute') dessinerSpationaute(ctx, sx, sy, echelle, p, this.terre);
+    else if (this.type === 'spationaute') dessinerSpationaute(ctx, sx, sy, echelle, p, this.terre, this.equipier().profil);
     else {
       // Le bras sort pendant une analyse, ou un instant après avoir planté le drapeau.
       if (this.brasDrapeau > 0) this.brasDrapeau -= dt;
@@ -575,8 +601,11 @@ class Exploration {
     if (this.terre) this.dessinerHudTerre(ctx, W, H);
     else this.dessinerHud(ctx, W, H);
     const compact = ecranCompact(W, H);
-    texteSurFond(ctx, `Temps ×${this.warp}${this.warp > 1 ? ` (1 s = ${this.warp} s)` : ''}${ECRAN_TACTILE ? '' : '  (+/−)'}`, W - 14, compact ? 58 : 28,
-      { police: compact ? 'bold 12px system-ui' : 'bold 14px system-ui', couleur: this.warp > 1 ? '#ffca28' : '#ffffff', align: 'right' });
+    const texteTemps = `Temps ×${this.warp}${this.warp > 1 ? ` (1 s = ${this.warp} s)` : ''}${ECRAN_TACTILE ? '' : '  (+/−)'}`;
+    const policeTemps = compact ? 'bold 12px system-ui' : 'bold 14px system-ui', yTemps = compact ? 58 : 28;
+    texteSurFond(ctx, texteTemps, W - 14, yTemps, { police: policeTemps, couleur: this.warp > 1 ? '#ffca28' : '#ffffff', align: 'right' });
+    ctx.font = policeTemps;
+    dessinerBoutonsTemps(ctx, W - 14 - ctx.measureText(texteTemps).width - 14, yTemps);
   }
 
   dessinerHudTerre(ctx, W, H) {

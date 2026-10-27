@@ -1908,6 +1908,27 @@ function dessinerBases(ctx, vol, W, echelle, fuseeY) {
 }
 
 // Drapeaux plantés sur un astre (sauvegardés avec la partie).
+// ---------- Boutons − / + du temps (vol, sol) ----------
+// Même effet que les touches + et − : un clic envoie la touche correspondante.
+let ZONES_TEMPS = [];
+function dessinerBoutonsTemps(ctx, xDroite, yTexte) {
+  const bw = 28, h = 24, y = yTexte - 17;
+  ZONES_TEMPS = [{ x: xDroite - 2 * bw - 6, y, w: bw, h, t: '−', key: '-', code: 'NumpadSubtract' }, { x: xDroite - bw, y, w: bw, h, t: '+', key: '+', code: 'NumpadAdd' }];
+  ctx.save();
+  for (const b of ZONES_TEMPS) {
+    ctx.fillStyle = 'rgba(8,14,28,0.75)'; ctx.beginPath(); ctx.roundRect(b.x, b.y, b.w, b.h, 6); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.font = '600 18px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(b.t, b.x + b.w / 2, b.y + b.h / 2 + 1);
+  }
+  ctx.restore();
+}
+function clicTemps(x, y) {
+  const b = ZONES_TEMPS.find((z) => x >= z.x && x <= z.x + z.w && y >= z.y && y <= z.y + z.h);
+  if (!b) return false;
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: b.key, code: b.code }));
+  return true;
+}
 function drapeauxSur(astreId) { return (typeof etat !== 'undefined' && etat.drapeaux && etat.drapeaux[astreId]) || []; }
 // Assez d'air pour que le drapeau flotte au vent ?
 function ventPourDrapeau(a) { return !!(a.atm && a.atm.p0 > 0.003); }
@@ -2455,7 +2476,10 @@ function dessinerHudSuite(ctx, vol, W, H, warp, compact, twr) {
   ctx.font = compact ? 'bold 12px system-ui, sans-serif' : 'bold 14px system-ui, sans-serif';
   ctx.fillStyle = warp > 1 ? '#ffca28' : 'rgba(255,255,255,0.6)';
   const limite = vol.warpChoisi > warp ? (compact ? ` (×${vol.warpChoisi} limité)` : ` (×${vol.warpChoisi} demandé, limité près du sol)`) : '';
-  ctx.fillText('Temps ×' + warp + limite + (ECRAN_TACTILE ? '' : '  +/−'), W - 14, y0 + 28);
+  const texteTemps = 'Temps ×' + warp + limite + (ECRAN_TACTILE ? '' : '  +/−');
+  ctx.fillText(texteTemps, W - 14, y0 + 28);
+  dessinerBoutonsTemps(ctx, W - 14 - ctx.measureText(texteTemps).width - 8, y0 + 28);
+  ctx.textAlign = 'right';
   ctx.font = compact ? '11px system-ui, sans-serif' : '12px system-ui, sans-serif';
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
   ctx.fillText('T+ ' + fmtDuree(vol.t), W - 14, y0 + (compact ? 43 : 46));

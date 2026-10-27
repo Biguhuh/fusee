@@ -182,7 +182,7 @@ function tableauAstre(v, a, actif) {
     if (actif) {
       const fab = Object.entries(RECETTES).filter(([cle]) => recetteVisible(cle, st))
         .map(([cle, r]) => bouton(`fab:${st.id}:${cle}`, `🔧 ${r.nom}`, k.materiaux < r.materiaux || (r.ergols && k.ergols < r.ergols))).join(' ');
-      orb += `<dt>Atelier</dt><dd class="actions-tb">${fab}</dd>`;
+      orb += `<dt>🔧 Atelier : construire</dt><dd class="actions-tb">${fab}</dd>`;
       orb += `<dt></dt><dd>${bouton(`ravito:${st.id}`, '📦 Envoyer un ravito ici')}</dd>`;
     }
   }
