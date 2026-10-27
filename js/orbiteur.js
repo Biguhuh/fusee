@@ -1,6 +1,7 @@
 'use strict';
 // Écran de l'orbiteur : carte du système solaire vue de dessus, pilotage, sondes, stations.
 
+const CHAMP_ORBITEUR = { ergols: 'ergolsAtt' };   // clé du stock d'une station → champ de l'orbiteur
 const DV_PROPULSEUR_SOLAIRE = 20;   // km/s de poussées possibles pour ramener l'orbiteur (propulseur ionique)
 const PALIERS_NAV = [1, 10, 100, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8];
 const DATE_DEBUT = (2461336.5 - J2000_JD) * JOUR; // 23 octobre 2026
@@ -806,7 +807,7 @@ const Orbiteur = {
   stockAPrendre(s) {
     const v = this.v, k = s.stock;
     const max = { carburant: ORBITEUR.carburantMax, ergols: ORBITEUR.ergolsAtt, sondes: ORBITEUR.sondes, kits: ORBITEUR.kits + 1, kitsBase: 2, robots: ORBITEUR.robots, atterrisseurs: ORBITEUR.atterrisseurs, propulseurs: 2 };
-    return Object.entries(max).some(([c, m]) => (k[c] || 0) > 0 && (v[c] || 0) < m - (c === 'carburant' || c === 'ergols' ? 1 : 0));
+    return Object.entries(max).some(([c, m]) => (k[c] || 0) > 0 && (v[CHAMP_ORBITEUR[c] || c] || 0) < m - (c === 'carburant' || c === 'ergols' ? 1 : 0));
   },
   orbiteFermee() {
     const o = this.v.orb, c = ASTRES_PAR_ID[o.centre];
@@ -1111,8 +1112,10 @@ const Orbiteur = {
     // On prend ce que la station a en stock, dans la limite de ce que l'orbiteur peut emporter.
     const pris = [];
     const prendre = (cle, max, nom, unite = '') => {
-      const q = Math.max(0, Math.min(s.stock[cle], max - v[cle]));
-      if (q > 0) { s.stock[cle] -= q; v[cle] += q; pris.push(`${unite === 'kg' ? fmt(q / 1000, 1) + ' t' : fmt(q)} ${nom}`); }
+      // Les ergols du stock vont dans la réserve de l'atterrisseur (v.ergolsAtt).
+      const champ = CHAMP_ORBITEUR[cle] || cle;
+      const q = Math.max(0, Math.min(s.stock[cle] || 0, max - (v[champ] || 0)));
+      if (q > 0) { s.stock[cle] -= q; v[champ] = (v[champ] || 0) + q; pris.push(`${unite === 'kg' ? fmt(q / 1000, 1) + ' t' : fmt(q)} ${nom}`); }
     };
     prendre('carburant', ORBITEUR.carburantMax, 'de carburant', 'kg');
     prendre('ergols', ORBITEUR.ergolsAtt, 'd’ergols pour l’atterrisseur', 'kg');
@@ -2031,11 +2034,13 @@ const Orbiteur = {
     }
     const st = this.stationIci();
     if (st) {
-      // Déjà amarré : bouton grisé, sauf s'il reste du stock à prendre (arrivé depuis).
+      // Déjà amarré : « S'amarrer » grisé ; à côté, « Faire le plein » quand la station a de quoi compléter l'orbiteur.
       const amarre = this.estAmarre(st);
       if (!amarre) d += `<button id="nav-amarrer">⚓ S’amarrer ${au(st)}</button>`;
-      else if (this.stockAPrendre(st)) d += `<button id="nav-amarrer">⚓ Amarré : reprendre le stock ${de(st)}</button>`;
-      else d += `<button disabled title="L’orbiteur est déjà amarré et a pris tout ce qu’il peut emporter">⚓ Amarré ${au(st)}</button>`;
+      else {
+        d += `<button disabled title="L’orbiteur est déjà amarré">⚓ Amarré ${au(st)}</button>`;
+        if (this.stockAPrendre(st)) d += `<button id="nav-amarrer" class="principal">⛽ Faire le plein (carburant, ergols, matériel)</button>`;
+      }
     }
     // Une seule station et une seule sonde par astre : bouton grisé avec la raison.
     if (st && c.type !== 'etoile' && c.type !== 'objet') d += `<button disabled title="Une seule station par astre">🏗 Station déjà installée sur cet astre</button>`;
