@@ -48,10 +48,14 @@ const Orbiteur = {
   // Une campagne : ce qui dure (stations, bases, sondes, journal, échantillons rapportés).
   // L'orbiteur (orb) n'existe que pendant une expédition, lancée depuis la Terre par la méga-fusée.
   nouveauVoyage() {
+    // Nouvelle campagne : artefacts remis à zéro (les easter eggs trouvés restent), voiture rouge remise en orbite.
+    if (typeof etat !== 'undefined') etat.tracesVues = {};
+    if (ASTRES_PAR_ID.roadster) ASTRES_PAR_ID.roadster.cachee = false;
     return {
       t: DATE_DEBUT,
       systeme: SYSTEME.id,
       orb: null,
+      idCampagne: 'c' + Date.now().toString(36), voitureEtapes: {},   // nouvelle campagne : la voiture rouge est de retour
       carburant: 0, ergolsAtt: 0, sondes: 0, kits: 0, kitsBase: 0, robots: 0, drones: 0, atterrisseurs: 0,
       sondesEnVol: [], stations: [], bases: [],
       journal: [{ t: DATE_DEBUT, texte: 'Début de la campagne. Première étape : lancer la méga-fusée et construire la station spatiale.' }],
@@ -144,6 +148,7 @@ const Orbiteur = {
   },
   log(texte) {
     if (MOTIFS_REFUS.test(texte)) afficherAlerte(texte);
+    if (/^✨/.test(texte) && typeof afficherDecouverte === 'function') afficherDecouverte(texte);
     this.v.journal.push({ t: this.v.t, texte });
     if (this.v.journal.length > 200) this.v.journal.shift();
     // En temps accéléré, les événements s'enchaînent : on les laisse plus longtemps à l'écran.
@@ -1176,7 +1181,14 @@ const Orbiteur = {
     const alt = (Math.hypot(v.orb.r[0], v.orb.r[1]) - terre.rayonKm) * 1000;
     jouerScene(new Amarrage(terre, alt, { nom: 'Station spatiale internationale', alt: 415000, vaisseau: true }, v.t, 'Orbiteur'), () => {
       v.aIss = true; v.amarre = null; v.rdvStation = null;   // amarré à l'ISS (plus à la station terrestre)
-      this.log('📍 Amarré à la Station spatiale internationale, habitée sans interruption depuis novembre 2000. Un ingénieur de fiction y a séjourné, et s’en plaint encore.');
+      this.log('📍 Amarré à la Station spatiale internationale, habitée sans interruption depuis novembre 2000.');
+      if (!eggTrouve('iss-wolowitz')) {
+        etat.decouvertes = etat.decouvertes || {};
+        etat.decouvertes['iss-wolowitz'] = { astre: 'terre', quand: v.t, par: 'l’équipage de l’orbiteur' };
+        regArtefactBord(v, 'iss-wolowitz');
+        this.log('✨ Découverte à bord de l’ISS : ' + TEXTE_ISS_WOLOWITZ);
+        sauver(etat);
+      }
       allerNavigation();
     });
   },
@@ -1295,7 +1307,7 @@ const Orbiteur = {
   // planète la plus proche. Le pilote auto calcule le trajet ; les poussées viennent du propulseur (Δv limité).
   propulseursLibres() {
     const v = this.v;
-    const garde = SYSTEME.id === 'solaire' && !eggTrouve('voiture-2') && v.orb && v.orb.centre === 'roadster' ? 1 : 0;   // celui de la voiture
+    const garde = SYSTEME.id === 'solaire' && !voitureEtape(2) && v.orb && v.orb.centre === 'roadster' ? 1 : 0;   // celui de la voiture
     return Math.max(0, (v.propulseurs || 0) - garde);
   },
   planeteLaPlusProche() {

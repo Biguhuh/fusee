@@ -150,7 +150,7 @@ function allerAccueil() {
     const vus = Object.keys(v.visites).filter((id) => astreVisite(v, id) && ASTRES_PAR_ID[id]);
     const nPrinc = SYSTEME.objectifs.filter((id) => vus.includes(id)).length;
     $('progres-accueil').innerHTML = (SYSTEME.id !== 'solaire' ? `<b>Campagne dans le ${SYSTEME.nom}</b> (${fmt(SYSTEME.distanceAL, 2)} années-lumière). ` : '') +
-      `Progression : <b>${vus.length} astre${vus.length > 1 ? 's' : ''} visité${vus.length > 1 ? 's' : ''} en campagne 🏳</b> sur ${astresAVisiter().length} (dont ${nPrinc} des ${SYSTEME.objectifs.length} principaux). ` + resumeCampagne(v);
+      `Progression : <b>${vus.length} astre${vus.length > 1 ? 's' : ''} visité${vus.length > 1 ? 's' : ''} en campagne ✅</b> sur ${astresAVisiter().length} (dont ${nPrinc} des ${SYSTEME.objectifs.length} principaux). ` + resumeCampagne(v);
   } else $('progres-accueil').innerHTML = '';
   // Easter eggs : rien tant que le premier n'est pas trouvé.
   const nEggs = nombreEggsTrouves();
@@ -1008,7 +1008,7 @@ const CONTEXTE_PROMENADE = {
 };
 $('accueil-promenade').onclick = () => ouvrirPromenade(CONTEXTE_PROMENADE);
 $('accueil-spatio').onclick = () => afficherCreationSpatio(allerAccueil);
-$('accueil-registre').onclick = ouvrirRegistre;
+$('accueil-registre').onclick = () => ouvrirRegistre();
 $('accueil-aide').onclick = () => ouvrirAide();
 document.querySelectorAll('.ouvrir-aide').forEach((b) => { b.onclick = () => ouvrirAide(); });
 $('exporter').onclick = () => { exporterSauvegarde(etat); $('sauvegarde-info').textContent = 'Fichier téléchargé.'; };

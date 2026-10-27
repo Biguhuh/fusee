@@ -224,6 +224,7 @@ class Exploration {
   }
   // Les messages restent affichés en temps réel (7 s, 12 s quand le temps est accéléré ×10 et plus), 3 au plus.
   dire(m) {
+    if (/^✨/.test(m) && typeof afficherDecouverte === 'function') afficherDecouverte(m);
     this.message = m;
     const fin = performance.now() + ((this.warp || 1) >= 10 ? 12000 : 7000);
     this.fileMessages = (this.fileMessages || []).filter((x) => x.texte !== m).concat({ texte: m, fin }).slice(-3);

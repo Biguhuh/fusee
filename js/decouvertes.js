@@ -208,22 +208,33 @@ const G_KM = 6.674e-20;   // constante de la gravitation en km³/(kg·s²)
 })();
 
 // Propulseur solaire (campagne.js) : proposé à l'atelier une fois la voiture découverte.
-function astreMasque(a) { return !!(a.id === 'roadster' && eggTrouve('voiture-2')); }
+function astreMasque(a) { return !!(a.id === 'roadster' && voitureEtape(2)); }
 // Rendez-vous fait : à quelques km de l'objet, vitesse relative presque nulle.
 function aCoteDe(v, id) { return v.orb && v.orb.centre === id && V.norm(v.orb.r) < 20 && V.norm(v.orb.v) < 0.01; }
 function recetteVisible(cle, st) {
   if (cle === 'lanceurRetour') return !!AEROSTAT[st.centre];
   // Le propulseur solaire est à préparer avant d'aller à la voiture : proposé tant qu'elle tourne encore.
-  if (cle === 'propulseurs') return !eggTrouve('voiture-2') && SYSTEME.id === 'solaire';
+  if (cle === 'propulseurs') return !voitureEtape(2) && SYSTEME.id === 'solaire';
   return true;
 }
 
+const TEXTE_ISS_WOLOWITZ = 'Dans un casier de l’ISS : une ceinture de cosmonaute bricolée, un jeu de rôle, et une lettre de sa mère. Un ingénieur de fiction a séjourné ici, et s’en plaint encore.';
 const TEXTES_VOITURE = {
   1: 'Une voiture de sport en orbite autour du Soleil. Aucun instrument scientifique, beaucoup de publicité.',
   2: 'Amarrage à la voiture, propulseur solaire installé : le déchet vaniteux part vers son funeste rendez-vous avec le Soleil.',
   3: '2,21 gigowatts reçus. Le déchet vaniteux est bien cuit.',
 };
+// Où en est la voiture dans cette campagne (1 vue, 2 envoyée vers le Soleil, 3 incinérée). Les easter eggs,
+// eux, restent trouvés d'une campagne à l'autre. Partie d'avant : on part des easter eggs déjà trouvés.
+function voitureEtape(n) {
+  const v = typeof etat !== 'undefined' && etat.voyage;
+  if (!v) return eggTrouve('voiture-' + n);
+  if (!v.voitureEtapes) v.voitureEtapes = { 1: eggTrouve('voiture-1'), 2: eggTrouve('voiture-2'), 3: eggTrouve('voiture-3') };
+  return !!v.voitureEtapes[n];
+}
 function etapeVoiture(n, orb) {
+  orb.v.voitureEtapes = orb.v.voitureEtapes || {};
+  orb.v.voitureEtapes[n] = true;
   etat.decouvertes = etat.decouvertes || {};
   etat.decouvertes['voiture-' + n] = { astre: 'roadster', quand: orb.v.t, par: 'l’équipage de l’orbiteur' };
   regArtefactBord(orb.v, 'voiture-' + n);
@@ -233,7 +244,7 @@ function etapeVoiture(n, orb) {
 // Appelé à chaque avancée du temps de l'orbiteur.
 function verifierVoiture(orb) {
   const v = orb.v;
-  if (v.orb && v.orb.centre === 'roadster' && !eggTrouve('voiture-1')) etapeVoiture(1, orb);
+  if (v.orb && v.orb.centre === 'roadster' && !voitureEtape(1)) etapeVoiture(1, orb);
   if (v.voiture && v.voiture.etat === 'chute' && v.t >= v.voiture.fin) {
     v.voiture = { etat: 'incineree' };
     etapeVoiture(3, orb);
@@ -242,9 +253,9 @@ function verifierVoiture(orb) {
 // Boutons du panneau d'actions de l'orbiteur.
 function actionsVoiture(orb) {
   const v = orb.v;
-  if (SYSTEME.id !== 'solaire' || eggTrouve('voiture-3')) return '';
+  if (SYSTEME.id !== 'solaire' || voitureEtape(3)) return '';
   if (v.voiture && v.voiture.etat === 'chute') return `<p class="doux">☀️ La voiture tombe vers le Soleil : arrivée dans ${fmtDuree(v.voiture.fin - v.t)}.</p>`;
-  if (v.orb.centre === 'roadster' && !eggTrouve('voiture-2')) {
+  if (v.orb.centre === 'roadster' && !voitureEtape(2)) {
     if (!aCoteDe(v, 'roadster')) return '<p class="doux">🚗 La voiture est dans la zone de rendez-vous : approchez-vous à quelques km et annulez la vitesse relative (cible « Voiture rouge », assistant ou pilote auto) pour vous y amarrer.</p>';
     if (!v.propulseurs) return '<p class="doux">🚗 À côté de la voiture, mais pas de propulseur solaire à bord : impossible de l’envoyer dans le Soleil. Il se fabrique à l’atelier d’une station, et se charge en s’amarrant à la station.</p>';
     return '<button id="nav-voiture" class="principal">🔗 S’amarrer à la voiture et l’envoyer dans le Soleil (propulseur solaire)</button>';
@@ -267,7 +278,7 @@ function actionVoiture(orb) {
     v.voiture = { etat: 'chute', fin: v.t + duree };
     orb.log(`☀️ Propulseur solaire allumé : la voiture perd sa vitesse orbitale et tombe vers le Soleil. Arrivée dans ${fmtDuree(duree)}.`);
   };
-  if (v.orb.centre === 'roadster' && !eggTrouve('voiture-2')) {
+  if (v.orb.centre === 'roadster' && !voitureEtape(2)) {
     if (!aCoteDe(v, 'roadster') || !(v.propulseurs > 0)) return;
     const car = ASTRES_PAR_ID.roadster, abs = etatAbsolu('roadster', v.t), soleil = etatAbsolu('soleil', v.t);
     v.orb = { centre: 'soleil', r: V.add(V.sub(abs.r, soleil.r), v.orb.r), v: V.add(V.sub(abs.v, soleil.v), v.orb.v), transfert: null };
@@ -354,6 +365,7 @@ function tousLesEggs() {
     ...EASTER_EGGS.map((e) => ({ id: e.id, astre: e.astre, texte: e.texte })),
     ...EGGS_ORBITE.map((e) => ({ id: e.id, astre: e.astre, texte: e.texte, orbite: true })),
     { id: EGG_BETELGEUSE.id, astre: 'betelgeuse', texte: EGG_BETELGEUSE.texte },
+    { id: 'iss-wolowitz', astre: 'terre', texte: TEXTE_ISS_WOLOWITZ, orbite: true },
     ...[1, 2, 3].map((n) => ({ id: 'voiture-' + n, astre: 'roadster', texte: TEXTES_VOITURE[n], orbite: true })),
   ];
 }
@@ -403,6 +415,21 @@ if (typeof ASTRES_PAR_ID !== 'undefined' && ASTRES_PAR_ID.l601 && !/Herschel/.te
   ASTRES_PAR_ID.l601.note = `${ASTRES_PAR_ID.l601.note || ''} Son cratère Herschel, large de 139 km, lui donne une célèbre allure de station spatiale de science-fiction.`.trim();
 }
 
+// Découverte : bandeau doré bien visible (10 s), en plus du message habituel.
+function afficherDecouverte(texte) {
+  let el = document.getElementById('decouverte-jeu');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'decouverte-jeu';
+    el.setAttribute('role', 'status');
+    document.body.appendChild(el);
+  }
+  el.innerHTML = `<span>${texte}</span><button title="Fermer">✕</button>`;
+  el.querySelector('button').onclick = () => el.classList.remove('visible');
+  el.classList.add('visible');
+  clearTimeout(afficherDecouverte.minuteur);
+  afficherDecouverte.minuteur = setTimeout(() => el.classList.remove('visible'), 10000);
+}
 function eggsSur(astreId) { return EASTER_EGGS.filter((e) => e.astre === astreId); }
 function tracesSur(astreId) { return TRACES_REELLES[astreId] || []; }
 function eggTrouve(id) { return !!(typeof etat !== 'undefined' && etat.decouvertes && etat.decouvertes[id]); }
@@ -419,6 +446,10 @@ function verifierDecouvertes(x) {
   }
   for (const e of eggsSur(x.astre.id)) {
     const ex = x.posLibre(x.xFusee + e.dx), d = distSol(x.astre, p.x, ex);
+    if (humain && d < 60 && d >= (x.enRover ? 6 : 4) && !eggTrouve(e.id) && !x.vusIci['proche:' + e.id]) {
+      x.vusIci['proche:' + e.id] = true;
+      x.dire(`👀 Quelque chose d’inhabituel, ${ecartSol(x.astre, ex, p.x) < 0 ? 'à gauche ◀' : 'à droite ▶'}, à ${fmt(d)} m. Approchez-vous !`);
+    }
     if (humain && d < (x.enRover ? 6 : 4) && !eggTrouve(e.id)) {
       decouvrir(e, x);
     } else if (!humain && d < 20 && !eggTrouve(e.id) && !x.vusIci[e.id]) {
