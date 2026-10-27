@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#070a14">
   <title>La fusée de l’espace</title>
-  <link rel="stylesheet" href="css/style.css?v=144">
+  <link rel="stylesheet" href="css/style.css?v=145">
 </head>
 <body>
   <!-- 0. Accueil -->
@@ -21,6 +21,11 @@
 
     <p class="equipage-accueil"><span id="spatio-resume"></span> <button id="accueil-spatio">✏ Modifier</button> <button id="accueil-registre">👥 Registre des équipages</button> <button id="accueil-aide" class="principal">❓ Aide</button></p>
 
+    <div class="groupe-vue onglets-accueil"><button data-accueil="jouer" class="choisi">🎮 Jouer</button><button data-accueil="progression">📊 Progression</button></div>
+
+    <div id="accueil-progression" class="cache"></div>
+
+    <div id="accueil-jouer">
     <h2>Choisissez votre façon de jouer</h2>
     <div class="modes">
       <article class="mode">
@@ -34,18 +39,17 @@
         </div>
       </article>
       <article class="mode">
-        <h3>🚀 Visite rapide</h3>
+        <h3>🚀 Visite rapide et promenade</h3>
         <p><b>On choisit une cible, on y va, on se pose, et c’est tout.</b> La fusée arrive au-dessus de l’astre, déjà équipée pour s’y poser et en repartir. Idéal pour découvrir la gravité de Rhéa, l’air épais de Titan ou les plongées dans Jupiter.</p>
+        <p><b>🔭 Ou promenez-vous.</b> Sur Terre, cueillez des fleurs et des fruits pour l’équipage et buvez une bière au Bar de l’Espace. Ou observez de loin les merveilles du ciel : pulsars, trous noirs, nébuleuses, galaxies…</p>
+        <p id="eggs-accueil" class="eggs-accueil cache"></p>
         <div class="boutons">
           <button id="accueil-visite" class="principal">🎯 Choisir une destination</button>
+          <button id="accueil-promenade">🔭 Se promener</button>
           <button id="accueil-hangar">🔧 Personnaliser la fusée</button>
         </div>
       </article>
-      <article class="mode">
-        <h3>🔭 Se promener</h3>
-        <p>Sur Terre, cueillez des fleurs et des fruits pour l’équipage et buvez une bière au Bar de l’Espace. Ou allez observer de loin les merveilles du ciel : pulsars, trous noirs, nébuleuses, galaxies…</p>
-        <div class="boutons"><button id="accueil-promenade">🔭 Se promener</button></div>
-      </article>
+    </div>
     </div>
 
     <div class="sauvegarde-accueil">
@@ -183,42 +187,43 @@
   <div id="modale" class="modale cache"></div>
   <div id="infobulle" class="infobulle cache"></div>
 
-  <script src="js/francais.js?v=144"></script>
-  <script src="js/systemes.js?v=144"></script>
-  <script src="js/astres.js?v=144"></script>
-  <script src="js/equipements.js?v=144"></script>
-  <script src="js/physique.js?v=144"></script>
-  <script src="js/globes.js?v=144"></script>
-  <script src="js/donnees-jpl.js?v=144"></script>
-  <script src="js/catalogue.js?v=144"></script>
-  <script src="js/orbites.js?v=144"></script>
-  <script src="js/kourou.js?v=144"></script>
-  <script src="js/vol.js?v=144"></script>
-  <script src="js/navigation.js?v=144"></script>
-  <script src="js/etoiles-proches.js?v=144"></script>
-  <script src="js/orbiteur.js?v=144"></script>
-  <script src="js/amarrage.js?v=144"></script>
-  <script src="js/retour.js?v=144"></script>
-  <script src="js/depart.js?v=144"></script>
-  <script src="js/tableau.js?v=144"></script>
-  <script src="js/equipe.js?v=144"></script>
-  <script src="js/observation.js?v=144"></script>
-  <script src="js/interstellaire.js?v=144"></script>
-  <script src="js/rayonnement.js?v=144"></script>
-  <script src="js/repliques.js?v=144"></script>
-  <script src="js/decouvertes.js?v=144"></script>
-  <script src="js/observatoires.js?v=144"></script>
-  <script src="js/exploration.js?v=144"></script>
-  <script src="js/descente-robot.js?v=144"></script>
-  <script src="js/drone.js?v=144"></script>
-  <script src="js/equipage.js?v=144"></script>
-  <script src="js/registre.js?v=144"></script>
-  <script src="js/campagne.js?v=144"></script>
-  <script src="js/ecrans.js?v=144"></script>
-  <script src="js/infos.js?v=144"></script>
-  <script src="js/journal.js?v=144"></script>
-  <script src="js/aide.js?v=144"></script>
-  <script src="js/main.js?v=144"></script>
-  <script src="js/tactile.js?v=144"></script>
+  <script src="js/francais.js?v=145"></script>
+  <script src="js/systemes.js?v=145"></script>
+  <script src="js/astres.js?v=145"></script>
+  <script src="js/equipements.js?v=145"></script>
+  <script src="js/physique.js?v=145"></script>
+  <script src="js/globes.js?v=145"></script>
+  <script src="js/donnees-jpl.js?v=145"></script>
+  <script src="js/catalogue.js?v=145"></script>
+  <script src="js/orbites.js?v=145"></script>
+  <script src="js/kourou.js?v=145"></script>
+  <script src="js/vol.js?v=145"></script>
+  <script src="js/navigation.js?v=145"></script>
+  <script src="js/etoiles-proches.js?v=145"></script>
+  <script src="js/orbiteur.js?v=145"></script>
+  <script src="js/amarrage.js?v=145"></script>
+  <script src="js/retour.js?v=145"></script>
+  <script src="js/depart.js?v=145"></script>
+  <script src="js/tableau.js?v=145"></script>
+  <script src="js/equipe.js?v=145"></script>
+  <script src="js/observation.js?v=145"></script>
+  <script src="js/interstellaire.js?v=145"></script>
+  <script src="js/rayonnement.js?v=145"></script>
+  <script src="js/repliques.js?v=145"></script>
+  <script src="js/decouvertes.js?v=145"></script>
+  <script src="js/observatoires.js?v=145"></script>
+  <script src="js/exploration.js?v=145"></script>
+  <script src="js/descente-robot.js?v=145"></script>
+  <script src="js/drone.js?v=145"></script>
+  <script src="js/equipage.js?v=145"></script>
+  <script src="js/registre.js?v=145"></script>
+  <script src="js/campagne.js?v=145"></script>
+  <script src="js/ecrans.js?v=145"></script>
+  <script src="js/infos.js?v=145"></script>
+  <script src="js/journal.js?v=145"></script>
+  <script src="js/aide.js?v=145"></script>
+  <script src="js/progression.js?v=145"></script>
+  <script src="js/main.js?v=145"></script>
+  <script src="js/tactile.js?v=145"></script>
 </body>
 </html>

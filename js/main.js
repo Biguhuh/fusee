@@ -152,15 +152,34 @@ function allerAccueil() {
     $('progres-accueil').innerHTML = (SYSTEME.id !== 'solaire' ? `<b>Campagne dans le ${SYSTEME.nom}</b> (${fmt(SYSTEME.distanceAL, 2)} années-lumière). ` : '') +
       `Progression : <b>${vus.length} astre${vus.length > 1 ? 's' : ''} visité${vus.length > 1 ? 's' : ''} en campagne ✅</b> sur ${astresAVisiter().length} (dont ${nPrinc} des ${SYSTEME.objectifs.length} principaux). ` + resumeCampagne(v);
   } else $('progres-accueil').innerHTML = '';
-  // Easter eggs : rien tant que le premier n'est pas trouvé.
+  // Easter eggs : rien tant que le premier n'est pas trouvé ; ensuite, la liste avec leurs références.
   const nEggs = nombreEggsTrouves();
-  if (nEggs) $('progres-accueil').innerHTML += `${$('progres-accueil').innerHTML ? '<br>' : ''}✨ Easter eggs trouvés : <b>${nEggs}</b>`;
+  $('eggs-accueil').classList.toggle('cache', !nEggs);
+  if (nEggs) {
+    $('eggs-accueil').innerHTML = `✨ <b>${nEggs} easter egg${nEggs > 1 ? 's' : ''} trouvé${nEggs > 1 ? 's' : ''}</b> sur ${tousLesEggs().length}, marqués ✨ sur la carte des destinations pour les retrouver. <button id="accueil-eggs">Voir la liste et les références</button>`;
+    $('accueil-eggs').onclick = () => ouvrirEggs(allerVersEgg);
+  }
+  // Les visites de la campagne sont versées dans la progression « toutes campagnes ».
+  cumulerProgression(v);
   // Hors campagne (visite rapide, promenade, encyclopédie), on est dans le Système solaire.
   choisirSysteme('solaire');
   $('spatio-resume').textContent = resumeSpatio();
   montrer('accueil');
+  ongletAccueil(etat.ongletAccueil || 'jouer');
   animerAccueil();
 }
+
+// Onglets de l'accueil : « Jouer » et « Progression ».
+function ongletAccueil(nom) {
+  etat.ongletAccueil = nom;
+  document.querySelectorAll('[data-accueil]').forEach((b) => b.classList.toggle('choisi', b.dataset.accueil === nom));
+  $('accueil-jouer').classList.toggle('cache', nom !== 'jouer');
+  $('accueil-progression').classList.toggle('cache', nom !== 'progression');
+  if (nom === 'progression') afficherProgression();
+}
+document.querySelectorAll('[data-accueil]').forEach((b) => { b.onclick = () => ongletAccueil(b.dataset.accueil); });
+// Retrouver un easter egg : la carte de la visite rapide, l'astre choisi.
+function allerVersEgg(id) { ongletAccueil('jouer'); etat.destination = id; allerCarte(); choisirDestination(id); }
 
 // Petit système solaire animé en bandeau : planètes à leurs vraies positions, temps accéléré.
 let animAccueil = null;
@@ -943,6 +962,7 @@ Orbiteur.contexte = {
 
 $('voyage-nouveau').onclick = () => {
   if (etat.voyage && !confirm('Recommencer une nouvelle campagne ? Les stations, bases et sondes actuelles seront perdues.')) return;
+  cumulerProgression(etat.voyage);   // ce qu'elle a fait reste dans « Toutes campagnes »
   etat.voyage = Orbiteur.nouveauVoyage();
   Orbiteur.camPlacee = false;
   sauver(etat);
