@@ -62,8 +62,10 @@ const Orbiteur = {
   },
 
   // La méga-fusée a mis l'expédition en orbite basse terrestre : orbiteur + atterrisseur + chargement.
-  demarrerExpedition() {
+  // reprendreGare : lanceur d'équipage Aube, l'équipage reprend l'orbiteur garé à la station terrestre.
+  demarrerExpedition(reprendreGare = false) {
     const v = this.v;
+    const gare = reprendreGare && v.orbiteurGare;
     const origine = planeteOrigine();
     const r0 = origine.rayonKm + 400;
     v.orb = { centre: origine.id, r: [r0, 0], v: [0, Math.sqrt(origine.gm / r0)], transfert: null };
@@ -76,8 +78,11 @@ const Orbiteur = {
       kits: ORBITEUR.kits + (station ? 0 : 1), kitsBase: ORBITEUR.kitsBase, robots: ORBITEUR.robots,
       atterrisseurs: ORBITEUR.atterrisseurs, echantillonsABord: {}, cible: null, manette: 0,
     });
+    // Orbiteur garé : on retrouve ce qu'il restait à bord (la station le complètera : « Faire le plein »).
+    if (gare) { Object.assign(v, gare); v.orbiteurGare = null; }
     v.expeditions++;
     this.etape = null; this.auto = false; this.avance = false;
+    if (gare) return this.log(`Expédition n° ${v.expeditions} : l’équipage a rejoint l’orbiteur garé ${au(station)} (${fmt(v.carburant / 1000, 1)} t de carburant, ${fmt(v.ergolsAtt / 1000, 1)} t d’ergols atterrisseur). Faites le plein à la station.`);
     this.log(`Expédition n° ${v.expeditions} en orbite terrestre : orbiteur, atterrisseur et chargement prêts.` +
       (station ? ` Amarrée ${au(station)}.` : ' Construisez d’abord la station spatiale.'));
   },
@@ -114,7 +119,15 @@ const Orbiteur = {
     }
     const liste = Object.entries(v.echantillonsABord).map(([id, k]) => `${k} ${de(ASTRES_PAR_ID[id])}`).join(', ');
     this.log(`Retour sur Terre de l’expédition n° ${v.expeditions}${n ? ` avec ${n} échantillon${n > 1 ? 's' : ''} (${liste})` : ''}.`);
+    // L'orbiteur reste garé à la station terrestre (s'il y en a une) : la prochaine équipe le reprendra
+    // avec le lanceur d'équipage. Sauf s'il part vide vers le Soleil.
+    const st = v.stations.find((s) => s.terrestre);
+    if (st && !v.orbiteurVersSoleil) {
+      v.orbiteurGare = { carburant: v.carburant, ergolsAtt: v.ergolsAtt, sondes: v.sondes, kits: v.kits, kitsBase: v.kitsBase, robots: v.robots, atterrisseurs: v.atterrisseurs, propulseurs: v.propulseurs || 0 };
+      this.log(`L’orbiteur reste garé ${au(st)} : la prochaine équipe pourra le reprendre (lanceur d’équipage Aube).`);
+    }
     v.orb = null;
+    v.amarre = null;
     v.echantillonsABord = {};
     v.cible = null;
     v.equipagePerdu = false;      // la prochaine expédition part avec un nouvel équipage

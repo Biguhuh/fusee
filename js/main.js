@@ -68,6 +68,7 @@ function montrer(ecran) {
   etat.ecran = ecran;
   $('ecran-accueil').classList.toggle('cache', ecran !== 'accueil');
   $('ecran-lancement').classList.toggle('cache', ecran !== 'lancement');
+  $('ecran-equipage').classList.toggle('cache', ecran !== 'equipage');
   $('ecran-hangar').classList.toggle('cache', ecran !== 'hangar');
   $('ecran-carte').classList.toggle('cache', ecran !== 'carte');
   $('ecran-resultat').classList.toggle('cache', ecran !== 'resultat');
@@ -248,7 +249,8 @@ function finVol(r) {
     // Lancement de la méga-fusée depuis la Terre.
     if (reussi) {
       Orbiteur.charger(v);
-      Orbiteur.demarrerExpedition();
+      const fl = etat.vol.f;
+      Orbiteur.demarrerExpedition(fl.lanceur === 'equipage');
       Orbiteur.camPlacee = false;
       const f = etat.vol.f;
       if (f.lanceur === 'lune') {
@@ -256,7 +258,7 @@ function finVol(r) {
         etat.reprendreAuto = tli.ok;   // le pilote auto poursuit le voyage à l'ouverture de l'orbiteur
         r.messageLancement = `${f.nomLanceur} a placé l’expédition en orbite terrestre. ` + tli.texte;
       } else {
-        r.messageLancement = `${f.nomLanceur} a placé l’expédition en orbite terrestre.` + (v.stations.some((s) => s.terrestre) ? ' Rendez-vous avec la station spatiale.' : ' Première tâche : construire la station spatiale.');
+        r.messageLancement = f.lanceur === 'equipage' ? `${f.nomLanceur} a monté l’équipage jusqu’à la station terrestre : il reprend l’orbiteur garé. Faites le plein à la station avant de repartir.` : `${f.nomLanceur} a placé l’expédition en orbite terrestre.` + (v.stations.some((s) => s.terrestre) ? ' Rendez-vous avec la station spatiale.' : ' Première tâche : construire la station spatiale.');
       }
       etat.suiteResultat = 'nav';
     } else {
@@ -326,13 +328,21 @@ function lancerMegaFusee(type = etat.typeLanceur || 'station') {
 function allerLancement() {
   const v = etat.voyage;
   const station = v && v.stations.find((s) => s.terrestre);
+  const gare = v && v.orbiteurGare && station;
   const notes = {
-    station: station ? `Rendez-vous et amarrage ${au(station)}.` : 'Arrivée en orbite basse : vous y construirez la station spatiale.',
+    equipage: gare ? `L’orbiteur garé ${au(station)} attend l’équipage : rendez-vous, amarrage, puis faites le plein à la station.`
+      : `Indisponible : aucun orbiteur n’est garé ${station ? au(station) : 'en orbite (pas encore de station terrestre)'}. Il en reste un après chaque retour sur Terre de l’équipage, si la station existe ; sinon, prenez Hercule.`,
+    station: station ? `Rendez-vous et amarrage ${au(station)}.${gare ? ' Un orbiteur neuf : celui qui est garé à la station y reste.' : ''}` : 'Arrivée en orbite basse : vous y construirez la station spatiale.',
     lune: 'Après la mise en orbite, le 3e étage rallume pour l’injection translunaire : l’expédition part directement vers la Lune (environ 5 jours de trajet).',
   };
-  $('lanceurs').innerHTML = ['station', 'lune'].map((type) => {
+  // Rappel de l'équipage composé, avec un retour vers sa page.
+  const l = v && v.equipePrevue;
+  const noms = l && l.length ? l.map((p) => (p.principal ? majuscule(nomSpatio()) : p.nom || (p.profil && p.profil.prenom))).join(', ') : '';
+  $('lanceurs').innerHTML = (noms ? `<p class="equipage-choisi">👥 Équipage : <b>${noms}</b> <button id="lanceurs-equipage">✏ Modifier l’équipage</button></p>` : '') +
+    ['equipage', 'station', 'lune'].map((type) => {
     const l = LANCEURS[type], c = caracteristiquesLanceur(l);
-    return `<article class="lanceur">
+    const indispo = type === 'equipage' && !gare;
+    return `<article class="lanceur ${indispo ? 'indisponible' : ''}">
       <canvas width="120" height="300" data-type="${type}"></canvas>
       <div>
         <h2>${l.nom}</h2>
@@ -346,10 +356,12 @@ function allerLancement() {
           <dt>Charge utile</dt><dd>${fmt(l.chargeUtile / 1000)} t</dd>
         </dl>
         <p class="note">${notes[type]}</p>
-        <button class="principal" data-lancer="${type}">🚀 Aller sur le pas de tir</button>
+        <button class="principal" data-lancer="${type}" ${indispo ? 'disabled' : ''}>🚀 Aller sur le pas de tir</button>
       </div>
     </article>`;
   }).join('');
+  const be = $('lanceurs-equipage');
+  if (be) be.onclick = () => allerEquipage(v);
   $('lanceurs').querySelectorAll('canvas').forEach((cv) => {
     const f = megaFusee(cv.dataset.type);
     const c = cv.getContext('2d');
@@ -359,7 +371,8 @@ function allerLancement() {
   });
   // Avant le pas de tir : composer l'équipage (vétérans ou recrues, prénoms et apparences).
   $('lanceurs').querySelectorAll('[data-lancer]').forEach((b) => {
-    b.onclick = () => (etat.voyage ? ouvrirComposition(etat.voyage, () => lancerMegaFusee(b.dataset.lancer)) : lancerMegaFusee(b.dataset.lancer));
+    // L'équipage se compose sur sa page, avant le choix du lanceur ; à défaut, on y passe d'abord.
+    b.onclick = () => (etat.voyage && !(etat.voyage.equipePrevue && etat.voyage.equipePrevue.length) ? allerEquipage(etat.voyage) : lancerMegaFusee(b.dataset.lancer));
   });
   montrer('lancement');
 }
@@ -632,8 +645,8 @@ function allerNavigation() {
   if (!etat.voyage.orb) {
     // Autre système : pas de centre de lancement ici, l'expédition perdue ne se remplace pas.
     if (!ressourcesIllimitees()) { alert(`Plus d’orbiteur dans le ${SYSTEME.nom} : il n’y a pas de centre de lancement ici. Reprenez depuis une station ou une base.`); return allerAccueil(); }
-    // Pas d'expédition en cours : tout part de la Terre, depuis le centre de lancement.
-    return allerLancement();
+    // Pas d'expédition en cours : tout part de la Terre. D'abord l'équipage, puis le lanceur.
+    return allerEquipage(etat.voyage);
   }
   Orbiteur.charger(etat.voyage);
   if (etat.reprendreAuto) { Orbiteur.auto = true; etat.reprendreAuto = false; }
@@ -687,7 +700,7 @@ function reprendreDepuis(id) {
   if (id === 'ici') return allerNavigation();
   if (id === 'crash') { const p = lirePointReprise(v); return p ? reprendreAvantCrash(p) : allerNavigation(); }
   if (lirePointReprise(v)) oublierPointReprise();   // repartir d'ailleurs : la perte est actée
-  if (id === 'terre') return allerLancement();
+  if (id === 'terre') return v.orb ? allerLancement() : allerEquipage(v);   // nouvelle expédition : l'équipage d'abord
   Orbiteur.charger(v);
   if (!v.orb) {
     // Autre système : pas de nouvelle expédition possible (rien ne vient de la Terre).
