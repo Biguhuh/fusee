@@ -112,10 +112,17 @@ function allerHangar() {
 // « Aller partout » : les astres où l'on peut se poser (ou plonger), hors planète d'origine et étoile.
 function astresAVisiter() { return ASTRES.filter((a) => a.type !== 'etoile' && !estOrigine(a.id)); }
 
+// Astre visité pendant la campagne : posé dessus, ou plongée réussie dans une géante gazeuse.
+function astreVisite(v, id) { const x = v && v.visites && v.visites[id]; return !!(x && (x.pose || x.plonge)); }
 // Astres où l'on s'est posé pendant la campagne. Corrige les parties où une visite sans atterrissage avait
 // effacé un atterrissage précédent : une base, des échantillons rapportés ou une sortie y prouvent la visite.
 function reconstituerVisites(v) {
-  const poser = (id) => { if (id && ASTRES_PAR_ID[id]) v.visites[id] = { ...(v.visites[id] || {}), pose: true }; };
+  const poser = (id) => {
+    const a = id && ASTRES_PAR_ID[id];
+    if (!a) return;
+    // Géante gazeuse : des prélèvements prouvent une plongée, pas un atterrissage.
+    v.visites[id] = { ...(v.visites[id] || {}), ...(a.type === 'gazeuse' ? { plonge: true } : { pose: true }) };
+  };
   for (const b of v.bases || []) poser(b.astre);
   for (const [id, n] of Object.entries(v.echantillonsRapportes || {})) if (n > 0) poser(id);
   for (const [id, n] of Object.entries(v.echantillonsABord || {})) if (n > 0) poser(id);
@@ -140,10 +147,10 @@ function allerAccueil() {
     // La progression se compte dans le système de la campagne (qui peut être une autre étoile).
     choisirSystemeCampagne(v);
     reconstituerVisites(v);
-    const vus = Object.keys(v.visites).filter((id) => v.visites[id].pose && ASTRES_PAR_ID[id]);
+    const vus = Object.keys(v.visites).filter((id) => astreVisite(v, id) && ASTRES_PAR_ID[id]);
     const nPrinc = SYSTEME.objectifs.filter((id) => vus.includes(id)).length;
     $('progres-accueil').innerHTML = (SYSTEME.id !== 'solaire' ? `<b>Campagne dans le ${SYSTEME.nom}</b> (${fmt(SYSTEME.distanceAL, 2)} années-lumière). ` : '') +
-      `Progression : <b>${vus.length} astre${vus.length > 1 ? 's' : ''} visité${vus.length > 1 ? 's' : ''} (posé${vus.length > 1 ? 's' : ''} en campagne 🏳)</b> sur ${astresAVisiter().length} (dont ${nPrinc} des ${SYSTEME.objectifs.length} principaux). ` + resumeCampagne(v);
+      `Progression : <b>${vus.length} astre${vus.length > 1 ? 's' : ''} visité${vus.length > 1 ? 's' : ''} en campagne 🏳</b> sur ${astresAVisiter().length} (dont ${nPrinc} des ${SYSTEME.objectifs.length} principaux). ` + resumeCampagne(v);
   } else $('progres-accueil').innerHTML = '';
   // Easter eggs : rien tant que le premier n'est pas trouvé.
   const nEggs = nombreEggsTrouves();
@@ -302,8 +309,11 @@ function finVol(r) {
       }
       Orbiteur.log(`Atterrisseur perdu ${sur(r.astre)}${etat.vol.echantillons ? ' avec ses échantillons' : ''}. Il en reste ${v.atterrisseurs}.`);
     }
-    // Une fois posé, l'astre reste visité : une visite suivante sans atterrissage ne l'efface pas.
-    v.visites[a] = { ...(v.visites[a] || {}), pose: !!(v.visites[a] && v.visites[a].pose) || !!r.dejaPose || r.cause === 'pose' };
+    // Une fois visité, l'astre le reste : une visite suivante ratée ne l'efface pas.
+    // Géante gazeuse : on ne s'y pose pas, on y plonge (la plongée réussie compte comme la visite).
+    const deja = v.visites[a] || {};
+    if (r.astre.type === 'gazeuse') v.visites[a] = { ...deja, plonge: !!deja.plonge || r.cause === 'plongee' };
+    else v.visites[a] = { ...deja, pose: !!deja.pose || !!r.dejaPose || r.cause === 'pose' };
   }
   sauver(etat);
   afficherResultat(r);
@@ -763,7 +773,7 @@ function terminerParDepart(info) {
   h.textContent = `En route vers ${le(info.nomEtoile)}`;
   h.className = 'succes';
   $('res-message').textContent = `L’expédition a quitté le ${SYSTEME.nom} en ${info.anneeDepart}. À ${fmt(info.vitesse, 1)} km/s, les ${fmt(info.distanceAL, 2)} années-lumière prendront ${fmtDureeAnnees(info.ans)}. Fin de la partie.`;
-  const vus = Object.keys(v.visites).filter((id) => v.visites[id].pose && ASTRES_PAR_ID[id]).length;
+  const vus = Object.keys(v.visites).filter((id) => astreVisite(v, id) && ASTRES_PAR_ID[id]).length;
   const ech = Object.values(v.echantillonsRapportes || {}).reduce((s, k) => s + k, 0);
   $('res-stats').innerHTML = `
     <dt>Destination</dt><dd>${info.nomEtoile}, ${fmt(info.distanceAL, 2)} années-lumière</dd>

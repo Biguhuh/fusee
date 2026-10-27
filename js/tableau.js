@@ -25,7 +25,7 @@ function manquePourNiveau(v, b) {
 // et ce qui manque pour faire progresser chaque base. Un clic sur un astre ouvre son tableau de bord.
 function ouvrirLogistique(v, actif) {
   const m = $('modale');
-  const ids = new Set([...Object.keys(v.visites).filter((id) => v.visites[id].pose), ...v.bases.map((b) => b.astre), ...v.stations.map((s) => s.centre),
+  const ids = new Set([...Object.keys(v.visites).filter((id) => astreVisite(v, id)), ...v.bases.map((b) => b.astre), ...v.stations.map((s) => s.centre),
     ...Object.keys(v.echantillonsRapportes || {})]);
   const astres = [...ids].map((id) => ASTRES_PAR_ID[id]).filter(Boolean).sort((x, y) => (x.distanceUA || 0) - (y.distanceUA || 0));
   let ergolsJour = 0, matJour = 0;
@@ -51,7 +51,7 @@ function ouvrirLogistique(v, actif) {
     const ech = (v.echantillonsRapportes || {})[a.id] || 0;
     const prod = bases.map((b) => { const n = b.niveau || 1; const e = ressourceLocale(a)[1] * n, mt = productionMateriaux(a, n); return `niveau ${n}${e ? ` · ${fmt(e / 1000, 1)} t d’ergols/jour` : ''}${mt ? ` · ${fmt(mt / 1000, 1)} t de matériaux/jour` : ''}`; }).join('<br>') || '—';
     const stock = sts.map((s) => `${s.nom} (niveau ${s.niveau || 1}${s.agrandissement ? ' ⬆' : ''}) : ${fmtStock('ergols', s.stock.ergols || 0)} d’ergols, ${fmtStock('materiaux', s.stock.materiaux || 0)} de matériaux${(s.chantiers || []).length ? ` · 🔧 ${s.chantiers.length}` : ''}`).join('<br>') || '—';
-    return `<tr><td><button class="lien-astre" data-id="${a.id}">${a.nom}</button></td><td>${v.visites[a.id] && v.visites[a.id].pose ? '✓' : ''}</td><td>${ech || ''}</td><td>${prod}</td><td>${stock}</td></tr>`;
+    return `<tr><td><button class="lien-astre" data-id="${a.id}">${a.nom}</button></td><td>${astreVisite(v, a.id) ? (a.type === 'gazeuse' ? '✓ plongée' : '✓') : ''}</td><td>${ech || ''}</td><td>${prod}</td><td>${stock}</td></tr>`;
   }).join('');
   const enRoute = [...(v.cargos || []).map((c) => `📦 ${c.nom}`), ...v.sondesEnVol.map((s) => `🛰 ${s.nom} (${s.etat === 'vol' ? 'en route' : 'en orbite'})`)];
   m.innerHTML = `<div class="fenetre large"><header class="entete"><div><h2>📊 Logistique de l’exploration</h2>
