@@ -236,6 +236,7 @@ class Exploration {
 
   step(dt, cmd) {
     if (this.fin) return;
+    this.dureeSortie = (this.dureeSortie || 0) + dt;   // pour le registre (plus longue sortie)
     const p = this.p, g = this.c.g;
     this.c = conditions(this.astre, p.y);
     this.vol.t += dt;
