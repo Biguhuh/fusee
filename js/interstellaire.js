@@ -207,6 +207,7 @@ function arriverDansSysteme(v, info) {
   v.stations = [station];
   v.bases = []; v.sondesEnVol = []; v.cargos = []; v.robotsAuto = []; v.conteneurs = [];
   v.sites = { ...((v.systemesSondes && v.systemesSondes[info.systeme] && v.systemesSondes[info.systeme].sites) || {}) };
+  cumulerProgression(v);   // les visites du Système solaire restent dans la progression
   v.visites = {}; v.echantillonsABord = {}; v.echantillonsRapportes = {}; v.cible = null;
   if (v.equipe) for (const m of v.equipe) { if (m.etat === 'mission') m.etat = 'bord'; delete m.mission; }
   v.journal.push({ t: v.t, texte: `Arrivée dans le ${SYSTEME.nom} après ${fmtDureeAnnees(info.ans)} (${fmtDureeAnnees(info.ansBord)} vécus à bord). ${Le(station)} est déployée ${enOrbite(a)}. Prochaine étape : se poser et construire la base.` });

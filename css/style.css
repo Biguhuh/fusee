@@ -466,3 +466,27 @@ pre.erreur { white-space: pre-wrap; background: #1a0d0d; border: 1px solid #5a23
 .corps-registre dt { color: var(--doux); }
 .corps-registre dd { margin: 0; overflow-wrap: anywhere; text-align: left; }
 @media (max-width: 600px) { .liste-registre { grid-template-columns: 1fr; } .cartes-equipage { grid-template-columns: 1fr 1fr; } }
+
+/* Accueil : onglets Jouer / Progression, easter eggs */
+.onglets-accueil { margin: 16px 0 4px; }
+.onglets-accueil button { padding: 10px 18px; font-size: 15px; }
+#accueil-progression { margin-top: 12px; }
+#accueil-progression h3 { margin: 18px 0 8px; }
+.tete-progression { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.etiquettes { display: flex; flex-wrap: wrap; gap: 6px; }
+.etiquette { padding: 3px 9px; border: 1px solid var(--bord); border-radius: 999px; font-size: 13px; color: #b0bec5; }
+.etiquette.ok { border-color: rgba(102,187,106,0.6); background: rgba(102,187,106,0.12); color: #e8f5e9; }
+.defile-tableau { overflow-x: auto; }
+.table-progression { border-collapse: collapse; width: 100%; font-size: 13px; }
+.table-progression th, .table-progression td { padding: 5px 8px; border-bottom: 1px solid var(--bord); text-align: left; vertical-align: top; }
+.table-progression thead th { color: #90a4ae; font-weight: 600; }
+.table-progression .groupe-ligne th { color: var(--accent); padding-top: 12px; border-bottom: none; }
+.eggs-accueil { background: rgba(255,213,79,0.10); border: 1px solid rgba(255,213,79,0.45); border-radius: 8px; padding: 8px 10px; font-size: 13px !important; }
+.eggs-accueil button { margin-top: 6px; padding: 4px 10px; font-size: 13px; }
+.marque-egg { filter: drop-shadow(0 0 3px rgba(255,213,79,0.8)); }
+.eggs-astre ul { margin: 6px 0 0; padding-left: 18px; }
+.eggs-astre li { margin-bottom: 6px; font-size: 13px; }
+.liste-eggs { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.egg-ligne { padding: 10px 12px; border: 1px solid var(--bord); border-left: 4px solid #ffd54f; border-radius: 8px; font-size: 14px; line-height: 1.45; }
+.egg-ligne .ref-egg { color: #ffe082; font-size: 13px; }
+.egg-ligne button { margin-top: 6px; }

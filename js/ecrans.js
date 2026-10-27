@@ -189,7 +189,8 @@ function afficherCarte(etat, choisir) {
     const d = Math.max(12, tailleDisque(a));
     // ★ / ✓ : meilleur vol, tous modes confondus ; ✅ : posé pendant la campagne en cours.
     const campagne = astreVisite(etat.voyage, id);
-    b.innerHTML = `<span class="disque" style="width:${d}px;height:${d}px;background:${a.couleurs.disque}"></span><span>${a.nom}</span><span class="badge">${badge(etat.records[id])}${campagne ? ` <span title="${a.type === 'gazeuse' ? 'Plongée réussie' : 'Posé'} pendant la campagne">✅</span>` : ''}</span>`;
+    const eggs = eggsTrouvesSur(id).length;
+    b.innerHTML = `<span class="disque" style="width:${d}px;height:${d}px;background:${a.couleurs.disque}"></span><span>${a.nom}</span><span class="badge">${badge(etat.records[id])}${campagne ? ` <span title="${a.type === 'gazeuse' ? 'Plongée réussie' : 'Posé'} pendant la campagne">✅</span>` : ''}${eggs ? ` <span class="marque-egg" title="${eggs} easter egg${eggs > 1 ? 's' : ''} trouvé${eggs > 1 ? 's' : ''} ici">✨</span>` : ''}</span>`;
     b.onclick = () => choisir(id);
     return b;
   };
@@ -296,6 +297,7 @@ function afficherFiche(etat) {
     <div>
       <h2>${a.nom}</h2>
       <p class="note">${typeTxt}. ${a.note}</p>
+      ${htmlEggsAstre(a.id)}
       <dl>
         <dt>Rayon</dt><dd>${fmt(a.rayonKm)} km</dd>
         <dt>Gravité ${a.type === 'solide' ? 'de surface' : ''}</dt><dd>${fmt(a.g, 2)} m/s² (${fmt(a.g / G0, 2)} g)</dd>
