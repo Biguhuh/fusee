@@ -115,7 +115,7 @@ function allerAccueil() {
   const v = etat.voyage;
   // Campagne terminée par un départ vers une autre étoile : on ne la reprend plus.
   $('accueil-reprendre').classList.toggle('cache', !v || !!v.fin);
-  $('accueil-reprendre').textContent = v && v.orb ? '▶ Reprendre l’expédition' : '▶ Reprendre (lancer une expédition)';
+  $('accueil-reprendre').textContent = v && v.orb ? '▶ Reprendre l’expédition' : '▶ Reprendre la campagne';
   $('accueil-campagne').textContent = v ? '↺ Nouvelle campagne' : '🛰 Commencer';
   if (v && v.fin) {
     const f = v.fin;
@@ -637,12 +637,15 @@ function ouvrirReprise() {
   choisirSystemeCampagne(v);
   const basesOk = v.bases.filter((b) => !AEROSTAT[b.astre] && ASTRES_PAR_ID[b.astre]);
   const pr = lirePointReprise(v);   // orbiteur écrasé, perte pas encore actée
-  if (!pr && !v.stations.length && !basesOk.length) return allerNavigation();
+  // Expédition en cours et nulle part ailleurs où reprendre : on y retourne directement.
+  // Sans expédition (après un retour sur Terre), on montre toujours le choix, pas directement le pas de tir.
+  if (v.orb && !pr && !v.stations.length && !basesOk.length) return allerNavigation();
   const choix = [];
   if (pr) choix.push(['crash', '↺ Recommencer avant le crash', `${textePointReprise(pr)}, même équipage, même chargement`]);
   if (v.orb) choix.push(['ici', `▶ Là où vous étiez`, `${enOrbite(ASTRES_PAR_ID[v.orb.centre])}`]);
   for (const s of v.stations) choix.push(['station:' + s.id, `🛰 ${s.nom}`, `${enOrbite(ASTRES_PAR_ID[s.centre])}, amarré à la station`]);
   for (const b of basesOk) choix.push(['base:' + v.bases.indexOf(b), `🏠 ${nomBase(ASTRES_PAR_ID[b.astre])}, niveau ${b.niveau || 1}`, `au sol, l’atterrisseur garé à côté ; l’orbiteur attend en orbite`]);
+  if (!choix.length && !ressourcesIllimitees()) return allerNavigation();
   if (ressourcesIllimitees()) choix.push(['terre', `🚀 Depuis ${SYSTEME.nomOrigine}`, v.orb ? 'centre de lancement (l’expédition en cours reste où elle est)' : 'centre de lancement, nouvelle méga-fusée']);
   const m = $('modale');
   m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>▶ Reprendre la campagne</h2><p>Choisissez d’où repartir.</p></div><button class="fermer">✕</button></header>
