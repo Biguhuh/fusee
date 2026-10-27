@@ -34,7 +34,9 @@ class RetourTerre {
     this.recup = this.equipage
       ? [['flotte', 3, 300], ['helico', 5, 25 * 60],
         ...this.personnes.flatMap((p, i) => [['treuil', i ? 2 : 3, 3 * 60, i], ['montee', 3, 4 * 60, i]]),
-        ['depart', 3, 5 * 60]]
+        ['depart', 3, 5 * 60],
+        // Puis le navire vient récupérer la capsule (et ses échantillons) avec sa grue.
+        ['bateau', 5, 2 * 3600], ['grue', 4, 20 * 60], ['hisse', 3, 10 * 60], ['fin', 2, 0]]
       : [['flotte', 3.5, 300], ['bateau', 6, 2 * 3600], ['grue', 4, 20 * 60], ['hisse', 3, 10 * 60], ['fin', 2, 0]];
   }
 
@@ -265,7 +267,8 @@ class RetourTerre {
     let xCap = cx, yCap = houle(cx) + 6 * k, capsuleSurPont = false;
     const taille = 40 * k;
 
-    if (!this.equipage) {
+    // Avec équipage, le navire n'entre en scène qu'après le départ de l'hélicoptère.
+    if (!this.equipage || ['bateau', 'grue', 'hisse', 'fin'].includes(this.phase)) {
       // Navire : il arrive du bord gauche, s'arrête à côté de la capsule, puis la grue la hisse.
       // Arrêt calculé pour que le bout de la flèche (abaissée) soit juste au-dessus de la capsule.
       const BAS = 0.15, RANGE = 1.25;
@@ -279,7 +282,7 @@ class RetourTerre {
       const pos = this.dessinerNavire(ctx, xB, houle(xB), k, angleGrue, crochetY, yCap);
       if (suit) { xCap = pos.xCrochet; yCap = pos.yCrochet + taille; }   // la capsule pend au crochet
       if (this.phase === 'fin') { xCap = pos.xCrochet; yCap = houle(xB) - 18 * k; capsuleSurPont = true; }
-      if (this.phase === 'flotte' || this.phase === 'bateau') {
+      if (!this.equipage && (this.phase === 'flotte' || this.phase === 'bateau')) {
         texteSurFond(ctx, 'Capsule vide', cx, H * 0.2, { police: `600 ${Math.round(22 * k)}px system-ui, sans-serif`, couleur: '#ffd666' });
       }
     }
@@ -327,7 +330,7 @@ class RetourTerre {
       if (this.phase === 'montee') { xH = xStat; yH = yStat; cable = 1 - lisse; personne = lisse; }
       if (this.phase === 'depart') { xH = xStat - (xStat + 300 * k) * lisse; yH = yStat - 80 * k * lisse; }
       const qui = this.personneCourante();
-      if (this.phase !== 'flotte') this.dessinerHelico(ctx, xH, yH, k, cable, yCap - taille * 1.1, personne, qui && qui.profil);
+      if (['helico', 'treuil', 'montee', 'depart'].includes(this.phase)) this.dessinerHelico(ctx, xH, yH, k, cable, yCap - taille * 1.1, personne, qui && qui.profil);
       // Vent du rotor sur la mer
       if (this.phase === 'treuil' || this.phase === 'montee') {
         ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1.5;
@@ -451,7 +454,7 @@ class RetourTerre {
         helico: 'L’hélicoptère de récupération arrive.',
         treuil: qui && qui.i ? `Le treuil redescend chercher ${qui.nom}.` : 'Stationnaire au-dessus de la capsule : le treuil descend.',
         montee: `Hélitreuillage : ${qui ? qui.nom : this.nom} remonte à bord${this.personnes.length > 1 && qui ? ` (${qui.i + 1} sur ${this.personnes.length})` : ''}.`,
-        depart: `${this.nom} ${/ et /.test(this.nom) ? 'sont' : 'est'} à bord. Direction la base${this.echantillons ? ' ; un navire récupérera la capsule et ses échantillons' : ''}.`,
+        depart: `${this.nom} ${/ et /.test(this.nom) ? 'sont' : 'est'} à bord, direction la base. Un navire va récupérer la capsule${this.echantillons ? ' et ses échantillons' : ''}.`,
         bateau: 'Le navire de récupération arrive.',
         grue: 'La grue se place au-dessus de la capsule.',
         hisse: 'La capsule est hissée à bord.',
