@@ -228,6 +228,7 @@ const Orbiteur = {
     verifierEggsOrbite(this, dt);
     verifierVoiture(this);
     verifierObservatoires(this);
+    this.suivreRendezVous();
     verifierVoyagers(this);
     this.piloteAuto();
   },
@@ -1104,9 +1105,54 @@ const Orbiteur = {
     });
   },
 
-  amarrer() {
+  // ---------- Rendez-vous avec la station ----------
+  // On ne s'amarre pas d'un coup : il faut rattraper la station. Orbites de phasage (au plus 30° rattrapés par
+  // orbite), changement d'altitude (Hohmann) si besoin, puis approche finale (≈ 2 h). Durée et Δv réalistes.
+  procheStation(s) {
+    const o = this.v.orb, e = this.etatStation(s);
+    return V.norm(V.sub(o.r, e.r)) < 5 && V.norm(V.sub(o.v, e.v)) < 0.02;
+  },
+  planRendezVous(s) {
+    const o = this.v.orb, c = ASTRES_PAR_ID[s.centre], mu = c.gm, e = this.etatStation(s);
+    const rO = V.norm(o.r), rS = V.norm(e.r);
+    const sens = Math.sign(V.cross(e.r, e.v)) || 1;
+    let dTheta = sens * (Math.atan2(e.r[1], e.r[0]) - Math.atan2(o.r[1], o.r[0]));
+    dTheta = ((dTheta % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);        // avance de la station sur nous
+    const T = 2 * Math.PI * Math.sqrt(rS ** 3 / mu), vS = Math.sqrt(mu / rS);
+    const n = Math.max(1, Math.ceil(dTheta / (Math.PI / 6)));
+    const aT = (rO + rS) / 2;
+    const dvAlt = Math.abs(rO - rS) < 1 ? 0 : Math.abs(Math.sqrt(mu / rO) * (Math.sqrt(rS / aT) - 1)) + Math.abs(vS * (1 - Math.sqrt(rO / aT)));
+    const dvPhase = (2 * vS * (dTheta / n)) / (2 * Math.PI) / 3;              // descendre puis remonter l'orbite de phasage
+    const dvApproche = 0.015 + V.norm(V.sub(o.v, e.v)) * 0.05;                 // approche finale et accostage
+    const duree = n * T + (dvAlt ? Math.PI * Math.sqrt(aT ** 3 / mu) : 0) + 2 * 3600;
+    return { duree, dv: (dvAlt + dvPhase + dvApproche) * 1000, n, angle: dTheta };
+  },
+  lancerRendezVous() {
+    const v = this.v, s = this.stationIci();
+    if (!s || !this.orbiteFermee()) return this.log('Il faut être en orbite fermée pour rejoindre la station.');
+    const p = this.planRendezVous(s);
+    const reservoir = { kg: v.carburant };
+    if (!appliquerImpulsion({ r: v.orb.r.slice(), v: v.orb.v.slice() }, [p.dv / 1000, 0], reservoir)) return this.log(`Carburant insuffisant pour rejoindre ${le(s)} (${fmtV(p.dv)} nécessaires).`);
+    v.carburant = reservoir.kg;
+    v.rdvStation = { id: s.id, fin: v.t + p.duree, centre: s.centre };
+    this.auto = false; this.etape = null; v.cible = null;
+    this.log(`🛰 Rendez-vous avec ${le(s)} : ${p.n} orbite${p.n > 1 ? 's' : ''} de phasage (station ${fmt(p.angle * 180 / Math.PI)}° devant), puis approche finale. Amarrage dans ${fmtDuree(p.duree)}, ${fmtV(p.dv)} de Δv.`);
+    this.majHud(true);
+  },
+  // Appelé à chaque avancée du temps : le rendez-vous se termine par l'amarrage.
+  suivreRendezVous() {
+    const v = this.v, r = v.rdvStation;
+    if (!r) return;
+    if (!v.orb || v.orb.centre !== r.centre) { v.rdvStation = null; return this.log('Rendez-vous avec la station abandonné : l’orbiteur a quitté son orbite.'); }
+    if (v.t >= r.fin) { v.rdvStation = null; this.amarrer(true); this.majHud(true); }
+  },
+
+  // finRendezVous : appelé à la fin du rendez-vous, l'orbiteur est arrivé contre la station.
+  amarrer(finRendezVous = false) {
     const v = this.v, s = this.stationIci();
     if (!s) return;
+    // Trop loin : il faut d'abord la rejoindre (rendez-vous), pas d'amarrage instantané.
+    if (!finRendezVous && !this.procheStation(s) && !this.estAmarre(s)) return this.lancerRendezVous();
     const e = this.etatStation(s);
     v.orb.r = e.r; v.orb.v = e.v; v.orb.transfert = null;
     // On prend ce que la station a en stock, dans la limite de ce que l'orbiteur peut emporter.
@@ -2036,7 +2082,13 @@ const Orbiteur = {
     if (st) {
       // Déjà amarré : « S'amarrer » grisé ; à côté, « Faire le plein » quand la station a de quoi compléter l'orbiteur.
       const amarre = this.estAmarre(st);
-      if (!amarre) d += `<button id="nav-amarrer">⚓ S’amarrer ${au(st)}</button>`;
+      if (!amarre && v.rdvStation && v.rdvStation.id === st.id) {
+        d += `<p class="doux">🛰 Rendez-vous en cours avec ${le(st)} : amarrage le ${fmtDate(v.rdvStation.fin)} (dans ${fmtDuree(v.rdvStation.fin - v.t)}). Accélérez le temps pour y arriver plus vite.</p><button id="nav-rdv-annuler">✕ Annuler le rendez-vous</button>`;
+      } else if (!amarre && this.procheStation(st)) d += `<button id="nav-amarrer" class="principal">⚓ S’amarrer ${au(st)}</button>`;
+      else if (!amarre) {
+        const p = this.planRendezVous(st);
+        d += `<button id="nav-amarrer" ${fermee ? '' : 'disabled title="Il faut être en orbite fermée"'}>🛰 Rendez-vous avec ${le(st)} (≈ ${fmtDuree(p.duree)}, ${fmtV(p.dv)})</button>`;
+      }
       else {
         d += `<button disabled title="L’orbiteur est déjà amarré">⚓ Amarré ${au(st)}</button>`;
         if (this.stockAPrendre(st)) d += `<button id="nav-amarrer" class="principal">⛽ Faire le plein (carburant, ergols, matériel)</button>`;
@@ -2110,6 +2162,7 @@ const Orbiteur = {
     bind('nav-logistique', () => ouvrirLogistique(this.v, true));
     bind('nav-ressources', () => ouvrirRessources(this.v));
     bind('nav-amarrer', () => { this.amarrer(); this.majHud(true); });
+    bind('nav-rdv-annuler', () => { this.v.rdvStation = null; this.log('Rendez-vous avec la station annulé (le Δv dépensé ne revient pas).'); this.majHud(true); });
     bind('nav-station', () => { this.construireStation(); this.majHud(true); });
     bind('nav-sonde', () => { this.lancerSonde(v.cible); this.majHud(true); });
     bind('nav-journal', () => this.contexte.journal());
