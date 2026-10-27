@@ -49,6 +49,14 @@ function perdrePilote(v, astreId, cause, equipier) {
   noterPerte(v, nom, astreId, cause);
   // De retour à l'orbiteur : on propose de rappeler l'équipage.
   v.proposerRappel = { nom, acc: m && !m.principal ? (GENRES[(m.profil || PROFIL_DEFAUT).genre] || GENRES.aucun).accord : acc() };
+  verifierEquipageEntierPerdu(v);
+}
+// Plus personne en vie : l'orbiteur (s'il est intact) rentre seul en orbite terrestre, guidé depuis le sol.
+function verifierEquipageEntierPerdu(v) {
+  if (!v.equipe || survivants(v).length > 0 || !v.orb) return;
+  v.proposerRappel = null;
+  v.traumatise = false;
+  if (!v.retourAuto) v.retourAuto = 'a_annoncer';
 }
 
 // ---------- Équipage traumatisé ----------
@@ -82,7 +90,7 @@ function textePertes(v) {
 // Nouvelle équipe au départ d'une expédition.
 function initialiserEquipe(v) {
   v.equipagePerdu = false;       // nouvelle équipe, nouveau départ (voir le point 10 de la carte 4)
-  v.traumatise = false; v.proposerRappel = null;
+  v.traumatise = false; v.proposerRappel = null; v.retourAuto = null;
   v.pertesEquipage = [];
   // L'équipe composée au centre de lancement (vétérans ou recrues, apparence choisie), sinon une proposition.
   const prevue = v.equipePrevue && v.equipePrevue.length ? v.equipePrevue : equipeProposee(v);
@@ -152,6 +160,7 @@ function mettreAJourEquipe(v, log) {
       m.etat = 'perdu';
       noterPerte(v, m.nom, a.id, 'dose mortelle de rayonnement pendant sa mission');
       v.proposerRappel = { nom: m.nom, acc: (GENRES[(m.profil || PROFIL_DEFAUT).genre] || GENRES.aucun).accord };
+      verifierEquipageEntierPerdu(v);
       log(`${m.nom} n’a pas survécu à sa mission ${sur(a)} : dose de ${fmtDoseTotale(m.dose)}. L’atterrisseur est remonté seul.`);
     } else {
       const n = echantillonsMission(jours);

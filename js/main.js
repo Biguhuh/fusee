@@ -664,6 +664,9 @@ function allerNavigation() {
   Orbiteur.rattraperAbsence();
   // Un membre d'équipage vient de mourir : proposer de rappeler les autres sur Terre.
   if (etat.voyage.proposerRappel && !Infos.estOuverte()) Orbiteur.proposerRappel();
+  // Plus personne à bord : l'orbiteur rentre seul (on l'annonce, puis le pilote auto le ramène).
+  if (etat.voyage.retourAuto === 'a_annoncer' && !Infos.estOuverte()) Orbiteur.annoncerRetourAuto();
+  if (etat.voyage.retourAuto === 'en_cours' && !Orbiteur.auto) Orbiteur.lancerRetourAuto();
   sauver(etat);
 }
 
@@ -872,7 +875,14 @@ $('rejouer').onclick = () => {
 };
 $('accueil-campagne').onclick = () => $('voyage-nouveau').click();
 $('accueil-reprendre').onclick = ouvrirReprise;
-$('accueil-equipage').onclick = () => allerEquipage(etat.voyage);
+$('accueil-equipage').onclick = () => composerApresAccueil();
+// Composer un équipage, c'est lancer une nouvelle expédition : un crash pas encore acté l'est alors
+// (« Recommencer avant le crash » ne se propose que dans « Reprendre la campagne »).
+function composerApresAccueil() {
+  const v = etat.voyage;
+  if (lirePointReprise(v)) oublierPointReprise();
+  allerEquipage(v);
+}
 $('accueil-visite').onclick = allerCarte;
 $('accueil-hangar').onclick = allerHangar;
 // « Se promener » : la Terre, ou un objet du ciel lointain observé de loin (puis retour à la liste).
