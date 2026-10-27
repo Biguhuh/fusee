@@ -78,10 +78,20 @@ class DescenteRobot {
           ctx.beginPath(); ctx.moveTo(sx, yc); ctx.arc(sx, yc, Rp, Math.PI + (i * Math.PI) / 6, Math.PI + ((i + 1) * Math.PI) / 6); ctx.closePath(); ctx.fill();
         }
       } else if (f > 0.35) {
-        // Rétrofusées : petites flammes sous le module, juste avant le contact.
-        const flamme = (0.6 + 0.4 * Math.random()) * echelle * 1.6;
-        ctx.fillStyle = 'rgba(255,170,60,0.85)';
-        for (const dx of [-0.8, 0.8]) { ctx.beginPath(); ctx.moveTo(sx + dx * R - 4, sy - R * 2); ctx.lineTo(sx + dx * R, sy - R * 2 - flamme); ctx.lineTo(sx + dx * R + 4, sy - R * 2); ctx.fill(); }
+        // Rétrofusées : montées au-dessus du module, elles soufflent vers le sol (en biais, pour éviter les
+        // ballons) et freinent la chute, juste avant le contact.
+        const flamme = (0.6 + 0.4 * Math.random()) * echelle * 2.2;
+        const yTuyere = sy - R * 2;
+        ctx.fillStyle = '#90a4ae';
+        ctx.fillRect(sx - R * 0.9, yTuyere - 4, R * 1.8, 5);                     // support des rétrofusées
+        for (const sens of [-1, 1]) {
+          const x0 = sx + sens * R * 0.85;
+          const xF = x0 + sens * 0.55 * flamme, yF = yTuyere + 0.83 * flamme;   // vers le bas, et vers l'extérieur
+          const g = ctx.createLinearGradient(x0, yTuyere, xF, yF);
+          g.addColorStop(0, 'rgba(255,240,200,0.95)'); g.addColorStop(1, 'rgba(255,120,40,0)');
+          ctx.fillStyle = g;
+          ctx.beginPath(); ctx.moveTo(x0 - 4, yTuyere); ctx.lineTo(xF, yF); ctx.lineTo(x0 + 4, yTuyere); ctx.fill();
+        }
       }
     }
 

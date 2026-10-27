@@ -97,7 +97,7 @@ class Exploration {
       this.doseSv = vol.doseSv || 0;
       this.dose = (100 * this.doseSv) / DOSE_MORTELLE;
       const t = tempsAvantDoseMortelle(this.irradiation.svJour, this.doseSv);
-      if (!this.terre && t < 30 * 86400) this.dire(`Rayonnement ici : ${fmtDose(this.irradiation.svJour)}. Dose mortelle atteinte dehors en ${fmtDureeLongue(t)}.`);
+      if (!this.terre && t < 30 * 86400) this.dire(`Rayonnement ici : ${fmtDose(this.irradiation.svJour)}. Dose mortelle atteinte dehors en ${fmtDureeLongue(t)}.${t < this.def.autonomie ? ` ⏱ Sortie de ${fmtDuree(t * 0.8)} au plus, retour compris.` : ''}`);
     }
     if (type === 'spationaute' && !this.terre) {
       if (this.astre.id === 'lune' && !(etat.repliques || {}).armstrong) replique('armstrong');
