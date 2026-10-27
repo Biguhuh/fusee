@@ -48,10 +48,14 @@ const Orbiteur = {
   // Une campagne : ce qui dure (stations, bases, sondes, journal, échantillons rapportés).
   // L'orbiteur (orb) n'existe que pendant une expédition, lancée depuis la Terre par la méga-fusée.
   nouveauVoyage() {
+    // Nouvelle campagne : artefacts remis à zéro (les easter eggs trouvés restent), voiture rouge remise en orbite.
+    if (typeof etat !== 'undefined') etat.tracesVues = {};
+    if (ASTRES_PAR_ID.roadster) ASTRES_PAR_ID.roadster.cachee = false;
     return {
       t: DATE_DEBUT,
       systeme: SYSTEME.id,
       orb: null,
+      idCampagne: 'c' + Date.now().toString(36), voitureEtapes: {},   // nouvelle campagne : la voiture rouge est de retour
       carburant: 0, ergolsAtt: 0, sondes: 0, kits: 0, kitsBase: 0, robots: 0, drones: 0, atterrisseurs: 0,
       sondesEnVol: [], stations: [], bases: [],
       journal: [{ t: DATE_DEBUT, texte: 'Début de la campagne. Première étape : lancer la méga-fusée et construire la station spatiale.' }],
@@ -144,6 +148,7 @@ const Orbiteur = {
   },
   log(texte) {
     if (MOTIFS_REFUS.test(texte)) afficherAlerte(texte);
+    if (/^✨/.test(texte) && typeof afficherDecouverte === 'function') afficherDecouverte(texte);
     this.v.journal.push({ t: this.v.t, texte });
     if (this.v.journal.length > 200) this.v.journal.shift();
     // En temps accéléré, les événements s'enchaînent : on les laisse plus longtemps à l'écran.
@@ -223,6 +228,7 @@ const Orbiteur = {
     }
 
     const centreAvant = v.orb.centre;
+    if (this.enPoussee()) v.aIss = false;
     if (this.enPoussee() && v.amarre) { v.amarre = null; this.log('Désamarrage : l’orbiteur quitte la station.'); }
     if (this.enPoussee()) {
       let reste = dt;
@@ -253,7 +259,7 @@ const Orbiteur = {
       }
       if (res === 'impact') return this.crash();
     }
-    if (v.orb.centre !== centreAvant) this.etape = null;
+    if (v.orb.centre !== centreAvant) { this.etape = null; v.aIss = false; }
     if (this.verifierChaleurEtoile()) return;
     // Amarré : l'orbiteur suit exactement la station (sinon les petites erreurs de calcul l'en écartent).
     if (v.amarre) {
@@ -570,6 +576,7 @@ const Orbiteur = {
     const v = this.v, e = this.etape;
     if (!e || !e.dv) return;
     let dv = e.dv(v.orb, v.t);
+    v.aIss = false;
     if (v.amarre) { v.amarre = null; this.log('Désamarrage : l’orbiteur quitte la station.'); }
     // Équipage traumatisé : la manœuvre peut être ratée (poussée trop forte ou trop faible).
     if (rateParTrauma(v)) {
@@ -1173,7 +1180,15 @@ const Orbiteur = {
     const v = this.v, terre = ASTRES_PAR_ID.terre;
     const alt = (Math.hypot(v.orb.r[0], v.orb.r[1]) - terre.rayonKm) * 1000;
     jouerScene(new Amarrage(terre, alt, { nom: 'Station spatiale internationale', alt: 415000, vaisseau: true }, v.t, 'Orbiteur'), () => {
-      this.log('📍 Amarré à la Station spatiale internationale, habitée sans interruption depuis novembre 2000. Un ingénieur de fiction y a séjourné, et s’en plaint encore.');
+      v.aIss = true; v.amarre = null; v.rdvStation = null;   // amarré à l'ISS (plus à la station terrestre)
+      this.log('📍 Amarré à la Station spatiale internationale, habitée sans interruption depuis novembre 2000.');
+      if (!eggTrouve('iss-wolowitz')) {
+        etat.decouvertes = etat.decouvertes || {};
+        etat.decouvertes['iss-wolowitz'] = { astre: 'terre', quand: v.t, par: 'l’équipage de l’orbiteur' };
+        regArtefactBord(v, 'iss-wolowitz');
+        this.log('✨ Découverte à bord de l’ISS : ' + TEXTE_ISS_WOLOWITZ);
+        sauver(etat);
+      }
       allerNavigation();
     });
   },
@@ -1208,6 +1223,7 @@ const Orbiteur = {
     if (!appliquerImpulsion({ r: v.orb.r.slice(), v: v.orb.v.slice() }, [p.dv / 1000, 0], reservoir)) return this.log(`Carburant insuffisant pour rejoindre ${le(s)} (${fmtV(p.dv)} nécessaires).`);
     v.carburant = reservoir.kg;
     v.rdvStation = { id: s.id, fin: v.t + p.duree, centre: s.centre };
+    v.aIss = false;
     this.auto = false; this.etape = null; v.cible = null;
     this.log(`🛰 Rendez-vous avec ${le(s)} : ${p.n} orbite${p.n > 1 ? 's' : ''} de phasage (station ${fmt(p.angle * 180 / Math.PI)}° devant), puis approche finale. Amarrage dans ${fmtDuree(p.duree)}, ${fmtV(p.dv)} de Δv.`);
     this.majHud(true);
@@ -1291,7 +1307,7 @@ const Orbiteur = {
   // planète la plus proche. Le pilote auto calcule le trajet ; les poussées viennent du propulseur (Δv limité).
   propulseursLibres() {
     const v = this.v;
-    const garde = SYSTEME.id === 'solaire' && !eggTrouve('voiture-2') && v.orb && v.orb.centre === 'roadster' ? 1 : 0;   // celui de la voiture
+    const garde = SYSTEME.id === 'solaire' && !voitureEtape(2) && v.orb && v.orb.centre === 'roadster' ? 1 : 0;   // celui de la voiture
     return Math.max(0, (v.propulseurs || 0) - garde);
   },
   planeteLaPlusProche() {
@@ -2174,7 +2190,7 @@ const Orbiteur = {
     if (estOrigine(c.id) && fermee) d += `<button id="nav-rentrer" class="principal">🏠 Rentrer sur ${SYSTEME.origineSans} (capsule)</button>`;
     if (estOrigine(c.id) && fermee && Object.values(v.echantillonsABord || {}).some((n) => n > 0)) d += '<button id="nav-capsule-ech">📦 Renvoyer les échantillons seuls (capsule sans équipage)</button>';
     if (this.peutRenvoyerParSonde()) d += `<button id="nav-sonde-ech" ${v.sondes > 0 ? '' : 'disabled title="Plus de sonde à bord"'}>📦 Renvoyer les échantillons par sonde (${v.sondes} sonde${v.sondes > 1 ? 's' : ''} à bord)</button>`;
-    if (c.id === 'terre' && fermee) d += '<button id="nav-iss">🛰 Rendez-vous avec la Station spatiale internationale</button>';
+    if (c.id === 'terre' && fermee) d += v.aIss ? '<button disabled title="Vous y êtes">📍 Amarré à la Station spatiale internationale</button>' : '<button id="nav-iss">🛰 Rendez-vous avec la Station spatiale internationale</button>';
     if (estOrigine(c.id) && fermee) d += `<button id="nav-plein-origine">🌍 Faire le plein depuis ${SYSTEME.nomOrigine} (gratuit)</button>`;
     if (SYSTEME.retour !== false) d += `<button id="nav-depart">🌌 Quitter le ${SYSTEME.nom}</button>`;
     if (this.peutDescendre()) {
@@ -2197,7 +2213,7 @@ const Orbiteur = {
       } else if (!amarre && this.procheStation(st)) d += `<button id="nav-amarrer" class="principal">⚓ S’amarrer ${au(st)}</button>`;
       else if (!amarre) {
         const p = this.planRendezVous(st);
-        d += `<button id="nav-amarrer" ${fermee ? '' : 'disabled title="Il faut être en orbite fermée"'}>🛰 Rendez-vous avec ${le(st)} (≈ ${fmtDuree(p.duree)}, ${fmtV(p.dv)})</button>`;
+        d += `<button id="nav-amarrer" ${fermee ? '' : 'disabled title="Il faut être en orbite fermée"'}>🛰 ${v.aIss ? 'Retourner à' : 'Rendez-vous avec'} ${le(st)} (≈ ${fmtDuree(p.duree)}, ${fmtV(p.dv)})</button>`;
       }
       else {
         d += `<button disabled title="L’orbiteur est déjà amarré">⚓ Amarré ${au(st)}</button>`;

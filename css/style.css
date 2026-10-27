@@ -427,6 +427,15 @@ pre.erreur { white-space: pre-wrap; background: #1a0d0d; border: 1px solid #5a23
 /* Refus durable (pas de descente possible ici…) : encadré orangé, bien distinct du texte courant */
 .encart-refus { margin: 8px 0; padding: 8px 10px; border-left: 4px solid #ff9800; border-radius: 6px; background: rgba(255,152,0,0.13); color: #ffe0b2; font-size: 13px; line-height: 1.35; }
 
+/* Découverte : bandeau doré au centre de l'écran */
+#decouverte-jeu { position: fixed; top: 34%; left: 50%; transform: translate(-50%, -12px) scale(0.96); z-index: 59; max-width: min(620px, calc(100vw - 32px));
+  display: flex; gap: 12px; align-items: flex-start; padding: 16px 18px; border-radius: 12px; background: linear-gradient(135deg, #4a3500, #8a6400);
+  border: 2px solid #ffd54f; color: #fff8e1; font-size: 16px; line-height: 1.4; box-shadow: 0 0 30px rgba(255,213,79,0.45);
+  opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; }
+#decouverte-jeu.visible { opacity: 1; transform: translate(-50%, 0) scale(1); pointer-events: auto; }
+#decouverte-jeu button { flex: none; background: rgba(255,255,255,0.15); border: 0; color: #fff; border-radius: 6px; padding: 2px 8px; cursor: pointer; }
+.onglets-registre { margin: 8px 0 4px; }
+
 /* Action impossible : bandeau rouge en haut de l'écran */
 #alerte-jeu { position: fixed; top: 64px; left: 50%; transform: translate(-50%, -20px); z-index: 60; max-width: min(640px, calc(100vw - 32px));
   display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 10px; background: #b71c1c; color: #fff;

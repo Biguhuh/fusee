@@ -1,5 +1,7 @@
 'use strict';
-const ZONE_BASE = 150;   // m de part et d'autre d'une base : ni site d'échantillon, ni artefact dessus
+const ZONE_BASE = 150;
+const AUTONOMIE_ROVER = 6 * 3600;   // s de conduite (l'astromobile d'Apollo roulait environ 7 h)
+const DELAI_SECOURS = 45 * 60;     // s : préparation et descente du module de secours   // m de part et d'autre d'une base : ni site d'échantillon, ni artefact dessus
 // Exploration de la surface en vue de côté, par un spationaute ou un robot.
 // La gravité locale change tout : sauts immenses sur les petites lunes, démarche lourde sur Terre.
 
@@ -84,6 +86,7 @@ class Exploration {
     // Rover : garé à côté de la fusée, pour le spationaute (plus rapide, 20 échantillons).
     this.rover = type === 'spationaute' && !this.terre && !vol.robotSeul && !this.cable ? { x: this.xFusee - 5, dir: 1, pas: 0 } : null;
     this.enRover = false;
+    this.batterieRover = this.rover ? AUTONOMIE_ROVER : 0;
     this.sacRover = [];
     this.vMaxRover = Math.min(5, 2.8 * Math.sqrt(g));          // ≈ 3,6 m/s sur la Lune, comme le rover d'Apollo
     this.accRover = Math.min(1.5, 0.5 * g + 0.001);
@@ -221,6 +224,7 @@ class Exploration {
   }
   // Les messages restent affichés en temps réel (7 s, 12 s quand le temps est accéléré ×10 et plus), 3 au plus.
   dire(m) {
+    if (/^✨/.test(m) && typeof afficherDecouverte === 'function') afficherDecouverte(m);
     this.message = m;
     const fin = performance.now() + ((this.warp || 1) >= 10 ? 12000 : 7000);
     this.fileMessages = (this.fileMessages || []).filter((x) => x.texte !== m).concat({ texte: m, fin }).slice(-3);
@@ -264,7 +268,8 @@ class Exploration {
     const sens = veut || p.dir || 1;
     const devant = Math.atan2(this.sol(p.x + 1.5 * sens) - this.sol(p.x), 1.5) * 180 / Math.PI;
     const freinPente = devant > 15 ? Math.max(0.3, 1 - (devant - 15) / (penteMax - 15)) : 1;
-    const vMax = (this.enRover ? this.vMaxRover : this.vMax) * freinPente;
+    if (this.enRover && this.batterieRover <= 0 && veut && !this.alerteBatterieVide) { this.alerteBatterieVide = true; this.dire('🔋 Batterie de l’astromobile vide : elle ne roule plus. Descendez (V) et rentrez à pied.'); }
+    const vMax = (this.enRover ? (this.batterieRover > 0 ? this.vMaxRover : 0) : this.vMax) * freinPente;
     const acc = this.enRover ? this.accRover : this.acc;
     if (p.auSol) {
       // Après quelques bières, la démarche devient… approximative.
@@ -300,7 +305,7 @@ class Exploration {
         if (this.traces.length > 600) this.traces.shift();
         if (this.enRover && Math.random() < 0.3) this.poussiere(1);
       }
-      if (this.enRover) this.rover.x = p.x;
+      if (this.enRover) { this.rover.x = p.x; if (Math.abs(p.vx) > 0.05) this.batterieRover = Math.max(0, this.batterieRover - dt); }
     } else {
       p.vy -= g * dt;
       p.x += p.vx * dt;
@@ -335,6 +340,11 @@ class Exploration {
     const effort = Math.abs(p.vx) > 0.05 ? 1 : 0.3;
     this.reserve -= dt * (this.type === 'robot' ? effort : 1);
     if (this.moduleRobot && this.presDeLaFusee()) this.reserve = Math.min(this.def.autonomie, this.reserve + dt * 20);
+    if (this.rover && distSol(this.astre, this.rover.x, this.xFusee) < 12) this.batterieRover = Math.min(AUTONOMIE_ROVER, this.batterieRover + dt * 20);
+    if (this.type === 'spationaute' && !this.terre) {
+      if (this.suivreSecours(dt)) return;
+      this.surveillerRetour();
+    }
     if (this.reserve <= 0) {
       return this.terminer('perdu', this.type === 'robot' ? 'Batterie vide : le robot s’est arrêté pour toujours.' : `Plus d’oxygène : ${this.def.nom} n’a pas pu rentrer à temps.`);
     }
@@ -475,11 +485,102 @@ class Exploration {
       }
       return this.terminer('retour', `Robot rappelé à bord.${n ? ` ${n} analyse(s) transmise(s).` : ''}`);
     }
+    // Spationaute : on ne rentre d'un coup que si le chemin existe et que les réserves suffisent.
+    if (!this.terre && !this.presDeLaFusee()) {
+      const avecRover = this.enRover && this.batterieRover > 0;
+      let r = this.estimerRetour(avecRover);
+      // Astromobile bloquée (elle ne saute pas) ou batterie trop juste : on rentre à pied, elle reste là.
+      if (avecRover && (r.bloque || r.temps > this.batterieRover)) r = this.estimerRetour(false);
+      if (r.bloque) return this.dire(`⛔ Impossible de rentrer : une paroi de ${fmt(r.bloque.hauteur, 1)} m, à ${fmt(r.bloque.distance)} m d’ici, barre le chemin du module (trop raide, trop haute pour un saut). 🆘 Appel d’urgence : U.`);
+      if (r.temps > this.reserve) return this.dire(`⛔ Pas assez d’oxygène pour rentrer : il faut ≈ ${fmtDuree(r.temps)} de marche${r.enRover ? ' (en astromobile)' : ''}, il reste ${fmtDuree(this.reserve)}. 🆘 Appel d’urgence : U.`);
+      // Le trajet prend du temps : l'oxygène (et la batterie de l'astromobile) se consomment.
+      this.reserve -= r.temps;
+      if (r.enRover) { this.batterieRover -= r.temps; this.rover.x = this.xFusee - 5; }
+      else if (this.enRover) this.rover.x = this.p.x;   // l'astromobile reste sur place
+      this.dire(`Retour au module : ${fmt(r.dist)} m${r.enRover ? ' en astromobile' : ' à pied'}, ≈ ${fmtDuree(r.temps)}.`);
+    }
     this.p.x = this.xFusee;
     this.p.y = this.sol(this.xFusee);
     this.p.auSol = true;
     this.enRover = false;
     this.agir();
+  }
+
+  // ---------- Retour au module, réserves, appel d'urgence ----------
+  // Peut-on rentrer au module, et en combien de temps ? On parcourt le sol jusqu'au module : une montée plus raide
+  // que ce qu'on peut gravir, et plus haute que ce qu'un saut franchit, barre le chemin (paroi de cratère, falaise).
+  // Le temps : la distance à la vitesse de marche (ou de l'astromobile), avec 25 % de marge pour les pentes.
+  estimerRetour(enRover = this.enRover) {
+    const a = this.astre, x0 = this.p.x, d = ecartSol(a, this.xFusee, x0);
+    const sens = Math.sign(d) || 1, dist = Math.abs(d);
+    const penteMax = ((enRover ? 40 : this.def.penteMax + 10) * Math.PI) / 180;
+    const g = Math.max(1e-6, this.c.g);
+    const hSaut = enRover ? 0 : (this.saut * this.saut) / (2 * g);
+    const pas = dist > 4000 ? 1 : 0.5;
+    let montee = 0, bloque = null;
+    for (let s = 0; s < dist; s += pas) {
+      const xa = x0 + sens * s;
+      const dh = this.sol(xa + sens * pas) - this.sol(xa);
+      if (Math.atan2(dh, pas) > penteMax) {
+        montee += dh;
+        if (montee > hSaut * 0.9 + 0.05) { bloque = { distance: s, hauteur: montee }; break; }
+      } else montee = 0;
+    }
+    const v = enRover ? this.vMaxRover : this.vMax;
+    return { dist, temps: (dist / Math.max(0.01, v)) * 1.25 + 30, bloque, enRover };
+  }
+  // Toutes les secondes : réserve d'oxygène (et batterie de l'astromobile) comparée au temps de retour.
+  surveillerRetour() {
+    const maintenant = performance.now();
+    if (this.tSurveillance && maintenant - this.tSurveillance < 1000) return;
+    this.tSurveillance = maintenant;
+    const loin = !this.presDeLaFusee();
+    let r = loin ? this.estimerRetour(this.enRover && this.batterieRover > 0) : { dist: 0, temps: 0, bloque: null };
+    if (loin && r.enRover && r.bloque) r = this.estimerRetour(false);   // à pied, on saute les marches
+    this.retour = r;
+    if (r.bloque && !this.alerteBloque) {
+      this.alerteBloque = true;
+      this.dire(`⚠ Plus de chemin vers le module : une paroi de ${fmt(r.bloque.hauteur, 1)} m vous en sépare. Trouvez un autre passage, ou 🆘 appel d’urgence (U).`);
+    }
+    if (!r.bloque) this.alerteBloque = false;
+    const marge = this.reserve - r.temps;
+    const niveau = marge < 10 * 60 ? 2 : marge < 30 * 60 ? 1 : 0;
+    if (loin && niveau > (this.niveauAlerteO2 || 0)) {
+      this.dire(`⚠ Attention, réserve d’oxygène basse : ${fmtDuree(this.reserve)}. Retour au module ≈ ${fmtDuree(r.temps)}. ${niveau === 2 ? 'Rentrez maintenant !' : 'Pensez à rentrer au module.'}`);
+    }
+    this.niveauAlerteO2 = niveau;
+    if (this.enRover && loin) {
+      const basse = this.batterieRover < r.temps * 1.2 + 15 * 60;
+      if (basse && !this.alerteRover) this.dire(`🔋 Attention, batterie de l’astromobile basse : ${fmtDuree(this.batterieRover)}. Retour au module ≈ ${fmtDuree(r.temps)}. Pensez à rentrer.`);
+      this.alerteRover = basse;
+    }
+  }
+  // 🆘 Appel d'urgence : un module de secours descend chercher le spationaute (s'il y en a un de libre à bord
+  // de l'orbiteur). Sinon, ou s'il arriverait trop tard, il n'y a plus qu'à attendre la fin des réserves.
+  appelUrgence() {
+    if (this.fin || this.type !== 'spationaute' || this.terre) return;
+    if (this.secours) return this.dire(`🆘 Le module de secours arrive dans ${fmtDuree(this.secours.reste)}. Tenez bon !`);
+    const v = etat.enVoyage && etat.voyage;
+    if (v && !(v.atterrisseurs >= 2)) return this.dire('🆘 Aucun module de secours : il n’y a pas d’autre atterrisseur à bord de l’orbiteur. Sans chemin vers le module, il ne reste qu’à espérer…');
+    if (DELAI_SECOURS > this.reserve) return this.dire(`🆘 Le module de secours mettrait ${fmtDuree(DELAI_SECOURS)} à arriver, mais il ne reste que ${fmtDuree(this.reserve)} d’oxygène : trop tard.`);
+    this.secours = { reste: DELAI_SECOURS, x: this.p.x + 8 };
+    this.dire(`🆘 Appel reçu ! Un module de secours ${v ? 'quitte l’orbiteur' : 'est envoyé'} : arrivée dans ${fmtDuree(DELAI_SECOURS)}. Restez où vous êtes (accélérez le temps avec +).`);
+  }
+  suivreSecours(dt) {
+    if (!this.secours) return false;
+    this.secours.reste -= dt;
+    if (this.secours.reste > 0) return false;
+    // Le module de secours se pose à côté : le spationaute monte à bord avec son sac.
+    const tous = [...this.sac, ...(this.enRover ? this.sacRover : [])];
+    const n = tous.length;
+    if (n) {
+      const s = (this.science[this.astre.id] = this.science[this.astre.id] || { sites: {}, echantillons: 0, analyses: 0 });
+      s.echantillons += n;
+      this.vol.echantillons = (this.vol.echantillons || 0) + n;
+      this.recoltes = (this.recoltes || 0) + n;
+    }
+    this.terminer('secouru', `🆘 Sauvetage réussi : ${this.def.nom} est monté${this.equipier().acc} dans le module de secours${n ? ` avec ${n} échantillon${n > 1 ? 's' : ''}` : ''}. Le premier atterrisseur reste au sol.`);
+    return true;
   }
 
   poussiere(n) {
@@ -572,6 +673,13 @@ class Exploration {
     }
     else dessinerFusee(ctx, { f: this.vol.f, angle: this.vol.angle, throttle: 0, temp: this.vol.temp, integrite: this.vol.integrite, degats: this.vol.degats, taux: { pression: 0, chaleur: 0 }, enDegats: () => false }, fx, fy, HAUTEUR_MODULE * echelle);
 
+    // Module de secours : il descend les deux dernières minutes, puis se pose à côté.
+    if (this.secours && this.secours.reste < 120) {
+      const k = Math.max(0, this.secours.reste / 120), xs = this.secours.x;
+      const [sx, sy] = versEcran(xs, this.sol(xs) + 80 * k);
+      dessinerModule(ctx, { f: this.vol.f, astre: this.astre, angle: 0, throttle: k > 0.01 ? 0.6 : 0, temp: 20, integrite: 100, pose: k <= 0.01, t: this.vol.t,
+        degats: { pression: 0, chaleur: 0, impact: 0 }, taux: { pression: 0, chaleur: 0 }, enDegats: () => false }, sx, sy, HAUTEUR_MODULE * echelle);
+    }
     // Rover garé
     if (this.rover && !this.enRover) {
       const [rx, ry] = versEcran(this.rover.x, this.sol(this.rover.x));
@@ -653,6 +761,9 @@ class Exploration {
       l.push([this.type === 'robot' ? 'Robot' : 'Combi.', fmt(this.integrite) + ' %', this.integrite > 60 ? '#66bb6a' : this.integrite > 30 ? '#ffca28' : '#ef5350']);
       l.push([this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? `${sc.analyses} (+${this.donneesEnAttente})` : `${this.sac.length}/${d.capacite}` + (this.rover ? ` · astromobile ${this.sacRover.length}/20` : ''), this.donneesEnAttente ? '#ffca28' : '#fff']);
       l.push(['Module', fmt(distSol(this.astre, this.p.x, this.xFusee)) + ' m', '#fff']);
+      if (this.type === 'spationaute' && !this.terre && this.retour && this.retour.dist > 0) l.push(['Retour', this.retour.bloque ? 'bloqué ⛔' : '≈ ' + fmtDuree(this.retour.temps), this.retour.bloque || this.reserve < this.retour.temps * 1.3 ? '#ef5350' : '#fff']);
+      if (this.rover) l.push(['Astromob.', fmtDuree(this.batterieRover), this.batterieRover < 30 * 60 ? '#ef5350' : '#66bb6a']);
+      if (this.secours) l.push(['🆘 Secours', 'dans ' + fmtDuree(this.secours.reste), '#ffca28']);
       const rp = c.p / d.pressionMax, rt = (c.t + KELVIN) / (d.tempMax + KELVIN), rr = this.type === 'robot' ? 0 : this.irradiation.svJour / DOSE_MORTELLE;
       if (rp > 0.6) l.push(['Pression', fmtP(c.p), couleurRisque(rp)]);
       if (rt > 0.7) l.push(['Temp.', fmt(c.t) + ' °C', couleurRisque(rt)]);
@@ -670,7 +781,7 @@ class Exploration {
       }
     } else {
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.fillRect(8, 8, 290, 272);
+    ctx.fillRect(8, 8, 290, 272 + (this.retour && this.retour.dist > 0 ? 18 : 0) + (this.rover ? 18 : 0) + (this.secours ? 18 : 0));
     let y = 28;
     const ligne = (k, v, coul = '#fff') => {
       ctx.font = '12px system-ui'; ctx.fillStyle = '#b0bec5'; ctx.fillText(k, 16, y);
@@ -700,6 +811,9 @@ class Exploration {
     ligne(this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? `${sc.analyses} envoyées, ${this.donneesEnAttente} en mémoire` : `${this.sac.length} / ${d.capacite}` + (this.rover ? `  astromobile ${this.sacRover.length} / 20` : ''), this.donneesEnAttente ? '#ffca28' : '#fff');
     ligne('Sites étudiés ici', String(Object.keys(sc.sites || {}).length));
     ligne('Distance module', fmt(distSol(this.astre, this.p.x, this.xFusee)) + ' m');
+    if (this.type === 'spationaute' && !this.terre && this.retour && this.retour.dist > 0) ligne('Retour au module', this.retour.bloque ? `bloqué : paroi de ${fmt(this.retour.bloque.hauteur, 1)} m` : `≈ ${fmtDuree(this.retour.temps)}${this.retour.enRover ? ' (astromobile)' : ''}`, this.retour.bloque || this.reserve < this.retour.temps * 1.3 ? '#ef5350' : '#fff');
+    if (this.rover) ligne('Batterie astromobile', fmtDuree(this.batterieRover), this.batterieRover < 30 * 60 ? '#ef5350' : '#66bb6a');
+    if (this.secours) ligne('🆘 Module de secours', 'arrive dans ' + fmtDuree(this.secours.reste), '#ffca28');
     }
 
     // Site le plus proche non étudié

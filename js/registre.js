@@ -28,18 +28,53 @@ function ficheDe(m) {
   return fichePersonne(m.regId, m.nom, m.profil);
 }
 
+// ---------- Campagnes ----------
+// Chaque fiche garde ses totaux (toutes campagnes confondues) et ses chiffres campagne par campagne
+// (f.parCampagne[id]). Une partie d'avant ce découpage : tout ce qui était noté compte pour la campagne en cours.
+function idCampagne() {
+  const v = typeof etat !== 'undefined' && etat.voyage;
+  if (!v) return null;
+  if (!v.idCampagne) { v.idCampagne = 'c' + Date.now().toString(36); v.campagneMigree = true; }
+  return v.idCampagne;
+}
+function statsVides() { return { expeditions: [], astres: {}, sorties: 0, missions: 0, echantillons: 0, artefacts: [], doseSv: 0, tempsEspace: 0, sortieMax: null }; }
+function statsCampagne(f, creer = true) {
+  const id = idCampagne();
+  if (!id) return null;
+  if (!f.parCampagne) {
+    f.parCampagne = {};
+    if (etat.voyage.campagneMigree) {
+      f.parCampagne[id] = { expeditions: [...f.expeditions], astres: { ...f.astres }, sorties: f.sorties, missions: f.missions, echantillons: f.echantillons,
+        artefacts: [...f.artefacts], doseSv: f.doseSv, tempsEspace: f.tempsEspace, sortieMax: f.sortieMax || null };
+    }
+  }
+  if (!f.parCampagne[id] && creer) f.parCampagne[id] = statsVides();
+  return f.parCampagne[id] || null;
+}
+// Les deux jeux de chiffres à mettre à jour : les totaux, et ceux de la campagne en cours.
+function lesDeux(f) { const c = statsCampagne(f); return c ? [f, c] : [f]; }
+
 // ---------- Événements ----------
 function regDepart(v) {
   for (const m of v.equipe || []) {
     const f = ficheDe(m);
-    if (!f.expeditions.includes(v.expeditions + 1)) f.expeditions.push(v.expeditions + 1);   // le compteur avance juste après
+    for (const x of lesDeux(f)) if (!x.expeditions.includes(v.expeditions + 1)) x.expeditions.push(v.expeditions + 1);   // le compteur avance juste après
     if (f.debut === null) f.debut = v.t;
     f.statut = 'expedition';
     m.tDepart = v.t;
   }
 }
-function regRecrue(v, m) { const f = ficheDe(m); f.expeditions.push(v.expeditions); if (f.debut === null) f.debut = v.t; f.statut = 'expedition'; m.tDepart = v.t; }
-function compterTemps(v, m, tFin) { const f = ficheDe(m); if (m.tDepart !== undefined) f.tempsEspace += Math.max(0, tFin - m.tDepart); m.tDepart = tFin; }
+function regRecrue(v, m) {
+  const f = ficheDe(m);
+  for (const x of lesDeux(f)) x.expeditions.push(v.expeditions);
+  if (f.debut === null) f.debut = v.t;
+  f.statut = 'expedition'; m.tDepart = v.t;
+}
+function compterTemps(v, m, tFin) {
+  const f = ficheDe(m);
+  if (m.tDepart !== undefined) { const d = Math.max(0, tFin - m.tDepart); for (const x of lesDeux(f)) x.tempsEspace += d; }
+  m.tDepart = tFin;
+}
 function regRetour(v) {
   for (const m of v.equipe || []) {
     if (m.etat === 'perdu' || (m.principal && v.equipagePerdu)) continue;
@@ -52,7 +87,7 @@ function regMort(v, m, cause, astreId) {
   if (f.statut === 'mort') return;
   compterTemps(v, m, v.t);
   f.statut = 'mort';
-  f.mort = { cause, astre: astreId, t: v.t, systeme: SYSTEME.id };
+  f.mort = { cause, astre: astreId, t: v.t, systeme: SYSTEME.id, campagne: idCampagne() };
 }
 // Orbiteur écrasé : toute personne encore à bord ou en mission meurt avec l'expédition.
 function regExpeditionPerdue(v, cause, astreId) {
@@ -63,19 +98,24 @@ function regExpeditionPerdue(v, cause, astreId) {
 }
 function regVisite(m, astreId, echantillons, type) {
   const f = ficheDe(m);
-  f.astres[astreId] = (f.astres[astreId] || 0) + 1;
-  f.echantillons += echantillons || 0;
-  if (type === 'mission') f.missions++; else f.sorties++;
+  for (const x of lesDeux(f)) {
+    x.astres[astreId] = (x.astres[astreId] || 0) + 1;
+    x.echantillons += echantillons || 0;
+    if (type === 'mission') x.missions++; else x.sorties++;
+  }
 }
 // Durée d'une sortie : la plus longue est gardée (avec son astre), et le total.
 function regDureeSortie(m, secondes, astreId) {
   if (!m || !(secondes > 0)) return;
   const f = ficheDe(m);
   f.tempsSorties = (f.tempsSorties || 0) + secondes;
-  if (!f.sortieMax || secondes > f.sortieMax.duree) f.sortieMax = { duree: secondes, astre: astreId };
+  for (const x of lesDeux(f)) if (!x.sortieMax || secondes > x.sortieMax.duree) x.sortieMax = { duree: secondes, astre: astreId };
 }
-function regDose(m, sv) { if (m && sv > 0) ficheDe(m).doseSv += sv; }
-function regArtefact(m, idEgg) { const f = m ? ficheDe(m) : fichePersonne(ID_JOUEUR); if (!f.artefacts.includes(idEgg)) f.artefacts.push(idEgg); }
+function regDose(m, sv) { if (m && sv > 0) for (const x of lesDeux(ficheDe(m))) x.doseSv += sv; }
+function regArtefact(m, idEgg) {
+  const f = m ? ficheDe(m) : fichePersonne(ID_JOUEUR);
+  for (const x of lesDeux(f)) if (!x.artefacts.includes(idEgg)) x.artefacts.push(idEgg);
+}
 // Artefact vu depuis l'orbiteur : tout l'équipage à bord le partage.
 function regArtefactBord(v, idEgg) { for (const m of (v && v.equipe) || []) if (m.etat === 'bord' && !(m.principal && v.equipagePerdu)) regArtefact(m, idEgg); }
 function principal(v) { return ((v && v.equipe) || []).find((m) => m.principal) || null; }
@@ -85,7 +125,7 @@ function regVoyageEtoile(v, secondes, statut) {
     if (m.etat === 'perdu' || (m.principal && v.equipagePerdu)) continue;
     compterTemps(v, m, v.t);
     const f = ficheDe(m);
-    f.tempsEspace += secondes;
+    for (const x of lesDeux(f)) x.tempsEspace += secondes;
     if (statut) f.statut = statut;
   }
 }
@@ -230,11 +270,19 @@ function ecussonsRegistre(fiches) {
   return res;
 }
 
-function ouvrirRegistre() {
+let ongletRegistre = 'campagne';
+function ouvrirRegistre(onglet = ongletRegistre) {
+  ongletRegistre = onglet;
   const r = registre();
   if (SPATIO && !r[ID_JOUEUR] && etat.voyage) fichePersonne(ID_JOUEUR);
+  const cid = idCampagne();
+  const parCampagne = onglet === 'campagne' && !!cid;
   const ordre = { expedition: 0, vivant: 1, route: 2, mort: 3 };
-  const fiches = Object.values(r).sort((a, b) => (ordre[a.statut] - ordre[b.statut]) || (b.expeditions.length - a.expeditions.length));
+  // Onglet « campagne en cours » : les personnes de cette campagne, avec leurs chiffres de cette campagne.
+  const vues = parCampagne
+    ? Object.values(r).map((f) => ({ f, c: statsCampagne(f, false) })).filter((x) => x.c).map(({ f, c }) => ({ ...f, ...c }))
+    : Object.values(r);
+  const fiches = vues.sort((a, b) => (ordre[a.statut] - ordre[b.statut]) || (b.expeditions.length - a.expeditions.length));
   const m = $('modale');
   const ecussons = ecussonsRegistre(fiches);
   const ligne = (f, i) => {
@@ -266,10 +314,12 @@ function ouvrirRegistre() {
       </div></article>`;
   };
   const vivants = fiches.filter((f) => f.statut !== 'mort').length;
-  m.innerHTML = `<div class="fenetre large"><header class="entete"><div><h2>👥 Registre des équipages</h2>
+  const onglets = cid ? `<div class="groupe-vue onglets-registre"><button data-onglet="campagne" class="${parCampagne ? 'choisi' : ''}">Campagne en cours</button><button data-onglet="tout" class="${parCampagne ? '' : 'choisi'}">Toutes campagnes</button></div>` : '';
+  m.innerHTML = `<div class="fenetre large"><header class="entete"><div><h2>👥 Registre des équipages</h2>${onglets}
     <p>${fiches.length} personne${fiches.length > 1 ? 's' : ''} parties dans l’espace : ${vivants} en vie, ${fiches.length - vivants} mortes.</p></div><button class="fermer">✕</button></header>
     ${fiches.length ? `<div class="liste-registre">${fiches.map(ligne).join('')}</div>` : '<p class="doux">Personne n’est encore parti. Le registre se remplit au premier lancement d’une expédition.</p>'}</div>`;
   m.classList.remove('cache');
   m.querySelectorAll('[data-portrait]').forEach((cv) => { const f = fiches[Number(cv.dataset.portrait)]; apercuMembre(cv, f.id === ID_JOUEUR ? SPATIO : f.profil || PROFIL_DEFAUT); });
   m.querySelector('.fermer').onclick = () => Infos.fermer();
+  m.querySelectorAll('[data-onglet]').forEach((bt) => { bt.onclick = () => ouvrirRegistre(bt.dataset.onglet); });
 }
