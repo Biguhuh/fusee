@@ -17,6 +17,7 @@ function charger() {
         sauts: s.sauts || {},         // records de saut : { astreId: { h, par, quand } }
         decouvertes: s.decouvertes || {},   // easter eggs trouvés : { id: { astre, quand, par } }
         repliques: s.repliques || {},   // répliques déjà affichées : { id: true }
+        tracesVues: s.tracesVues || {}, // objets des missions précédentes vus sur place : { id: { astre, quand, par } }
         reperes: s.reperes || {},     // easter eggs signalés par un robot, pas encore examinés : { id: true }
         registre: s.registre || {},   // registre des équipages : { idPersonne: fiche }
       };
@@ -29,7 +30,7 @@ function sauver(etat) {
     localStorage.setItem(CLE_SAUVEGARDE, JSON.stringify({
       equipement: etat.equipement, records: etat.records, science: etat.science, masque: etat.masque, voyage: etat.voyage,
       drapeaux: etat.drapeaux, sauts: etat.sauts, decouvertes: etat.decouvertes, reperes: etat.reperes, repliques: etat.repliques,
-      registre: etat.registre || {},
+      registre: etat.registre || {}, tracesVues: etat.tracesVues || {},
     }));
   } catch (e) { /* ignoré */ }
 }
@@ -331,11 +332,14 @@ function texteResultat(r) {
   if (CAUSES_MORTELLES.includes(r.cause) && !robot && res) {
     // Une seule personne descend avec l'atterrisseur : les autres attendent à bord de l'orbiteur.
     const v = etat.enVoyage && etat.voyage;
-    const autres = v && v.equipe ? survivants(v).filter((m) => !m.principal).map((m) => m.nom) : [];
+    const eq = etat.vol.equipier || equipierDescente(null);
+    // Survivants à bord (la personne qui pilotait vient d'être comptée parmi les pertes).
+    const autres = v && v.equipe ? survivants(v).filter((m) => m.id !== eq.id && !(eq.principal && m.principal)).map((m) => (m.principal ? majuscule(nomSpatio()) : m.nom)) : [];
     const total = v && v.equipe ? v.equipe.length : 1;
+    const morts = v && v.equipe ? total - survivants(v).length : 1;
     const liste = autres.length > 1 ? `${autres.slice(0, -1).join(', ')} et ${autres[autres.length - 1]}` : autres[0];
-    res[0] += total > 1 ? ` : 1 membre d’équipage perdu sur ${total}` : ' : spationaute perdu';
-    res[2] += ` ${majuscule(nomSpatio())}, seul${acc()} à bord du module, est mort${acc()}.` +
+    res[0] += total > 1 ? ` : ${morts} membre${morts > 1 ? 's' : ''} d’équipage perdu${morts > 1 ? 's' : ''} sur ${total}` : ' : spationaute perdu';
+    res[2] += ` ${majuscule(eq.nom)}, seul${eq.acc} à bord du module, est mort${eq.acc}.` +
       (autres.length ? ` ${liste} ${autres.length > 1 ? 'attendent' : 'attend'} toujours à bord de l’orbiteur.` : '');
   }
   return res;
@@ -400,7 +404,7 @@ function afficherResultat(r) {
   const robot = pertes.find((p) => p.qui === 'robot');
   if (equipage) {
     if (classe === 'succes') {
-      titre = `Réussite partielle : ${titre.replace(/^Réussite( totale)? : /, '').toLowerCase()}, mais ${nomSpatio()} est perdu${acc()}`;
+      titre = `Réussite partielle : ${titre.replace(/^Réussite( totale)? : /, '').toLowerCase()}, mais ${(etat.vol.equipier || equipierDescente(null)).nom} est perdu${(etat.vol.equipier || equipierDescente(null)).acc}`;
       classe = 'partiel';
     }
     message += ` Pendant la sortie à la surface : ${minuscule(equipage.texte)}`;

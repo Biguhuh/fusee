@@ -90,14 +90,31 @@ function personnesDisponibles(v, exclure = []) {
   return Object.values(registre()).filter((f) => f.id !== ID_JOUEUR && f.statut === 'vivant' && !prises.has(f.id))
     .sort((a, b) => b.expeditions.length - a.expeditions.length);
 }
+// Les 3 places sont attribuées au hasard : un vétéran disponible (une chance sur deux), sinon une nouvelle recrue.
+// Tout reste modifiable dans la fenêtre de composition.
 function equipeProposee(v) {
   const l = [{ regId: ID_JOUEUR, principal: true }];
-  for (const f of personnesDisponibles(v).slice(0, TAILLE_EQUIPE - 1)) l.push({ regId: f.id, nom: f.nom, profil: { ...f.profil }, veteran: true });
+  const veterans = personnesDisponibles(v);
   while (l.length < TAILLE_EQUIPE) {
+    if (veterans.length && Math.random() < 0.5) {
+      const f = veterans.splice(Math.floor(Math.random() * veterans.length), 1)[0];
+      l.push({ regId: f.id, nom: f.nom, profil: { ...f.profil }, veteran: true });
+      continue;
+    }
     const p = profilAleatoire(l.map((x) => x.nom || '').concat([nomSpatio()]));
     l.push({ regId: nouvelIdPersonne(), nom: p.prenom, profil: p });
   }
   return l;
+}
+// Votre spationaute est mort : sa fiche reste au registre (sous un autre identifiant), et l'on en crée un nouveau.
+function spationauteMort() { const f = registre()[ID_JOUEUR]; return !!(f && f.statut === 'mort'); }
+function archiverSpationaute() {
+  const r = registre(), f = r[ID_JOUEUR];
+  if (!f) return null;
+  const id = 'ancien-' + nouvelIdPersonne();
+  r[id] = { ...f, id, ancienJoueur: true, profil: { ...SPATIO } };
+  delete r[ID_JOUEUR];
+  return r[id];
 }
 
 function apercuMembre(cv, profil) {
@@ -110,6 +127,19 @@ function apercuMembre(cv, profil) {
 }
 
 function ouvrirComposition(v, suite) {
+  // Votre spationaute est mort lors d'une expédition précédente : on en crée un nouveau d'abord.
+  if (spationauteMort()) {
+    const ancien = archiverSpationaute();
+    const accAncien = (GENRES[SPATIO.genre] || GENRES.aucun).accord;
+    SPATIO = { ...PROFIL_DEFAUT, choisi: false };
+    sauverSpatio();
+    v.equipePrevue = null;
+    Infos.fermer();
+    return afficherCreationSpatio(() => { allerLancement(); ouvrirComposition(v, suite); }, {
+      titre: 'Un nouveau spationaute',
+      intro: `${majuscule(ancien.nom)} est mort${accAncien}${ancien.mort ? ` (${ancien.mort.cause})` : ''}. Sa fiche reste au registre des équipages. Choisissez qui prend sa place à la tête de la prochaine expédition.`,
+    });
+  }
   v.equipePrevue = v.equipePrevue && v.equipePrevue.length ? v.equipePrevue : equipeProposee(v);
   const l = v.equipePrevue;
   const m = $('modale');
@@ -118,7 +148,7 @@ function ouvrirComposition(v, suite) {
     const f = registre()[p.regId];
     if (!f || !f.expeditions.length) return 'Nouvelle recrue';
     const astres = Object.keys(f.astres).length;
-    return `Vétéran : ${f.expeditions.length} expédition${f.expeditions.length > 1 ? 's' : ''}, ${astres} astre${astres > 1 ? 's' : ''} explorés`;
+    return `Vétéran : ${f.expeditions.length} expédition${f.expeditions.length > 1 ? 's' : ''}, ${astres} astre${astres > 1 ? 's explorés' : ' exploré'}`;
   };
   const rendu = () => {
     const prisIds = l.map((p) => p.regId);
@@ -176,6 +206,7 @@ function ouvrirRegistre() {
     const astres = Object.entries(f.astres).sort((a, b) => b[1] - a[1]).map(([id]) => nomAstrePartout(id));
     const artefacts = f.artefacts.map((id) => {
       if (id.startsWith('voiture-')) return 'Roadster';
+      if (id.startsWith('trace:')) { const t = Object.values(TRACES_REELLES).flat().find((x) => x.id === id.slice(6)); return t ? t.nom : id; }
       const e = tousLesEggs().find((x) => x.id === id);
       return e ? nomAstrePartout(e.astre) : id;
     });
@@ -183,7 +214,7 @@ function ouvrirRegistre() {
     return `<article class="fiche-registre ${f.statut === 'mort' ? 'mort' : ''}">
       <canvas width="70" height="86" data-portrait="${i}"></canvas>
       <div class="corps-registre">
-        <h3>${majuscule(f.nom)}${f.id === ID_JOUEUR ? ' <span class="doux">(vous)</span>' : ''}</h3>
+        <h3>${majuscule(f.nom)}${f.id === ID_JOUEUR ? ' <span class="doux">(vous)</span>' : f.ancienJoueur ? ' <span class="doux">(votre spationaute d’avant)</span>' : ''}</h3>
         <p class="doux">${STATUTS_REGISTRE[f.statut] || f.statut}${mort ? ` — ${mort}` : ''}</p>
         <dl>
           <dt>Expéditions</dt><dd>${f.expeditions.length ? f.expeditions.map((n) => 'n° ' + n).join(', ') : '—'}</dd>

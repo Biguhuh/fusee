@@ -193,6 +193,8 @@ function lancer(options = {}) {
   // Vénus : le module est équipé pour le ballon ; le lanceur de retour sera envoyé par une station.
   if (AEROSTAT[astre.id] && !options.fournisseurLanceur) options = { ...options, fournisseurLanceur: fournisseurLanceurRetour(astre.id) };
   etat.vol = new Vol(astre, options.fusee || equiperAerostat(assemblerFusee(etat.equipement), astre), options);
+  // Campagne : qui pilote cette descente (votre spationaute, ou un survivant s'il est mort).
+  if (options.voyage && etat.voyage) etat.vol.equipier = equipierDescente(etat.voyage);
   etat.enVoyage = !!options.voyage;
   etat.warp = 1;
   etat.pause = false;
@@ -264,7 +266,7 @@ function finVol(r) {
     }
   } else if (etat.enVoyage) {
     const a = r.astre.id;
-    if (!etat.vol.robotSeul && etat.vol.doseSv) regDose(principal(v), etat.vol.doseSv);   // registre des équipages
+    if (!etat.vol.robotSeul && etat.vol.doseSv) regDose(piloteDuVol(v), etat.vol.doseSv);   // registre des équipages
     if (reussi) {
       // L'atterrisseur rejoint l'orbiteur avec ses échantillons ; ses ergols restants retournent en réserve.
       v.ergolsAtt += r.carburantRestant;
@@ -278,8 +280,7 @@ function finVol(r) {
     } else {
       v.atterrisseurs = Math.max(0, v.atterrisseurs - 1);
       if (!etat.vol.robotSeul) {                           // l'équipage était à bord de l'atterrisseur
-        v.equipagePerdu = true;
-        noterPerte(v, nomSpatio(), a, causeVol(r.cause));
+        perdrePilote(v, a, causeVol(r.cause), etat.vol.equipier);
       }
       Orbiteur.log(`Atterrisseur perdu ${sur(r.astre)}${etat.vol.echantillons ? ' avec ses échantillons' : ''}. Il en reste ${v.atterrisseurs}.`);
     }
@@ -389,6 +390,7 @@ function descendre(id) {
   const v = etat.voyage, a = ASTRES_PAR_ID[id];
   const c = concevoirAtterrisseur(a);
   if (!c.ok) return Orbiteur.log(c.raison);
+  if (v.equipe && !pilote(v)) return Orbiteur.log('Personne à bord de l’orbiteur pour piloter l’atterrisseur : rappelez l’équipage, ou attendez le retour d’une mission.');
   // Vénus : sans lanceur de retour prêt en orbite, la descente est un aller simple. On prévient.
   if (AEROSTAT[id]) {
     const d = lanceurRetourDisponible(v, id);
@@ -407,7 +409,13 @@ function descendre(id) {
   }
   v.ergolsAtt -= dispo;
   etat.destination = id;
-  lancer({ voyage: true, fusee: c.fusee, carburant: dispo, bases: basesSur(id), site: siteDescente(id) });
+  // Équipage traumatisé : la descente peut mal commencer (fausse manœuvre, ergols gaspillés).
+  let carb = dispo;
+  if (rateParTrauma(v)) {
+    carb = dispo * 0.6;
+    Orbiteur.log(`😰 Fausse manœuvre au départ de la descente ${sur(a)} : l’équipage traumatisé a gaspillé 40 % des ergols de l’atterrisseur.`);
+  }
+  lancer({ voyage: true, fusee: c.fusee, carburant: carb, bases: basesSur(id), site: siteDescente(id) });
 }
 
 // Zone repérée par une sonde : la descente vise un peu à côté (l'aire d'atterrissage de la base).
@@ -430,12 +438,15 @@ function larguerRobot(id, blindage) {
   etat.vol = new Vol(a, assemblerFusee(equipementParDefaut()), { voyage: true, depuisSol: true, bases: basesSur(id), site: siteDescente(id) });
   etat.vol.robotSeul = true;
   etat.enVoyage = true;
-  etat.explo = new Exploration(etat.vol, 'robot', etat.science, { blindage });
-  replique('reviendrai');
   Orbiteur.log(`Robot largué ${sur(a)} (blindage ${BLINDAGES_ROBOT[blindage].nom.toLowerCase()}, rayonnement ${fmtDose(doseSurface(a).svJour)}).`);
-  touches.clear();
-  redim();
-  montrer('explo');
+  // Petite animation : parachute (ou rétrofusées), ballons, rebonds, dégonflage ; puis l'exploration.
+  jouerScene(new DescenteRobot(etat.vol), () => {
+    etat.explo = new Exploration(etat.vol, 'robot', etat.science, { blindage });
+    replique('reviendrai');
+    touches.clear();
+    redim();
+    montrer('explo');
+  });
 }
 
 function construireBase() {
@@ -612,6 +623,8 @@ function allerNavigation() {
   montrer('nav');
   // Mission en temps réel : la simulation rattrape le temps écoulé depuis la dernière visite, puis le résume.
   Orbiteur.rattraperAbsence();
+  // Un membre d'équipage vient de mourir : proposer de rappeler les autres sur Terre.
+  if (etat.voyage.proposerRappel && !Infos.estOuverte()) Orbiteur.proposerRappel();
   sauver(etat);
 }
 
@@ -874,6 +887,7 @@ for (const el of [canvas, toile]) {
       passerScene();
       return;
     }
+    if ((etat.ecran === 'vol' || etat.ecran === 'explo') && clicTemps(e.clientX, e.clientY)) return;   // boutons − / + du temps
     if ((etat.ecran === 'vol' || etat.ecran === 'explo') && clicFanion(e.clientX, e.clientY)) return;   // croix du fanion
     // Petit écran : un appui sur le tableau de bord compact l'agrandit (et inversement).
     if (etat.ecran === 'vol' && etat.vol && ZONE_HUD) {
@@ -889,6 +903,7 @@ for (const el of [canvas, toile]) {
 // Scène animée : un toucher la fait passer.
 canvas.addEventListener('touchend', (e) => {
   const t0 = e.changedTouches && e.changedTouches[0];
+  if ((etat.ecran === 'vol' || etat.ecran === 'explo') && t0 && clicTemps(t0.clientX, t0.clientY)) { e.preventDefault(); return; }
   if ((etat.ecran === 'vol' || etat.ecran === 'explo') && t0 && clicFanion(t0.clientX, t0.clientY)) { e.preventDefault(); return; }
   if (etat.ecran !== 'scene' || !etat.scene) return;
   e.preventDefault();
@@ -988,7 +1003,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'Escape') {
     // Campagne, posé : quitter laisse l'atterrisseur et l'équipage sur place, pour toujours. On demande d'abord.
     if (etat.enVoyage && v.pose && !v.robotSeul && !v.lancement && !v.fin
-      && !confirm(`Laisser l’atterrisseur et ${nomSpatio()} ${sur(v.astre)} ? Ils ne reviendront pas.\n\nPour repartir, décollez plutôt (T).`)) return;
+      && !confirm(`Laisser l’atterrisseur et ${(etat.vol.equipier || equipierDescente(null)).nom} ${sur(v.astre)} ? Ils ne reviendront pas.\n\nPour repartir, décollez plutôt (T).`)) return;
     v.abandonner();
   }
 });
@@ -1132,11 +1147,10 @@ function image(t) {
       if (x.fin.issue === 'perdu' && !x.terre) (etat.vol.pertes = etat.vol.pertes || []).push({ qui: x.type, texte: x.fin.texte });
       // Campagne : l'équipage perdu ne reviendra pas (la capsule rentrera vide).
       if (x.fin.issue === 'perdu' && x.type === 'spationaute' && !x.terre && etat.enVoyage && etat.voyage) {
-        etat.voyage.equipagePerdu = true;
-        noterPerte(etat.voyage, nomSpatio(), etat.vol.astre.id, causeSortie(x.fin.texte));
+        perdrePilote(etat.voyage, etat.vol.astre.id, causeSortie(x.fin.texte), etat.vol.equipier);
       }
       if (etat.voyage && etat.enVoyage) etat.voyage.journal.push({ t: etat.voyage.t, texte: `${etat.vol.astre.nom} : ${x.fin.texte}` });
-      if (x.type === 'spationaute' && !x.terre && etat.enVoyage && etat.voyage) regVisite(principal(etat.voyage), etat.vol.astre.id, x.recoltes || 0, 'sortie');
+      if (x.type === 'spationaute' && !x.terre && etat.enVoyage && etat.voyage) regVisite(piloteDuVol(etat.voyage), etat.vol.astre.id, x.recoltes || 0, 'sortie');
       etat.explo = null;
       touches.clear();
       sauver(etat);
