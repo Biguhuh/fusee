@@ -524,6 +524,32 @@ function larguerRobot(id, blindage) {
   });
 }
 
+// 🆘 Sauvetage réussi : le module de secours ramène le spationaute (et son sac). Le premier atterrisseur reste au sol.
+function finSecours() {
+  const v = etat.enVoyage && etat.voyage, vol = etat.vol, a = vol.astre;
+  const nom = (vol.equipier || equipierDescente(null)).nom, n = vol.echantillons || 0;
+  const h = $('res-titre');
+  h.textContent = '🆘 Sauvetage réussi';
+  h.className = 'succes';
+  $('res-message').textContent = `Le module de secours a ramené ${nom} ${v ? 'à l’orbiteur' : 'en orbite'}${n ? ` avec ${n} échantillon${n > 1 ? 's' : ''}` : ''}. Le premier atterrisseur reste ${sur(a)}, pour toujours.`;
+  $('res-stats').innerHTML = '';
+  if (v) {
+    v.atterrisseurs = Math.max(0, v.atterrisseurs - 1);   // l'atterrisseur bloqué est perdu ; celui de secours remonte
+    if (n) v.echantillonsABord[a.id] = (v.echantillonsABord[a.id] || 0) + n;
+    v.visites[a.id] = { ...(v.visites[a.id] || {}), pose: true };
+    if (vol.doseSv) regDose(piloteDuVol(v), vol.doseSv);
+    Orbiteur.log(`🆘 Sauvetage ${sur(a)} : ${nom} est de retour à bord${n ? ` avec ${n} échantillon${n > 1 ? 's' : ''}` : ''}. Un atterrisseur reste au sol (il en reste ${v.atterrisseurs}).`);
+    etat.suiteResultat = 'nav';
+    $('vers-hangar').textContent = 'Aller à l’orbiteur';
+  } else {
+    etat.suiteResultat = 'visite';
+    $('vers-hangar').textContent = '🎯 Autre destination';
+  }
+  $('rejouer').classList.add('cache');
+  sauver(etat);
+  montrer('resultat');
+}
+
 // Drone arrimé au robot : il décolle d'à côté du robot, se pilote comme un module, puis on revient au robot.
 function deployerDrone() {
   const x = etat.explo;
@@ -1092,6 +1118,7 @@ addEventListener('keydown', (e) => {
     if (e.code === 'KeyE') x.agir();
     if (e.code === 'KeyV') x.basculerRover();
     if (e.code === 'KeyH') deployerDrone();
+    if (e.code === 'KeyU') x.appelUrgence();
     if (e.code === 'KeyF') x.planterDrapeau();
     if (e.code === 'Escape') {
       if (x.terre) x.terminer('retour', `Fin de la promenade : ${x.bouquet || 0} fleurs, ${x.panier || 0} fruits, ${x.bieres} bière(s).`);
@@ -1315,6 +1342,7 @@ function image(t) {
       sauver(etat);
       if (etat.vol.promenade) allerAccueil();                // fin de la promenade sur Terre
       else if (etat.vol.robotSeul) allerNavigation();        // le robot reste sur place, on revient à l'orbiteur
+      else if (x.fin.issue === 'secouru') finSecours();             // le module de secours a ramené le spationaute
       else montrer('vol');                                   // retour à la fusée posée
     }
   } else if (etat.ecran === 'nav' && etat.voyage && etat.voyage.orb) {
