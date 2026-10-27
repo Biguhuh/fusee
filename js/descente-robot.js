@@ -116,6 +116,12 @@ class DescenteRobot {
     if (sortie > 0) {
       const [rx, ry] = versEcran(this.xModule + 2 * sortie, vol.sol(this.xModule + 2 * sortie));
       dessinerRobot(ctx, rx, ry, echelle, { dir: 1, pas: sortie * 3 }, false, 0);
+      // Avec de l'air, le drone arrimé sort lui aussi, de l'autre côté du module.
+      if (vol.droneEmbarque) {
+        const xd = this.xModule - 2.2 * sortie;
+        const [dx, dy] = versEcran(xd, vol.sol(xd));
+        dessinerDrone(ctx, { angle: 0, throttle: 0, t: 0 }, dx, dy, (echelle * HAUTEUR_MODULE) / 3);
+      }
     }
     // Poussière au contact
     if (this.phase === 'rebonds' && h < 0.4) {
@@ -128,7 +134,7 @@ class DescenteRobot {
       descente: this.parachute ? `Le module du robot descend sous parachute vers ${le(a)}.` : `Pas d’air ${sur(a)} : les rétrofusées freinent la descente.`,
       rebonds: 'Contact ! Les ballons encaissent le choc : rebonds.',
       degonflage: 'Arrêt : les ballons se dégonflent.',
-      sortie: 'Le module s’ouvre : le robot sort. Il reviendra ici transmettre ses analyses.',
+      sortie: vol.droneEmbarque ? 'Le module s’ouvre : le robot et son drone sortent. Le robot reviendra ici transmettre ses analyses.' : 'Le module s’ouvre : le robot sort. Il reviendra ici transmettre ses analyses.',
     };
     const lignes = [['Largage du robot', '#ffffff', true], [textes[this.phase], '#ffffff', true],
       [`Vitesse ×${fmtNombre(this.vitesse, 2)} · + / − : vitesse`, '#8fa3b8']];

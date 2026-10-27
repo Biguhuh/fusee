@@ -295,6 +295,17 @@ function finVol(r) {
     const fin = { ecrasee: 'écrasé', carburant: 'tombé, batterie vide', bloque: 'posé, batterie vide', pressurisee: 'écrasé par la pression', brulee: 'brûlé', abandon: 'laissé sur place' }[r.cause] || 'mission terminée';
     v.visites[a] = { ...(v.visites[a] || {}), drone: true };
     Orbiteur.log(`🚁 Mission du drone terminée ${sur(r.astre)} : ${fin}${n ? `, ${n} repérage${n > 1 ? 's' : ''}` : ''}.`);
+    // Drone parti du robot : on revient au robot, qui continue son exploration.
+    if (etat.retourRobot) {
+      const rr = etat.retourRobot;
+      etat.retourRobot = null;
+      etat.vol = rr.vol; etat.explo = rr.explo;
+      rr.explo.dire(`🚁 Fin du vol du drone : ${fin}${n ? `, ${n} repérage${n > 1 ? 's' : ''} photographié${n > 1 ? 's' : ''}` : ''}. Retour au robot.`);
+      sauver(etat);
+      touches.clear();
+      montrer('explo');
+      return;
+    }
   } else if (etat.enVoyage) {
     const a = r.astre.id;
     if (!etat.vol.robotSeul && etat.vol.doseSv) regDose(piloteDuVol(v), etat.vol.doseSv);   // registre des équipages
@@ -499,14 +510,37 @@ function larguerRobot(id, blindage) {
   etat.vol.robotSeul = true;
   etat.enVoyage = true;
   Orbiteur.log(`Robot largué ${sur(a)} (blindage ${BLINDAGES_ROBOT[blindage].nom.toLowerCase()}, rayonnement ${fmtDose(doseSurface(a).svJour)}).`);
+  // Avec de l'air, le drone voyage avec le robot dans la même capsule (comme Ingenuity avec Perseverance).
+  const avecDrone = droneVolePossible(a) && v.drones > 0;
+  if (avecDrone) { v.drones--; etat.vol.droneEmbarque = true; Orbiteur.log(`🚁 Le drone accompagne le robot ${sur(a)}.`); }
   // Petite animation : parachute (ou rétrofusées), ballons, rebonds, dégonflage ; puis l'exploration.
   jouerScene(new DescenteRobot(etat.vol), () => {
     etat.explo = new Exploration(etat.vol, 'robot', etat.science, { blindage });
+    if (avecDrone) etat.explo.dire('🚁 Le drone est arrimé au robot : H (ou le bouton 🚁) pour le faire décoller. Il vole sur batterie et repère les objets en vol bas.');
     replique('reviendrai');
     touches.clear();
     redim();
     montrer('explo');
   });
+}
+
+// Drone arrimé au robot : il décolle d'à côté du robot, se pilote comme un module, puis on revient au robot.
+function deployerDrone() {
+  const x = etat.explo;
+  if (!x || x.fin) return;
+  if (x.type !== 'robot' || !x.vol.droneEmbarque) return x.dire('Pas de drone ici : il arrive avec le robot, sur les astres qui ont de l’air.');
+  if (x.droneParti) return x.dire('Le drone a déjà volé : sa mission est terminée.');
+  x.droneParti = true;
+  const a = x.astre;
+  etat.retourRobot = { explo: x, vol: etat.vol };
+  const vd = new Vol(a, fuseeDrone(a), { voyage: true, depuisSol: true, bases: x.vol.bases });
+  vd.x = x.p.x + 2; vd.y = vd.sol(vd.x) + 0.01;
+  vd.xDepart = x.xFusee;            // les repérages se placent comme pour le robot
+  vd.droneSeul = true; vd.equipier = null;
+  vd.messageExplo = { texte: '🚁 Drone prêt : mettez les gaz pour décoller. Volez bas (moins de 60 m) pour repérer. Échap : fin du vol, retour au robot.', vie: 9 };
+  etat.vol = vd; etat.explo = null; etat.enVoyage = true; etat.warp = 1;
+  touches.clear();
+  montrer('vol');
 }
 
 // Drone : largué depuis l'orbite dans une petite capsule, il se pilote ensuite comme un module d'atterrissage.
@@ -1044,6 +1078,7 @@ addEventListener('keydown', (e) => {
     const x = etat.explo;
     if (e.code === 'KeyE') x.agir();
     if (e.code === 'KeyV') x.basculerRover();
+    if (e.code === 'KeyH') deployerDrone();
     if (e.code === 'KeyF') x.planterDrapeau();
     if (e.code === 'Escape') {
       if (x.terre) x.terminer('retour', `Fin de la promenade : ${x.bouquet || 0} fleurs, ${x.panier || 0} fruits, ${x.bieres} bière(s).`);

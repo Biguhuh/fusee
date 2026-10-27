@@ -2186,9 +2186,8 @@ const Orbiteur = {
         d += `<button id="nav-descendre">⬇ Descendre ${sur(c)}${manque ? ' (⚠ sans retour)' : ''}</button>`;
         d += `<p class="doux">Atterrisseur conçu pour ${le(c)} : ${descriptionConception(conc)}. Ergols : ${fmt(conc.fusee.carburant / 1000, 1)} t${manque ? ' — <b style="color:var(--alerte)">réserve insuffisante, ravitaillez à une station</b>' : ''}.</p>`;
       } else d += `<p class="doux">⚠ ${conc.raison}</p>`;
-      if (c.type === 'solide' && v.robots > 0) d += `<button id="nav-robot">🤖 Larguer un robot (aller simple)</button>`;
+      if (c.type === 'solide' && v.robots > 0) d += `<button id="nav-robot">${droneVolePossible(c) && v.drones > 0 ? '🤖🚁 Larguer le robot et son drone (aller simple)' : '🤖 Larguer un robot (aller simple)'}</button>`;
     }
-    if (fermee && droneVolePossible(c)) d += `<button id="nav-drone" ${v.drones > 0 ? '' : 'disabled title="Plus de drone à bord (atelier d’une station)"'}>🚁 Larguer un drone (${v.drones || 0} à bord)</button>`;
     const st = this.stationIci();
     if (st) {
       // Déjà amarré : « S'amarrer » grisé ; à côté, « Faire le plein » quand la station a de quoi compléter l'orbiteur.
@@ -2268,7 +2267,6 @@ const Orbiteur = {
     bind('nav-plein-origine', () => { this.pleinDepuisOrigine(); this.majHud(true); });
     bind('nav-iss', () => this.rendezVousISS());
     bind('nav-voiture', () => { actionVoiture(this); this.majHud(true); });
-    bind('nav-drone', () => this.contexte.larguerDrone(this.v.orb.centre));
     bind('nav-retour-solaire', () => this.retourSolaire());
     bind('nav-deployer-base', () => { this.deployerBase(v.orb.centre); this.majHud(true); });
     bind('nav-logistique', () => ouvrirLogistique(this.v, true));

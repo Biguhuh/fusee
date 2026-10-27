@@ -80,6 +80,7 @@ const Tactile = {
       const action = x.terre ? '🌸 Cueillir' : x.type === 'robot' ? '🔬 Analyser' : '🤲 Ramasser';
       b.push({ zone: 'droite', label: action, code: 'KeyE', principal: true, large: true });
       if (x.rover) b.push({ zone: 'actions', label: x.enRover ? '🚶 Descendre' : '🚙 Astromobile', code: 'KeyV' });
+      if (x.type === 'robot' && x.vol.droneEmbarque && !x.droneParti) b.push({ zone: 'actions', label: '🚁 Drone', code: 'KeyH', titre: 'Faire décoller le drone' });
       if (!x.terre && !x.enRover) b.push({ zone: 'actions', label: '🚩', code: 'KeyF', titre: 'Planter le drapeau' });
       temps('actions');
       b.push({ zone: 'actions', label: etat.pause ? '▶' : '⏸', code: 'KeyP' });
