@@ -2,6 +2,7 @@
 const ZONE_BASE = 150;
 const AUTONOMIE_ROVER = 6 * 3600;   // s de conduite (l'astromobile d'Apollo roulait environ 7 h)
 const DELAI_SECOURS = 45 * 60;     // s : préparation et descente du module de secours   // m de part et d'autre d'une base : ni site d'échantillon, ni artefact dessus
+const V_88MPH = 39.34;              // m/s : 88 miles à l'heure (Retour vers le futur)
 // Exploration de la surface en vue de côté, par un spationaute ou un robot.
 // La gravité locale change tout : sauts immenses sur les petites lunes, démarche lourde sur Terre.
 
@@ -257,6 +258,8 @@ class Exploration {
   step(dt, cmd) {
     if (this.fin) return;
     if (this.enEmbarquement()) { this.reserve -= dt; this.vol.t += dt; this.suivreSecours(dt); return; }
+    if (this.traceFeu) this.traceFeu.age += dt;
+    if (this.delorean && this.delorean.phase === 'disparu') { this.vol.t += dt; this.majDelorean(dt); return; }
     this.dureeSortie = (this.dureeSortie || 0) + dt;   // pour le registre (plus longue sortie)
     const p = this.p, g = this.c.g;
     this.c = conditions(this.astre, p.y);
@@ -286,8 +289,8 @@ class Exploration {
     const devant = Math.atan2(this.sol(p.x + 1.5 * sens) - this.sol(p.x), 1.5) * 180 / Math.PI;
     const freinPente = devant > 15 ? Math.max(0.3, 1 - (devant - 15) / (penteMax - 15)) : 1;
     if (this.enRover && this.batterieRover <= 0 && veut && !this.alerteBatterieVide) { this.alerteBatterieVide = true; this.dire('🔋 Batterie de l’astromobile vide : elle ne roule plus. Descendez (V) et rentrez à pied.'); }
-    const vMax = (this.enRover ? (this.batterieRover > 0 ? this.vMaxRover : 0) : this.vMax) * freinPente;
-    const acc = this.enRover ? this.accRover : this.acc;
+    const vMax = this.surveillerDelorean(dt, veut, (this.enRover ? (this.batterieRover > 0 ? this.vMaxRover : 0) : this.vMax) * freinPente);
+    const acc = this.enRover ? (this.delorean ? 12 : this.accRover) : this.acc;
     if (p.auSol) {
       // Après quelques bières, la démarche devient… approximative.
       const titube = this.bieres >= 2 ? Math.sin(this.vol.t * 3) * 0.4 * Math.min(1, (this.bieres - 1) / 3) : 0;
@@ -297,14 +300,14 @@ class Exploration {
       // Pente trop raide pour des roues
       // Montée trop raide (falaise) : on s'arrête. Une descente raide ne bloque jamais.
       const pente = Math.atan2(this.sol(p.x + 0.5 * Math.sign(p.vx || 1)) - this.sol(p.x), 0.5);
-      if (pente * 180 / Math.PI > penteMax && Math.abs(p.vx) > 0) {
+      if (pente * 180 / Math.PI > penteMax && Math.abs(p.vx) > 0 && !this.delorean) {   // emballée, rien ne l'arrête
         p.vx = 0;
         if (this.type === 'robot' || this.enRover) this.dire(`Pente trop raide pour les roues ${this.enRover ? 'de l’astromobile' : 'du robot'}.`);
       }
       const nx = p.x + p.vx * dt;
       const ny = this.sol(nx);
       // Si le sol descend plus vite que la gravité ne nous y ramène, on décolle (bosses, falaises).
-      if (p.y - ny > Math.max(0.05, 0.5 * g * dt * dt * 4) && p.vx !== 0) {
+      if (p.y - ny > Math.max(0.05, 0.5 * g * dt * dt * 4) && p.vx !== 0 && !this.delorean) {   // emballée, elle colle à la route
         p.auSol = false; p.vy = 0; p.x = nx;
       } else { p.x = nx; p.y = ny; }
       p.pas += Math.abs(p.vx) * dt;
@@ -700,6 +703,69 @@ class Exploration {
     if (gaz && alt < 12 && Math.random() < 0.6) this.fx.push({ x: s.x + (Math.random() - 0.5) * 3, y: this.sol(s.x), vx: (Math.random() - 0.5) * 4, vy: Math.random() * 1.5, vie: 0, max: 0.8 });   // poussière soufflée
   }
 
+  // Retour vers le futur : pied au plancher en astromobile pendant 6 s, elle s'emballe jusqu'à 88 miles à l'heure,
+  // disparaît dans un éclair en laissant deux traînées de feu, et réapparaît 20 s plus tard un peu plus loin.
+  // Pour l'équipage, le saut est instantané : ni oxygène ni batterie consommés.
+  surveillerDelorean(dt, veut, vMax) {
+    const d = this.delorean;
+    if (!this.enRover || this.batterieRover <= 0) { this.pleinGaz = 0; this.delorean = null; return vMax; }
+    if (d && d.phase === 'emballe') {
+      if (!veut) { this.delorean = null; this.pleinGaz = 0; this.dire('L’astromobile ralentit. Il manquait quelques miles à l’heure…'); return vMax; }
+      d.t += dt;
+      if (Math.abs(this.p.vx) >= V_88MPH) { this.disparaitreDelorean(); return 0; }
+      return this.vMaxRover + (V_88MPH + 1 - this.vMaxRover) * Math.min(1, d.t / 4);
+    }
+    const pleinPot = veut && this.p.auSol && Math.abs(this.p.vx) >= this.vMaxRover * 0.97;
+    this.pleinGaz = pleinPot ? (this.pleinGaz || 0) + dt : 0;
+    if (this.pleinGaz >= 6) { this.delorean = { phase: 'emballe', t: 0, x0: this.p.x }; this.dire('⚡ Pied au plancher… l’astromobile s’emballe !'); }
+    return vMax;
+  }
+  disparaitreDelorean() {
+    const d = this.delorean, p = this.p;
+    this.traceFeu = { x0: d.x0, x1: p.x, age: 0 };
+    d.phase = 'disparu'; d.t = 0;
+    d.xRetour = p.x + (Math.sign(p.vx) || p.dir || 1) * 15;
+    p.vx = 0;
+    if (typeof flashBlanc === 'function') flashBlanc();
+    this.dire('⚡ 88 miles à l’heure ! L’astromobile disparaît dans un éclair.');
+  }
+  majDelorean(dt) {
+    const d = this.delorean;
+    d.t += dt;
+    if (d.t < 20) return;
+    const p = this.p;
+    p.x = this.posLibre(d.xRetour); p.y = this.sol(p.x); p.vx = 0; p.vy = 0; p.auSol = true;
+    if (this.rover) this.rover.x = p.x;
+    this.delorean = null; this.pleinGaz = 0;
+    if (typeof flashBlanc === 'function') flashBlanc();
+    const premiere = !eggTrouve('delorean');
+    if (premiere) {
+      etat.decouvertes = etat.decouvertes || {};
+      etat.decouvertes.delorean = { astre: this.astre.id, quand: etat.enVoyage && etat.voyage ? etat.voyage.t : null, par: nomSpatio() };
+      if (etat.enVoyage && etat.voyage) regArtefact(piloteDuVol(etat.voyage), 'delorean');
+      sauver(etat);
+    }
+    this.dire(`${premiere ? '✨ ' : '⚡ '}L’astromobile réapparaît dans un éclair, 20 secondes plus tard. Pour vous, c’était instantané : ni oxygène ni batterie consommés.`);
+  }
+  // Les deux traînées de feu laissées au sol, qui s'éteignent en 40 s.
+  dessinerTraceFeu(ctx, versEcran, echelle) {
+    const t = this.traceFeu;
+    if (!t || t.age > 40) return;
+    const a = Math.max(0, 1 - t.age / 40), sens = Math.sign(t.x1 - t.x0) || 1, L = Math.abs(t.x1 - t.x0);
+    for (const dy of [0, 0.3]) {
+      ctx.strokeStyle = `rgba(255,${dy ? 170 : 120},30,${0.9 * a})`; ctx.lineWidth = Math.max(2, 0.1 * echelle);
+      ctx.beginPath();
+      for (let s = 0; s <= L; s += 0.5) { const x = t.x0 + sens * s, [ex, ey] = versEcran(x, this.sol(x) + dy); if (s) ctx.lineTo(ex, ey); else ctx.moveTo(ex, ey); }
+      ctx.stroke();
+      // Petites flammes qui dansent le long des traînées.
+      ctx.fillStyle = `rgba(255,200,80,${0.8 * a})`;
+      for (let s = 0; s <= L; s += 1.2) {
+        const x = t.x0 + sens * s, [ex, ey] = versEcran(x, this.sol(x) + dy), h = (0.2 + 0.25 * Math.abs(Math.sin(s * 3.1 + performance.now() / 90))) * echelle * a;
+        ctx.beginPath(); ctx.moveTo(ex - 0.08 * echelle, ey); ctx.lineTo(ex, ey - h); ctx.lineTo(ex + 0.08 * echelle, ey); ctx.fill();
+      }
+    }
+  }
+
   poussiere(n) {
     for (let i = 0; i < n; i++) this.fx.push({ x: this.p.x, y: this.p.y, vx: (Math.random() - 0.5) * 1.5, vy: Math.random() * 1.2, vie: 0, max: 0.6 + Math.random() });
   }
@@ -793,6 +859,7 @@ class Exploration {
     // Module de secours et sa zone d'atterrissage.
     this.dessinerZoneSecours(ctx, versEcran, echelle, W, H);
     this.dessinerModuleSecours(ctx, versEcran, echelle);
+    this.dessinerTraceFeu(ctx, versEcran, echelle);
     // Rover garé
     if (this.rover && !this.enRover) {
       const [rx, ry] = versEcran(this.rover.x, this.sol(this.rover.x));
@@ -819,7 +886,11 @@ class Exploration {
     const [sx, sy] = versEcran(p.x, p.y);
     // Les véhicules suivent la pente (en l'air, ils gardent leur dernière inclinaison).
     if (p.auSol) this.inclinaison = this.penteSous(p.x);
-    if (this.enRover) dessinerRover(ctx, sx, sy, echelle, p, true, this.inclinaison || 0);
+    if (this.delorean && this.delorean.phase === 'disparu') { /* quelque part dans le temps */ }
+    else if (this.enRover) {
+      dessinerRover(ctx, sx, sy, echelle, p, true, this.inclinaison || 0);
+      if (this.delorean) texteSurFond(ctx, `${fmt(Math.abs(p.vx) * 2.2369)} mph`, sx, sy - 3.2 * echelle, { police: '700 16px system-ui, sans-serif', couleur: Math.abs(p.vx) > 30 ? '#ff5252' : '#ffca28' });
+    }
     else if (this.type === 'spationaute' && this.secours && this.secours.phase === 'decollage') { /* à bord du module de secours */ }
     else if (this.type === 'spationaute') dessinerSpationaute(ctx, sx, sy, echelle, p, this.terre, this.equipier().profil);
     else {

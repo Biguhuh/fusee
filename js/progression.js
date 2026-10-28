@@ -55,7 +55,7 @@ const REFERENCES_EGGS = {
   'io-aliens': 'Toy Story (1995) : les petits extraterrestres à trois yeux de la machine à pince, qui vénèrent « le grappin ».',
   'callisto-plante': 'WALL-E (Pixar, 2008) : la petite plante dans une vieille chaussure, preuve que la vie peut revenir sur Terre.',
   'eunomie-kryptonite': 'Superman : la kryptonite verte, le seul caillou qui fasse peur au héros.',
-  'soleil-sunshine': 'Sunshine (Danny Boyle, 2007) : l’Icarus II, envoyé rallumer un Soleil mourant avec une bombe grande comme Manhattan.',
+  'soleil-sunshine': 'Sunshine (Danny Boyle, 2007) : l’Icarus II, envoyé rallumer notre Soleil mourant avec une bombe grande comme Manhattan.',
   'jupiter-albator': 'Albator (Leiji Matsumoto, 1978) : le capitaine pirate balafré et son vaisseau, l’Arcadia, au service de la seule liberté.',
   'neptune-eventhorizon': 'Event Horizon, le vaisseau de l’au-delà (Paul W. S. Anderson, 1997) : disparu près de Neptune, il réapparaît sept ans plus tard. Personne ne sait où il est allé.',
   'uranus-goldorak': 'Goldorak (Go Nagai, 1975 ; diffusé en France en 1978) : le robot géant à cornes, sa soucoupe, et son fulguropoing.',
@@ -75,6 +75,7 @@ const REFERENCES_EGGS = {
   'mars-casque': 'Mars Attacks! (Tim Burton, 1996) : les Martiens au cerveau énorme sous un casque de verre, vaincus par une chanson de yodel.',
   'mars-soucoupes': 'Mars Attacks! (Tim Burton, 1996) : les soucoupes martiennes, et le célèbre « Ack ack ack ! » des envahisseurs.',
   'lune-melies': 'Le Voyage dans la Lune (Georges Méliès, 1902) : l’obus des savants se plante dans l’œil de la Lune, l’une des images les plus célèbres du cinéma.',
+  'delorean': 'Retour vers le futur (1985) : à 88 miles à l’heure, la DeLorean voyage dans le temps et laisse deux traînées de feu sur la route.',
   'proxima-b': 'Blade Runner (1982) : la ville sous la pluie, et le test qui démasque les répliquants.',
   'lune-soucoupe': 'Independence Day (1996) : le vaisseau-mère extraterrestre, large de 550 km, en orbite près de la Lune, vaincu par un virus informatique un 4 juillet.',
   saturne: 'Space Oddity (David Bowie, 1969) : Major Tom, perdu dans sa capsule.',
@@ -92,6 +93,7 @@ const REFERENCES_EGGS = {
 // Où retrouver un easter egg déjà trouvé.
 function lieuEgg(e) {
   if (e.id === 'betelgeuse') return 'dans « Se promener », en observant Bételgeuse';
+  if (e.id === 'delorean') return 'en astromobile, sur n’importe quel astre : pied au plancher, à pleine vitesse, pendant quelques secondes';
   if (e.id === 'rama') return 'en route, en orbite autour du Soleil au-delà de 3 UA, avec l’équipage (en campagne)';
   if (e.id === 'iss-wolowitz') return 'à la Station spatiale internationale, en orbite terrestre (rendez-vous et amarrage, en campagne)';
   if (e.id.startsWith('voiture-')) return 'en orbite autour du Soleil, sur la route de la voiture rouge (en campagne)';
