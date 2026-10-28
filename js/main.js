@@ -5,6 +5,8 @@
 
 const etat = { ...charger(), destination: null, ecran: 'hangar', vol: null, explo: null, pause: false, warp: 1, finDepuis: 0, enVoyage: false };
 etat.voyage = migrerVoyage(etat.voyage);
+// Albator a quitté Neptune pour Jupiter : une trouvaille déjà faite garde sa place.
+if (etat.decouvertes && etat.decouvertes['neptune-albator']) { etat.decouvertes['jupiter-albator'] = { ...etat.decouvertes['neptune-albator'], astre: 'jupiter' }; delete etat.decouvertes['neptune-albator']; }
 
 // Sauvegarde d'une version précédente du jeu : on complète les champs qui manquent.
 function migrerVoyage(v) {

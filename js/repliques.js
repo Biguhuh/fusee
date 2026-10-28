@@ -24,6 +24,7 @@ const REPLIQUES = {
   velo: { texte: 'Devant la Lune, une petite silhouette passe à vélo, un panier sur le guidon.', source: 'E.T. l’extra-terrestre (1982)' },
   tribbles: { texte: 'Dans la soute, de petites boules de poils ronronnent. Elles sont déjà douze. Demain, elles seront plus.', source: 'Star Trek, les tribbles (1967)' },
   baleine: { texte: 'Une baleine et un pot de pétunias tombent à côté de vous. Le pot pense : « Oh non, pas encore. »', source: 'Le Guide du voyageur galactique (Douglas Adams)' },
+  eventHorizon: { texte: 'Là où on va, on n’a pas besoin d’yeux pour voir.', source: 'Event Horizon (1997)' },
   reponse42: { texte: '42 easter eggs. C’est la réponse. Reste à trouver la question.', source: 'Le Guide du voyageur galactique (Douglas Adams)' },
   chat: { texte: 'Un caillou, un chat, aucune explication.' },
   pression: { texte: 'La pression monte, le moral aussi.' },

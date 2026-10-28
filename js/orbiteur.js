@@ -264,6 +264,7 @@ const Orbiteur = {
         if (e.type === 'sortie') this.log(`Sortie de la sphère d’influence ${de(ASTRES_PAR_ID[e.de])}.`);
         if (e.type === 'sortie' && e.de === 'terre') replique('infini');
         if (e.type === 'entree' && e.vers === 'europe') replique('europe');
+        if (e.type === 'entree' && e.vers === 'neptune') replique('eventHorizon');
         // Arrivée près d'un astre : le temps ralentit tout seul (×1 000 au plus).
         if (e.type === 'entree' && !tempsReel && v.warp > 1000) { v.warp = 1000; this.log(`Temps ralenti à ×1 000 en arrivant près ${de(ASTRES_PAR_ID[e.vers])}.`); }
       }
