@@ -411,6 +411,7 @@ function afficherResultat(r) {
   // « Échec du lancement » ne concerne que les méga-fusées parties de la Terre
   // (pas le lanceur de remontée de Vénus, qui a aussi plusieurs étages).
   else if (r.lancementTerre) { titre = 'Échec du lancement : ' + titre.toLowerCase(); }
+  if (r.messageEquipage) message += ' ' + r.messageEquipage;   // lancement raté : l'équipage est mort
   // Le sort de l'équipage est séparé de celui de l'engin : on dit clairement ce qui s'est passé.
   const pertes = r.pertes || [];
   const equipage = pertes.find((p) => p.qui === 'spationaute');

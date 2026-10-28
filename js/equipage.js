@@ -90,10 +90,18 @@ const RECRUES = [
   ['Kwame', 'homme'], ['Lena', 'femme'], ['Rahul', 'homme'], ['Chloé', 'femme'], ['Nadia', 'femme'], ['Tomás', 'homme'],
   ['Aiko', 'femme'], ['Malik', 'homme'], ['Elsa', 'femme'], ['Diego', 'homme'], ['Camille', 'nb'], ['Sasha', 'nb'],
   ['Ana', 'femme'], ['Jonas', 'homme'], ['Leïla', 'femme'], ['Oscar', 'homme'], ['Priya', 'femme'], ['Ibrahim', 'homme'],
+  ['Zoé', 'femme'], ['Noah', 'homme'], ['Fatou', 'femme'], ['Lucas', 'homme'], ['Mei', 'femme'], ['Arjun', 'homme'],
+  ['Olga', 'femme'], ['Kenji', 'homme'], ['Aïcha', 'femme'], ['Mathis', 'homme'], ['Ingrid', 'femme'], ['Pablo', 'homme'],
+  ['Nour', 'nb'], ['Eden', 'nb'], ['Maya', 'femme'], ['Samuel', 'homme'], ['Lucía', 'femme'], ['Yaw', 'homme'],
+  ['Hana', 'femme'], ['Viktor', 'homme'], ['Salomé', 'femme'], ['Ravi', 'homme'], ['Awa', 'femme'], ['Émile', 'homme'],
+  ['Jade', 'femme'], ['Kofi', 'homme'], ['Irina', 'femme'], ['Hamza', 'homme'], ['Louise', 'femme'], ['Tariq', 'homme'],
+  ['Ariane', 'femme'], ['Ilan', 'homme'], ['Soraya', 'femme'], ['Bastien', 'homme'], ['Wen', 'nb'], ['Alix', 'nb'],
 ];
 function profilAleatoire(nomsPris = []) {
   const libres = RECRUES.filter(([n]) => !nomsPris.includes(n));
-  const [prenom, genre] = libres.length ? libres[Math.floor(Math.random() * libres.length)] : ['Recrue', 'aucun'];
+  // Tous les prénoms pris : on reprend un prénom avec un numéro (« Lena II »), lui aussi unique.
+  let [prenom, genre] = libres.length ? libres[Math.floor(Math.random() * libres.length)] : RECRUES[Math.floor(Math.random() * RECRUES.length)];
+  if (!libres.length) { const base = prenom; for (const n of ['II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X']) { prenom = `${base} ${n}`; if (!nomsPris.includes(prenom)) break; } }
   const hasard = (n) => Math.floor(Math.random() * n);
   const coiffures = Object.keys(COIFFURES);
   // Un membre sur huit environ vit avec un handicap d'un bras ou d'une jambe, compensé par une aide.

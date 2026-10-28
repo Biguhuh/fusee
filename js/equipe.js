@@ -105,7 +105,7 @@ function initialiserEquipe(v) {
 // Recrue supplémentaire (habitat d'une station de niveau 4).
 function recruter(v, log) {
   if (v.equipe.length >= capaciteEquipe(v)) return log(`L’équipe est au complet (${capaciteEquipe(v)} places${capaciteEquipe(v) < TAILLE_EQUIPE_HABITAT ? ' ; une station de niveau 4 en accueille 8' : ''}).`);
-  const profil = profilAleatoire(v.equipe.map((x) => x.nom));
+  const profil = profilAleatoire([...v.equipe.map((x) => x.nom), ...Object.values(registre()).map((f) => f.nom)]);
   const m = { id: 'e' + Date.now(), nom: profil.prenom, profil, dose: 0, etat: 'bord' };
   v.equipe.push(m);
   regRecrue(v, m);

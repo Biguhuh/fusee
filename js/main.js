@@ -284,6 +284,23 @@ function cibleAmarrage(vol) {
   return null;
 }
 
+// « Inès, Hugo et Amina »
+function listeNoms(l) { return l.length > 1 ? `${l.slice(0, -1).join(', ')} et ${l[l.length - 1]}` : (l[0] || ''); }
+// Lancement raté avec l'équipage à bord : chacun est noté mort au registre, et l'équipage prévu est vidé
+// (votre spationaute mort, la page d'équipage en fera créer un nouveau).
+function perdreEquipageLancement(v, r) {
+  const l = v.equipePrevue && v.equipePrevue.length ? v.equipePrevue : [{ regId: ID_JOUEUR, principal: true }];
+  const cause = { ecrasee: 'lanceur écrasé au décollage', brulee: 'lanceur détruit (surchauffe)', carburant: 'lanceur à court d’ergols', pressurisee: 'lanceur détruit' }[r.cause] || 'échec du lancement';
+  const noms = [];
+  for (const p of l) {
+    regMort(v, p, cause, SYSTEME.origine);
+    noms.push(p.principal ? majuscule(nomSpatio()) : (p.profil && p.profil.prenom) || p.nom);
+  }
+  v.equipePrevue = null;
+  sauver(etat);
+  return noms;
+}
+
 function finVol(r) {
   if (etat.vol && etat.vol.essai) return finEssai(etat.vol.essai, r.cause === 'abandon' ? '' : { ecrasee: 'drone écrasé', carburant: 'batterie vide' }[r.cause] || '');   // centre d'essai
   const rang = { pose: 1, orbite: 2, liberation: 2, plongee: 2 };
@@ -310,7 +327,10 @@ function finVol(r) {
       etat.suiteResultat = 'nav';
     } else {
       Orbiteur.charger(v);
-      Orbiteur.log('Échec du lancement de la méga-fusée.');
+      // Fusée détruite avec l'équipage à bord : tout l'équipage composé pour cette expédition est mort.
+      const morts = CAUSES_MORTELLES.includes(r.cause) ? perdreEquipageLancement(v, r) : [];
+      Orbiteur.log(morts.length ? `Échec du lancement : ${listeNoms(morts)} ${morts.length > 1 ? 'n’ont' : 'n’a'} pas survécu.` : 'Échec du lancement de la méga-fusée.');
+      if (morts.length) r.messageEquipage = `L’équipage était à bord : ${listeNoms(morts)} ${morts.length > 1 ? 'sont morts' : 'est mort'}. Il faudra composer un nouvel équipage.`;
       etat.suiteResultat = 'accueil';
     }
   } else if (etat.enVoyage && etat.vol.droneSeul) {

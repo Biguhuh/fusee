@@ -137,6 +137,24 @@ function personnesDisponibles(v, exclure = []) {
   return Object.values(registre()).filter((f) => f.id !== ID_JOUEUR && f.statut === 'vivant' && !prises.has(f.id))
     .sort((a, b) => b.expeditions.length - a.expeditions.length);
 }
+// Prénoms à ne pas redonner : tout le registre (vivants et morts), l'équipe en cours et votre spationaute.
+// Ainsi, jamais deux fois la même personne (ou le même prénom) dans un équipage.
+function nomsPris(l = []) {
+  return [...Object.values(registre()).map((f) => f.nom), ...l.map((p) => (p.principal ? nomSpatio() : (p.profil && p.profil.prenom) || p.nom || '')), nomSpatio()].filter(Boolean);
+}
+// Dédoublonnage de sécurité : même personne (identifiant) ou même prénom deux fois → nouvelle recrue à la place.
+function dedoublonnerEquipe(l) {
+  const vus = new Set(), ids = new Set();
+  for (let i = 0; i < l.length; i++) {
+    const p = l[i], nom = (p.principal ? nomSpatio() : (p.profil && p.profil.prenom) || p.nom || '').toLowerCase();
+    if ((p.regId && ids.has(p.regId)) || (nom && vus.has(nom))) {
+      const np = profilAleatoire(nomsPris(l));
+      l[i] = { regId: nouvelIdPersonne(), nom: np.prenom, profil: np };
+    }
+    ids.add(l[i].regId); vus.add((l[i].principal ? nomSpatio() : (l[i].profil && l[i].profil.prenom) || l[i].nom || '').toLowerCase());
+  }
+  return l;
+}
 // Les 3 places sont attribuées au hasard : un vétéran disponible (une chance sur deux), sinon une nouvelle recrue.
 // Tout reste modifiable dans la fenêtre de composition.
 function equipeProposee(v) {
@@ -148,7 +166,7 @@ function equipeProposee(v) {
       l.push({ regId: f.id, nom: f.nom, profil: { ...f.profil }, veteran: true });
       continue;
     }
-    const p = profilAleatoire(l.map((x) => x.nom || '').concat([nomSpatio()]));
+    const p = profilAleatoire(nomsPris(l));
     l.push({ regId: nouvelIdPersonne(), nom: p.prenom, profil: p });
   }
   return l;
@@ -189,7 +207,7 @@ function allerEquipage(v) {
       intro: `${majuscule(ancien.nom)} est mort${accAncien}${ancien.mort ? ` (${ancien.mort.cause})` : ''}. Sa fiche reste au registre des équipages. Choisissez qui prend sa place à la tête de la prochaine expédition.`,
     });
   }
-  v.equipePrevue = v.equipePrevue && v.equipePrevue.length ? v.equipePrevue : equipeProposee(v);
+  v.equipePrevue = dedoublonnerEquipe(v.equipePrevue && v.equipePrevue.length ? v.equipePrevue : equipeProposee(v));
   const l = v.equipePrevue;
   const resume = (p) => {
     if (p.principal) return 'Votre spationaute';
@@ -201,7 +219,9 @@ function allerEquipage(v) {
   const zone = $('cartes-equipage');
   $('equipage-intro').textContent = `${TAILLE_EQUIPE} places. Votre spationaute en tête ; les autres places sont attribuées au hasard (vétérans disponibles ou nouvelles recrues). Chacune peut changer : 🎲 nouvelle recrue, ou un vétéran au choix. Prénom et apparence se modifient aussi.`;
   const rendu = () => {
-    const dispo = personnesDisponibles(v, l.map((p) => p.regId));
+    // Vétérans proposés : ni déjà dans l'équipe, ni homonymes de quelqu'un qui y est déjà.
+    const prenoms = new Set(l.map((p) => (p.principal ? nomSpatio() : (p.profil && p.profil.prenom) || p.nom || '').toLowerCase()));
+    const dispo = personnesDisponibles(v, l.map((p) => p.regId)).filter((f) => !prenoms.has((f.nom || '').toLowerCase()));
     zone.innerHTML = l.map((p, i) => `<article class="carte-membre">
         <canvas width="110" height="130" data-apercu="${i}"></canvas>
         <div><b>${p.principal ? majuscule(nomSpatio()) : p.profil.prenom || 'Recrue'}</b><br><span class="doux">${resume(p)}</span></div>
@@ -212,7 +232,7 @@ function allerEquipage(v) {
         </div></article>`).join('');
     zone.querySelectorAll('[data-apercu]').forEach((cv) => { const p = l[Number(cv.dataset.apercu)]; apercuMembre(cv, p.principal ? SPATIO : p.profil); });
     zone.querySelectorAll('[data-hasard]').forEach((bt) => { bt.onclick = () => {
-      const i = Number(bt.dataset.hasard), np = profilAleatoire(l.map((x) => (x.profil ? x.profil.prenom : '')).concat([nomSpatio()]));
+      const i = Number(bt.dataset.hasard), np = profilAleatoire(nomsPris(l));
       l[i] = { regId: nouvelIdPersonne(), nom: np.prenom, profil: np }; rendu();
     }; });
     zone.querySelectorAll('[data-veteran]').forEach((sel) => { sel.onchange = () => {
