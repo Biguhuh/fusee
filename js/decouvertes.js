@@ -364,15 +364,18 @@ function actionsVoiture(orb) {
 // sur la carte ; l'orbiteur, désamarré, reste là où elle était (autour du Soleil).
 function actionVoiture(orb) {
   const v = orb.v;
+  let abs = null;
   const lancer = (r) => {
     v.propulseurs -= 1;
     const duree = (Math.PI / 2) * Math.sqrt(Math.pow(r, 3) / (2 * GM_SOLEIL));
-    v.voiture = { etat: 'chute', fin: v.t + duree };
+    const depart = V.sub(abs ? abs.r : etatAbsoluOrbiteur(orb), etatAbsolu('soleil', v.t).r);
+    v.voiture = { etat: 'chute', fin: v.t + duree, t0: v.t, r0: depart };
     orb.log(`☀️ Propulseur solaire allumé : la voiture perd sa vitesse orbitale et tombe vers le Soleil. Arrivée dans ${fmtDuree(duree)}.`);
   };
   if (v.orb.centre === 'roadster' && !voitureEtape(2)) {
     if (!aCoteDe(v, 'roadster') || !(v.propulseurs > 0)) return;
-    const car = ASTRES_PAR_ID.roadster, abs = etatAbsolu('roadster', v.t), soleil = etatAbsolu('soleil', v.t);
+    const car = ASTRES_PAR_ID.roadster, soleil = etatAbsolu('soleil', v.t);
+    abs = etatAbsolu('roadster', v.t);
     v.orb = { centre: 'soleil', r: V.add(V.sub(abs.r, soleil.r), v.orb.r), v: V.add(V.sub(abs.v, soleil.v), v.orb.v), transfert: null };
     car.cachee = true;
     if (v.cible === 'roadster') v.cible = null;
@@ -388,9 +391,28 @@ function etatAbsoluOrbiteur(orb) { return orb.absolu(orb.v.orb); }
 // ---------- Dessin de la voiture rouge sur la carte ----------
 // Une décapotable rouge vue de profil, le mannequin en combinaison au volant. Elle tourne lentement sur elle-même,
 // comme la vraie (L : longueur à l'écran, en pixels).
-function dessinerVoitureRouge(ctx, x, y, L) {
+function dessinerVoitureRouge(ctx, x, y, L, opts = {}) {
   const k = L / 40;
-  ctx.save(); ctx.translate(x, y); ctx.rotate(performance.now() / 9000); ctx.scale(k, k);
+  ctx.save(); ctx.translate(x, y); ctx.rotate(opts.angle !== undefined ? opts.angle : performance.now() / 9000); ctx.scale(k, k);
+  if (opts.angle !== undefined && Math.cos(opts.angle) < 0) ctx.scale(1, -1);   // vers la gauche : roues en bas, pas sur le toit
+  if (opts.propulseur) {
+    // Propulseur solaire fixé à l'arrière : jet ionique bleu pâle, module, et deux grands panneaux solaires.
+    const f = 1 + 0.08 * Math.sin(performance.now() / 120);
+    const g = ctx.createLinearGradient(-34, 0, -70 * f, 0);
+    g.addColorStop(0, 'rgba(129,212,250,0.95)'); g.addColorStop(1, 'rgba(129,212,250,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-33, -3); ctx.lineTo(-70 * f, -1); ctx.lineTo(-70 * f, 1); ctx.lineTo(-33, 3); ctx.fill();
+    ctx.fillStyle = '#90a4ae'; ctx.fillRect(-33, -4, 13, 8);                               // module
+    ctx.fillStyle = '#607d8b'; ctx.fillRect(-35, -3, 2.5, 6);                              // tuyère
+    ctx.fillStyle = '#b0bec5'; ctx.fillRect(-27.5, -26, 2, 52);                            // mât des panneaux
+    for (const sy of [-1, 1]) {
+      const y0 = sy < 0 ? -26 : 6;
+      ctx.fillStyle = '#1a237e'; ctx.fillRect(-37, y0, 21, 20);
+      ctx.strokeStyle = '#5c6bc0'; ctx.lineWidth = 0.6;
+      for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(-37 + i * 5.25, y0); ctx.lineTo(-37 + i * 5.25, y0 + 20); ctx.stroke(); }
+      for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(-37, y0 + i * 5); ctx.lineTo(-16, y0 + i * 5); ctx.stroke(); }
+    }
+    ctx.strokeStyle = '#78909c'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(-20, 0); ctx.lineTo(-17, 0); ctx.stroke();   // attache
+  }
   // Carrosserie : longue et basse, capot plongeant à l'avant (à droite).
   ctx.fillStyle = '#d50000';
   ctx.beginPath();
@@ -440,6 +462,30 @@ function positionVoyager(vg, t) {
   const ye = y * Math.cos(eps) + z * Math.sin(eps);
   return { r, carte: [x * r * UA_KM, ye * r * UA_KM] };
 }
+// Voiture envoyée vers le Soleil : elle tombe presque en ligne droite (chute radiale depuis le repos).
+// r = r0 (1 + cos θ) / 2, t = √(r0³ / 8GM) (θ + sin θ) ; on retrouve θ par la méthode de Newton.
+function positionVoitureEnChute(vc, t) {
+  const r0 = V.norm(vc.r0), T = Math.sqrt((r0 * r0 * r0) / (8 * GM_SOLEIL)), cible = Math.min(t - vc.t0, vc.fin - vc.t0) / T;
+  let th = Math.min(Math.PI, cible);
+  for (let i = 0; i < 20; i++) th -= (th + Math.sin(th) - cible) / (1 + Math.cos(th) || 1e-6);
+  th = Math.max(0, Math.min(Math.PI, th));
+  return V.mul(V.unit(vc.r0), (r0 * (1 + Math.cos(th))) / 2);
+}
+function dessinerVoitureEnChute(ctx, ecran, dansEcran, t, s, v) {
+  const vc = v.voiture;
+  if (SYSTEME.id !== 'solaire' || !vc || vc.etat !== 'chute' || !vc.r0 || t >= vc.fin) return;
+  const p = V.add(etatAbsolu('soleil', t).r, positionVoitureEnChute(vc, t));
+  const depart = ecran(V.add(etatAbsolu('soleil', t).r, vc.r0)), e = ecran(p), soleil = ecran(etatAbsolu('soleil', t).r);
+  // Trajectoire : du point de départ au Soleil, en pointillés.
+  ctx.strokeStyle = 'rgba(255,138,101,0.45)'; ctx.setLineDash([3, 5]); ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(depart[0], depart[1]); ctx.lineTo(soleil[0], soleil[1]); ctx.stroke(); ctx.setLineDash([]);
+  if (!dansEcran(e, 80)) return;
+  // L'avant de la voiture regarde le Soleil, le jet part à l'opposé.
+  const angle = Math.atan2(soleil[1] - e[1], soleil[0] - e[0]);
+  dessinerVoitureRouge(ctx, e[0], e[1], Math.max(30, 0.004 * s * 2.2), { propulseur: true, angle });
+  texteSurFond(ctx, `Voiture rouge → Soleil · ${fmtDuree(vc.fin - t)}`, e[0], e[1] - 30, { police: '11px system-ui, sans-serif', couleur: '#ffab91' });
+}
+
 // Independence Day : le vaisseau-mère (550 km de large) attend derrière la Lune, à l'opposé de la Terre.
 // On le voit sur la carte en orbite lunaire, puis partout une fois découvert.
 function dessinerVaisseauMere(ctx, ecran, dansEcran, t, s, v) {
