@@ -177,6 +177,8 @@ const TRACES_REELLES = {
 const EGGS_ORBITE = [
   { id: 'lune-soucoupe', astre: 'lune',
     texte: 'Derrière la Lune, le vaisseau-mère, grand comme un pays, attend le 4 juillet. Quelqu’un lui a déjà envoyé un virus.' },
+  { id: 'lune-melies', astre: 'lune',
+    texte: 'La Lune vous regarde. Un obus est planté dans son œil droit, et elle fait la grimace. Des savants en redingote sont passés par là, en 1902.' },
   { id: 'saturne', astre: 'saturne', titre: 'Space Oddity',
     texte: 'Une capsule vide dérive. Personne n’a répondu depuis longtemps.' },
   { id: 'soleil-sunshine', astre: 'soleil',
@@ -484,6 +486,30 @@ function dessinerVoitureEnChute(ctx, ecran, dansEcran, t, s, v) {
   const angle = Math.atan2(soleil[1] - e[1], soleil[0] - e[0]);
   dessinerVoitureRouge(ctx, e[0], e[1], Math.max(30, 0.004 * s * 2.2), { propulseur: true, angle });
   texteSurFond(ctx, `Voiture rouge → Soleil · ${fmtDuree(vc.fin - t)}`, e[0], e[1] - 30, { police: '11px system-ui, sans-serif', couleur: '#ffab91' });
+}
+
+// Le Voyage dans la Lune (Méliès, 1902) : une fois découvert, la Lune vue de près montre son visage, l'obus dans l'œil.
+function dessinerVisageMelies(ctx, x, y, r) {
+  if (!eggTrouve('lune-melies') || r < 30) return;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(40,40,40,0.45)'; ctx.fillStyle = 'rgba(40,40,40,0.35)'; ctx.lineWidth = Math.max(1.5, r * 0.035);
+  // Œil gauche, plissé de douleur ; œil droit, l'obus planté dedans.
+  ctx.beginPath(); ctx.moveTo(x - r * 0.48, y - r * 0.22); ctx.quadraticCurveTo(x - r * 0.33, y - r * 0.32, x - r * 0.18, y - r * 0.22); ctx.stroke();
+  ctx.beginPath(); ctx.arc(x + r * 0.33, y - r * 0.2, r * 0.12, 0, Math.PI * 2); ctx.fill();
+  for (let i = 0; i < 6; i++) {   // fissures autour de l'œil : l'obus s'est bien enfoncé
+    const a = i * 1.05 + 0.4;
+    ctx.beginPath(); ctx.moveTo(x + r * 0.33 + Math.cos(a) * r * 0.12, y - r * 0.2 + Math.sin(a) * r * 0.12);
+    ctx.lineTo(x + r * 0.33 + Math.cos(a + 0.2) * r * 0.2, y - r * 0.2 + Math.sin(a + 0.2) * r * 0.2); ctx.stroke();
+  }
+  ctx.beginPath(); ctx.moveTo(x - r * 0.1, y - r * 0.05); ctx.quadraticCurveTo(x - r * 0.02, y + r * 0.12, x + r * 0.06, y + r * 0.05); ctx.stroke();   // nez
+  ctx.beginPath(); ctx.moveTo(x - r * 0.35, y + r * 0.42); ctx.quadraticCurveTo(x, y + r * 0.3, x + r * 0.35, y + r * 0.42); ctx.stroke();   // bouche en grimace
+  // L'obus : un cylindre argenté à pointe, enfoncé dans l'œil, l'arrière qui dépasse.
+  ctx.translate(x + r * 0.33, y - r * 0.2); ctx.rotate(-0.6);
+  const L = r * 0.42, e = r * 0.1;
+  ctx.fillStyle = '#cfd8dc'; ctx.fillRect(0, -e / 2, L, e);
+  ctx.fillStyle = '#90a4ae'; ctx.fillRect(L * 0.75, -e / 2, L * 0.08, e);
+  for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(L * 0.85, s * e / 2); ctx.lineTo(L * 1.05, s * e * 1.2); ctx.lineTo(L, s * e / 2); ctx.fill(); }   // ailerons
+  ctx.restore();
 }
 
 // Independence Day : le vaisseau-mère (550 km de large) attend derrière la Lune, à l'opposé de la Terre.

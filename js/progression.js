@@ -74,6 +74,7 @@ const REFERENCES_EGGS = {
   'barnard-yeux': 'Pitch Black (2000), premier film de la saga Riddick : ses yeux opérés voient dans le noir et brillent d’un éclat argenté.',
   'mars-casque': 'Mars Attacks! (Tim Burton, 1996) : les Martiens au cerveau énorme sous un casque de verre, vaincus par une chanson de yodel.',
   'mars-soucoupes': 'Mars Attacks! (Tim Burton, 1996) : les soucoupes martiennes, et le célèbre « Ack ack ack ! » des envahisseurs.',
+  'lune-melies': 'Le Voyage dans la Lune (Georges Méliès, 1902) : l’obus des savants se plante dans l’œil de la Lune, l’une des images les plus célèbres du cinéma.',
   'proxima-b': 'Blade Runner (1982) : la ville sous la pluie, et le test qui démasque les répliquants.',
   'lune-soucoupe': 'Independence Day (1996) : le vaisseau-mère extraterrestre, large de 550 km, en orbite près de la Lune, vaincu par un virus informatique un 4 juillet.',
   saturne: 'Space Oddity (David Bowie, 1969) : Major Tom, perdu dans sa capsule.',

@@ -1795,6 +1795,7 @@ const Orbiteur = {
         }
         // Le Soleil un peu « au-dessus » (inclinaison de l'axe, comme en été boréal) : le pôle reste éclairé.
         dessinerGlobe(ctx, a, p[0], p[1], rr, { vue: 'pole', lon0, lumiere: [versSoleil[0], -versSoleil[1], 0.45] });
+        if (a.id === 'lune') dessinerVisageMelies(ctx, p[0], p[1], rr);
       }
       // Sphère d'influence de la cible et du centre courant
       if ((a.id === v.cible || a.id === v.orb.centre) && a.soi < Infinity && a.soi * s > rr + 6) {
