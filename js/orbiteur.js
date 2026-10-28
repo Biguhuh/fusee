@@ -36,7 +36,9 @@ const CEINTURE = Array.from({ length: 1400 }, (_, i) => {
 const Orbiteur = {
   v: null,            // état du voyage (sauvegardé)
   etape: null,        // prochaine étape calculée (non sauvegardée)
-  auto: false,        // pilote auto en marche
+  // Pilote auto en marche : gardé dans la partie (v.piloteAuto), pour que le trajet reprenne après un rechargement.
+  get auto() { return !!(this.v && this.v.piloteAuto); },
+  set auto(x) { if (this.v) this.v.piloteAuto = !!x; },
   avance: false,      // assistant : avancer jusqu'à l'étape
   cam: { focus: 'orbiteur', echelle: 0.02, decal: [0, 0] },
   zones: [],
@@ -138,7 +140,8 @@ const Orbiteur = {
     return { n, liste };
   },
 
-  charger(v) { this.v = v; this.etape = null; this.auto = false; this.avance = false; this.messages = []; },
+  // Le pilote auto garde son état (le trajet en cours continue) ; sans cible, il n'a rien à faire.
+  charger(v) { this.v = v; this.etape = null; if (!v.cible) this.auto = false; this.avance = false; this.messages = []; },
 
   // ---------- Outils ----------
   absolu(vs) { const c = etatAbsolu(vs.centre, this.v.t); return V.add(c.r, vs.r); },

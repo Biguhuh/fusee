@@ -764,6 +764,7 @@ function promenadeSurTerre() {
 }
 
 // ---------- Voyage (orbiteur) ----------
+let trajetAnnonce = false;   // « Trajet repris » : dit une fois, à la première ouverture après le chargement
 function allerNavigation() {
   if (!etat.voyage) etat.voyage = Orbiteur.nouveauVoyage();
   if (etat.voyage.fin) return allerAccueil();      // campagne terminée (départ vers une autre étoile)
@@ -776,6 +777,11 @@ function allerNavigation() {
   }
   Orbiteur.charger(etat.voyage);
   if (etat.reprendreAuto) { Orbiteur.auto = true; etat.reprendreAuto = false; }
+  // Partie rechargée en plein trajet : le pilote auto reprend là où il en était.
+  if (!trajetAnnonce && Orbiteur.auto && etat.voyage.cible && ASTRES_PAR_ID[etat.voyage.cible]) {
+    Orbiteur.log(`🚀 Trajet repris : le pilote auto poursuit vers ${le(ASTRES_PAR_ID[etat.voyage.cible])}.`);
+  }
+  trajetAnnonce = true;
   Orbiteur.construireHud();
   if (!Orbiteur.camPlacee) { Orbiteur.centrerSur('orbiteur'); Orbiteur.camPlacee = true; }
   etat.pause = false;
@@ -831,6 +837,7 @@ function reprendreDepuis(id) {
   if (lirePointReprise(v)) oublierPointReprise();   // repartir d'ailleurs : la perte est actée
   if (id === 'terre') return v.orb ? allerLancement() : allerEquipage(v);   // nouvelle expédition : l'équipage d'abord
   Orbiteur.charger(v);
+  Orbiteur.auto = false;   // repartir d'une station ou d'une base : le trajet en cours s'arrête
   if (!v.orb) {
     // Autre système : pas de nouvelle expédition possible (rien ne vient de la Terre).
     if (!ressourcesIllimitees()) { alert('Plus d’orbiteur : dans ce système, une nouvelle expédition ne peut pas être lancée.'); return allerAccueil(); }
@@ -1182,6 +1189,10 @@ addEventListener('keydown', (e) => {
   }
   if ((e.code === 'KeyE' || e.code === 'KeyR') && v.pose && v.astre.type === 'solide') {
     const type = e.code === 'KeyE' ? 'spationaute' : 'robot';
+    if (type === 'spationaute' && v.spatioPerdu) {
+      const q = v.equipier || { nom: nomSpatio(), acc: acc() };
+      return refus(`${majuscule(q.nom)} n’est pas revenu${q.acc || ''} de sa sortie : plus personne à bord ne peut sortir. Il reste le robot (R), ou le décollage (T).`);
+    }
     // Dehors, c'est mortel (pression, chaleur, rayonnement) : on prévient, mais on laisse sortir.
     const dangers = dangersSortie(v, type);
     if (dangers.length && !confirm(`⚠ Sortie dangereuse ${sur(v.astre)} :\n\n• ${dangers.join('\n• ')}\n\nSortir quand même ?`)) return;
@@ -1348,6 +1359,8 @@ function image(t) {
       if (x.type === 'spationaute' && !x.terre) { etat.vol.doseSv = x.doseSv; etat.vol.dose = x.dose; }
       // Une sortie qui tourne mal est notée : l'écran de résultat en parlera, même si la remontée réussit.
       if (x.fin.issue === 'perdu' && !x.terre) (etat.vol.pertes = etat.vol.pertes || []).push({ qui: x.type, texte: x.fin.texte });
+      // Le module n'emporte qu'un spationaute : mort dehors, plus personne ne peut ressortir.
+      if (x.fin.issue === 'perdu' && x.type === 'spationaute' && !x.terre) etat.vol.spatioPerdu = true;
       // Campagne : l'équipage perdu ne reviendra pas (la capsule rentrera vide).
       if (x.fin.issue === 'perdu' && x.type === 'spationaute' && !x.terre && etat.enVoyage && etat.voyage) {
         perdrePilote(etat.voyage, etat.vol.astre.id, causeSortie(x.fin.texte), etat.vol.equipier);
