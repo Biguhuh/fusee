@@ -139,7 +139,7 @@ class Vol {
         this.autopilote = true;
       } else return;
     }
-    if (this.lancement && this.tDecollage && !this.pose) this.suivreLancement();
+    if (this.lancement && this.tDecollage && !this.pose) this.suivreLancement(dt);
     if (this.phase === 'ballon') {
       this.stepBallon(dt);
       if (!this.fin) this.objectifs();
@@ -173,7 +173,7 @@ class Vol {
         // L'étage vide retombe : on le voit s'éloigner. Le bas de la fusée est maintenant le haut de l'étage largué.
         const lenLargue = f.etages[f.etage - 1].hauteur - f.hauteur;
         this.y += lenLargue * Math.cos(this.angle); this.x += lenLargue * Math.sin(this.angle);
-        this.etageLargue = { x: this.x, y: this.y, vx: this.vx, vy: this.vy - 3, angle: this.angle, h: lenLargue, etage: f.etage - 1, t: 0 };
+        this.etageLargue = { x: this.x, y: this.y, vx: this.vx, vy: this.vy - 3, angle: this.angle, h: lenLargue, etage: f.etage - 1, t: 0, t0: this.t - dt };   // largué au début du pas : la fusée avance encore de dt
         this.tSeparation = performance.now();   // le temps ralentit à ×1 pour voir l'étage s'éloigner
       }
       if (this.carburant === 0 && this.carburantVideAlt === null) this.carburantVideAlt = this.altSol();
@@ -613,7 +613,7 @@ class Vol {
   }
 
   // Événements de la montée : Max Q, coiffe.
-  suivreLancement() {
+  suivreLancement(dt = 0) {
     const v = Math.hypot(this.vx, this.vy);
     const q = 0.5 * this.c.rho * v * v;
     this.qMax = Math.max(this.qMax || 0, q);
@@ -635,7 +635,7 @@ class Vol {
     if (!this.coiffeLarguee && coiffeALarguer(this.astre, this.y, this.y - this.sol(this.x))) {
       this.coiffeLarguee = true;
       // Les deux demi-coiffes s'écartent : on découvre l'orbiteur et son atterrisseur.
-      if (this.f.charge) { this.coiffeDebris = { x: this.x, y: this.y, vx: this.vx, vy: this.vy, angle: this.angle, t: 0 }; this.tSeparation = performance.now(); }
+      if (this.f.charge) { this.coiffeDebris = { x: this.x, y: this.y, vx: this.vx, vy: this.vy, angle: this.angle, t: 0, t0: this.t - dt }; this.tSeparation = performance.now(); }   // avant que la fusée n'avance de dt
       this.noter(TEXTES_COIFFE[typeAtmosphere(this.astre)]);
     }
   }
@@ -963,8 +963,9 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
   if (vol.etageLargue && dtReel > 0) {
     const e = vol.etageLargue;
     // L'étage vide n'a plus de poussée : gravité (à son altitude) et frottement de l'air seulement.
-    avancerDebris(vol, e, dtReel * warp, vol.f.etages[e.etage]);
-    e.angle += 0.05 * dtReel * warp;
+    const d = tempsDebris(vol, e, dtReel * warp);
+    avancerDebris(vol, e, d, vol.f.etages[e.etage]);
+    e.angle += 0.05 * d;
     const sx = W / 2 + (e.x - vol.x) * kVisu, sy = fuseeY + (vol.y - e.y) * kVisu;
     if (e.t < 120 && sx > -300 && sx < W + 300 && sy > -300 && sy < H + 300) {
       const kk = kVisu, hh = e.h * kk;
@@ -978,7 +979,7 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
   // Demi-coiffes qui s'écartent et retombent
   if (vol.coiffeDebris && dtReel > 0) {
     const e = vol.coiffeDebris, ch = vol.f.charge;
-    avancerDebris(vol, e, dtReel * warp, null);
+    avancerDebris(vol, e, tempsDebris(vol, e, dtReel * warp), null);
     const kk = kVisu;
     const sx = W / 2 + (e.x - vol.x) * kk, sy = fuseeY + (vol.y - e.y) * kk;
     if (e.t < 60) {
@@ -1037,6 +1038,12 @@ function coiffeALarguer(a, alt, hauteurSol) {
   return typeAtmosphere(a) === 'vide' || conditions(a, alt).rho < RHO_COIFFE;
 }
 
+// Temps dont un débris doit avancer pour rester à la même date que la fusée : le temps simulé depuis la séparation,
+// moins ce qu'il a déjà parcouru. (Anciens débris sans date de départ : le temps de l'image.)
+function tempsDebris(vol, e, parDefaut) {
+  if (e.t0 === undefined || vol.t === undefined) return parDefaut;
+  return Math.max(0, vol.t - e.t0 - e.t);
+}
 // Débris (étage vide, demi-coiffes) : mouvement balistique, comme la fusée mais sans poussée.
 // Gravité à leur altitude (moins l'effet centrifuge), frottement de l'air selon leur masse et leur section.
 function avancerDebris(vol, e, duree, etage) {
