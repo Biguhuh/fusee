@@ -123,6 +123,13 @@ const EASTER_EGGS = [
     texte: 'Un chapeau de paille au ruban rouge, posé sur un rocher. Son propriétaire a juré de devenir le roi des pirates. Il reviendra le chercher.' },
   { id: 'barnard-cylon', astre: 'barnard_p3', dx: -300, dessin: 'cylon',
     texte: 'Un robot chromé dont l’œil rouge balaie l’horizon, de gauche à droite, sans fin. Ils sont nombreux. Ils ont un plan.' },
+  // Riddick et Mars Attacks!
+  { id: 'trappist-crematoria', astre: 'trappist1_p1', dx: 350, dessin: 'tracesVersOuest',
+    texte: 'Des traces de pas filent vers l’ouest, juste devant la ligne du jour. Ici, le sol monte à 700 °C au lever du soleil. Quelqu’un court avec la nuit, depuis longtemps.' },
+  { id: 'barnard-yeux', astre: 'barnard_p1', dx: -380, dessin: 'yeuxArgentes',
+    texte: 'Dans le noir, deux yeux argentés brillent. Ils vous voient très bien. Vous, non.' },
+  { id: 'mars-casque', astre: 'mars', dx: 380, dessin: 'casqueCerveau',
+    texte: 'Un casque de verre fendu ; dedans, un cerveau énorme, tout ratatiné. À côté, une petite radio grésille encore une chanson de yodel. Ack.' },
   { id: 'proxima-b', astre: 'proxima_p2', dx: -400, dessin: 'villePluie',
     texte: 'Une pluie noire tombe sur la ville. Des silhouettes répondent à des questions étranges.' },
 ];
@@ -186,6 +193,8 @@ const EGGS_ORBITE = [
     texte: 'Un trois-mâts à tête de lion vogue entre les nuages d’Ægir, le dieu de la mer. Sur la voile, une tête de mort coiffée d’un chapeau de paille. L’équipage chante.' },
   { id: 'mars-galactica', astre: 'mars',
     texte: 'Un vaisseau de guerre gris, long comme une ville, escorte une flotte de fortune. Ils cherchent une planète nommée Terre. Elle est juste à côté. Personne n’ose le leur dire.' },
+  { id: 'mars-soucoupes', astre: 'mars',
+    texte: 'Une escadrille de soucoupes argentées décolle de Mars à votre arrivée. Elles tournent autour du vaisseau, puis repartent en ricanant. Ack ack ack !' },
   { id: 'tauceti-balise', astre: 'tauceti_p4',
     texte: 'Une vieille balise rouillée, frappée du sigle d’une grande compagnie interstellaire : Weyland. Elle répète le nom d’une survivante, Ripley, et parle d’un chat.' },
   { id: 'trappist-f', astre: 'trappist1_p5',
@@ -215,10 +224,11 @@ function verifierRama(orb) {
 // Appelé par l'orbiteur à chaque avancée du temps.
 function verifierEggsOrbite(orb, dt) {
   const v = orb.v;
-  const e = EGGS_ORBITE.find((x) => x.astre === v.orb.centre);
-  if (!e || eggTrouve(e.id) || !orb.orbiteFermee()) { v.observation = null; return; }
+  // Plusieurs easter eggs autour d'un même astre (Mars) : on découvre le premier pas encore trouvé, puis le suivant.
+  const e = EGGS_ORBITE.find((x) => x.astre === v.orb.centre && !eggTrouve(x.id));
+  if (!e || !orb.orbiteFermee()) { v.observation = null; return; }
   const a = ASTRES_PAR_ID[e.astre];
-  if (!v.observation || v.observation.astre !== e.astre) v.observation = { astre: e.astre, duree: 0 };
+  if (!v.observation || v.observation.astre !== e.astre || (v.observation.id && v.observation.id !== e.id)) v.observation = { astre: e.astre, id: e.id, duree: 0 };
   v.observation.duree += dt;
   const periode = elements(v.orb.r, v.orb.v, a.gm).periode;
   if (v.observation.duree < Math.min(periode, DUREE_MAX_OBSERVATION)) return;
@@ -232,8 +242,8 @@ function verifierEggsOrbite(orb, dt) {
 
 // Sonde arrivée en orbite : un mot sur l'objet inhabituel, sans rien révéler.
 function signalSonde(astreId) {
-  const e = EGGS_ORBITE.find((x) => x.astre === astreId);
-  if (!e || eggTrouve(e.id)) return '';
+  const e = EGGS_ORBITE.find((x) => x.astre === astreId && !eggTrouve(x.id));
+  if (!e) return '';
   etat.reperes = etat.reperes || {};
   etat.reperes[e.id] = true;
   return ' Objet inhabituel en orbite. Une exploration humaine permettrait de l’examiner.';
@@ -838,6 +848,37 @@ const DESSINS_TRACES = {
 };
 
 const DESSINS_EGGS = {
+  // Crématoria : des pas qui s'éloignent vers l'ouest (la gauche), sur le sol brûlé.
+  tracesVersOuest(ctx, x, y, s) {
+    for (let k = 0; k < 24; k++) {
+      const xx = x - k * 0.75 * s, a = Math.max(0.15, 1 - k / 24);
+      ctx.fillStyle = `rgba(255,${110 + k * 4},40,${a * 0.85})`;   // empreintes encore brûlantes
+      ctx.beginPath(); ctx.ellipse(xx, y - (k % 2 ? 0.02 : 0.08) * s, 0.14 * s, 0.05 * s, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(255,120,40,0.25)'; ctx.fillRect(x + 1 * s, y - 0.4 * s, 6 * s, 0.4 * s);   // la chaleur qui monte, à l'est
+  },
+  // Pitch Black : deux yeux argentés dans le noir, qui clignent de temps en temps.
+  yeuxArgentes(ctx, x, y, s) {
+    if (Math.sin(performance.now() / 1300) > 0.94) return;
+    for (const dx of [-0.07, 0.07]) {
+      disque(ctx, x + dx * s, y - 1.7 * s, 0.09 * s, 'rgba(207,216,220,0.25)');
+      disque(ctx, x + dx * s, y - 1.7 * s, 0.035 * s, '#eceff1');
+    }
+  },
+  casqueCerveau(ctx, x, y, s) {
+    ctx.fillStyle = 'rgba(225,245,254,0.35)'; ctx.beginPath(); ctx.arc(x, y - 0.42 * s, 0.42 * s, 0, Math.PI * 2); ctx.fill();   // casque de verre
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 0.02 * s;
+    ctx.beginPath(); ctx.moveTo(x - 0.1 * s, y - 0.8 * s); ctx.lineTo(x + 0.02 * s, y - 0.55 * s); ctx.lineTo(x - 0.06 * s, y - 0.4 * s); ctx.stroke();   // fêlure
+    ctx.fillStyle = '#f48fb1'; ctx.beginPath(); ctx.ellipse(x, y - 0.32 * s, 0.24 * s, 0.17 * s, 0, 0, Math.PI * 2); ctx.fill();   // cerveau ratatiné
+    ctx.strokeStyle = '#c2185b'; ctx.lineWidth = 0.02 * s;
+    for (const dx of [-0.12, 0, 0.12]) { ctx.beginPath(); ctx.arc(x + dx * s, y - 0.34 * s, 0.07 * s, 0.3, 2.8); ctx.stroke(); }
+    rect(ctx, x + 0.65 * s, y - 0.28 * s, 0.4 * s, 0.28 * s, '#6d4c41');   // la radio
+    disque(ctx, x + 0.77 * s, y - 0.14 * s, 0.07 * s, '#3e2723');
+    trait(ctx, [[x + 1 * s, y - 0.28 * s], [x + 1.15 * s, y - 0.6 * s]], '#9e9e9e', 0.015 * s);
+    const t = performance.now() / 400;
+    ctx.fillStyle = '#fff59d'; ctx.font = `${Math.max(8, 0.22 * s)}px sans-serif`;
+    ctx.fillText('♪', x + 1.1 * s + Math.sin(t) * 0.1 * s, y - (0.5 + (t % 1) * 0.5) * s);
+  },
   chapeauPaille(ctx, x, y, s) {
     ctx.fillStyle = '#8d8d8d'; ctx.beginPath(); ctx.ellipse(x, y, 0.8 * s, 0.35 * s, 0, Math.PI, 0); ctx.fill();   // rocher
     ctx.fillStyle = '#f4d58d'; ctx.beginPath(); ctx.ellipse(x, y - 0.36 * s, 0.6 * s, 0.1 * s, 0, 0, Math.PI * 2); ctx.fill();   // bord
