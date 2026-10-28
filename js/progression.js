@@ -48,10 +48,10 @@ const REFERENCES_EGGS = {
   'barnard-ver': 'Dune (Frank Herbert, 1965) : sur Arrakis, les vers géants des sables viennent à qui marche en rythme.',
   'hygie-prince': 'Le Petit Prince (Saint-Exupéry, 1943) : l’astéroïde B 612, ses trois volcans, sa rose sous globe et ses baobabs à arracher.',
   'ariel-solaris': 'Solaris (Stanisław Lem, 1961 ; films de Tarkovski, 1972, et Soderbergh, 2002) : une planète qui fait réapparaître les êtres disparus.',
-  'psyche-cabine': 'Doctor Who (depuis 1963) : le TARDIS, cabine de police bleue plus grande à l’intérieur qu’à l’extérieur.',
-  'oberon-kerbal': 'Kerbal Space Program (2015) : le jeu des petits astronautes verts, toujours souriants, même quand la fusée explose.',
+  'proxima-cabine': 'Doctor Who (depuis 1963) : le TARDIS, cabine de police bleue plus grande à l’intérieur qu’à l’extérieur.',
+  'epseri-kerbal': 'Kerbal Space Program (2015) : le jeu des petits astronautes verts, toujours souriants, même quand la fusée explose.',
   'nereide-nono': 'Ulysse 31 (1981) : Nono, le petit robot qui mange des boulons, compagnon d’Ulysse et de son fils perdus dans l’espace.',
-  'protee-feu': 'Outer Wilds (2019) : un feu de camp, des guimauves, et une boucle de 22 minutes avant que le Soleil n’explose.',
+  'lalande-feu': 'Outer Wilds (2019) : un feu de camp, des guimauves, et une boucle de 22 minutes avant que le Soleil n’explose.',
   'io-aliens': 'Toy Story (1995) : les petits extraterrestres à trois yeux de la machine à pince, qui vénèrent « le grappin ».',
   'callisto-plante': 'WALL-E (Pixar, 2008) : la petite plante dans une vieille chaussure, preuve que la vie peut revenir sur Terre.',
   'eunomie-kryptonite': 'Superman : la kryptonite verte, le seul caillou qui fasse peur au héros.',
@@ -69,7 +69,7 @@ const REFERENCES_EGGS = {
   'tauceti-chapeau': 'One Piece (Eiichirō Oda, depuis 1997) : le chapeau de paille de Monkey D. Luffy, qui a juré de devenir le roi des pirates.',
   'aegir-navire': 'One Piece : le Thousand Sunny, navire à tête de lion de l’équipage du Chapeau de paille. Ægir est le dieu nordique de la mer.',
   'barnard-cylon': 'Battlestar Galactica (1978 ; 2004) : les Cylons, robots à l’œil rouge qui balaie de gauche à droite, et qui ont un plan.',
-  'mars-galactica': 'Battlestar Galactica (1978 ; 2004) : le vaisseau de guerre Galactica escorte les derniers humains, à la recherche d’une planète mythique, la Terre.',
+  'lalande-galactica': 'Battlestar Galactica (1978 ; 2004) : le vaisseau de guerre Galactica escorte les derniers humains, à la recherche d’une planète mythique, la Terre.',
   'trappist-crematoria': 'Les Chroniques de Riddick (2004) : Crématoria, planète-prison où le lever du soleil brûle tout ; les évadés courent devant l’aube.',
   'barnard-yeux': 'Pitch Black (2000), premier film de la saga Riddick : ses yeux opérés voient dans le noir et brillent d’un éclat argenté.',
   'mars-casque': 'Mars Attacks! (Tim Burton, 1996) : les Martiens au cerveau énorme sous un casque de verre, vaincus par une chanson de yodel.',
@@ -93,7 +93,7 @@ const REFERENCES_EGGS = {
 // Où retrouver un easter egg déjà trouvé.
 function lieuEgg(e) {
   if (e.id === 'betelgeuse') return 'dans « Se promener », en observant Bételgeuse';
-  if (e.id === 'delorean') return 'en astromobile, sur n’importe quel astre : pied au plancher, à pleine vitesse, pendant quelques secondes';
+  if (e.id === 'delorean') return 'en astromobile, sur n’importe quel astre : loin du module, pied au plancher en s’en éloignant, longtemps';
   if (e.id === 'rama') return 'en route, en orbite autour du Soleil au-delà de 3 UA, avec l’équipage (en campagne)';
   if (e.id === 'iss-wolowitz') return 'à la Station spatiale internationale, en orbite terrestre (rendez-vous et amarrage, en campagne)';
   if (e.id.startsWith('voiture-')) return 'en orbite autour du Soleil, sur la route de la voiture rouge (en campagne)';

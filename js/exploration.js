@@ -703,7 +703,7 @@ class Exploration {
     if (gaz && alt < 12 && Math.random() < 0.6) this.fx.push({ x: s.x + (Math.random() - 0.5) * 3, y: this.sol(s.x), vx: (Math.random() - 0.5) * 4, vy: Math.random() * 1.5, vie: 0, max: 0.8 });   // poussière soufflée
   }
 
-  // Retour vers le futur : pied au plancher en astromobile pendant 6 s, elle s'emballe jusqu'à 88 miles à l'heure,
+  // Retour vers le futur : pied au plancher en astromobile, longtemps, loin du module, elle s'emballe jusqu'à 88 miles à l'heure,
   // disparaît dans un éclair en laissant deux traînées de feu, et réapparaît 20 s plus tard un peu plus loin.
   // Pour l'équipage, le saut est instantané : ni oxygène ni batterie consommés.
   surveillerDelorean(dt, veut, vMax) {
@@ -715,9 +715,13 @@ class Exploration {
       if (Math.abs(this.p.vx) >= V_88MPH) { this.disparaitreDelorean(); return 0; }
       return this.vMaxRover + (V_88MPH + 1 - this.vMaxRover) * Math.min(1, d.t / 4);
     }
-    const pleinPot = veut && this.p.auSol && Math.abs(this.p.vx) >= this.vMaxRover * 0.97;
+    // Il faut le vouloir : pied au plancher pendant 40 s d'affilée, à plus de 150 m du module et en s'en éloignant.
+    // Aller jusqu'à un échantillon, ou rentrer au module, ne le déclenche pas.
+    const loin = distSol(this.astre, this.p.x, this.xFusee) > 150;
+    const sEloigne = Math.sign(ecartSol(this.astre, this.p.x, this.xFusee)) === Math.sign(this.p.vx);
+    const pleinPot = veut && this.p.auSol && Math.abs(this.p.vx) >= this.vMaxRover * 0.97 && loin && sEloigne;
     this.pleinGaz = pleinPot ? (this.pleinGaz || 0) + dt : 0;
-    if (this.pleinGaz >= 6) { this.delorean = { phase: 'emballe', t: 0, x0: this.p.x }; this.dire('⚡ Pied au plancher… l’astromobile s’emballe !'); }
+    if (this.pleinGaz >= 40) { this.delorean = { phase: 'emballe', t: 0, x0: this.p.x }; this.dire('⚡ Pied au plancher… l’astromobile s’emballe !'); }
     return vMax;
   }
   disparaitreDelorean() {

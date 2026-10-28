@@ -5,8 +5,16 @@
 
 const etat = { ...charger(), destination: null, ecran: 'hangar', vol: null, explo: null, pause: false, warp: 1, finDepuis: 0, enVoyage: false };
 etat.voyage = migrerVoyage(etat.voyage);
-// Albator a quitté Neptune pour Jupiter : une trouvaille déjà faite garde sa place.
-if (etat.decouvertes && etat.decouvertes['neptune-albator']) { etat.decouvertes['jupiter-albator'] = { ...etat.decouvertes['neptune-albator'], astre: 'jupiter' }; delete etat.decouvertes['neptune-albator']; }
+// Easter eggs déplacés : une trouvaille déjà faite garde sa place, sous le nouvel identifiant.
+const EGGS_RENOMMES = { 'neptune-albator': ['jupiter-albator', 'jupiter'], 'mars-galactica': ['lalande-galactica', 'lalande_p2'], 'protee-feu': ['lalande-feu', 'lalande_p1'],
+  'psyche-cabine': ['proxima-cabine', 'proxima_p1'], 'oberon-kerbal': ['epseri-kerbal', 'epseri_ast1'] };
+for (const [ancien, [nouveau, astre]] of Object.entries(EGGS_RENOMMES)) {
+  if (etat.decouvertes && etat.decouvertes[ancien]) { etat.decouvertes[nouveau] = { ...etat.decouvertes[ancien], astre }; delete etat.decouvertes[ancien]; }
+  if (etat.reperes && etat.reperes[ancien]) { etat.reperes[nouveau] = true; delete etat.reperes[ancien]; }
+  for (const f of Object.values(etat.registre || {})) for (const x of [f, ...Object.values(f.parCampagne || {})]) {
+    if (x.artefacts) x.artefacts = x.artefacts.map((a) => (a === ancien ? nouveau : a));
+  }
+}
 
 // Sauvegarde d'une version précédente du jeu : on complète les champs qui manquent.
 function migrerVoyage(v) {
