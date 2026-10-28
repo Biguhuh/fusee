@@ -12,7 +12,7 @@ const EASTER_EGGS = [
   { id: 'mars', astre: 'mars', dx: 500, dessin: 'martien',
     texte: 'Au loin, un petit Martien tout vert agite la main. Il a l’air d’avoir passé une drôle de journée.' },
   { id: 'mars-tripode', astre: 'mars', dx: -1030, dessin: 'tripode',
-    texte: 'Un tripode géant, rouillé, couché dans une herbe rouge. Ses pilotes ont été tués par les bactéries de la Terre : les plus petits de ses habitants ont gagné la guerre.' },
+    texte: 'Un tripode géant, rouillé, affaissé sur ses trois longues jambes au milieu d’une herbe rouge. Ses pilotes ont été tués par les bactéries de la Terre : les plus petits de ses habitants ont gagné la guerre.' },
   { id: 'ceres', astre: 'a1', dx: 300, dessin: 'cinqLumieres',
     texte: 'Au pied d’une montagne solitaire au sommet plat, cinq lumières clignotent. Elles jouent toujours les mêmes cinq notes.' },
   { id: 'phobos', astre: 'l401', dx: 150, dessin: 'disqueOr', elvis: true,
@@ -107,6 +107,17 @@ const EASTER_EGGS = [
     texte: 'Dans une vieille botte, une petite pousse verte. Le robot qui empile les cubes la protège : c’est la seule chose vivante à des millions de kilomètres.' },
   { id: 'eunomie-kryptonite', astre: 'a15', dx: 280, dessin: 'caillouVert',
     texte: 'Un caillou vert qui luit doucement. Personne de l’équipage ne se sent mal en le ramassant. Un certain héros à cape, lui, l’éviterait.' },
+  // Indiana Jones 4, Transformers, Thor.
+  { id: 'tethys-frigo', astre: 'l603', dx: 240, dessin: 'frigo',
+    texte: 'Un vieux réfrigérateur doublé de plomb, cabossé, porte grande ouverte. Quelqu’un a survécu à une explosion atomique là-dedans, paraît-il.' },
+  { id: 'phoebe-crane', astre: 'l609', dx: -200, dessin: 'craneCristal',
+    texte: 'Un crâne de cristal au front très allongé, posé sur la poussière noire. Il vous attire, et vous n’arrivez plus à détourner les yeux.' },
+  { id: 'lune-arche', astre: 'lune', dx: 2000, dessin: 'arche',
+    texte: 'Un immense vaisseau de métal, écrasé ici depuis des millénaires. Des traces de pas de 1969 en font le tour. Personne n’en a jamais parlé.' },
+  { id: 'interamnia-cube', astre: 'a704', dx: 300, dessin: 'cube',
+    texte: 'Un cube de métal gros comme une maison, couvert de symboles inconnus. Il bourdonne. Quand on s’en approche, les machines de l’équipage s’agitent toutes seules.' },
+  { id: 'dione-marteau', astre: 'l604', dx: 260, dessin: 'marteau',
+    texte: 'Un marteau à manche court, planté dans la glace. Toute l’équipe tire dessus : il ne bouge pas d’un millimètre. Personne ici n’en est digne, il faut croire.' },
   { id: 'proxima-b', astre: 'proxima_p2', dx: -400, dessin: 'villePluie',
     texte: 'Une pluie noire tombe sur la ville. Des silhouettes répondent à des questions étranges.' },
 ];
@@ -153,7 +164,7 @@ const TRACES_REELLES = {
 // (une révolution, 30 jours au plus). Une sonde arrivée là signale seulement « Objet inhabituel ».
 const EGGS_ORBITE = [
   { id: 'lune-soucoupe', astre: 'lune',
-    texte: 'Derrière la Lune, une soucoupe grande comme un pays attend le 4 juillet. Quelqu’un lui a déjà envoyé un virus.' },
+    texte: 'Derrière la Lune, le vaisseau-mère, grand comme un pays, attend le 4 juillet. Quelqu’un lui a déjà envoyé un virus.' },
   { id: 'saturne', astre: 'saturne', titre: 'Space Oddity',
     texte: 'Une capsule vide dérive. Personne n’a répondu depuis longtemps.' },
   { id: 'soleil-sunshine', astre: 'soleil',
@@ -162,6 +173,8 @@ const EGGS_ORBITE = [
     texte: 'Un vaisseau noir, frappé d’une tête de mort, croise en silence. Son capitaine balafré ne salue personne : il ne sert que la liberté.' },
   { id: 'uranus-goldorak', astre: 'uranus',
     texte: 'Un grand robot à cornes jaillit d’une soucoupe, fend les nuages, et disparaît. Quelqu’un a crié : « Fulguropoing ! »' },
+  { id: 'pluton-unicron', astre: 'pluton',
+    texte: 'Une planète de métal passe près de Pluton. Elle a des yeux, des cornes, et une bouche immense. Elle a l’air d’avoir faim.' },
   { id: 'tauceti-balise', astre: 'tauceti_p4',
     texte: 'Une vieille balise rouillée, frappée du sigle d’une grande compagnie interstellaire : Weyland. Elle répète le nom d’une survivante, Ripley, et parle d’un chat.' },
   { id: 'trappist-f', astre: 'trappist1_p5',
@@ -374,6 +387,25 @@ function positionVoyager(vg, t) {
   const eps = 23.439 * DEG;
   const ye = y * Math.cos(eps) + z * Math.sin(eps);
   return { r, carte: [x * r * UA_KM, ye * r * UA_KM] };
+}
+// Independence Day : le vaisseau-mère (550 km de large) attend derrière la Lune, à l'opposé de la Terre.
+// On le voit sur la carte en orbite lunaire, puis partout une fois découvert.
+function dessinerVaisseauMere(ctx, ecran, dansEcran, t, s, v) {
+  if (SYSTEME.id !== 'solaire' || !ASTRES_PAR_ID.lune) return;
+  const trouve = eggTrouve('lune-soucoupe');
+  if (!trouve && !(v.orb && v.orb.centre === 'lune')) return;
+  const lune = etatAbsolu('lune', t).r, terre = etatAbsolu('terre', t).r;
+  const u = V.unit(V.sub(lune, terre));
+  const e = ecran(V.add(lune, V.mul(u, 6000)));
+  if (!dansEcran(e, 80)) return;
+  // La carte est vue de dessus : la soucoupe est un disque, avec ses anneaux et ses feux qui tournent.
+  const r = Math.max(5, 275 * s), rot = performance.now() / 20000;
+  disque(ctx, e[0], e[1], r, '#263238');
+  ctx.strokeStyle = '#455a64'; ctx.lineWidth = Math.max(1, r * 0.04);
+  for (const k of [0.75, 0.5]) { ctx.beginPath(); ctx.arc(e[0], e[1], r * k, 0, Math.PI * 2); ctx.stroke(); }
+  disque(ctx, e[0], e[1], r * 0.22, '#37474f');
+  if (r > 10) for (let k = 0; k < 24; k++) { const a = rot + (k / 24) * Math.PI * 2; disque(ctx, e[0] + Math.cos(a) * r * 0.9, e[1] + Math.sin(a) * r * 0.9, Math.max(1, r * 0.025), k % 2 ? '#ff9800' : '#ffcc80'); }
+  texteSurFond(ctx, trouve ? 'Vaisseau-mère · 550 km' : 'Objet inconnu', e[0], e[1] - r - 12, { police: '11px system-ui, sans-serif', couleur: trouve ? '#ffcc80' : '#cfd8dc' });
 }
 function dessinerVoyagers(ctx, ecran, dansEcran, t) {
   if (SYSTEME.id !== 'solaire') return;
@@ -764,6 +796,44 @@ const DESSINS_TRACES = {
 };
 
 const DESSINS_EGGS = {
+  frigo(ctx, x, y, s) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(0.12);
+    rect(ctx, -0.4 * s, -1.7 * s, 0.8 * s, 1.7 * s, '#eceff1');
+    rect(ctx, -0.4 * s, -1.15 * s, 0.8 * s, 0.04 * s, '#90a4ae');
+    rect(ctx, 0.28 * s, -1.55 * s, 0.05 * s, 0.3 * s, '#78909c');
+    disque(ctx, -0.1 * s, -0.6 * s, 0.12 * s, '#cfd8dc');   // bosse
+    ctx.restore();
+    ctx.fillStyle = '#b0bec5'; ctx.beginPath(); ctx.moveTo(x + 0.45 * s, y); ctx.lineTo(x + 1.1 * s, y - 0.2 * s); ctx.lineTo(x + 1.1 * s, y - 1.6 * s); ctx.lineTo(x + 0.6 * s, y - 1.7 * s); ctx.fill();   // porte ouverte
+  },
+  craneCristal(ctx, x, y, s) {
+    const a = 0.55 + 0.3 * Math.sin(performance.now() / 600);
+    disque(ctx, x, y - 0.3 * s, 0.6 * s, `rgba(129,212,250,${a * 0.25})`);
+    ctx.fillStyle = `rgba(225,245,254,${0.6 + a * 0.3})`;
+    ctx.beginPath(); ctx.ellipse(x - 0.05 * s, y - 0.32 * s, 0.22 * s, 0.32 * s, -0.5, 0, Math.PI * 2); ctx.fill();   // front allongé
+    rect(ctx, x + 0.02 * s, y - 0.16 * s, 0.22 * s, 0.16 * s, `rgba(225,245,254,${0.6 + a * 0.3})`);
+    disque(ctx, x + 0.08 * s, y - 0.28 * s, 0.05 * s, 'rgba(1,87,155,0.6)');
+  },
+  arche(ctx, x, y, s) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(-0.08);
+    ctx.fillStyle = '#546e7a'; ctx.beginPath(); ctx.moveTo(-14 * s, 0); ctx.lineTo(-11 * s, -6 * s); ctx.lineTo(8 * s, -7 * s); ctx.lineTo(14 * s, -3 * s); ctx.lineTo(12 * s, 0); ctx.fill();
+    ctx.fillStyle = '#37474f'; for (let k = -9; k <= 9; k += 3) rect(ctx, k * s, -6 * s, 1.6 * s, 5.5 * s, '#455a64');
+    rect(ctx, 5 * s, -9 * s, 1 * s, 3 * s, '#607d8b');
+    ctx.restore();
+    for (let k = 0; k < 10; k++) disque(ctx, x - 16 * s + k * 0.7 * s, y - 0.03 * s, 0.06 * s, '#757575');   // traces de pas
+  },
+  cube(ctx, x, y, s) {
+    const a = 0.4 + 0.3 * Math.sin(performance.now() / 300);
+    disque(ctx, x, y - 1.3 * s, 2 * s, `rgba(100,181,246,${a * 0.25})`);
+    rect(ctx, x - 1.3 * s, y - 2.6 * s, 2.6 * s, 2.6 * s, '#616161');
+    ctx.strokeStyle = `rgba(144,202,249,${0.5 + a})`; ctx.lineWidth = 0.05 * s;
+    for (let k = 0; k < 7; k++) { ctx.beginPath(); ctx.moveTo(x - 1.1 * s, y - (0.3 + k * 0.33) * s); ctx.lineTo(x + (Math.sin(k * 3.1) * 0.9) * s, y - (0.3 + k * 0.33) * s); ctx.lineTo(x + (Math.sin(k * 3.1) * 0.9) * s, y - (0.45 + k * 0.33) * s); ctx.stroke(); }
+  },
+  marteau(ctx, x, y, s) {
+    trait(ctx, [[x, y], [x, y - 0.55 * s]], '#6d4c41', 0.09 * s);
+    rect(ctx, x - 0.32 * s, y - 0.85 * s, 0.64 * s, 0.32 * s, '#9e9e9e');
+    rect(ctx, x - 0.32 * s, y - 0.85 * s, 0.64 * s, 0.06 * s, '#bdbdbd');
+    if (Math.sin(performance.now() / 180) > 0.85) trait(ctx, [[x + 0.35 * s, y - 0.9 * s], [x + 0.5 * s, y - 1.1 * s], [x + 0.42 * s, y - 1.15 * s], [x + 0.6 * s, y - 1.35 * s]], '#b3e5fc', 0.03 * s);   // un petit éclair
+  },
   patates(ctx, x, y, s) {
     ctx.fillStyle = 'rgba(236,239,241,0.85)'; ctx.beginPath(); ctx.ellipse(x, y, 1.6 * s, 0.9 * s, 0, Math.PI, 0); ctx.fill();   // bâche
     for (let k = -3; k <= 3; k++) { trait(ctx, [[x + k * 0.4 * s, y], [x + k * 0.4 * s, y - 0.35 * s]], '#2e7d32', 0.06 * s); disque(ctx, x + k * 0.4 * s, y - 0.38 * s, 0.09 * s, '#43a047'); }
@@ -1097,14 +1167,54 @@ const DESSINS_EGGS = {
     const k = Math.floor(performance.now() / 450) % 6;
     couleurs.forEach((c, i) => disque(ctx, x + (i - 2) * 1.4 * s, y - 0.6 * s, 0.35 * s, i === k ? c : 'rgba(255,255,255,0.15)'));
   },
+  // La Guerre des mondes : tripode mort, affaissé sur ses trois jambes, dans l'herbe rouge martienne.
   tripode(ctx, x, y, s) {
-    for (let k = -8; k <= 8; k++) trait(ctx, [[x + k * 0.6 * s, y], [x + (k * 0.6 + 0.15) * s, y - (0.4 + (k % 3) * 0.15) * s]], '#b71c1c', 0.06 * s);   // herbe rouge
-    const r = '#7b4a2e';
-    trait(ctx, [[x - 4 * s, y], [x - 1 * s, y - 1.6 * s]], r, 0.25 * s);
-    trait(ctx, [[x + 1.5 * s, y], [x - 0.6 * s, y - 1.4 * s]], r, 0.25 * s);
-    trait(ctx, [[x + 4.5 * s, y - 0.1 * s], [x + 0.5 * s, y - 1.5 * s]], r, 0.25 * s);
-    ctx.fillStyle = '#8d5a3a'; ctx.beginPath(); ctx.ellipse(x - 0.3 * s, y - 1.7 * s, 2 * s, 0.9 * s, -0.25, 0, Math.PI * 2); ctx.fill();   // coque couchée
-    disque(ctx, x + 1.2 * s, y - 2 * s, 0.25 * s, '#3e2a1e');
+    const t = performance.now() / 1400;
+    const jambe = (pts, ep, c) => {
+      trait(ctx, pts, c, ep * s);
+      for (const q of pts.slice(1, -1)) disque(ctx, q[0], q[1], ep * 0.9 * s, '#3b3f42');   // articulations
+      ctx.fillStyle = c; ctx.beginPath(); ctx.ellipse(pts[pts.length - 1][0], pts[pts.length - 1][1], ep * 1.4 * s, ep * 0.5 * s, 0, Math.PI, 0); ctx.fill();   // pied
+    };
+    const herbe = (x0, n, h) => { for (let k = 0; k < n; k++) { const xx = x0 + (k - n / 2) * 0.35 * s, hh = (h * (0.5 + 0.5 * Math.abs(Math.sin(k * 2.3)))) * s; trait(ctx, [[xx, y], [xx + 0.12 * s, y - hh * 0.6], [xx + (Math.sin(t + k) * 0.1 + 0.05) * s, y - hh]], k % 2 ? '#b71c1c' : '#d32f2f', 0.07 * s); } };
+    const hub = [x + 0.3 * s, y - 7.4 * s];
+    // Jambe arrière (plus sombre), puis l'herbe du fond.
+    jambe([hub, [x + 2.2 * s, y - 4.6 * s], [x + 1.2 * s, y]], 0.22, '#4e5357');
+    herbe(x, 30, 1.1);
+    // Herbe rouge qui grimpe le long des jambes.
+    const lierre = (a, b) => { ctx.strokeStyle = '#c62828'; ctx.lineWidth = 0.08 * s; ctx.beginPath(); for (let u = 0; u <= 1; u += 0.05) { const px = a[0] + (b[0] - a[0]) * u + Math.sin(u * 18) * 0.18 * s, py = a[1] + (b[1] - a[1]) * u; if (u === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py); } ctx.stroke(); };
+    // Jambes avant.
+    const g = [hub, [x - 3.2 * s, y - 5.2 * s], [x - 4.8 * s, y]];
+    const d = [hub, [x + 3.6 * s, y - 4.2 * s], [x + 4.6 * s, y]];
+    jambe(g, 0.26, '#6b7175'); jambe(d, 0.26, '#6b7175');
+    lierre([x - 4.8 * s, y], [x - 3.4 * s, y - 4.4 * s]); lierre([x + 4.6 * s, y], [x + 3.8 * s, y - 3 * s]);
+    // Tentacules qui pendent sous le capot.
+    ctx.strokeStyle = '#55595c'; ctx.lineWidth = 0.12 * s; ctx.lineCap = 'round';
+    for (const [dx, long] of [[-1.1, 3.4], [-0.3, 4.4], [0.6, 3.8], [1.4, 2.9]]) {
+      const x0 = hub[0] + dx * s, y0 = hub[1] + 0.6 * s, bal = Math.sin(t + dx * 2) * 0.35 * s;
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.bezierCurveTo(x0 + bal, y0 + long * 0.4 * s, x0 - bal, y0 + long * 0.75 * s, x0 + bal * 0.6 + 0.3 * s, y0 + long * s); ctx.stroke();
+    }
+    ctx.lineCap = 'butt';
+    // Le capot : un dôme de métal, penché vers l'avant (le pilote est mort), avec ses plaques et sa rouille.
+    ctx.save(); ctx.translate(hub[0], hub[1] - 0.6 * s); ctx.rotate(0.28);
+    const grad = ctx.createLinearGradient(0, -2 * s, 0, 1 * s);
+    grad.addColorStop(0, '#9aa1a6'); grad.addColorStop(1, '#4d5357');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.moveTo(-2.6 * s, 0.4 * s); ctx.quadraticCurveTo(-2.5 * s, -2.2 * s, 0, -2.3 * s); ctx.quadraticCurveTo(2.5 * s, -2.2 * s, 2.6 * s, 0.4 * s); ctx.quadraticCurveTo(0, 1.2 * s, -2.6 * s, 0.4 * s); ctx.fill();
+    rect(ctx, -2.7 * s, 0.25 * s, 5.4 * s, 0.32 * s, '#3b3f42');   // ceinture sous le capot
+    ctx.strokeStyle = 'rgba(40,44,47,0.6)'; ctx.lineWidth = 0.05 * s;
+    for (const k of [-1.3, 0, 1.3]) { ctx.beginPath(); ctx.moveTo(k * s, -2.2 * s); ctx.quadraticCurveTo(k * 1.25 * s, -1 * s, k * 1.5 * s, 0.3 * s); ctx.stroke(); }   // plaques rivetées
+    for (const [rx, ry, rr] of [[-1.6, -0.6, 0.45], [1.1, -1.4, 0.35], [0.4, -0.2, 0.3]]) disque(ctx, rx * s, ry * s, rr * s, 'rgba(141,74,43,0.75)');   // rouille
+    const lueur = 0.25 + 0.15 * Math.sin(t * 2);
+    rect(ctx, 1.2 * s, -1 * s, 1.1 * s, 0.32 * s, '#1c1f21');
+    rect(ctx, 1.3 * s, -0.94 * s, 0.9 * s, 0.2 * s, `rgba(255,82,82,${lueur})`);   // hublot, une dernière lueur
+    // Le bras du rayon ardent, tombé.
+    trait(ctx, [[2.3 * s, 0.1 * s], [3.3 * s, 1.4 * s], [3.1 * s, 2.6 * s]], '#55595c', 0.14 * s);
+    rect(ctx, 2.75 * s, 2.5 * s, 0.75 * s, 0.45 * s, '#3b3f42');
+    ctx.restore();
+    // Herbe rouge drapée sur le capot, et au premier plan.
+    ctx.strokeStyle = '#c62828'; ctx.lineWidth = 0.09 * s;
+    ctx.beginPath(); ctx.moveTo(hub[0] - 2 * s, hub[1] - 1.6 * s); ctx.quadraticCurveTo(hub[0] - 1.2 * s, hub[1] - 0.2 * s, hub[0] - 1.7 * s, hub[1] + 1.4 * s); ctx.stroke();
+    herbe(x - 2 * s, 14, 0.8);
   },
   cabane(ctx, x, y, s) {
     ctx.fillStyle = 'rgba(160,190,170,0.35)'; ctx.beginPath(); ctx.ellipse(x, y - 1 * s, 4 * s, 1.2 * s, 0, 0, Math.PI * 2); ctx.fill();   // brume

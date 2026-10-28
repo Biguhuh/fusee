@@ -1730,6 +1730,7 @@ const Orbiteur = {
 
     // Voyager 1 et 2, au-delà de l’héliosphère
     dessinerVoyagers(ctx, ecran, dansEcran, t);
+    dessinerVaisseauMere(ctx, ecran, dansEcran, t, s, v);
 
     // Orbites et astres
     // Catégories cachées par le joueur (fenêtre Vues) ; on garde toujours la cible, l'astre survolé et le centre de la vue.
