@@ -118,6 +118,11 @@ const EASTER_EGGS = [
     texte: 'Un cube de métal gros comme une maison, couvert de symboles inconnus. Il bourdonne. Quand on s’en approche, les machines de l’équipage s’agitent toutes seules.' },
   { id: 'dione-marteau', astre: 'l604', dx: 260, dessin: 'marteau',
     texte: 'Un marteau à manche court, planté dans la glace. Toute l’équipe tire dessus : il ne bouge pas d’un millimètre. Personne ici n’en est digne, il faut croire.' },
+  // One Piece et Battlestar Galactica.
+  { id: 'tauceti-chapeau', astre: 'tauceti_p3', dx: 280, dessin: 'chapeauPaille',
+    texte: 'Un chapeau de paille au ruban rouge, posé sur un rocher. Son propriétaire a juré de devenir le roi des pirates. Il reviendra le chercher.' },
+  { id: 'barnard-cylon', astre: 'barnard_p3', dx: -300, dessin: 'cylon',
+    texte: 'Un robot chromé dont l’œil rouge balaie l’horizon, de gauche à droite, sans fin. Ils sont nombreux. Ils ont un plan.' },
   { id: 'proxima-b', astre: 'proxima_p2', dx: -400, dessin: 'villePluie',
     texte: 'Une pluie noire tombe sur la ville. Des silhouettes répondent à des questions étranges.' },
 ];
@@ -177,6 +182,10 @@ const EGGS_ORBITE = [
     texte: 'Un grand robot à cornes jaillit d’une soucoupe, fend les nuages, et disparaît. Quelqu’un a crié : « Fulguropoing ! »' },
   { id: 'pluton-unicron', astre: 'pluton',
     texte: 'Une planète de métal passe près de Pluton. Elle a des yeux, des cornes, et une bouche immense. Elle a l’air d’avoir faim.' },
+  { id: 'aegir-navire', astre: 'epseri_p1',
+    texte: 'Un trois-mâts à tête de lion vogue entre les nuages d’Ægir, le dieu de la mer. Sur la voile, une tête de mort coiffée d’un chapeau de paille. L’équipage chante.' },
+  { id: 'mars-galactica', astre: 'mars',
+    texte: 'Un vaisseau de guerre gris, long comme une ville, escorte une flotte de fortune. Ils cherchent une planète nommée Terre. Elle est juste à côté. Personne n’ose le leur dire.' },
   { id: 'tauceti-balise', astre: 'tauceti_p4',
     texte: 'Une vieille balise rouillée, frappée du sigle d’une grande compagnie interstellaire : Weyland. Elle répète le nom d’une survivante, Ripley, et parle d’un chat.' },
   { id: 'trappist-f', astre: 'trappist1_p5',
@@ -798,6 +807,27 @@ const DESSINS_TRACES = {
 };
 
 const DESSINS_EGGS = {
+  chapeauPaille(ctx, x, y, s) {
+    ctx.fillStyle = '#8d8d8d'; ctx.beginPath(); ctx.ellipse(x, y, 0.8 * s, 0.35 * s, 0, Math.PI, 0); ctx.fill();   // rocher
+    ctx.fillStyle = '#f4d58d'; ctx.beginPath(); ctx.ellipse(x, y - 0.36 * s, 0.6 * s, 0.1 * s, 0, 0, Math.PI * 2); ctx.fill();   // bord
+    ctx.beginPath(); ctx.ellipse(x, y - 0.46 * s, 0.3 * s, 0.2 * s, 0, Math.PI, 0); ctx.fill();   // calotte
+    rect(ctx, x - 0.3 * s, y - 0.5 * s, 0.6 * s, 0.07 * s, '#d32f2f');   // ruban rouge
+    ctx.strokeStyle = 'rgba(160,120,40,0.6)'; ctx.lineWidth = 0.015 * s;
+    for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(x + k * 0.1 * s, y - 0.62 * s); ctx.lineTo(x + k * 0.22 * s, y - 0.38 * s); ctx.stroke(); }
+  },
+  cylon(ctx, x, y, s) {
+    const c = '#b0bec5', f = '#78909c';
+    trait(ctx, [[x - 0.18 * s, y], [x - 0.15 * s, y - 0.9 * s]], f, 0.14 * s);
+    trait(ctx, [[x + 0.18 * s, y], [x + 0.15 * s, y - 0.9 * s]], f, 0.14 * s);
+    rect(ctx, x - 0.35 * s, y - 1.7 * s, 0.7 * s, 0.8 * s, c);
+    trait(ctx, [[x - 0.36 * s, y - 1.6 * s], [x - 0.48 * s, y - 1 * s]], f, 0.1 * s);
+    trait(ctx, [[x + 0.36 * s, y - 1.6 * s], [x + 0.48 * s, y - 1 * s]], f, 0.1 * s);
+    ctx.fillStyle = c; ctx.beginPath(); ctx.ellipse(x, y - 1.95 * s, 0.22 * s, 0.27 * s, 0, 0, Math.PI * 2); ctx.fill();   // casque
+    rect(ctx, x - 0.18 * s, y - 2.02 * s, 0.36 * s, 0.08 * s, '#263238');   // fente
+    const u = Math.sin(performance.now() / 450);                                      // l'œil balaie de gauche à droite
+    disque(ctx, x + u * 0.14 * s, y - 1.98 * s, 0.04 * s, '#ff1744');
+    disque(ctx, x + u * 0.14 * s, y - 1.98 * s, 0.09 * s, 'rgba(255,23,68,0.35)');
+  },
   frigo(ctx, x, y, s) {
     ctx.save(); ctx.translate(x, y); ctx.rotate(0.12);
     rect(ctx, -0.4 * s, -1.7 * s, 0.8 * s, 1.7 * s, '#eceff1');
