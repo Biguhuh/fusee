@@ -506,14 +506,18 @@ class Exploration {
       const avecRover = this.enRover && this.batterieRover > 0;
       let r = this.estimerRetour(avecRover);
       // Astromobile bloquée (elle ne saute pas) ou batterie trop juste : on rentre à pied, elle reste là.
-      if (avecRover && (r.bloque || r.temps > this.batterieRover)) r = this.estimerRetour(false);
+      let pourquoiPied = '';
+      if (avecRover && (r.bloque || r.temps > this.batterieRover)) {
+        pourquoiPied = r.bloque ? `l’astromobile ne passe pas (pente trop raide à ${fmt(r.bloque.distance)} m d’ici)` : 'la batterie de l’astromobile ne suffirait pas';
+        r = this.estimerRetour(false);
+      }
       if (r.bloque) return this.dire(`⛔ Impossible de rentrer : une paroi de ${fmt(r.bloque.hauteur, 1)} m, à ${fmt(r.bloque.distance)} m d’ici, barre le chemin du module (trop raide, trop haute pour un saut). 🆘 Appel d’urgence : U.`);
       if (r.temps > this.reserve) return this.dire(`⛔ Pas assez d’oxygène pour rentrer : il faut ≈ ${fmtDuree(r.temps)} de marche${r.enRover ? ' (en astromobile)' : ''}, il reste ${fmtDuree(this.reserve)}. 🆘 Appel d’urgence : U.`);
       // Le trajet prend du temps : l'oxygène (et la batterie de l'astromobile) se consomment.
       this.reserve -= r.temps;
       if (r.enRover) { this.batterieRover -= r.temps; this.rover.x = this.xFusee - 5; }
       else if (this.enRover) this.rover.x = this.p.x;   // l'astromobile reste sur place
-      this.dire(`Retour au module : ${fmt(r.dist)} m${r.enRover ? ' en astromobile' : ' à pied'}, ≈ ${fmtDuree(r.temps)}.`);
+      this.dire(pourquoiPied && !r.enRover ? `🚶 Retour au module à pied : ${pourquoiPied}. ${fmt(r.dist)} m, ≈ ${fmtDuree(r.temps)} ; l’astromobile reste ici.` : `Retour au module : ${fmt(r.dist)} m${r.enRover ? ' en astromobile' : ' à pied'}, ≈ ${fmtDuree(r.temps)}.`);
     }
     this.p.x = this.xFusee;
     this.p.y = this.sol(this.xFusee);
@@ -853,7 +857,7 @@ class Exploration {
       ctx.textAlign = 'left';
     }
     if (!ECRAN_TACTILE) {
-      texteSurFond(ctx, `←→ / Q D : ${this.type === 'robot' || this.enRover ? 'rouler' : 'marcher'}${this.saut && !this.enRover ? ' · ↑ / Z / Espace : sauter' : ''}${this.rover ? ` · V : ${this.enRover ? 'descendre de' : 'monter dans'} l’astromobile` : ''} · E : ${this.type === 'robot' ? 'analyser' : 'ramasser'} (ou rentrer près du module) · F : planter le drapeau · Échap : rappeler`, W / 2, H - 12, { police: '12px system-ui' });
+      texteSurFond(ctx, `←→ / Q D : ${this.type === 'robot' || this.enRover ? 'rouler' : 'marcher'}${this.saut && !this.enRover ? ' · ↑ / Z / Espace : sauter' : ''}${this.rover ? ` · V : ${this.enRover ? 'descendre de' : 'monter dans'} l’astromobile` : ''} · E : ${this.type === 'robot' ? 'analyser' : 'ramasser'} (ou rentrer près du module) · F : planter le drapeau${this.type === 'spationaute' && !this.terre ? ' · U : appel d’urgence' : ''} · Échap : rappeler`, W / 2, H - 12, { police: '12px system-ui' });
     }
     ctx.textAlign = 'left';
   }

@@ -170,6 +170,7 @@ const ONGLETS_AIDE = [
       ['E', 'Ramasser, analyser, cueillir… ou rentrer près du module'],
       ['V', 'Monter dans l’astromobile / en descendre'],
       ['F', 'Planter le drapeau'],
+      ['U', 'Appel d’urgence : un module de secours vient chercher le spationaute (s’il reste un atterrisseur à bord)'],
       ['+ / −', 'Temps ×1 à ×50'],
       ['Échap', 'Rentrer au module (ou rappeler le robot)'],
     ])}
