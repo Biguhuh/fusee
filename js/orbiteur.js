@@ -1922,7 +1922,8 @@ const Orbiteur = {
     const kmPour100 = 100 / s;
     ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = '11px system-ui';
     ctx.fillRect(W - 140, H - 30, 100, 2);
-    ctx.fillText(kmPour100 > UA_KM / 10 ? fmt(kmPour100 / UA_KM, 2) + ' UA' : fmt(kmPour100) + ' km', W - 140, H - 36);
+    // Au plus près (voiture, station), l'échelle passe en mètres au lieu d'afficher « 0 km ».
+    ctx.fillText(kmPour100 > UA_KM / 10 ? fmt(kmPour100 / UA_KM, 2) + ' UA' : kmPour100 >= 1 ? fmt(kmPour100) + ' km' : fmt(kmPour100 * 1000, kmPour100 < 0.01 ? 1 : 0) + ' m', W - 140, H - 36);
 
     // Messages, en bas au centre (au-dessus de la légende de trajectoire si elle est ouverte)
     let y = this.trajet && this.hautLegende ? this.hautLegende - 10 : H - 40;
