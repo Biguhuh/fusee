@@ -490,3 +490,11 @@ pre.erreur { white-space: pre-wrap; background: #1a0d0d; border: 1px solid #5a23
 .egg-ligne { padding: 10px 12px; border: 1px solid var(--bord); border-left: 4px solid #ffd54f; border-radius: 8px; font-size: 14px; line-height: 1.45; }
 .egg-ligne .ref-egg { color: #ffe082; font-size: 13px; }
 .egg-ligne button { margin-top: 6px; }
+
+/* Men in Black : l'éclair qui efface la mémoire */
+.flash-blanc { position: fixed; inset: 0; background: #fff; z-index: 60; pointer-events: none; animation: flash-blanc 1.7s ease-out forwards; }
+@keyframes flash-blanc { 0% { opacity: 1; } 30% { opacity: 0.95; } 100% { opacity: 0; } }
+/* Nom du vaisseau */
+.nom-vaisseau { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 14px; padding: 10px 12px; border: 1px solid var(--bord); border-radius: 10px; background: var(--panneau); }
+.nom-vaisseau input { font-size: 16px; padding: 6px 10px; width: 14em; max-width: 100%; }
+.renommer-vaisseau { padding: 0 6px; font-size: 12px; margin-left: 4px; }

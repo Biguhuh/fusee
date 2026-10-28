@@ -70,6 +70,20 @@ const EASTER_EGGS = [
     texte: 'Une plaine gelée balayée par le blizzard. Des tranchées abandonnées, et les empreintes de machines géantes à quatre pattes.' },
   { id: 'trappist-e', astre: 'trappist1_p4', dx: 350, dessin: 'longCou',
     texte: 'Un petit être scrute le ciel. Il voudrait téléphoner à la maison.' },
+  // Men in Black : trois clins d'œil.
+  { id: 'umbriel-flash', astre: 'l702', dx: 320, dessin: 'neuraliseur', flash: true,
+    texte: 'Un petit appareil argenté, une lumière rouge au bout. Quelqu’un en costume noir vous a demandé de bien regarder par ici. Et puis… plus rien.' },
+  { id: 'pallas-galaxie', astre: 'a2', dx: 300, dessin: 'billeGalaxie',
+    texte: 'Au cou du chat, une petite bille brille. À l’intérieur tourne une galaxie entière. Le chat n’a pas l’air de s’en soucier.' },
+  { id: 'junon-casier', astre: 'a3', dx: 260, dessin: 'casier',
+    texte: 'Un casier de consigne, la porte entrouverte. À l’intérieur, une civilisation minuscule vénère celui qui détient la clé. Vous n’avez pas la clé.' },
+  // Interstellar : trois clins d'œil (dont la vague, sur TRAPPIST-1 f, au-dessus de laquelle passe aussi le paquebot).
+  { id: 'hyperion-bibli', astre: 'l607', dx: -280, dessin: 'bibliotheque',
+    texte: 'Une étagère pleine de livres, plantée dans la poussière. Des livres tombent, un par un, toujours les mêmes. Quelqu’un, de l’autre côté, essaie de dire : reste.' },
+  { id: 'trappist-vague', astre: 'trappist1_p5', dx: -600, dessin: 'vague',
+    texte: 'À l’horizon, une vague haute comme une montagne avance sans bruit. Ici, une heure vaut sept ans ailleurs. Ne traînez pas.' },
+  { id: 'mimas-robot', astre: 'l601', dx: 340, dessin: 'robotBlocs',
+    texte: 'Un robot fait de quatre blocs gris articulés vous observe. Son réglage d’humour est à 75 %. Il trouve votre atterrissage perfectible.' },
   { id: 'proxima-b', astre: 'proxima_p2', dx: -400, dessin: 'villePluie',
     texte: 'Une pluie noire tombe sur la ville. Des silhouettes répondent à des questions étranges.' },
 ];
@@ -475,14 +489,24 @@ function verifierDecouvertes(x) {
   }
 }
 
+// Men in Black : un éclair blanc, et l'équipage ne se souvient plus de rien.
+const TEXTE_FLASH = 'Flash ! Vous avez trouvé quelque chose ici. Vous ne savez plus quoi. (La liste des easter eggs, elle, s’en souvient.)';
+function flashBlanc() {
+  const d = document.createElement('div');
+  d.className = 'flash-blanc';
+  document.body.appendChild(d);
+  setTimeout(() => d.remove(), 1800);
+}
+
 function decouvrir(e, x) {
   etat.decouvertes = etat.decouvertes || {};
   etat.decouvertes[e.id] = { astre: e.astre, quand: etat.enVoyage && etat.voyage ? etat.voyage.t : null, par: nomSpatio() };
   if (etat.enVoyage && etat.voyage) regArtefact(piloteDuVol(etat.voyage), e.id);
-  x.dire('✨ ' + e.texte);
+  if (e.flash) flashBlanc();
+  x.dire('✨ ' + (e.flash ? TEXTE_FLASH : e.texte));
   if (e.elvis) x.vol.elvis = true;
   if (e.id === 'chat') replique('chat');
-  if (etat.enVoyage && etat.voyage) etat.voyage.journal.push({ t: etat.voyage.t, texte: `✨ Découverte ${sur(x.astre)} : ${e.texte}` });
+  if (etat.enVoyage && etat.voyage) etat.voyage.journal.push({ t: etat.voyage.t, texte: `✨ Découverte ${sur(x.astre)} : ${e.flash ? TEXTE_FLASH : e.texte}` });
   sauver(etat);
 }
 
@@ -687,6 +711,59 @@ const DESSINS_TRACES = {
 };
 
 const DESSINS_EGGS = {
+  neuraliseur(ctx, x, y, s) {
+    ctx.save(); ctx.translate(x, y - 0.06 * s); ctx.rotate(-0.25);
+    rect(ctx, -0.22 * s, -0.05 * s, 0.44 * s, 0.1 * s, '#cfd8dc');
+    rect(ctx, -0.22 * s, -0.05 * s, 0.1 * s, 0.1 * s, '#90a4ae');
+    disque(ctx, 0.24 * s, 0, 0.05 * s, Math.sin(performance.now() / 200) > 0 ? '#ff1744' : '#7f0000');
+    ctx.restore();
+  },
+  // À dessiner au cou du chat (même endroit que lui) : une bille où tourne une galaxie.
+  billeGalaxie(ctx, x, y, s) {
+    const cx = x + 0.02 * s, cy = y - 0.76 * s, r = 0.045 * s, t = performance.now() / 600;
+    disque(ctx, cx, cy, r, '#1a237e');
+    ctx.strokeStyle = '#e1f5fe'; ctx.lineWidth = Math.max(0.6, 0.012 * s);
+    for (const k of [0, Math.PI]) {
+      ctx.beginPath();
+      for (let u = 0; u <= 1; u += 0.1) { const a = t + k + u * 4, rr = u * r * 0.9; ctx.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr * 0.6); }
+      ctx.stroke();
+    }
+  },
+  casier(ctx, x, y, s) {
+    rect(ctx, x - 0.3 * s, y - 1.8 * s, 0.6 * s, 1.8 * s, '#78909c');
+    rect(ctx, x - 0.26 * s, y - 1.74 * s, 0.52 * s, 1.68 * s, '#263238');
+    for (let k = 0; k < 9; k++) disque(ctx, x + (Math.sin(k * 7.3) * 0.2) * s, y - (0.2 + k * 0.17) * s, 0.018 * s, ['#ffeb3b', '#80deea', '#ff8a65'][k % 3]);
+    ctx.fillStyle = '#90a4ae'; ctx.beginPath(); ctx.moveTo(x + 0.3 * s, y - 1.8 * s); ctx.lineTo(x + 0.62 * s, y - 1.68 * s); ctx.lineTo(x + 0.62 * s, y - 0.08 * s); ctx.lineTo(x + 0.3 * s, y); ctx.fill();   // porte entrouverte
+    disque(ctx, x + 0.56 * s, y - 0.95 * s, 0.03 * s, '#455a64');
+  },
+  bibliotheque(ctx, x, y, s) {
+    const couleurs = ['#8d6e63', '#c62828', '#1565c0', '#2e7d32', '#f9a825', '#6a1b9a'];
+    rect(ctx, x - 0.8 * s, y - 2 * s, 1.6 * s, 2 * s, '#4e342e');
+    for (let et = 0; et < 4; et++) {
+      const yy = y - (0.45 + et * 0.47) * s;
+      rect(ctx, x - 0.75 * s, yy, 1.5 * s, 0.05 * s, '#3e2723');
+      for (let k = 0; k < 9; k++) if ((k + et) % 5) rect(ctx, x - 0.72 * s + k * 0.16 * s, yy - 0.36 * s, 0.13 * s, 0.36 * s, couleurs[(k + et * 2) % couleurs.length]);
+    }
+    // Livres tombés par terre, et un livre qui tombe, encore et encore.
+    for (let k = 0; k < 4; k++) rect(ctx, x + (1 + k * 0.28) * s, y - 0.06 * s, 0.24 * s, 0.06 * s, couleurs[k]);
+    const u = (performance.now() / 2200) % 1;
+    rect(ctx, x + 0.9 * s, y - (1.4 - 1.35 * u * u) * s, 0.13 * s, 0.32 * s, couleurs[(Math.floor(performance.now() / 2200)) % couleurs.length]);
+  },
+  vague(ctx, x, y, s) {
+    const h = 14 * s, t = performance.now() / 900;
+    ctx.fillStyle = 'rgba(30,90,140,0.85)';
+    ctx.beginPath(); ctx.moveTo(x - 16 * s, y);
+    for (let k = 0; k <= 32; k++) { const u = k / 32, xx = x - 16 * s + u * 32 * s; ctx.lineTo(xx, y - h * Math.exp(-((u - 0.5) ** 2) * 14) * (0.95 + 0.05 * Math.sin(t + u * 6))); }
+    ctx.lineTo(x + 16 * s, y); ctx.fill();
+    ctx.strokeStyle = 'rgba(225,245,254,0.8)'; ctx.lineWidth = 0.25 * s;
+    ctx.beginPath(); ctx.arc(x + 1.2 * s, y - h * 0.92, 1.4 * s, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke();
+  },
+  robotBlocs(ctx, x, y, s) {
+    const c = '#9e9e9e', b = Math.sin(performance.now() / 700) * 0.05;
+    for (let k = 0; k < 4; k++) rect(ctx, x - 0.42 * s + k * 0.21 * s, y - (2.2 + (k % 2 ? b : -b)) * s, 0.19 * s, (2.2 + (k % 2 ? b : -b)) * s, k % 2 ? '#8a8a8a' : c);
+    rect(ctx, x - 0.3 * s, y - 1.6 * s, 0.6 * s, 0.22 * s, '#212121');
+    rect(ctx, x - 0.26 * s, y - 1.56 * s, 0.3 * s, 0.14 * s, '#76ff03');
+  },
   silhouetteRobot(ctx, x, y, s) {
     const c = '#263238';
     trait(ctx, [[x - 0.2 * s, y], [x - 0.15 * s, y - 0.9 * s]], c, 0.14 * s);

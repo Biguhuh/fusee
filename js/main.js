@@ -38,6 +38,8 @@ function migrerVoyage(v) {
     if (!m.expeditions) m.expeditions = 1;
   }
   delete m.carburantAtt;
+  // Expédition d'avant le nom du vaisseau : on lui en donne un.
+  if (m.orb && !m.nomVaisseau) baptiserVaisseau(m, nomVaisseauAleatoire(m));
   // Expédition d'avant l'équipe : on lui en donne une.
   if (m.orb && !m.equipe) initialiserEquipe(m);
   // Drapeau « équipage perdu » resté levé d'une expédition précédente (perdue sans retour en capsule) :

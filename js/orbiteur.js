@@ -86,10 +86,15 @@ const Orbiteur = {
     });
     // Orbiteur garé : on retrouve ce qu'il restait à bord (la station le complètera : « Faire le plein »).
     if (gare) { Object.assign(v, gare); v.orbiteurGare = null; }
+    // Nom du vaisseau : celui choisi sur la page d'équipage ; un nouveau vaisseau ne reprend pas le nom de celui resté garé.
+    let nom = v.nomVaisseauPrevu || (gare && gare.nomVaisseau);
+    if (!gare && v.orbiteurGare && nom === v.orbiteurGare.nomVaisseau) nom = null;
+    baptiserVaisseau(v, nom || nomVaisseauAleatoire(v));
+    v.nomVaisseauPrevu = null;
     v.expeditions++;
     this.etape = null; this.auto = false; this.avance = false;
-    if (gare) return this.log(`Expédition n° ${v.expeditions} : l’équipage a rejoint l’orbiteur garé ${au(station)} (${fmt(v.carburant / 1000, 1)} t de carburant, ${fmt(v.ergolsAtt / 1000, 1)} t d’ergols atterrisseur). Faites le plein à la station.`);
-    this.log(`Expédition n° ${v.expeditions} en orbite terrestre : orbiteur, atterrisseur et chargement prêts.` +
+    if (gare) return this.log(`Expédition n° ${v.expeditions} : l’équipage a rejoint le vaisseau ${v.nomVaisseau}, garé ${au(station)} (${fmt(v.carburant / 1000, 1)} t de carburant, ${fmt(v.ergolsAtt / 1000, 1)} t d’ergols atterrisseur). Faites le plein à la station.`);
+    this.log(`Expédition n° ${v.expeditions} en orbite terrestre : le vaisseau ${v.nomVaisseau}, son atterrisseur et le chargement sont prêts.` +
       (station ? ` Amarrée ${au(station)}.` : ' Construisez d’abord la station spatiale.'));
   },
 
@@ -129,8 +134,8 @@ const Orbiteur = {
     // avec le lanceur d'équipage. Sauf s'il part vide vers le Soleil.
     const st = v.stations.find((s) => s.terrestre);
     if (st && !v.orbiteurVersSoleil) {
-      v.orbiteurGare = { carburant: v.carburant, ergolsAtt: v.ergolsAtt, sondes: v.sondes, kits: v.kits, kitsBase: v.kitsBase, robots: v.robots, drones: v.drones || 0, atterrisseurs: v.atterrisseurs, propulseurs: v.propulseurs || 0 };
-      this.log(`L’orbiteur reste garé ${au(st)} : la prochaine équipe pourra le reprendre (lanceur d’équipage Aube).`);
+      v.orbiteurGare = { nomVaisseau: v.nomVaisseau, carburant: v.carburant, ergolsAtt: v.ergolsAtt, sondes: v.sondes, kits: v.kits, kitsBase: v.kitsBase, robots: v.robots, drones: v.drones || 0, atterrisseurs: v.atterrisseurs, propulseurs: v.propulseurs || 0 };
+      this.log(`Le vaisseau ${nomVaisseau(v)} reste garé ${au(st)} : la prochaine équipe pourra le reprendre (lanceur d’équipage Aube).`);
     }
     v.orb = null;
     v.amarre = null;
@@ -2149,7 +2154,7 @@ const Orbiteur = {
     if (ech.length) lignes.push(['Échantillons à bord', ech.map(([id, n]) => `${n} ${ASTRES_PAR_ID[id].nom}`).join(', ')]);
     for (const r of v.retoursEchantillons || []) lignes.push(['📦 Sonde de retour', `${Object.values(r.contenu).reduce((s, k) => s + k, 0)} échantillons, amerrissage le ${fmtDate(r.tArrivee, false)}`]);
     if (v.provisions.fleurs + v.provisions.fruits) lignes.push(['Douceurs de la Terre', `${v.provisions.fleurs} 🌸 ${v.provisions.fruits} 🍎`]);
-    let html = '<h3>Orbiteur</h3><dl>' + lignes.map(([k, x]) => `<dt>${k}</dt><dd>${x}</dd>`).join('') + '</dl>';
+    let html = `<h3>🚀 ${nomVaisseau(v)} <span class="doux">(orbiteur)</span><button class="renommer-vaisseau" data-renommer-vaisseau title="Renommer le vaisseau">✏</button></h3><dl>` + lignes.map(([k, x]) => `<dt>${k}</dt><dd>${x}</dd>`).join('') + '</dl>';
     if (v.mode === 'libre') {
       html += `<h3>Pilotage libre</h3>
         <div class="orientations">${Object.entries(ORIENTATIONS).map(([k, t], i) => `<button data-ori="${k}" class="${v.orientation === k ? 'choisi' : ''}">${i + 1}. ${t}</button>`).join('')}</div>
@@ -2158,6 +2163,8 @@ const Orbiteur = {
     }
     this.ecrirePanneau($('nav-etat'), html);
     $('nav-etat').querySelectorAll('[data-ori]').forEach((b) => { b.onclick = () => { v.orientation = b.dataset.ori; this.majHud(true); }; });
+    const bn = $('nav-etat').querySelector('[data-renommer-vaisseau]');
+    if (bn) bn.onclick = () => renommerVaisseau(v, () => this.majHud(true));
 
     // Panneau de droite : objectif, cible, plan, actions
     let d = '';
@@ -2242,7 +2249,7 @@ const Orbiteur = {
     if (st) {
       const k = st.stock;
       const onglet = this.ongletStock === 'orbiteur' ? 'orbiteur' : 'station';
-      d += `<div class="groupe-vue onglets-stock"><button data-onglet-stock="orbiteur" class="${onglet === 'orbiteur' ? 'choisi' : ''}">🚀 Orbiteur</button><button data-onglet-stock="station" class="${onglet === 'station' ? 'choisi' : ''}">🛰 ${st.nom}</button></div>`;
+      d += `<div class="groupe-vue onglets-stock"><button data-onglet-stock="orbiteur" class="${onglet === 'orbiteur' ? 'choisi' : ''}">🚀 ${nomVaisseau(v)}</button><button data-onglet-stock="station" class="${onglet === 'station' ? 'choisi' : ''}">🛰 ${st.nom}</button></div>`;
       if (onglet === 'orbiteur') {
         const ech = Object.values(v.echantillonsABord || {}).reduce((s, n) => s + n, 0);
         const lignesOrb = [

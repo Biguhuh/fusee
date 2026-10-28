@@ -231,7 +231,15 @@ function allerEquipage(v) {
     }; });
   };
   rendu();
-  $('equipage-continuer').onclick = () => { sauver(etat); allerLancement(); };
+  // Le vaisseau : celui garé à la station terrestre reprend du service avec son nom ; sinon, un nouveau nom au hasard.
+  const gare = v.orbiteurGare, nomGare = gare ? (gare.nomVaisseau || v.nomVaisseau) : null;
+  const champ = $('nom-vaisseau');
+  champ.value = v.nomVaisseauPrevu || nomGare || nomVaisseauAleatoire(v);
+  v.nomVaisseauPrevu = champ.value;
+  $('vaisseau-info').textContent = nomGare ? 'Le vaisseau garé à la station terrestre reprend du service. Vous pouvez le renommer.' : 'Un nouveau vaisseau : un nom est proposé au hasard, changez-le à votre guise.';
+  champ.oninput = () => { v.nomVaisseauPrevu = nettoyerNomVaisseau(champ.value); };
+  $('vaisseau-hasard').onclick = () => { champ.value = nomVaisseauAleatoire(v, [champ.value, nomGare].filter(Boolean)); v.nomVaisseauPrevu = champ.value; };
+  $('equipage-continuer').onclick = () => { v.nomVaisseauPrevu = nettoyerNomVaisseau(champ.value) || nomVaisseauAleatoire(v); sauver(etat); allerLancement(); };
   montrer('equipage');
 }
 
