@@ -779,7 +779,7 @@ function allerNavigation() {
   if (etat.reprendreAuto) { Orbiteur.auto = true; etat.reprendreAuto = false; }
   // Partie rechargée en plein trajet : le pilote auto reprend là où il en était.
   if (!trajetAnnonce && Orbiteur.auto && etat.voyage.cible && ASTRES_PAR_ID[etat.voyage.cible]) {
-    Orbiteur.log(`🚀 Trajet repris : le pilote auto poursuit vers ${le(ASTRES_PAR_ID[etat.voyage.cible])}.`);
+    Orbiteur.log(`🚀 Trajet repris : le pilote auto poursuit vers ${le(ASTRES_PAR_ID[etat.voyage.cible])}.`);
   }
   trajetAnnonce = true;
   Orbiteur.construireHud();
@@ -1191,7 +1191,7 @@ addEventListener('keydown', (e) => {
     const type = e.code === 'KeyE' ? 'spationaute' : 'robot';
     if (type === 'spationaute' && v.spatioPerdu) {
       const q = v.equipier || { nom: nomSpatio(), acc: acc() };
-      return refus(`${majuscule(q.nom)} n’est pas revenu${q.acc || ''} de sa sortie : plus personne à bord ne peut sortir. Il reste le robot (R), ou le décollage (T).`);
+      return refus(`${majuscule(q.nom)} n’est pas revenu${q.acc || ''} de sa sortie : plus personne à bord ne peut sortir. Il reste le robot (R), ou le décollage (T).`);
     }
     // Dehors, c'est mortel (pression, chaleur, rayonnement) : on prévient, mais on laisse sortir.
     const dangers = dangersSortie(v, type);
