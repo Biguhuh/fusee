@@ -36,8 +36,8 @@ class RetourTerre {
         ...this.personnes.flatMap((p, i) => [['treuil', i ? 2 : 3, 3 * 60, i], ['montee', 3, 4 * 60, i]]),
         ['depart', 3, 5 * 60],
         // Puis le navire vient récupérer la capsule (et ses échantillons) avec sa grue.
-        ['bateau', 5, 2 * 3600], ['grue', 4, 20 * 60], ['hisse', 3, 10 * 60], ['fin', 2, 0]]
-      : [['flotte', 3.5, 300], ['bateau', 6, 2 * 3600], ['grue', 4, 20 * 60], ['hisse', 3, 10 * 60], ['fin', 2, 0]];
+        ['bateau', 5, 2 * 3600], ['grue', 4, 20 * 60], ['hisse', 3, 10 * 60], ['pose', 3, 5 * 60], ['fin', 2, 0]]
+      : [['flotte', 3.5, 300], ['bateau', 6, 2 * 3600], ['grue', 4, 20 * 60], ['hisse', 3, 10 * 60], ['pose', 3, 5 * 60], ['fin', 2, 0]];
   }
 
   // Facteur de temps de la descente : la rentrée en ≈ 10 s, les parachutes en ≈ 8 s ; × la vitesse choisie.
@@ -171,7 +171,10 @@ class RetourTerre {
     const yMer = cy + h * echelle;
     const Rpx = this.terre.rayonKm * 1000 * echelle;
     ctx.save();
-    ctx.beginPath(); ctx.arc(cx, yMer + Rpx, Rpx, 0, 2 * Math.PI);
+    ctx.beginPath();
+    // Un cercle de plusieurs millions de pixels se dessine mal (formes bizarres) : près de l'eau, la mer est plate.
+    if (Rpx > 2e5) ctx.rect(-10, yMer, W + 20, Math.max(0, H - yMer) + 10);
+    else ctx.arc(cx, yMer + Rpx, Rpx, 0, 2 * Math.PI);
     const gm = ctx.createLinearGradient(0, yMer, 0, H);
     gm.addColorStop(0, h > 20000 ? '#3d78c4' : '#2a6cb8'); gm.addColorStop(1, '#0d3466');
     ctx.fillStyle = gm; ctx.fill();
@@ -268,7 +271,7 @@ class RetourTerre {
     const taille = 40 * k;
 
     // Avec équipage, le navire n'entre en scène qu'après le départ de l'hélicoptère.
-    if (!this.equipage || ['bateau', 'grue', 'hisse', 'fin'].includes(this.phase)) {
+    if (!this.equipage || ['bateau', 'grue', 'hisse', 'pose', 'fin'].includes(this.phase)) {
       // Navire : il arrive du bord gauche, s'arrête à côté de la capsule, puis la grue la hisse.
       // Arrêt calculé pour que le bout de la flèche (abaissée) soit juste au-dessus de la capsule.
       const BAS = 0.15, RANGE = 1.25;
@@ -279,9 +282,18 @@ class RetourTerre {
       let angleGrue = RANGE, crochetY = 0, suit = false;
       if (this.phase === 'grue') { angleGrue = RANGE - (RANGE - BAS) * lisse; crochetY = lisse; }
       if (this.phase === 'hisse') { angleGrue = BAS + (RANGE - BAS) * lisse; crochetY = 1 - lisse; suit = true; }
-      const pos = this.dessinerNavire(ctx, xB, houle(xB), k, angleGrue, crochetY, yCap);
-      if (suit) { xCap = pos.xCrochet; yCap = pos.yCrochet + taille; }   // la capsule pend au crochet
-      if (this.phase === 'fin') { xCap = pos.xCrochet; yCap = houle(xB) - 18 * k; capsuleSurPont = true; }
+      // Puis la grue, flèche relevée au-dessus du pont, descend doucement la capsule jusqu'à le toucher.
+      const pont = houle(xB) - 18 * k;
+      let yRef = yCap;
+      if (this.phase === 'pose' || this.phase === 'fin') {
+        // La flèche se redresse encore un peu pour amener la capsule au-dessus du pont, puis la descend.
+        angleGrue = this.phase === 'fin' ? 1.5 : RANGE + (1.5 - RANGE) * Math.min(1, lisse * 2); suit = true;
+        crochetY = this.phase === 'fin' ? 1 : lisse;
+        yRef = pont - taille - 8 * k + 44 * k;     // le crochet s'arrête quand le bas de la capsule touche le pont
+      }
+      const pos = this.dessinerNavire(ctx, xB, houle(xB), k, angleGrue, crochetY, yRef);
+      if (suit) { xCap = pos.xCrochet; yCap = Math.min(pont, pos.yCrochet + taille); }   // la capsule pend au crochet
+      if (this.phase === 'fin') { yCap = pont; capsuleSurPont = true; }
       if (!this.equipage && (this.phase === 'flotte' || this.phase === 'bateau')) {
         texteSurFond(ctx, 'Capsule vide', cx, H * 0.2, { police: `600 ${Math.round(22 * k)}px system-ui, sans-serif`, couleur: '#ffd666' });
       }
@@ -289,7 +301,7 @@ class RetourTerre {
     // Capsule
     ctx.save();
     ctx.translate(xCap, yCap);
-    if (!capsuleSurPont && this.iRecup !== undefined && !(this.phase === 'hisse' || this.phase === 'fin')) {
+    if (!capsuleSurPont && this.iRecup !== undefined && !['hisse', 'pose', 'fin'].includes(this.phase)) {
       ctx.rotate(Math.sin(this.tAnim * 1.3) * 0.06);
       // Ballons de redressement
       ctx.fillStyle = '#fafafa';
@@ -316,7 +328,7 @@ class RetourTerre {
       if (f < 0.7) texteSurFond(ctx, 'PLOUF !', xCap, houle(xCap) - taille * 2.2, { police: `800 ${Math.round(26 * k)}px system-ui, sans-serif`, couleur: '#ffffff' });
     }
     // Écume autour de la capsule qui flotte
-    if (!(this.phase === 'hisse' || this.phase === 'fin')) {
+    if (!['hisse', 'pose', 'fin'].includes(this.phase)) {
       ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.ellipse(xCap, houle(xCap) + 4 * k, taille * 0.75, 4 * k, 0, 0, 2 * Math.PI); ctx.stroke();
     }
@@ -457,7 +469,8 @@ class RetourTerre {
         depart: `${this.nom} ${/ et /.test(this.nom) ? 'sont' : 'est'} à bord, direction la base. Un navire va récupérer la capsule${this.echantillons ? ' et ses échantillons' : ''}.`,
         bateau: 'Le navire de récupération arrive.',
         grue: 'La grue se place au-dessus de la capsule.',
-        hisse: 'La capsule est hissée à bord.',
+        hisse: 'La grue hisse la capsule hors de l’eau.',
+        pose: 'La grue dépose doucement la capsule sur le pont.',
         fin: `Capsule à bord${this.echantillons ? `, avec ${this.echantillons} échantillon${this.echantillons > 1 ? 's' : ''}` : ''}.`,
       };
       lignes.push([textes[this.phase] || '', '#ffffff', true]);

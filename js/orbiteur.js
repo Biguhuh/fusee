@@ -893,6 +893,7 @@ const Orbiteur = {
   stationIci() { return this.v.stations.find((s) => s.centre === this.v.orb.centre); },
   // Amarré : même position et même vitesse que la station.
   estAmarre(s) {
+    if (this.v.aIss) return false;   // amarré à l'ISS : plus à la station terrestre
     if (this.v.amarre === s.id) return true;
     const o = this.v.orb, e = this.etatStation(s);
     return V.norm(V.sub(o.r, e.r)) < 1 && V.norm(V.sub(o.v, e.v)) < 0.01;
@@ -1254,7 +1255,7 @@ const Orbiteur = {
     const v = this.v, s = this.stationIci();
     if (!s) return;
     // Trop loin : il faut d'abord la rejoindre (rendez-vous), pas d'amarrage instantané.
-    if (!finRendezVous && !this.procheStation(s) && !this.estAmarre(s)) return this.lancerRendezVous();
+    if (!finRendezVous && ((!this.procheStation(s) && !this.estAmarre(s)) || this.v.aIss)) return this.lancerRendezVous();   // depuis l'ISS : un vrai rendez-vous
     const e = this.etatStation(s);
     v.orb.r = e.r; v.orb.v = e.v; v.orb.transfert = null;
     v.amarre = s.id;   // reste amarré : l'orbiteur suit la station jusqu'à la prochaine poussée
@@ -2230,10 +2231,10 @@ const Orbiteur = {
       const amarre = this.estAmarre(st);
       if (!amarre && v.rdvStation && v.rdvStation.id === st.id) {
         d += `<p class="doux">🛰 Rendez-vous en cours avec ${le(st)} : amarrage le ${fmtDate(v.rdvStation.fin)} (dans ${fmtDuree(v.rdvStation.fin - v.t)}). Accélérez le temps pour y arriver plus vite.</p><button id="nav-rdv-annuler">✕ Annuler le rendez-vous</button>`;
-      } else if (!amarre && this.procheStation(st)) d += `<button id="nav-amarrer" class="principal">⚓ S’amarrer ${au(st)}</button>`;
+      } else if (!amarre && this.procheStation(st) && !v.aIss) d += `<button id="nav-amarrer" class="principal">⚓ S’amarrer ${au(st)}</button>`;
       else if (!amarre) {
         const p = this.planRendezVous(st);
-        d += `<button id="nav-amarrer" ${fermee ? '' : 'disabled title="Il faut être en orbite fermée"'}>🛰 ${v.aIss ? 'Retourner à' : 'Rendez-vous avec'} ${le(st)} (≈ ${fmtDuree(p.duree)}, ${fmtV(p.dv)})</button>`;
+        d += `<button id="nav-amarrer" ${v.aIss ? 'class="principal"' : ''} ${fermee ? '' : 'disabled title="Il faut être en orbite fermée"'}>🛰 ${v.aIss ? 'Retourner à' : 'Rendez-vous avec'} ${le(st)} (≈ ${fmtDuree(p.duree)}, ${fmtV(p.dv)})</button>`;
       }
       else {
         d += `<button disabled title="L’orbiteur est déjà amarré">⚓ Amarré ${au(st)}</button>`;
