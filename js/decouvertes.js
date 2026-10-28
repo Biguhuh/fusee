@@ -492,6 +492,8 @@ function dessinerVoitureEnChute(ctx, ecran, dansEcran, t, s, v) {
 function dessinerVisageMelies(ctx, x, y, r) {
   if (!eggTrouve('lune-melies') || r < 30) return;
   ctx.save();
+  // En miroir : l'œil droit de la Lune est à gauche pour nous, comme dans le film (l'obus arrive d'en haut à gauche).
+  ctx.translate(x, 0); ctx.scale(-1, 1); ctx.translate(-x, 0);
   ctx.strokeStyle = 'rgba(40,40,40,0.45)'; ctx.fillStyle = 'rgba(40,40,40,0.35)'; ctx.lineWidth = Math.max(1.5, r * 0.035);
   // Œil gauche, plissé de douleur ; œil droit, l'obus planté dedans.
   ctx.beginPath(); ctx.moveTo(x - r * 0.48, y - r * 0.22); ctx.quadraticCurveTo(x - r * 0.33, y - r * 0.32, x - r * 0.18, y - r * 0.22); ctx.stroke();
