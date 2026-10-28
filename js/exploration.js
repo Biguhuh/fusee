@@ -256,6 +256,7 @@ class Exploration {
 
   step(dt, cmd) {
     if (this.fin) return;
+    if (this.enEmbarquement()) { this.reserve -= dt; this.vol.t += dt; this.suivreSecours(dt); return; }
     this.dureeSortie = (this.dureeSortie || 0) + dt;   // pour le registre (plus longue sortie)
     const p = this.p, g = this.c.g;
     this.c = conditions(this.astre, p.y);
@@ -530,8 +531,10 @@ class Exploration {
   // Peut-on rentrer au module, et en combien de temps ? On parcourt le sol jusqu'au module : une montée plus raide
   // que ce qu'on peut gravir, et plus haute que ce qu'un saut franchit, barre le chemin (paroi de cratère, falaise).
   // Le temps : la distance à la vitesse de marche (ou de l'astromobile), avec 25 % de marge pour les pentes.
-  estimerRetour(enRover = this.enRover) {
-    const a = this.astre, x0 = this.p.x, d = ecartSol(a, this.xFusee, x0);
+  estimerRetour(enRover = this.enRover) { return this.cheminVers(this.xFusee, enRover); }
+  // Chemin d'ici jusqu'au point xCible : distance, temps, et la paroi qui le barre s'il y en a une.
+  cheminVers(xCible, enRover = false) {
+    const a = this.astre, x0 = this.p.x, d = ecartSol(a, xCible, x0);
     const sens = Math.sign(d) || 1, dist = Math.abs(d);
     const penteMax = ((enRover ? 40 : this.def.penteMax + 10) * Math.PI) / 180;
     const g = Math.max(1e-6, this.c.g);
@@ -577,30 +580,124 @@ class Exploration {
   }
   // 🆘 Appel d'urgence : un module de secours descend chercher le spationaute (s'il y en a un de libre à bord
   // de l'orbiteur). Sinon, ou s'il arriverait trop tard, il n'y a plus qu'à attendre la fin des réserves.
+  // La zone d'atterrissage du module de secours : la plus proche qui soit plate (le module doit pouvoir s'y poser),
+  // atteignable à pied (aucune paroi infranchissable en chemin) et à temps (l'oxygène couvre la marche et
+  // l'attente du module, avec 5 min de marge). Pas sur le premier module.
+  zonePlate(x) {
+    const a = this.sol(x - 4), b = this.sol(x + 4), c = this.sol(x);
+    return Math.abs(b - a) / 8 < Math.tan((10 * Math.PI) / 180) && Math.abs(c - (a + b) / 2) < 0.8;
+  }
+  choisirZoneSecours() {
+    for (let d = 10; d <= 3000; d += 10) {
+      for (const sens of [1, -1]) {
+        const x = this.p.x + sens * d;
+        if (distSol(this.astre, x, this.xFusee) < 25 || !this.zonePlate(x)) continue;
+        const c = this.cheminVers(x, false);
+        if (c.bloque || Math.max(c.temps, DELAI_SECOURS) + 5 * 60 > this.reserve) continue;
+        return { x, dist: c.dist, temps: c.temps };
+      }
+    }
+    return null;
+  }
+  directionVers(x) { return ecartSol(this.astre, x, this.p.x) < 0 ? 'à gauche ◀' : 'à droite ▶'; }
+  // 🆘 Appel d'urgence : un module de secours descend chercher le spationaute (s'il y en a un de libre à bord
+  // de l'orbiteur), sur une zone d'atterrissage qu'il faut rejoindre à pied.
   appelUrgence() {
     if (this.fin || this.type !== 'spationaute' || this.terre) return;
-    if (this.secours) return this.dire(`🆘 Le module de secours arrive dans ${fmtDuree(this.secours.reste)}. Tenez bon !`);
+    if (this.secours) return this.dire(`🆘 ${this.texteSecours()}.`);
     const v = etat.enVoyage && etat.voyage;
     if (v && !(v.atterrisseurs >= 2)) return this.dire('🆘 Aucun module de secours : il n’y a pas d’autre atterrisseur à bord de l’orbiteur. Sans chemin vers le module, il ne reste qu’à espérer…');
-    if (DELAI_SECOURS > this.reserve) return this.dire(`🆘 Le module de secours mettrait ${fmtDuree(DELAI_SECOURS)} à arriver, mais il ne reste que ${fmtDuree(this.reserve)} d’oxygène : trop tard.`);
-    this.secours = { reste: DELAI_SECOURS, x: this.p.x + 8 };
-    this.dire(`🆘 Appel reçu ! Un module de secours ${v ? 'quitte l’orbiteur' : 'est envoyé'} : arrivée dans ${fmtDuree(DELAI_SECOURS)}. Restez où vous êtes (accélérez le temps avec +).`);
+    if (DELAI_SECOURS + 5 * 60 > this.reserve) return this.dire(`🆘 Le module de secours mettrait ${fmtDuree(DELAI_SECOURS)} à arriver, mais il ne reste que ${fmtDuree(this.reserve)} d’oxygène : trop tard.`);
+    const z = this.choisirZoneSecours();
+    if (!z) return this.dire('🆘 Aucune zone d’atterrissage possible : il faut un sol plat, qu’on puisse rejoindre à pied (sans paroi infranchissable) avant la fin de l’oxygène. Déplacez-vous, puis rappelez (U).');
+    this.secours = { reste: DELAI_SECOURS, x: z.x, phase: 'vol', t: 0 };
+    this.dire(`🆘 Appel reçu ! Un module de secours ${v ? 'quitte l’orbiteur' : 'est envoyé'} : arrivée dans ${fmtDuree(DELAI_SECOURS)}. Zone d’atterrissage ${this.directionVers(z.x)}, à ${fmt(z.dist)} m (≈ ${fmtDuree(z.temps)} à pied) : soyez-y à son arrivée.`);
   }
+  texteSecours() {
+    const s = this.secours;
+    if (!s) return '';
+    const d = distSol(this.astre, this.p.x, s.x), ou = d < 6 ? 'vous êtes dans la zone' : `zone ${this.directionVers(s.x)}, à ${fmt(d)} m`;
+    if (s.phase === 'vol') return `Module de secours dans ${fmtDuree(s.reste)} · ${ou}`;
+    if (s.phase === 'descente') return `Le module de secours se pose · ${ou}`;
+    if (s.phase === 'pose') return `Module de secours posé : rejoignez-le · ${ou}`;
+    return 'Embarquement dans le module de secours';
+  }
+  // Déroulé : vol (45 min) → descente sur la zone → posé, il attend → embarquement → décollage → sauvé.
   suivreSecours(dt) {
-    if (!this.secours) return false;
-    this.secours.reste -= dt;
-    if (this.secours.reste > 0) return false;
-    // Le module de secours se pose à côté : le spationaute monte à bord avec son sac.
-    const tous = [...this.sac, ...(this.enRover ? this.sacRover : [])];
+    const s = this.secours;
+    if (!s) return false;
+    const dZone = distSol(this.astre, this.p.x, s.x);
+    if (s.phase === 'vol') {
+      s.reste -= dt;
+      if (s.reste > 0) return false;
+      s.phase = 'descente'; s.t = 0; this.warp = 1;
+      this.dire(`🆘 Le module de secours arrive : il descend sur la zone d’atterrissage${dZone < 6 ? '' : ` (${this.directionVers(s.x)}, à ${fmt(dZone)} m)`}.`);
+      return false;
+    }
+    s.t += dt;
+    if (s.phase === 'descente') {
+      if (s.t >= 8) { s.phase = 'pose'; s.t = 0; this.dire(dZone < 6 ? '🆘 Le module de secours est posé. Embarquement !' : `🆘 Le module de secours est posé : rejoignez-le, ${this.directionVers(s.x)}, à ${fmt(dZone)} m.`); }
+      return false;
+    }
+    if (s.phase === 'pose') {
+      if (dZone < 6 && this.p.auSol) {
+        s.phase = 'embarquement'; s.t = 0;
+        if (this.enRover) { s.sacRover = true; this.enRover = false; this.rover.x = this.p.x; }   // l'astromobile reste là, son sac part avec l'équipage
+      }
+      return false;
+    }
+    if (s.phase === 'embarquement') {
+      // Le spationaute marche jusqu'à la trappe, puis monte à bord.
+      const p = this.p, ecart = ecartSol(this.astre, s.x - 0.6, p.x);
+      if (Math.abs(ecart) > 0.05) { const pas = Math.sign(ecart) * Math.min(Math.abs(ecart), 1.2 * dt); p.x += pas; p.dir = Math.sign(ecart); p.pas += Math.abs(pas); }
+      p.y = this.sol(p.x); p.vx = 0; p.vy = 0;
+      if (s.t >= 3) { s.phase = 'decollage'; s.t = 0; this.dire('🆘 À bord ! Le module de secours redécolle.'); }
+      return false;
+    }
+    if (s.phase === 'decollage' && s.t < 6) return false;
+    // Sauvé : le spationaute rentre avec son sac (et celui de l'astromobile s'il y était).
+    const tous = [...this.sac, ...(s.sacRover ? this.sacRover || [] : [])];
     const n = tous.length;
     if (n) {
-      const s = (this.science[this.astre.id] = this.science[this.astre.id] || { sites: {}, echantillons: 0, analyses: 0 });
-      s.echantillons += n;
+      const sc = (this.science[this.astre.id] = this.science[this.astre.id] || { sites: {}, echantillons: 0, analyses: 0 });
+      sc.echantillons += n;
       this.vol.echantillons = (this.vol.echantillons || 0) + n;
       this.recoltes = (this.recoltes || 0) + n;
     }
     this.terminer('secouru', `🆘 Sauvetage réussi : ${this.def.nom} est monté${this.equipier().acc} dans le module de secours${n ? ` avec ${n} échantillon${n > 1 ? 's' : ''}` : ''}. Le premier atterrisseur reste au sol.`);
     return true;
+  }
+  // Pendant l'embarquement et le décollage, on ne pilote plus : l'animation se déroule.
+  enEmbarquement() { return !!(this.secours && (this.secours.phase === 'embarquement' || this.secours.phase === 'decollage')); }
+
+  // Zone d'atterrissage au sol (cercle, balise), ou flèche au bord de l'écran si elle est hors champ.
+  dessinerZoneSecours(ctx, versEcran, echelle, W, H) {
+    const s = this.secours;
+    if (!s || s.phase === 'embarquement' || s.phase === 'decollage') return;
+    const [zx, zy] = versEcran(s.x, this.sol(s.x));
+    const clignote = Math.floor(performance.now() / 400) % 2 === 0;
+    if (zx > -40 && zx < W + 40) {
+      ctx.strokeStyle = '#ff9800'; ctx.lineWidth = 2; ctx.setLineDash([6, 5]);
+      ctx.beginPath(); ctx.ellipse(zx, zy, 6 * echelle, 1.2 * echelle, 0, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = clignote ? '#ff5252' : '#7f0000';
+      ctx.beginPath(); ctx.arc(zx, zy - 0.4 * echelle, 0.25 * echelle, 0, Math.PI * 2); ctx.fill();
+      texteSurFond(ctx, '🆘 Zone d’atterrissage', zx, zy - 1.6 * echelle - 12, { police: '12px system-ui, sans-serif', couleur: '#ffcc80' });
+    } else {
+      const droite = zx >= W + 40, x = droite ? W - 70 : 70;
+      texteSurFond(ctx, `${droite ? '' : '◀ '}🆘 Zone d’atterrissage · ${fmt(distSol(this.astre, this.p.x, s.x))} m${droite ? ' ▶' : ''}`, x, H * 0.45, { police: '13px system-ui, sans-serif', couleur: clignote ? '#ffcc80' : '#ff9800' });
+    }
+  }
+  // Le module de secours : il descend sur la zone, s'y pose, attend, puis redécolle avec le spationaute.
+  dessinerModuleSecours(ctx, versEcran, echelle) {
+    const s = this.secours;
+    if (!s || s.phase === 'vol') return;
+    let alt = 0, gaz = 0;
+    if (s.phase === 'descente') { const f = Math.min(1, s.t / 8); alt = 25 * Math.pow(1 - f, 1.6); gaz = 0.7; }   // on le voit descendre sur la zone
+    if (s.phase === 'decollage') { alt = 0.6 * s.t * s.t; gaz = 1; }   // il s'élève doucement, puis accélère
+    const [mx, my] = versEcran(s.x, this.sol(s.x) + alt);
+    dessinerModule(ctx, { f: this.vol.f, astre: this.astre, angle: 0, throttle: gaz, temp: 20, integrite: 100, pose: alt < 0.05, t: this.vol.t,
+      degats: { pression: 0, chaleur: 0, impact: 0 }, taux: { pression: 0, chaleur: 0 }, enDegats: () => false }, mx, my, HAUTEUR_MODULE * echelle);
+    if (gaz && alt < 12 && Math.random() < 0.6) this.fx.push({ x: s.x + (Math.random() - 0.5) * 3, y: this.sol(s.x), vx: (Math.random() - 0.5) * 4, vy: Math.random() * 1.5, vie: 0, max: 0.8 });   // poussière soufflée
   }
 
   poussiere(n) {
@@ -693,13 +790,9 @@ class Exploration {
     }
     else dessinerFusee(ctx, { f: this.vol.f, angle: this.vol.angle, throttle: 0, temp: this.vol.temp, integrite: this.vol.integrite, degats: this.vol.degats, taux: { pression: 0, chaleur: 0 }, enDegats: () => false }, fx, fy, HAUTEUR_MODULE * echelle);
 
-    // Module de secours : il descend les deux dernières minutes, puis se pose à côté.
-    if (this.secours && this.secours.reste < 120) {
-      const k = Math.max(0, this.secours.reste / 120), xs = this.secours.x;
-      const [sx, sy] = versEcran(xs, this.sol(xs) + 80 * k);
-      dessinerModule(ctx, { f: this.vol.f, astre: this.astre, angle: 0, throttle: k > 0.01 ? 0.6 : 0, temp: 20, integrite: 100, pose: k <= 0.01, t: this.vol.t,
-        degats: { pression: 0, chaleur: 0, impact: 0 }, taux: { pression: 0, chaleur: 0 }, enDegats: () => false }, sx, sy, HAUTEUR_MODULE * echelle);
-    }
+    // Module de secours et sa zone d'atterrissage.
+    this.dessinerZoneSecours(ctx, versEcran, echelle, W, H);
+    this.dessinerModuleSecours(ctx, versEcran, echelle);
     // Rover garé
     if (this.rover && !this.enRover) {
       const [rx, ry] = versEcran(this.rover.x, this.sol(this.rover.x));
@@ -727,6 +820,7 @@ class Exploration {
     // Les véhicules suivent la pente (en l'air, ils gardent leur dernière inclinaison).
     if (p.auSol) this.inclinaison = this.penteSous(p.x);
     if (this.enRover) dessinerRover(ctx, sx, sy, echelle, p, true, this.inclinaison || 0);
+    else if (this.type === 'spationaute' && this.secours && this.secours.phase === 'decollage') { /* à bord du module de secours */ }
     else if (this.type === 'spationaute') dessinerSpationaute(ctx, sx, sy, echelle, p, this.terre, this.equipier().profil);
     else {
       // Le bras sort pendant une analyse, ou un instant après avoir planté le drapeau.
@@ -783,7 +877,7 @@ class Exploration {
       l.push(['Module', fmt(distSol(this.astre, this.p.x, this.xFusee)) + ' m', '#fff']);
       if (this.type === 'spationaute' && !this.terre && this.retour && this.retour.dist > 0) l.push(['Retour', this.retour.bloque ? 'bloqué ⛔' : '≈ ' + fmtDuree(this.retour.temps), this.retour.bloque || this.reserve < this.retour.temps * 1.3 ? '#ef5350' : '#fff']);
       if (this.rover) l.push(['Astromob.', fmtDuree(this.batterieRover), this.batterieRover < 30 * 60 ? '#ef5350' : '#66bb6a']);
-      if (this.secours) l.push(['🆘 Secours', 'dans ' + fmtDuree(this.secours.reste), '#ffca28']);
+      if (this.secours) l.push(['🆘 Secours', this.texteSecours(), '#ffca28']);
       const rp = c.p / d.pressionMax, rt = (c.t + KELVIN) / (d.tempMax + KELVIN), rr = this.type === 'robot' ? 0 : this.irradiation.svJour / DOSE_MORTELLE;
       if (rp > 0.6) l.push(['Pression', fmtP(c.p), couleurRisque(rp)]);
       if (rt > 0.7) l.push(['Temp.', fmt(c.t) + ' °C', couleurRisque(rt)]);
@@ -835,7 +929,7 @@ class Exploration {
     ligne('Distance module', fmt(distSol(this.astre, this.p.x, this.xFusee)) + ' m');
     if (this.type === 'spationaute' && !this.terre && this.retour && this.retour.dist > 0) ligne('Retour au module', this.retour.bloque ? `bloqué : paroi de ${fmt(this.retour.bloque.hauteur, 1)} m` : `≈ ${fmtDuree(this.retour.temps)}${this.retour.enRover ? ' (astromobile)' : ''}`, this.retour.bloque || this.reserve < this.retour.temps * 1.3 ? '#ef5350' : '#fff');
     if (this.rover) ligne('Batterie astromobile', fmtDuree(this.batterieRover), this.batterieRover < 30 * 60 ? '#ef5350' : '#66bb6a');
-    if (this.secours) ligne('🆘 Module de secours', 'arrive dans ' + fmtDuree(this.secours.reste), '#ffca28');
+    if (this.secours) ligne('🆘 Secours', this.texteSecours(), '#ffca28');
     }
 
     // Site le plus proche non étudié
