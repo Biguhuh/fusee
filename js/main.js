@@ -384,6 +384,7 @@ function rejouerVisite() { lancer(etat.fuseeVisite ? { fusee: fuseeDeConception(
 
 // ---------- Campagne : lancement, descente, robot, retour ----------
 function lancerMegaFusee(type = etat.typeLanceur || 'station') {
+  replique('velo');
   etat.typeLanceur = type;
   etat.destination = SYSTEME.origine;
   lancer({ fusee: megaFusee(type), lancement: true, depuisSol: true, voyage: false });

@@ -220,6 +220,8 @@ class Vol {
     verifierCassini(this);
     if (this.integrite < 99.5 && !this.fin) repliqueVol(this, 'houston');
     if (this.astre.type === 'gazeuse' && c.p > 10) repliqueVol(this, 'pression');
+    if (this.astre.id === 'jupiter' && c.p > 2) repliqueVol(this, 'baleine');
+    if (!this.pose && !this.lancement && Math.abs(this.vx) >= 39.3 && this.altSol() < 20) repliqueVol(this, 'mph88');   // 88 mph en rase-mottes
     if (this.fin) return;
     this.prelever();
 

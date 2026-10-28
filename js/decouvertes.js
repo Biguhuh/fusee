@@ -84,6 +84,29 @@ const EASTER_EGGS = [
     texte: 'À l’horizon, une vague haute comme une montagne avance sans bruit. Ici, une heure vaut sept ans ailleurs. Ne traînez pas.' },
   { id: 'mimas-robot', astre: 'l601', dx: 340, dessin: 'robotBlocs',
     texte: 'Un robot fait de quatre blocs gris articulés vous observe. Son réglage d’humour est à 75 %. Il trouve votre atterrissage perfectible.' },
+  // Classiques de la science-fiction dans l'espace.
+  { id: 'mars-patates', astre: 'mars', dx: 650, dessin: 'patates',
+    texte: 'Sous une bâche, un carré de pommes de terre pousse dans le sol martien. À côté, une pile de disques disco. Quelqu’un a dû s’ennuyer ici, très longtemps.' },
+  { id: 'barnard-ver', astre: 'barnard_p2', dx: 400, dessin: 'ondulation',
+    texte: 'Le sable ondule, comme si quelque chose de gigantesque nageait dessous. Puis plus rien. Conseil : marchez sans rythme.' },
+  { id: 'hygie-prince', astre: 'a10', dx: 220, dessin: 'asteroidePrince',
+    texte: 'Trois volcans hauts comme un genou, dont un éteint. Une rose sous un globe de verre. Et des pousses de baobab, à arracher chaque matin.' },
+  { id: 'ariel-solaris', astre: 'l701', dx: -320, dessin: 'silhouetteFamiliere', solaris: true,
+    texte: 'Sur la glace, une silhouette familière vous attend, immobile : quelqu’un que vous avez perdu. Elle ne devrait pas être là. Elle sourit.' },
+  { id: 'psyche-cabine', astre: 'a16', dx: 300, dessin: 'cabineBleue',
+    texte: 'Une cabine de police bleue, plantée sur le métal. La porte est entrouverte : à l’intérieur, c’est beaucoup plus grand. Un bruit de moteur asthmatique, et elle n’est plus là.' },
+  { id: 'oberon-kerbal', astre: 'oberon', dx: 260, dessin: 'petitVert',
+    texte: 'Un petit bonhomme vert, casqué, grand sourire, assis à côté d’une fusée en pièces détachées. Il veut recommencer. Avec plus de propulseurs.' },
+  { id: 'nereide-nono', astre: 'l802', dx: 200, dessin: 'robotRond',
+    texte: 'Un petit robot rond aux grands yeux grignote un boulon. Il cherche un garçon et son père, perdus loin de la Terre, avec des dieux en colère à leurs trousses.' },
+  { id: 'protee-feu', astre: 'l808', dx: -200, dessin: 'feuDeCamp',
+    texte: 'Un feu de camp crépite, sans air (allez savoir comment). Une guimauve grille au bout d’un bâton. Dans 22 minutes, tout recommencera.' },
+  { id: 'io-aliens', astre: 'io', dx: 520, dessin: 'aliensTroisYeux',
+    texte: 'Trois petits extraterrestres verts à trois yeux regardent le ciel, tout près de la pizza. Ils attendent le grappin, ils l’ont élu.' },
+  { id: 'callisto-plante', astre: 'callisto', dx: -360, dessin: 'planteBotte',
+    texte: 'Dans une vieille botte, une petite pousse verte. Le robot qui empile les cubes la protège : c’est la seule chose vivante à des millions de kilomètres.' },
+  { id: 'eunomie-kryptonite', astre: 'a15', dx: 280, dessin: 'caillouVert',
+    texte: 'Un caillou vert qui luit doucement. Personne de l’équipage ne se sent mal en le ramassant. Un certain héros à cape, lui, l’éviterait.' },
   { id: 'proxima-b', astre: 'proxima_p2', dx: -400, dessin: 'villePluie',
     texte: 'Une pluie noire tombe sur la ville. Des silhouettes répondent à des questions étranges.' },
 ];
@@ -133,6 +156,12 @@ const EGGS_ORBITE = [
     texte: 'Derrière la Lune, une soucoupe grande comme un pays attend le 4 juillet. Quelqu’un lui a déjà envoyé un virus.' },
   { id: 'saturne', astre: 'saturne', titre: 'Space Oddity',
     texte: 'Une capsule vide dérive. Personne n’a répondu depuis longtemps.' },
+  { id: 'soleil-sunshine', astre: 'soleil',
+    texte: 'Un vaisseau au grand bouclier doré, figé face au Soleil. Il devait le rallumer. Personne ne répond.' },
+  { id: 'neptune-albator', astre: 'neptune',
+    texte: 'Un vaisseau noir, frappé d’une tête de mort, croise en silence. Son capitaine balafré ne salue personne : il ne sert que la liberté.' },
+  { id: 'uranus-goldorak', astre: 'uranus',
+    texte: 'Un grand robot à cornes jaillit d’une soucoupe, fend les nuages, et disparaît. Quelqu’un a crié : « Fulguropoing ! »' },
   { id: 'tauceti-balise', astre: 'tauceti_p4',
     texte: 'Une vieille balise rouillée, frappée du sigle d’une grande compagnie interstellaire : Weyland. Elle répète le nom d’une survivante, Ripley, et parle d’un chat.' },
   { id: 'trappist-f', astre: 'trappist1_p5',
@@ -143,6 +172,21 @@ const EGGS_ORBITE = [
     texte: 'Une plaque au nom d’un pilote qui aurait inventé le vol plus rapide que la lumière. Il aurait pris sa retraite ici.' },
 ];
 const DUREE_MAX_OBSERVATION = 30 * 86400;
+
+// Rendez-vous avec Rama : un immense cylindre traverse le Système solaire. L'équipage le croise en route,
+// en orbite autour du Soleil, au-delà de 3 UA.
+const EGG_RAMA = { id: 'rama', astre: 'soleil', texte: 'Un cylindre immense, long de cinquante kilomètres, traverse le Système solaire sans un regard pour vous. Il vient de loin et repart vers plus loin.' };
+function verifierRama(orb) {
+  const v = orb.v;
+  if (SYSTEME.id !== 'solaire' || eggTrouve(EGG_RAMA.id) || !v.orb || v.orb.centre !== 'soleil') return;
+  if (typeof survivants === 'function' && v.equipe && !survivants(v).length) return;
+  if (V.norm(orb.absolu(v.orb)) < 3 * UA_KM) return;
+  etat.decouvertes = etat.decouvertes || {};
+  etat.decouvertes[EGG_RAMA.id] = { astre: 'soleil', quand: v.t, par: 'l’équipage de l’orbiteur' };
+  regArtefactBord(v, EGG_RAMA.id);
+  orb.log(`✨ Croisé en route : ${EGG_RAMA.texte}`);
+  sauver(etat);
+}
 
 // Appelé par l'orbiteur à chaque avancée du temps.
 function verifierEggsOrbite(orb, dt) {
@@ -379,6 +423,7 @@ function tousLesEggs() {
     ...EASTER_EGGS.map((e) => ({ id: e.id, astre: e.astre, texte: e.texte })),
     ...EGGS_ORBITE.map((e) => ({ id: e.id, astre: e.astre, texte: e.texte, orbite: true })),
     { id: EGG_BETELGEUSE.id, astre: 'betelgeuse', texte: EGG_BETELGEUSE.texte },
+    { id: EGG_RAMA.id, astre: 'soleil', texte: EGG_RAMA.texte, orbite: true },
     { id: 'iss-wolowitz', astre: 'terre', texte: TEXTE_ISS_WOLOWITZ, orbite: true },
     ...[1, 2, 3].map((n) => ({ id: 'voiture-' + n, astre: 'roadster', texte: TEXTES_VOITURE[n], orbite: true })),
   ];
@@ -441,6 +486,7 @@ function afficherDecouverte(texte) {
   el.innerHTML = `<span>${texte}</span><button title="Fermer">✕</button>`;
   el.querySelector('button').onclick = () => el.classList.remove('visible');
   el.classList.add('visible');
+  if (nombreEggsTrouves() >= 42) replique('reponse42');
   clearTimeout(afficherDecouverte.minuteur);
   afficherDecouverte.minuteur = setTimeout(() => el.classList.remove('visible'), 10000);
 }
@@ -503,10 +549,17 @@ function decouvrir(e, x) {
   etat.decouvertes[e.id] = { astre: e.astre, quand: etat.enVoyage && etat.voyage ? etat.voyage.t : null, par: nomSpatio() };
   if (etat.enVoyage && etat.voyage) regArtefact(piloteDuVol(etat.voyage), e.id);
   if (e.flash) flashBlanc();
-  x.dire('✨ ' + (e.flash ? TEXTE_FLASH : e.texte));
+  // Solaris : la silhouette prend les traits d'une personne morte du registre, s'il y en a une.
+  let texte = e.flash ? TEXTE_FLASH : e.texte;
+  if (e.solaris) {
+    const morts = Object.values(registre()).filter((f) => f.statut === 'mort');
+    const p = morts[Math.floor(Math.random() * morts.length)];
+    if (p) texte = `Sur la glace, ${majuscule(p.nom)} vous attend, immobile, et vous sourit. Ce n’est pas possible.`;
+  }
+  x.dire('✨ ' + texte);
   if (e.elvis) x.vol.elvis = true;
   if (e.id === 'chat') replique('chat');
-  if (etat.enVoyage && etat.voyage) etat.voyage.journal.push({ t: etat.voyage.t, texte: `✨ Découverte ${sur(x.astre)} : ${e.flash ? TEXTE_FLASH : e.texte}` });
+  if (etat.enVoyage && etat.voyage) etat.voyage.journal.push({ t: etat.voyage.t, texte: `✨ Découverte ${sur(x.astre)} : ${texte}` });
   sauver(etat);
 }
 
@@ -711,6 +764,82 @@ const DESSINS_TRACES = {
 };
 
 const DESSINS_EGGS = {
+  patates(ctx, x, y, s) {
+    ctx.fillStyle = 'rgba(236,239,241,0.85)'; ctx.beginPath(); ctx.ellipse(x, y, 1.6 * s, 0.9 * s, 0, Math.PI, 0); ctx.fill();   // bâche
+    for (let k = -3; k <= 3; k++) { trait(ctx, [[x + k * 0.4 * s, y], [x + k * 0.4 * s, y - 0.35 * s]], '#2e7d32', 0.06 * s); disque(ctx, x + k * 0.4 * s, y - 0.38 * s, 0.09 * s, '#43a047'); }
+    for (let k = 0; k < 3; k++) { disque(ctx, x + 2 * s, y - (0.04 + k * 0.05) * s, 0.22 * s, '#111'); disque(ctx, x + 2 * s, y - (0.04 + k * 0.05) * s, 0.05 * s, ['#e91e63', '#ffeb3b', '#00bcd4'][k]); }
+  },
+  ondulation(ctx, x, y, s) {
+    const t = performance.now() / 500;
+    ctx.fillStyle = '#c8a165';
+    for (let k = 0; k < 5; k++) { const xx = x + (k - 2) * 1.6 * s + Math.sin(t) * 0.3 * s; ctx.beginPath(); ctx.ellipse(xx, y, 0.9 * s, (0.25 + 0.12 * Math.sin(t + k)) * s, 0, Math.PI, 0); ctx.fill(); }
+  },
+  asteroidePrince(ctx, x, y, s) {
+    for (const [dx, h, actif] of [[-0.9, 0.35, true], [-0.4, 0.3, true], [0.1, 0.25, false]]) {
+      ctx.fillStyle = '#6d4c41'; ctx.beginPath(); ctx.moveTo(x + (dx - 0.22) * s, y); ctx.lineTo(x + dx * s, y - h * s); ctx.lineTo(x + (dx + 0.22) * s, y); ctx.fill();
+      if (actif && Math.sin(performance.now() / 400 + dx * 5) > 0.3) disque(ctx, x + dx * s, y - (h + 0.08) * s, 0.05 * s, 'rgba(200,200,200,0.7)');
+    }
+    trait(ctx, [[x + 0.8 * s, y], [x + 0.8 * s, y - 0.35 * s]], '#2e7d32', 0.04 * s);
+    disque(ctx, x + 0.8 * s, y - 0.4 * s, 0.07 * s, '#e53935');
+    ctx.strokeStyle = 'rgba(200,230,255,0.7)'; ctx.lineWidth = 0.03 * s; ctx.beginPath(); ctx.arc(x + 0.8 * s, y - 0.25 * s, 0.28 * s, Math.PI, 0); ctx.lineTo(x + 1.08 * s, y); ctx.moveTo(x + 0.52 * s, y - 0.25 * s); ctx.lineTo(x + 0.52 * s, y); ctx.stroke();
+    for (const dx of [1.4, 1.6]) trait(ctx, [[x + dx * s, y], [x + dx * s, y - 0.12 * s]], '#558b2f', 0.05 * s);   // pousses de baobab
+  },
+  silhouetteFamiliere(ctx, x, y, s) {
+    const a = 0.55 + 0.25 * Math.sin(performance.now() / 900), c = `rgba(225,240,255,${a})`;
+    trait(ctx, [[x - 0.12 * s, y], [x - 0.08 * s, y - 0.8 * s]], c, 0.12 * s);
+    trait(ctx, [[x + 0.12 * s, y], [x + 0.08 * s, y - 0.8 * s]], c, 0.12 * s);
+    rect(ctx, x - 0.22 * s, y - 1.45 * s, 0.44 * s, 0.7 * s, c);
+    disque(ctx, x, y - 1.65 * s, 0.17 * s, c);
+  },
+  cabineBleue(ctx, x, y, s) {
+    rect(ctx, x - 0.5 * s, y - 2.5 * s, 1 * s, 2.5 * s, '#0d47a1');
+    rect(ctx, x - 0.55 * s, y - 2.65 * s, 1.1 * s, 0.2 * s, '#0a3880');
+    rect(ctx, x - 0.4 * s, y - 2.4 * s, 0.8 * s, 0.13 * s, '#111');
+    for (const dx of [-0.36, 0.06]) for (const dy of [2.15, 1.75]) rect(ctx, x + dx * s, y - dy * s, 0.3 * s, 0.32 * s, dy > 2 ? '#e3f2fd' : '#1565c0');
+    disque(ctx, x, y - 2.75 * s, 0.07 * s, Math.sin(performance.now() / 300) > 0 ? '#fff59d' : '#90a4ae');
+  },
+  petitVert(ctx, x, y, s) {
+    rect(ctx, x - 0.15 * s, y - 0.45 * s, 0.3 * s, 0.4 * s, '#eceff1');
+    disque(ctx, x, y - 0.62 * s, 0.2 * s, 'rgba(200,230,255,0.6)');
+    disque(ctx, x, y - 0.62 * s, 0.15 * s, '#7cb342');
+    trait(ctx, [[x - 0.08 * s, y - 0.56 * s], [x, y - 0.52 * s], [x + 0.08 * s, y - 0.56 * s]], '#1b5e20', 0.02 * s);   // grand sourire
+    rect(ctx, x + 0.5 * s, y - 0.5 * s, 0.25 * s, 0.5 * s, '#cfd8dc');
+    ctx.fillStyle = '#e53935'; ctx.beginPath(); ctx.moveTo(x + 0.95 * s, y - 0.05 * s); ctx.lineTo(x + 1.25 * s, y - 0.3 * s); ctx.lineTo(x + 1.35 * s, y - 0.05 * s); ctx.fill();   // un cône tombé
+    rect(ctx, x + 1.5 * s, y - 0.15 * s, 0.4 * s, 0.15 * s, '#90a4ae');
+  },
+  robotRond(ctx, x, y, s) {
+    disque(ctx, x, y - 0.35 * s, 0.3 * s, '#ef6c00');
+    for (const dx of [-0.11, 0.11]) { disque(ctx, x + dx * s, y - 0.42 * s, 0.1 * s, '#fff'); disque(ctx, x + dx * s, y - 0.42 * s, 0.045 * s, '#111'); }
+    trait(ctx, [[x, y - 0.65 * s], [x, y - 0.8 * s]], '#616161', 0.03 * s); disque(ctx, x, y - 0.82 * s, 0.04 * s, '#ffeb3b');
+    trait(ctx, [[x - 0.12 * s, y - 0.08 * s], [x - 0.15 * s, y]], '#616161', 0.05 * s); trait(ctx, [[x + 0.12 * s, y - 0.08 * s], [x + 0.15 * s, y]], '#616161', 0.05 * s);
+  },
+  feuDeCamp(ctx, x, y, s) {
+    trait(ctx, [[x - 0.3 * s, y], [x + 0.3 * s, y - 0.1 * s]], '#5d4037', 0.08 * s); trait(ctx, [[x + 0.3 * s, y], [x - 0.3 * s, y - 0.1 * s]], '#5d4037', 0.08 * s);
+    const f = 1 + 0.15 * Math.sin(performance.now() / 90);
+    ctx.fillStyle = '#ff9800'; ctx.beginPath(); ctx.moveTo(x - 0.2 * s, y - 0.08 * s); ctx.quadraticCurveTo(x, y - 0.7 * f * s, x + 0.2 * s, y - 0.08 * s); ctx.fill();
+    ctx.fillStyle = '#ffeb3b'; ctx.beginPath(); ctx.moveTo(x - 0.1 * s, y - 0.08 * s); ctx.quadraticCurveTo(x, y - 0.4 * f * s, x + 0.1 * s, y - 0.08 * s); ctx.fill();
+    trait(ctx, [[x + 1.1 * s, y - 0.1 * s], [x + 0.25 * s, y - 0.55 * s]], '#8d6e63', 0.03 * s);
+    rect(ctx, x + 0.18 * s, y - 0.62 * s, 0.12 * s, 0.1 * s, '#fff8e1');
+  },
+  aliensTroisYeux(ctx, x, y, s) {
+    for (const dx of [-0.35, 0, 0.35]) {
+      const c = '#76ff03';
+      rect(ctx, x + (dx - 0.1) * s, y - 0.4 * s, 0.2 * s, 0.4 * s, '#4fc3f7');
+      disque(ctx, x + dx * s, y - 0.55 * s, 0.14 * s, c);
+      trait(ctx, [[x + dx * s, y - 0.68 * s], [x + dx * s, y - 0.85 * s]], c, 0.025 * s); disque(ctx, x + dx * s, y - 0.86 * s, 0.03 * s, c);
+      for (const ox of [-0.06, 0, 0.06]) { disque(ctx, x + (dx + ox) * s, y - 0.57 * s, 0.03 * s, '#fff'); disque(ctx, x + (dx + ox) * s, y - 0.57 * s, 0.013 * s, '#111'); }
+    }
+  },
+  planteBotte(ctx, x, y, s) {
+    ctx.fillStyle = '#6d4c41'; ctx.beginPath(); ctx.moveTo(x - 0.12 * s, y - 0.4 * s); ctx.lineTo(x + 0.08 * s, y - 0.4 * s); ctx.lineTo(x + 0.08 * s, y - 0.1 * s); ctx.lineTo(x + 0.3 * s, y - 0.08 * s); ctx.lineTo(x + 0.3 * s, y); ctx.lineTo(x - 0.12 * s, y); ctx.fill();
+    trait(ctx, [[x - 0.02 * s, y - 0.4 * s], [x - 0.02 * s, y - 0.6 * s]], '#43a047', 0.025 * s);
+    disque(ctx, x - 0.07 * s, y - 0.6 * s, 0.05 * s, '#66bb6a'); disque(ctx, x + 0.03 * s, y - 0.64 * s, 0.05 * s, '#66bb6a');
+  },
+  caillouVert(ctx, x, y, s) {
+    const a = 0.35 + 0.25 * Math.sin(performance.now() / 500);
+    disque(ctx, x, y - 0.12 * s, 0.4 * s, `rgba(118,255,3,${a * 0.4})`);
+    ctx.fillStyle = '#64dd17'; ctx.beginPath(); ctx.moveTo(x - 0.18 * s, y); ctx.lineTo(x - 0.1 * s, y - 0.25 * s); ctx.lineTo(x + 0.05 * s, y - 0.32 * s); ctx.lineTo(x + 0.18 * s, y - 0.12 * s); ctx.lineTo(x + 0.15 * s, y); ctx.fill();
+  },
   neuraliseur(ctx, x, y, s) {
     ctx.save(); ctx.translate(x, y - 0.06 * s); ctx.rotate(-0.25);
     rect(ctx, -0.22 * s, -0.05 * s, 0.44 * s, 0.1 * s, '#cfd8dc');
@@ -775,6 +904,7 @@ const DESSINS_EGGS = {
     disque(ctx, x + 0.06 * s, y - 1.82 * s, 0.035 * s, '#ff1744');
   },
   fuseeDamier(ctx, x, y, s) {
+    for (let k = 0; k < 6; k++) disque(ctx, x + (1.2 + k * 0.35) * s, y - (k % 2 ? 0.03 : 0.07) * s, 0.05 * s, '#5d5d5d');   // pattes d'un petit chien
     const h = 2.4 * s, w = 0.5 * s;
     for (let k = 0; k < 8; k++) for (let j = 0; j < 2; j++) rect(ctx, x - w + j * w, y - h + k * (h / 10) + h * 0.15, w, h / 10, (k + j) % 2 ? '#f5f5f5' : '#d32f2f');
     ctx.fillStyle = '#d32f2f'; ctx.beginPath(); ctx.moveTo(x - w, y - h * 0.85); ctx.lineTo(x, y - h * 1.05); ctx.lineTo(x + w, y - h * 0.85); ctx.fill();

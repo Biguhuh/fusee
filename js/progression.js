@@ -44,6 +44,21 @@ const REFERENCES_EGGS = {
   'hyperion-bibli': 'Interstellar (Christopher Nolan, 2014) : la bibliothèque, où des livres tombent pour transmettre un message à travers le temps.',
   'trappist-vague': 'Interstellar (2014) : la planète de Miller, ses vagues géantes, et le temps qui y passe bien plus lentement qu’ailleurs.',
   'mimas-robot': 'Interstellar (2014) : TARS, le robot fait de blocs articulés, réglé sur 75 % d’humour.',
+  'mars-patates': 'Seul sur Mars (Andy Weir, 2011 ; film 2015) : un astronaute oublié sur Mars cultive des pommes de terre, avec pour seule musique les disques disco de sa commandante.',
+  'barnard-ver': 'Dune (Frank Herbert, 1965) : sur Arrakis, les vers géants des sables viennent à qui marche en rythme.',
+  'hygie-prince': 'Le Petit Prince (Saint-Exupéry, 1943) : l’astéroïde B 612, ses trois volcans, sa rose sous globe et ses baobabs à arracher.',
+  'ariel-solaris': 'Solaris (Stanisław Lem, 1961 ; films de Tarkovski, 1972, et Soderbergh, 2002) : une planète qui fait réapparaître les êtres disparus.',
+  'psyche-cabine': 'Doctor Who (depuis 1963) : le TARDIS, cabine de police bleue plus grande à l’intérieur qu’à l’extérieur.',
+  'oberon-kerbal': 'Kerbal Space Program (2015) : le jeu des petits astronautes verts, toujours souriants, même quand la fusée explose.',
+  'nereide-nono': 'Ulysse 31 (1981) : Nono, le petit robot qui mange des boulons, compagnon d’Ulysse et de son fils perdus dans l’espace.',
+  'protee-feu': 'Outer Wilds (2019) : un feu de camp, des guimauves, et une boucle de 22 minutes avant que le Soleil n’explose.',
+  'io-aliens': 'Toy Story (1995) : les petits extraterrestres à trois yeux de la machine à pince, qui vénèrent « le grappin ».',
+  'callisto-plante': 'WALL-E (Pixar, 2008) : la petite plante dans une vieille chaussure, preuve que la vie peut revenir sur Terre.',
+  'eunomie-kryptonite': 'Superman : la kryptonite verte, le seul caillou qui fasse peur au héros.',
+  'soleil-sunshine': 'Sunshine (Danny Boyle, 2007) : l’Icarus II, envoyé rallumer un Soleil mourant avec une bombe grande comme Manhattan.',
+  'neptune-albator': 'Albator (Leiji Matsumoto, 1978) : le capitaine pirate balafré et son vaisseau, l’Arcadia, au service de la seule liberté.',
+  'uranus-goldorak': 'Goldorak (Go Nagai, 1975 ; diffusé en France en 1978) : le robot géant à cornes, sa soucoupe, et son fulguropoing.',
+  'rama': 'Rendez-vous avec Rama (Arthur C. Clarke, 1973) : un cylindre extraterrestre de 50 km traverse le Système solaire, indifférent aux humains.',
   'proxima-b': 'Blade Runner (1982) : la ville sous la pluie, et le test qui démasque les répliquants.',
   'lune-soucoupe': 'Independence Day (1996) : les soucoupes géantes, vaincues par un virus informatique un 4 juillet.',
   saturne: 'Space Oddity (David Bowie, 1969) : Major Tom, perdu dans sa capsule.',
@@ -61,6 +76,7 @@ const REFERENCES_EGGS = {
 // Où retrouver un easter egg déjà trouvé.
 function lieuEgg(e) {
   if (e.id === 'betelgeuse') return 'dans « Se promener », en observant Bételgeuse';
+  if (e.id === 'rama') return 'en route, en orbite autour du Soleil au-delà de 3 UA, avec l’équipage (en campagne)';
   if (e.id === 'iss-wolowitz') return 'à la Station spatiale internationale, en orbite terrestre (rendez-vous et amarrage, en campagne)';
   if (e.id.startsWith('voiture-')) return 'en orbite autour du Soleil, sur la route de la voiture rouge (en campagne)';
   if (e.orbite) return `en orbite ${de(astrePartout(e.astre))} : l’équipage de l’orbiteur l’aperçoit après un tour complet (en campagne)`;

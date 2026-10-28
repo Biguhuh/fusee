@@ -104,6 +104,7 @@ class Exploration {
     }
     if (type === 'spationaute' && !this.terre) {
       if (this.astre.id === 'lune' && !(etat.repliques || {}).armstrong) replique('armstrong');
+      else if (this.astre.id === 'mars') replique('lifeOnMars');
       else if (!this.astre.atm) replique('crier');
     }
     if (type === 'robot') {

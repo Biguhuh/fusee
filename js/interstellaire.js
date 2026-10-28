@@ -185,6 +185,7 @@ class TransitInterstellaire {
 // en orbite de la planète de base (avec les matériaux et les ergols) et l'orbiteur garde kits, robots et atterrisseurs.
 function arriverDansSysteme(v, info) {
   replique('startrek');
+  if (/epseri|eridani/i.test(String(info.id || info.systeme || info.nomSysteme || ''))) replique('tribbles');
   const st = stationDeDepart(v), k = st ? { ...st.stock } : {};
   const ech = Object.values(v.echantillonsRapportes || {}).reduce((s, x) => s + x, 0);
   v.historique = v.historique || [];

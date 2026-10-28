@@ -14,6 +14,7 @@ function afficherAlerte(texte) {
   el.innerHTML = `<span>⚠ ${texte}</span><button title="Fermer">✕</button>`;
   el.querySelector('button').onclick = () => el.classList.remove('visible');
   el.classList.add('visible');
+  replique('hal');   // 2001 : la toute première fois
   clearTimeout(afficherAlerte.minuteur);
   afficherAlerte.minuteur = setTimeout(() => el.classList.remove('visible'), 8000);
 }
@@ -116,6 +117,7 @@ const Orbiteur = {
     appliquerImpulsion(v.orb, dv);
     this.etape = null;
     this.auto = true;
+    replique('whisky');
     this.log(`Injection translunaire par le 3e étage : ${fmtV(besoin)}. Arrivée à la Lune dans environ ${fmtDuree(v.orb.transfert.tArrivee - v.t)}.`);
     return { ok: true, texte: `Le 3e étage a rallumé pour l’injection translunaire (${fmtV(besoin)}) : l’expédition est en route vers la Lune, arrivée dans environ ${fmtDuree(v.orb.transfert.tArrivee - v.t)}. Le pilote auto s’occupera de la mise en orbite lunaire ; réglez l’écoulement du temps à votre guise.` };
   },
@@ -283,6 +285,7 @@ const Orbiteur = {
     verifierObservatoires(this);
     this.suivreRendezVous();
     verifierVoyagers(this);
+    verifierRama(this);
     this.piloteAuto();
   },
 
