@@ -498,3 +498,11 @@ pre.erreur { white-space: pre-wrap; background: #1a0d0d; border: 1px solid #5a23
 .nom-vaisseau { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 14px; padding: 10px 12px; border: 1px solid var(--bord); border-radius: 10px; background: var(--panneau); }
 .nom-vaisseau input { font-size: 16px; padding: 6px 10px; width: 14em; max-width: 100%; }
 .renommer-vaisseau { padding: 0 6px; font-size: 12px; margin-left: 4px; }
+
+/* Centre d'essai */
+.cartes-essai { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.carte-essai { border: 1px solid var(--bord); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+.carte-essai.fait { border-color: rgba(102,187,106,0.6); }
+.carte-essai h3 { margin: 0; }
+.carte-essai ol { margin: 0; padding-left: 18px; font-size: 13px; color: #cfd8dc; }
+.carte-essai button { margin-top: auto; }

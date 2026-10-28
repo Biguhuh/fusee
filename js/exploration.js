@@ -358,7 +358,7 @@ class Exploration {
 
     // Réserve d'oxygène ou de batterie (le module robot recharge la batterie au soleil quand le robot est à côté)
     const effort = Math.abs(p.vx) > 0.05 ? 1 : 0.3;
-    this.reserve -= dt * (this.type === 'robot' ? effort : 1);
+    if (!this.essai) this.reserve -= dt * (this.type === 'robot' ? effort : 1);   // centre d'essai : réserves illimitées
     if (this.moduleRobot && this.presDeLaFusee()) this.reserve = Math.min(this.def.autonomie, this.reserve + dt * 20);
     if (this.rover && distSol(this.astre, this.rover.x, this.xFusee) < 12) this.batterieRover = Math.min(AUTONOMIE_ROVER, this.batterieRover + dt * 20);
     if (this.type === 'spationaute' && !this.terre) {
@@ -860,6 +860,7 @@ class Exploration {
     this.dessinerZoneSecours(ctx, versEcran, echelle, W, H);
     this.dessinerModuleSecours(ctx, versEcran, echelle);
     this.dessinerTraceFeu(ctx, versEcran, echelle);
+    if (this.essai) dessinerPlotEssai(ctx, versEcran, this, echelle);
     // Rover garé
     if (this.rover && !this.enRover) {
       const [rx, ry] = versEcran(this.rover.x, this.sol(this.rover.x));
@@ -901,6 +902,7 @@ class Exploration {
 
     if (this.terre) this.dessinerHudTerre(ctx, W, H);
     else this.dessinerHud(ctx, W, H);
+    if (this.essai) dessinerPanneauEssai(ctx, W, H, this.essai);
     const compact = ecranCompact(W, H);
     const texteTemps = `Temps ×${this.warp}${this.warp > 1 ? ` (1 s = ${this.warp} s)` : ''}${ECRAN_TACTILE ? '' : '  (+/−)'}`;
     const policeTemps = compact ? 'bold 12px system-ui' : 'bold 14px system-ui', yTemps = compact ? 58 : 28;

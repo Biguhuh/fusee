@@ -14,6 +14,7 @@ function charger() {
         equipement: { ...equipementParDefaut(), ...s.equipement },
         records: s.records || {}, science: s.science || {}, masque: !!s.masque, voyage: s.voyage || null,
         drapeaux: s.drapeaux || {},   // drapeaux plantés : { astreId: [{ x, par, quand }] }
+        essais: s.essais || {},           // centre d'essai : exercices réussis
         sautsDuree: s.sautsDuree || {},   // records de durée de saut : { astreId: { d (s), par, quand } }
         progression: s.progression || { campagnes: {} },   // ce que chaque campagne a fait (onglet Progression)
         sauts: s.sauts || {},         // records de saut : { astreId: { h, par, quand } }
@@ -33,7 +34,7 @@ function sauver(etat) {
       equipement: etat.equipement, records: etat.records, science: etat.science, masque: etat.masque, voyage: etat.voyage,
       drapeaux: etat.drapeaux, sauts: etat.sauts, decouvertes: etat.decouvertes, reperes: etat.reperes, repliques: etat.repliques,
       registre: etat.registre || {}, tracesVues: etat.tracesVues || {},
-      sautsDuree: etat.sautsDuree || {}, progression: etat.progression || { campagnes: {} },
+      essais: etat.essais || {}, sautsDuree: etat.sautsDuree || {}, progression: etat.progression || { campagnes: {} },
     }));
   } catch (e) { /* ignoré */ }
 }

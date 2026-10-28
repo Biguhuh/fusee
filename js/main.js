@@ -285,6 +285,7 @@ function cibleAmarrage(vol) {
 }
 
 function finVol(r) {
+  if (etat.vol && etat.vol.essai) return finEssai(etat.vol.essai, r.cause === 'abandon' ? '' : { ecrasee: 'drone écrasé', carburant: 'batterie vide' }[r.cause] || '');   // centre d'essai
   const rang = { pose: 1, orbite: 2, liberation: 2, plongee: 2 };
   if (rang[r.cause] && (rang[r.cause] > (rang[etat.records[r.astre.id]] || 0))) etat.records[r.astre.id] = r.cause;
   const v = etat.voyage;
@@ -1039,6 +1040,7 @@ const CONTEXTE_PROMENADE = {
   observer: (o) => jouerScene(new Observation(o), () => { allerAccueil(); ouvrirPromenade(CONTEXTE_PROMENADE); }),
 };
 $('accueil-promenade').onclick = () => ouvrirPromenade(CONTEXTE_PROMENADE);
+$('accueil-essai').onclick = () => ouvrirCentreEssai();
 $('accueil-spatio').onclick = () => afficherCreationSpatio(allerAccueil);
 $('accueil-registre').onclick = () => ouvrirRegistre();
 $('accueil-aide').onclick = () => ouvrirAide();
@@ -1335,7 +1337,9 @@ function image(t) {
     touchesBreves.clear();
     if (etat.enVoyage) pleinALaBase(v);
     v.warpChoisi = etat.warp;
+    if (v.essai) majEssai(v);
     dessinerVol(ctx, v, canvas.width, canvas.height, etat.pause ? 0 : dt, w);
+    if (v.essai) dessinerPanneauEssai(ctx, canvas.width, canvas.height, v.essai);
     if (etat.pause && !Infos.estOuverte()) dessinerPause(ctx, canvas.width, canvas.height);
     if (v.fin) {
       etat.finDepuis += dt;
@@ -1356,6 +1360,7 @@ function image(t) {
       for (let i = 0; i < n && !x.fin; i++) x.step(total / n, cmd);
     }
     touchesBreves.clear();
+    if (x.essai) majEssai(x);
     x.dessiner(ctx, canvas.width, canvas.height, etat.pause ? 0 : dt);
     if (etat.pause && !Infos.estOuverte()) dessinerPause(ctx, canvas.width, canvas.height);
     if (x.fin) {
@@ -1378,6 +1383,7 @@ function image(t) {
       etat.explo = null;
       touches.clear();
       sauver(etat);
+      if (etat.vol.essai) return finEssai(etat.vol.essai);   // centre d'essai : retour au centre
       if (etat.vol.promenade) allerAccueil();                // fin de la promenade sur Terre
       else if (etat.vol.robotSeul) allerNavigation();        // le robot reste sur place, on revient à l'orbiteur
       else if (x.fin.issue === 'secouru') finSecours();             // le module de secours a ramené le spationaute
