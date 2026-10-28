@@ -161,6 +161,8 @@ const Infos = {
       ];
       if (sc && (sc.echantillons || sc.analyses)) l.push(['Science faite', `${sc.echantillons || 0} échantillons ramassés, ${sc.analyses || 0} analyses`]);
       if (rec) l.push(['Record de saut', `${rec.h < 10 ? fmt(rec.h, 2) + ' m' : fmtAlt(rec.h)} (${rec.par})`]);
+      const recD = recordSautDuree(a.id);
+      if (recD) l.push(['Record de durée de saut', `${fmtDureeSaut(recD.d)} en l’air (${recD.par})`]);
       const types = typesEchantillons(a).map(([nom, texte]) => `<dt>${nom}</dt><dd>${texte}</dd>`).join('');
       sections.push(['Ressources et échantillons', lignes(l) + `<dt><b>Échantillons possibles</b></dt><dd></dd>${types}`]);
     }

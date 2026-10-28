@@ -275,6 +275,16 @@ function ecussonsRegistre(fiches) {
       }
     }
   }
+  // Plus long saut (temps en l'air) : même principe.
+  let long = null;
+  for (const [astre, x] of Object.entries((typeof etat !== 'undefined' && etat.sautsDuree) || {})) if (!long || x.d > long.d) long = { ...x, astre };
+  if (long) {
+    for (const f of fiches) {
+      if (f.nom && long.par && f.nom.toLowerCase() === String(long.par).toLowerCase()) {
+        donner(f, { icone: '⏳', court: 'plus long saut', titre: `Plus long saut : ${fmtDureeSaut(long.d)} en l’air ${sur(astrePartout(long.astre))}` });
+      }
+    }
+  }
   return res;
 }
 

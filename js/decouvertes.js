@@ -375,6 +375,37 @@ function actionVoiture(orb) {
 }
 function etatAbsoluOrbiteur(orb) { return orb.absolu(orb.v.orb); }
 
+// ---------- Dessin de la voiture rouge sur la carte ----------
+// Une décapotable rouge vue de profil, le mannequin en combinaison au volant. Elle tourne lentement sur elle-même,
+// comme la vraie (L : longueur à l'écran, en pixels).
+function dessinerVoitureRouge(ctx, x, y, L) {
+  const k = L / 40;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(performance.now() / 9000); ctx.scale(k, k);
+  // Carrosserie : longue et basse, capot plongeant à l'avant (à droite).
+  ctx.fillStyle = '#d50000';
+  ctx.beginPath();
+  ctx.moveTo(-20, 3); ctx.lineTo(-20, -3); ctx.quadraticCurveTo(-18, -6, -11, -6); ctx.lineTo(-4, -6);
+  ctx.lineTo(4, -5); ctx.quadraticCurveTo(14, -4.5, 19, -1.5); ctx.lineTo(20, 3); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#ff5252'; ctx.fillRect(-16, -5, 26, 1.2);                       // reflet
+  ctx.fillStyle = '#8e0000'; ctx.fillRect(-20, 1.5, 40, 1.5);                     // bas de caisse
+  // Pare-brise et habitacle ouvert.
+  ctx.strokeStyle = 'rgba(200,230,255,0.85)'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(4, -5.5); ctx.lineTo(0, -11); ctx.stroke();
+  // Le mannequin : combinaison blanche, casque, un bras posé sur la portière.
+  ctx.fillStyle = '#eceff1'; ctx.fillRect(-6, -11, 4, 6);
+  ctx.beginPath(); ctx.arc(-4, -13.5, 2.6, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#263238'; ctx.beginPath(); ctx.arc(-3.2, -13.6, 1.5, -0.6, 1.2); ctx.lineTo(-3.2, -13.6); ctx.fill();   // visière
+  ctx.strokeStyle = '#eceff1'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(-3, -9); ctx.lineTo(-9, -6.5); ctx.stroke();
+  // Roues.
+  for (const rx of [-12, 12]) {
+    ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(rx, 3, 4.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#9e9e9e'; ctx.beginPath(); ctx.arc(rx, 3, 1.8, 0, Math.PI * 2); ctx.fill();
+  }
+  // Phares.
+  ctx.fillStyle = '#fff59d'; ctx.fillRect(17.5, -2.5, 2, 1.4);
+  ctx.restore();
+}
+
 // ---------- Voyager 1 et 2 ----------
 // Lancées en 1977, sorties de l'héliosphère en 2012 et 2018. Elles filent en ligne presque droite à vitesse
 // quasi constante : position = position de référence + vitesse × temps écoulé.

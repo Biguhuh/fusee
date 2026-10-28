@@ -41,6 +41,15 @@ function typesEchantillons(a) {
 
 // Records de saut par astre (gardés avec la partie) : { astreId: { h (m), par, quand } }.
 function recordSaut(astreId) { return (typeof etat !== 'undefined' && etat.sauts && etat.sauts[astreId]) || null; }
+// Records de durée de saut (temps passé en l'air) : { astreId: { d (s), par, quand } }.
+function recordSautDuree(astreId) { return (typeof etat !== 'undefined' && etat.sautsDuree && etat.sautsDuree[astreId]) || null; }
+function enregistrerSautDuree(astreId, d, par) {
+  if (typeof etat === 'undefined') return;
+  etat.sautsDuree = etat.sautsDuree || {};
+  etat.sautsDuree[astreId] = { d, par, quand: new Date().toISOString() };
+}
+function fmtHauteurSaut(h) { return h < 10 ? `${fmt(h, 2)} m` : fmtAlt(h); }
+function fmtDureeSaut(d) { return d < 60 ? `${fmt(d, 1)} s` : fmtDuree(d); }
 function enregistrerSaut(astreId, h, par) {
   if (typeof etat === 'undefined') return;
   etat.sauts = etat.sauts || {};
@@ -206,16 +215,22 @@ class Exploration {
     return sites;
   }
 
-  // Hauteur d'un saut (du point d'appel au sommet), et record de saut sur cet astre.
-  finSaut(h) {
+  // Fin d'un saut : sa hauteur (du point d'appel au sommet) et sa durée (temps en l'air), et les records de cet astre.
+  finSaut(h, d = 0) {
     if (h < 0.02) return;
-    this.dernierSaut = h;
-    const rec = recordSaut(this.astre.id);
-    const txt = h < 10 ? `${fmt(h, 2)} m` : fmtAlt(h);
-    if (!rec || h > rec.h) {
-      enregistrerSaut(this.astre.id, h, this.def.nom);
-      this.dire(`🏅 Saut de ${txt} : record ${sur(this.astre)}${rec ? ` (l’ancien : ${rec.h < 10 ? fmt(rec.h, 2) + ' m' : fmtAlt(rec.h)})` : ''} !`);
-    } else this.dire(`Saut de ${txt} (record ${sur(this.astre)} : ${rec.h < 10 ? fmt(rec.h, 2) + ' m' : fmtAlt(rec.h)}).`);
+    this.dernierSaut = h; this.dernierSautDuree = d;
+    const rec = recordSaut(this.astre.id), recD = recordSautDuree(this.astre.id);
+    const recordH = !rec || h > rec.h, recordD = d > 0 && (!recD || d > recD.d);
+    if (recordH) enregistrerSaut(this.astre.id, h, this.def.nom);
+    if (recordD) enregistrerSautDuree(this.astre.id, d, this.def.nom);
+    const saut = `Saut de ${fmtHauteurSaut(h)}, ${fmtDureeSaut(d)} en l’air`;
+    if (recordH || recordD) {
+      const quoi = [
+        recordH && `hauteur${rec ? ` (l’ancien : ${fmtHauteurSaut(rec.h)})` : ''}`,
+        recordD && `durée${recD ? ` (l’ancien : ${fmtDureeSaut(recD.d)})` : ''}`,
+      ].filter(Boolean).join(' et ');
+      this.dire(`🏅 ${saut} : record de ${quoi} ${sur(this.astre)} !`);
+    } else this.dire(`${saut} (records ${sur(this.astre)} : ${fmtHauteurSaut(rec.h)}, ${recD ? fmtDureeSaut(recD.d) : '—'}).`);
   }
 
   dejaFait(site) { const s = this.science[this.astre.id]; return !!(s && s.sites && s.sites[site.k]); }
@@ -294,7 +309,7 @@ class Exploration {
       p.pas += Math.abs(p.vx) * dt;
       if (cmd.saut && this.saut > 0 && !this.enRover) {
         p.vy = this.saut; p.auSol = false;
-        this.sautEnCours = { y0: p.y, max: 0 };          // on mesure la hauteur du saut
+        this.sautEnCours = { y0: p.y, max: 0, duree: 0 };          // on mesure la hauteur du saut
         this.poussiere(6);
       }
       if (this.type === 'spationaute' && !this.enRover && Math.abs(p.vx) > 0.05 && Math.floor(p.pas / 0.7) !== Math.floor((p.pas - Math.abs(p.vx) * dt) / 0.7)) {
@@ -311,7 +326,7 @@ class Exploration {
       p.vy -= g * dt;
       p.x += p.vx * dt;
       p.y += p.vy * dt;
-      if (this.sautEnCours) this.sautEnCours.max = Math.max(this.sautEnCours.max, p.y - this.sautEnCours.y0);
+      if (this.sautEnCours) { this.sautEnCours.max = Math.max(this.sautEnCours.max, p.y - this.sautEnCours.y0); this.sautEnCours.duree += dt; }
       // Câble de sécurité : on ne s'éloigne pas à plus de 30 m de la fusée.
       if (this.cable) {
         const d = Math.hypot(ecartSol(this.astre, p.x, this.xFusee), p.y - this.sol(this.xFusee));
@@ -328,7 +343,7 @@ class Exploration {
         }
         p.vy = 0; p.auSol = true;
         this.poussiere(8);
-        if (this.sautEnCours) { this.finSaut(this.sautEnCours.max); this.sautEnCours = null; }
+        if (this.sautEnCours) { this.finSaut(this.sautEnCours.max, this.sautEnCours.duree); this.sautEnCours = null; }
       }
     }
 
@@ -808,6 +823,8 @@ class Exploration {
       const rec = recordSaut(a.id);
       const enl = this.sautEnCours ? this.sautEnCours.max : this.dernierSaut;
       if (enl || rec) ligne('Saut (record)', `${enl ? fmt(enl, 2) + ' m' : '—'} (${rec ? fmt(rec.h, 2) + ' m' : '—'})`, this.sautEnCours ? '#ffca28' : '#fff');
+      const recD = recordSautDuree(a.id), enlD = this.sautEnCours ? this.sautEnCours.duree : this.dernierSautDuree;
+      if (enlD || recD) ligne('Temps en l’air (record)', `${enlD ? fmtDureeSaut(enlD) : '—'} (${recD ? fmtDureeSaut(recD.d) : '—'})`, this.sautEnCours ? '#ffca28' : '#fff');
     }
     ligne(this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? `${sc.analyses} envoyées, ${this.donneesEnAttente} en mémoire` : `${this.sac.length} / ${d.capacite}` + (this.rover ? `  astromobile ${this.sacRover.length} / 20` : ''), this.donneesEnAttente ? '#ffca28' : '#fff');
     ligne('Sites étudiés ici', String(Object.keys(sc.sites || {}).length));
