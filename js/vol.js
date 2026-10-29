@@ -2129,6 +2129,44 @@ function dessinerBase(ctx, x, sol, s, niveau = 1, usine = true) {
       ctx.fillStyle = '#6d4c41'; ctx.beginPath(); ctx.moveTo(4 * s, 0); ctx.lineTo(7 * s, -3 * s); ctx.lineTo(10 * s, 0); ctx.fill();
     });
   }
+  // Animation : le temps réel suffit (c'est du décor).
+  const t = performance.now() / 1000;
+  // Chariot de minerai (niveau 2 et plus) : il roule sur ses rails de la mine à l'usine, plein à l'aller, vide au retour.
+  if (niveau >= 2) {
+    const xa = xu + 17, xb = usine ? xu + 4 : xu - 6;
+    const yr = (dx) => sol(dx) - 0.3 * s;
+    ctx.strokeStyle = '#8d8d8d'; ctx.lineWidth = Math.max(1, 0.2 * s);
+    ctx.beginPath(); ctx.moveTo(x + xb * s, yr(xb)); ctx.lineTo(x + xa * s, yr(xa)); ctx.stroke();
+    const ph = (t / 14) % 1, u = 0.5 - 0.5 * Math.cos(ph * 2 * Math.PI);      // 0 : mine, 1 : usine
+    const dx = xa + (xb - xa) * u, plein = ph < 0.5, cx = x + dx * s, cy = yr(dx);
+    ctx.fillStyle = '#546e7a'; ctx.fillRect(cx - 1.6 * s, cy - 2.2 * s, 3.2 * s, 1.6 * s);
+    if (plein) { ctx.fillStyle = '#6d4c41'; ctx.beginPath(); ctx.arc(cx, cy - 2.2 * s, 1.3 * s, Math.PI, 0); ctx.fill(); }
+    ctx.fillStyle = '#263238';
+    ctx.beginPath(); ctx.arc(cx - 1 * s, cy - 0.5 * s, 0.5 * s, 0, Math.PI * 2); ctx.arc(cx + 1 * s, cy - 0.5 * s, 0.5 * s, 0, Math.PI * 2); ctx.fill();
+  }
+  // Navette de ravitaillement : posée sur l'aire, elle décolle vers la station, puis revient (cycle de 48 s).
+  {
+    const ph = t % 48, yAire = sol(-58) - 0.9 * s;
+    let h = null, feu = false;
+    if (ph < 14) h = 0;                                            // posée : on la charge
+    else if (ph < 24) { const q = ph - 14; h = 0.9 * q * q; feu = true; }   // décollage, de plus en plus vite
+    else if (ph < 34) h = null;                                    // partie vers la station
+    else { const q = 48 - ph; h = 0.45 * q * q; feu = q > 0.3; }   // retour : freinage aux rétrofusées
+    if (h !== null) {
+      const nx = x - 58 * s, ny = yAire - h * s;
+      if (feu) {
+        const f = (3 + Math.random() * 2) * s;
+        ctx.fillStyle = 'rgba(255,170,60,0.9)';
+        ctx.beginPath(); ctx.moveTo(nx - 1 * s, ny); ctx.lineTo(nx + 1 * s, ny); ctx.lineTo(nx, ny + f); ctx.fill();
+      }
+      ctx.fillStyle = '#eceff1';
+      ctx.beginPath(); ctx.moveTo(nx - 1.6 * s, ny); ctx.lineTo(nx + 1.6 * s, ny); ctx.lineTo(nx + 1 * s, ny - 4 * s); ctx.lineTo(nx, ny - 5.5 * s); ctx.lineTo(nx - 1 * s, ny - 4 * s); ctx.fill();
+      ctx.fillStyle = '#ef5350'; ctx.fillRect(nx - 1.4 * s, ny - 1.2 * s, 2.8 * s, 0.5 * s);
+      ctx.strokeStyle = '#90a4ae'; ctx.lineWidth = Math.max(1, 0.2 * s);
+      ctx.beginPath(); ctx.moveTo(nx - 1.4 * s, ny - 0.5 * s); ctx.lineTo(nx - 2.2 * s, ny + 0.6 * s * (h === 0 ? 1 : 0.4)); ctx.moveTo(nx + 1.4 * s, ny - 0.5 * s); ctx.lineTo(nx + 2.2 * s, ny + 0.6 * s * (h === 0 ? 1 : 0.4)); ctx.stroke();
+    }
+  }
+
   ctx.fillStyle = '#cfd8dc'; ctx.font = `${Math.min(16, Math.max(11, 2.5 * s))}px system-ui, sans-serif`;
   ctx.fillText(`Base — niveau ${niveau}`, x - 14 * s, sol(-10) - 18 * s);
 }
