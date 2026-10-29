@@ -506,3 +506,8 @@ pre.erreur { white-space: pre-wrap; background: #1a0d0d; border: 1px solid #5a23
 .carte-essai h3 { margin: 0; }
 .carte-essai ol { margin: 0; padding-left: 18px; font-size: 13px; color: #cfd8dc; }
 .carte-essai button { margin-top: auto; }
+
+/* Filtres de la liste des easter eggs */
+.filtres-eggs { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 12px; }
+.filtres-eggs input { flex: 1 1 220px; padding: 7px 10px; font-size: 14px; }
+.filtres-eggs select { padding: 6px 8px; font-size: 14px; }

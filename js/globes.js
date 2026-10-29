@@ -413,7 +413,9 @@ function imageAstre(a, taille = 64) {
   const cv = document.createElement('canvas');
   cv.width = cv.height = taille * 2;
   const g = cv.getContext('2d');
-  if (a.type === 'etoile') {
+  if (a.id === 'roadster' && typeof dessinerVoitureRouge === 'function') {
+    dessinerVoitureRouge(g, taille, taille * 1.15, taille * 1.8, { angle: 0 });   // une voiture, pas un globe
+  } else if (a.type === 'etoile') {
     const gr = g.createRadialGradient(taille, taille, 0, taille, taille, taille);
     gr.addColorStop(0, '#fff8d0'); gr.addColorStop(0.7, '#ffc040'); gr.addColorStop(1, '#ff8000');
     g.fillStyle = gr; g.beginPath(); g.arc(taille, taille, taille * 0.9, 0, Math.PI * 2); g.fill();

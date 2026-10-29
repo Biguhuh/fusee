@@ -127,6 +127,20 @@ function htmlEggsAstre(id) {
 }
 
 // Fenêtre « Easter eggs » : ceux qui sont trouvés, avec où les retrouver et leur référence. Les autres restent cachés.
+// Système (ou lieu) d'un easter egg, pour le filtre : le Système solaire, une autre étoile, ou « ailleurs ».
+function groupeEgg(e) {
+  const a = astrePartout(e.astre);
+  if (ASTRES_PAR_ID[e.astre] || ['soleil', 'roadster', 'terre'].includes(e.astre)) return 'Système solaire';
+  for (const s of Object.values(SYSTEMES)) if ((s.astres || []).some((x) => x.id === e.astre)) return majuscule(s.nom.replace(/^système (de |du |d’)/i, ''));
+  return a && a.nom && e.astre !== 'astromobile' ? majuscule(a.nom) : 'Ailleurs';
+}
+function typeEgg(e) { return e.id.startsWith('voiture-') || e.id === 'delorean' || e.id === 'betelgeuse' ? 'autre' : e.orbite ? 'orbite' : 'sol'; }
+// Sans accents ni majuscules, pour chercher « venus » et trouver « Vénus ».
+function simplifier(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+
+// Fenêtre « Easter eggs » : ceux qui sont trouvés, avec où les retrouver et leur référence. Les autres restent cachés.
+// Filtres : mot (dans l'astre, le texte ou la référence), système, au sol ou en orbite.
+let filtreEggs = { mot: '', groupe: '', type: '' };
 function ouvrirEggs(allerA) {
   const tous = tousLesEggs(), trouves = tous.filter((e) => eggTrouve(e.id));
   const m = $('modale');
@@ -136,12 +150,33 @@ function ouvrirEggs(allerA) {
     return `<li class="egg-ligne"><b>${majuscule(nomEgg(e))}</b> — ${lieuEgg(e)}.<br>
       <i>${e.texte}</i><br><span class="ref-egg">📚 ${REFERENCES_EGGS[e.id] || 'Référence non renseignée.'}</span>${y ? `<div>${y}</div>` : ''}</li>`;
   };
+  const groupes = [...new Set(trouves.map(groupeEgg))].sort((a, b) => (a === 'Système solaire' ? -1 : b === 'Système solaire' ? 1 : a.localeCompare(b)));
+  const astres = [...new Set(trouves.map((e) => majuscule(nomEgg(e))))].sort((a, b) => a.localeCompare(b));
+  const f = filtreEggs;
   m.innerHTML = `<div class="fenetre large"><header class="entete"><div><h2>✨ Easter eggs</h2>
     <p>${trouves.length} trouvé${trouves.length > 1 ? 's' : ''} sur ${tous.length}. Les autres restent cachés : il faut explorer, à pied, en astromobile ou en orbite.</p></div><button class="fermer">✕</button></header>
-    ${trouves.length ? `<ul class="liste-eggs">${trouves.map(ligne).join('')}</ul>` : '<p class="doux">Aucun easter egg trouvé pour l’instant. Ils se cachent au sol de certains astres, et quelques-uns en orbite.</p>'}</div>`;
+    ${trouves.length ? `<div class="filtres-eggs">
+      <input id="egg-mot" type="search" placeholder="Chercher : astre, film, livre, mot…" value="${f.mot.replace(/"/g, '')}" list="egg-astres">
+      <datalist id="egg-astres">${astres.map((a) => `<option value="${a}">`).join('')}</datalist>
+      <select id="egg-groupe"><option value="">Tous les systèmes</option>${groupes.map((g) => `<option ${g === f.groupe ? 'selected' : ''}>${g}</option>`).join('')}</select>
+      <select id="egg-type"><option value="">Au sol et en orbite</option><option value="sol" ${f.type === 'sol' ? 'selected' : ''}>Au sol</option><option value="orbite" ${f.type === 'orbite' ? 'selected' : ''}>En orbite</option><option value="autre" ${f.type === 'autre' ? 'selected' : ''}>Ailleurs (voiture, promenade…)</option></select>
+      <span id="egg-compte" class="doux"></span></div>
+      <ul class="liste-eggs" id="liste-eggs"></ul>` : '<p class="doux">Aucun easter egg trouvé pour l’instant. Ils se cachent au sol de certains astres, et quelques-uns en orbite.</p>'}</div>`;
   m.classList.remove('cache');
   m.querySelector('.fermer').onclick = () => Infos.fermer();
-  m.querySelectorAll('[data-aller]').forEach((b) => { b.onclick = () => { Infos.fermer(); allerA(b.dataset.aller); }; });
+  if (!trouves.length) return;
+  const afficher = () => {
+    const mot = simplifier(f.mot);
+    const l = trouves.filter((e) => (!f.groupe || groupeEgg(e) === f.groupe) && (!f.type || typeEgg(e) === f.type)
+      && (!mot || simplifier(`${nomEgg(e)} ${astrePartout(e.astre).nom} ${e.texte} ${REFERENCES_EGGS[e.id] || ''} ${lieuEgg(e)}`).includes(mot)));
+    $('liste-eggs').innerHTML = l.length ? l.map(ligne).join('') : '<li class="doux">Aucun easter egg trouvé ne correspond à ces filtres.</li>';
+    $('egg-compte').textContent = `${l.length} sur ${trouves.length}`;
+    $('liste-eggs').querySelectorAll('[data-aller]').forEach((b) => { b.onclick = () => { Infos.fermer(); allerA(b.dataset.aller); }; });
+  };
+  $('egg-mot').oninput = (ev) => { f.mot = ev.target.value; afficher(); };
+  $('egg-groupe').onchange = (ev) => { f.groupe = ev.target.value; afficher(); };
+  $('egg-type').onchange = (ev) => { f.type = ev.target.value; afficher(); };
+  afficher();
 }
 
 // ---------- Cumul des campagnes ----------
