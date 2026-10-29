@@ -6,6 +6,15 @@
 
 const PLOT_ESSAI = 120;          // m : le plot orange de l'exercice d'astromobile
 const DISTANCE_DRONE = 200;      // m : la distance à parcourir en drone
+const DISTANCE_MUR = 30, HAUTEUR_MUR = 8;   // m : la paroi d'escalade de l'entraînement
+
+// Profil de la paroi : un mur presque vertical (≈ 80°), un sommet plat, puis une pente douce pour redescendre.
+function profilMur(m, d) {
+  if (d < 0 || d > 22) return 0;
+  if (d < 1.6) return m.h * (d / 1.6);
+  if (d < 6) return m.h;
+  return m.h * (1 - (d - 6) / 16);
+}
 
 // Objectifs : [texte, test(engin, essai)]. Un objectif n'est testé qu'une fois les précédents réussis.
 const ESSAIS = {
@@ -30,6 +39,16 @@ const ESSAIS = {
     ],
     fin: 'Exercice réussi ! Échap pour rappeler le robot et revenir à l’entraînement.',
   },
+  escalade: {
+    titre: '🧗 Escalade', resume: `Grimper une paroi de ${HAUTEUR_MUR} m, puis redescendre de l’autre côté. Entraîné, on grimpe plus vite et on glisse cinq fois moins.`,
+    objectifs: [
+      [`Marcher jusqu’au pied de la paroi, à ${DISTANCE_MUR} m (→)`, (x, e) => distSol(x.astre, x.p.x, e.murX) < 3],
+      ['Grimper : maintenez ↑ et → contre la paroi', (x) => x.enEscalade],
+      ['Atteindre le sommet', (x, e) => x.p.auSol && !x.enEscalade && ecartSol(x.astre, x.p.x, e.murX) > 1.7 && ecartSol(x.astre, x.p.x, e.murX) < 6],
+      ['Redescendre de l’autre côté', (x, e) => x.p.auSol && x.p.x > e.murX + 18],
+    ],
+    fin: 'Exercice réussi : vous savez escalader ! Sur les autres astres, les prises lâcheront bien moins souvent.',
+  },
   drone: {
     titre: '🚁 Drone', resume: 'Décoller, voler 200 m sans monter trop haut, se poser en douceur.',
     objectifs: [
@@ -50,7 +69,7 @@ function ouvrirCentreEssai(message) {
       <ol>${e.objectifs.map(([t]) => `<li>${t}</li>`).join('')}</ol>
       <button data-essai="${cle}" class="${faits[cle] ? '' : 'principal'}">${faits[cle] ? '↺ Refaire' : '▶ Commencer'}</button></article>`;
   m.innerHTML = `<div class="fenetre large"><header class="entete"><div><h2>🎓 Entraînement</h2>
-    <p>Sur Terre : apprenez à conduire l’astromobile, à piloter le robot et le drone avant de partir. Comme en mission, l’oxygène et les batteries s’épuisent, et l’appel d’urgence (U) fonctionne ; mais ici, on ne meurt pas. Rien n’est pris à la campagne.</p>
+    <p>Sur Terre : apprenez à conduire l’astromobile, à escalader, à piloter le robot et le drone avant de partir. Comme en mission, l’oxygène et les batteries s’épuisent, et l’appel d’urgence (U) fonctionne ; mais ici, on ne meurt pas. Rien n’est pris à la campagne.</p>
     ${message ? `<p class="encart">${message}</p>` : ''}</div><button class="fermer">✕</button></header>
     <div class="cartes-essai">${Object.entries(ESSAIS).map(carte).join('')}</div></div>`;
   m.classList.remove('cache');
@@ -76,6 +95,7 @@ function lancerEssai(cle) {
   }
   etat.vol = new Vol(terre, megaFusee(), { depuisSol: true });
   etat.vol.essai = essai;
+  if (cle === 'escalade') { etat.vol.mur = { x: etat.vol.x + 2 + DISTANCE_MUR, h: HAUTEUR_MUR }; essai.murX = etat.vol.mur.x; }
   const x = new Exploration(etat.vol, cle === 'robot' ? 'robot' : 'spationaute', etat.science, { essai: true });
   x.essai = essai;
   essai.plot = x.xFusee + PLOT_ESSAI;

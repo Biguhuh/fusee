@@ -109,6 +109,7 @@ class Vol {
         h += (this.terrain(x + ecartSol(this.astre, b.x, x)) - h) * w;
       }
     }
+    if (this.mur) h += profilMur(this.mur, ecartSol(this.astre, x, this.mur.x));
     return h;
   }
   altSol() { return this.terrain ? this.y - this.sol(this.x) : this.y; }

@@ -187,6 +187,30 @@ class Exploration {
     this.dire(`${proche.nom} cueilli${proche.nom === 'Marguerite' || proche.nom === 'Rose' || proche.nom === 'Lavande' ? 'e' : ''} pour égayer la station.`);
   }
 
+  // Sur Terre, hors entraînement à l'escalade, pas d'escalade (promenade).
+  terreSansParoi() { return this.terre && !this.vol.mur; }
+  // Escalade : on monte le long de la paroi, lentement, en soufflant (oxygène ×2). Une prise peut lâcher :
+  // la glissade fait tomber, et la chute se paie à la réception. L'entraînement sur Terre rend plus sûr et plus rapide.
+  grimper(dt, veut) {
+    const p = this.p, g = this.c.g, forme = etat.essais && etat.essais.escalade;
+    const kG = Math.max(0.5, Math.min(2.5, Math.sqrt(9.81 / Math.max(0.05, g))));   // plus facile en faible gravité
+    const v = (forme ? 0.5 : 0.3) * kG;                                               // m/s le long de la paroi
+    const ds = (v * dt) / 6;                                                          // six petits pas le long de la paroi
+    for (let i = 0; i < 6; i++) {
+      const pente = Math.atan2(this.sol(p.x + 0.05 * veut) - this.sol(p.x), 0.05);
+      p.x += veut * ds * Math.cos(pente); p.y = this.sol(p.x);
+    }
+    this.enEscalade = true;
+    this.reserve -= dt;                                                               // l'effort : deux fois plus d'oxygène
+    this.hauteurEscalade = Math.max(this.hauteurEscalade || 0, p.y - (this.yPiedParoi ?? (this.yPiedParoi = p.y)));
+    const risque = (forme ? 0.012 : 0.06) * Math.max(0.3, Math.min(1.5, Math.sqrt(g / 9.81)));
+    if (Math.random() < risque * dt) {
+      p.auSol = false; p.vy = 0; p.vx = -veut * 0.8; this.enEscalade = false; this.yPiedParoi = null;
+      this.dire(forme ? '😱 Une prise lâche : glissade !' : '😱 Glissade ! Sans entraînement à l’escalade (sur Terre), les prises lâchent souvent.');
+    }
+  }
+
+
   // Astromobile : → ou ← accélère dans ce sens, ↓ freine, rien : roue libre. L'accélérateur est bridé à la vitesse
   // sûre pour la gravité locale (au-delà, chaque bosse fait décoller) ; B lève le bridage, à vos risques.
   conduireRover(dt, veut, frein, kPente) {
@@ -356,8 +380,14 @@ class Exploration {
       // Pente trop raide pour des roues
       // Montée trop raide (falaise) : on s'arrête. Une descente raide ne bloque jamais.
       const pente = Math.atan2(this.sol(p.x + 0.5 * Math.sign(p.vx || 1)) - this.sol(p.x), 0.5);
-      if (pente * 180 / Math.PI > penteMax && Math.abs(p.vx) > 0 && !this.delorean) {   // emballée, rien ne l'arrête
+      this.enEscalade = false;
+      if (pente * 180 / Math.PI > penteMax && Math.abs(p.vx) > 0 && !this.delorean) {
         p.vx = 0;
+        // Escalade : à pied, ↑ contre la paroi fait grimper.
+        if (this.type === 'spationaute' && !this.enRover && !this.terreSansParoi() && veut) {
+          if (cmd.saut) this.grimper(dt, veut);
+          else if (!this.astuceEscalade) { this.astuceEscalade = true; this.dire('🧗 Paroi trop raide pour marcher : maintenez ↑ (avec → ou ←) pour l’escalader.'); }
+        }
         if (this.type === 'robot' || this.enRover) this.dire(`Pente trop raide pour les roues ${this.enRover ? 'de l’astromobile' : 'du robot'}.`);
       }
       const nx = p.x + p.vx * dt;
@@ -367,7 +397,7 @@ class Exploration {
         p.auSol = false; p.vy = 0; p.x = nx;
       } else { p.x = nx; p.y = ny; }
       p.pas += Math.abs(p.vx) * dt;
-      if (cmd.saut && this.saut > 0 && !this.enRover) {
+      if (cmd.saut && this.saut > 0 && !this.enRover && !this.enEscalade) {
         p.vy = this.saut; p.auSol = false;
         this.sautEnCours = { y0: p.y, max: 0, duree: 0 };          // on mesure la hauteur du saut
         this.poussiere(6);
@@ -384,7 +414,10 @@ class Exploration {
       if (this.enRover) { this.rover.x = p.x; if (Math.abs(p.vx) > 0.05) this.batterieRover = Math.max(0, this.batterieRover - dt); }
     } else {
       p.vy -= g * dt;
-      p.x += p.vx * dt;
+      // En l'air, on ne traverse pas une paroi : on s'y cogne (pour monter, il faut l'escalader).
+      const nxAir = p.x + p.vx * dt;
+      if (this.sol(nxAir) > p.y + 0.3 && this.sol(nxAir) > this.sol(p.x) + 0.3) p.vx = 0;
+      else p.x = nxAir;
       p.y += p.vy * dt;
       if (this.sautEnCours) { this.sautEnCours.max = Math.max(this.sautEnCours.max, p.y - this.sautEnCours.y0); this.sautEnCours.duree += dt; }
       // Câble de sécurité : on ne s'éloigne pas à plus de 30 m de la fusée.
