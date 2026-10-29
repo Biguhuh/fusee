@@ -343,6 +343,7 @@ class Exploration {
         p.y = this.sol(p.x);
         if (p.vy < -3 * Math.sqrt(g * 2) - 2) {
           this.integrite -= Math.min(60, (-p.vy - 2) * 8);
+          this.causeDegats = 'chute';
           this.dire('Réception brutale !');
         }
         p.vy = 0; p.auSol = true;
@@ -383,7 +384,15 @@ class Exploration {
       this.doseSv += (this.irradiation.svJour * dt) / 86400;
       this.dose = (100 * this.doseSv) / DOSE_MORTELLE;
     }
-    if (this.integrite <= 0) return this.terminer('perdu', tp >= tc ? `La pression (${fmtP(this.c.p)}) a écrasé ${this.type === 'robot' ? 'le robot' : 'la combinaison'}.` : `La chaleur (${fmt(this.c.t)} °C) a eu raison ${this.type === 'robot' ? 'du robot' : 'de la combinaison'}.`);
+    if (tp + tc > 0) this.causeDegats = tp >= tc ? 'pression' : 'chaleur';
+    if (this.integrite <= 0) {
+      // La vraie cause : pression, chaleur, ou réceptions trop brutales (sauts, chutes).
+      const qui = this.type === 'robot' ? 'le robot' : 'la combinaison';
+      const texte = this.causeDegats === 'pression' ? `La pression (${fmtP(this.c.p)}) a écrasé ${qui}.`
+        : this.causeDegats === 'chaleur' ? `La chaleur (${fmt(this.c.t)} °C) a eu raison ${this.type === 'robot' ? 'du robot' : 'de la combinaison'}.`
+          : `Des réceptions trop brutales ont ${this.type === 'robot' ? 'disloqué le robot' : 'déchiré la combinaison'}.`;
+      return this.terminer('perdu', texte);
+    }
     if (this.dose >= 100) return this.terminer('perdu', `Le rayonnement a ${this.type === 'robot' ? 'grillé l’électronique du robot' : `été mortel pour ${this.def.nom}`}.`);
   }
 

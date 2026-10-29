@@ -198,16 +198,22 @@ class RetourTerre {
     const pente = Math.atan2(-this.vy, this.vx);                       // angle sous l'horizontale
     // Pendant la rentrée, le bouclier thermique fait face à la vitesse.
     if (this.phase === 'rentree') ctx.rotate(pente - Math.PI / 2);
-    // Plasma : lueur autour du bouclier quand l'air freine fort.
+    // Plasma : c'est le bouclier (en avant, vers la vitesse) qui chauffe. Devant lui, l'onde de choc incandescente ;
+    // le plasma s'écoule ensuite autour de la capsule et forme un sillage derrière la pointe.
     const chauffe = this.phase === 'rentree' ? Math.min(1, ((this.v || 0) / 7800) ** 3 * Math.min(1, (this.decel || 0) / 1.5)) : 0;
     if (chauffe > 0.03) {
-      const gp = ctx.createRadialGradient(0, 0, taille * 0.2, 0, 0, taille * 2.2);
-      gp.addColorStop(0, `rgba(255,220,150,${0.9 * chauffe})`); gp.addColorStop(0.5, `rgba(255,120,40,${0.5 * chauffe})`); gp.addColorStop(1, 'rgba(255,80,20,0)');
-      ctx.fillStyle = gp; ctx.beginPath(); ctx.arc(0, taille * 0.2, taille * 2.2, 0, 2 * Math.PI); ctx.fill();
-      // Traînée lumineuse derrière la capsule.
-      const gt = ctx.createLinearGradient(0, 0, 0, -taille * 6);
-      gt.addColorStop(0, `rgba(255,170,60,${0.7 * chauffe})`); gt.addColorStop(1, 'rgba(255,170,60,0)');
-      ctx.fillStyle = gt; ctx.beginPath(); ctx.moveTo(-taille * 0.5, 0); ctx.lineTo(0, -taille * 6); ctx.lineTo(taille * 0.5, 0); ctx.fill();
+      const yB = taille * 0.5;                                          // le bouclier (base de la capsule)
+      // Sillage : de la largeur du bouclier jusqu'à loin derrière, plus discret.
+      const gt = ctx.createLinearGradient(0, yB, 0, -taille * 6);
+      gt.addColorStop(0, `rgba(255,150,60,${0.45 * chauffe})`); gt.addColorStop(1, 'rgba(255,150,60,0)');
+      ctx.fillStyle = gt; ctx.beginPath(); ctx.moveTo(-taille * 0.62, yB); ctx.lineTo(-taille * 0.15, -taille * 6); ctx.lineTo(taille * 0.15, -taille * 6); ctx.lineTo(taille * 0.62, yB); ctx.fill();
+      // Halo chaud centré sur le bouclier.
+      const gp = ctx.createRadialGradient(0, yB + taille * 0.15, taille * 0.1, 0, yB + taille * 0.15, taille * 1.5);
+      gp.addColorStop(0, `rgba(255,235,180,${0.9 * chauffe})`); gp.addColorStop(0.45, `rgba(255,130,40,${0.55 * chauffe})`); gp.addColorStop(1, 'rgba(255,80,20,0)');
+      ctx.fillStyle = gp; ctx.beginPath(); ctx.arc(0, yB + taille * 0.15, taille * 1.5, 0, 2 * Math.PI); ctx.fill();
+      // Onde de choc : un croissant blanc-orangé juste devant le bouclier.
+      ctx.fillStyle = `rgba(255,245,215,${0.85 * chauffe})`;
+      ctx.beginPath(); ctx.ellipse(0, yB + taille * 0.06, taille * 0.72, taille * 0.32, 0, 0, Math.PI); ctx.ellipse(0, yB + taille * 0.02, taille * 0.6, taille * 0.16, 0, Math.PI, 0, true); ctx.fill();
     }
     if (this.phase === 'pilote' || this.phase === 'principal') this.dessinerParachutes(ctx, taille);
     // Parachutes largués : ils s'envolent en s'éloignant de la capsule qui tombe.

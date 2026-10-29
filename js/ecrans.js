@@ -418,7 +418,7 @@ function afficherResultat(r) {
   const robot = pertes.find((p) => p.qui === 'robot');
   if (equipage) {
     if (classe === 'succes') {
-      titre = `Réussite partielle : ${titre.replace(/^Réussite( totale)? : /, '').toLowerCase()}, mais ${(etat.vol.equipier || equipierDescente(null)).nom} est perdu${(etat.vol.equipier || equipierDescente(null)).acc}`;
+      titre = `Réussite partielle : ${titre.replace(/^Réussite( totale)?\s*:\s*/, '').toLowerCase()}, mais ${(etat.vol.equipier || equipierDescente(null)).nom} est perdu${(etat.vol.equipier || equipierDescente(null)).acc}`;
       classe = 'partiel';
     }
     message += ` Pendant la sortie à la surface : ${minuscule(equipage.texte)}`;
