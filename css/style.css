@@ -511,3 +511,9 @@ pre.erreur { white-space: pre-wrap; background: #1a0d0d; border: 1px solid #5a23
 .filtres-eggs { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 12px; }
 .filtres-eggs input { flex: 1 1 220px; padding: 7px 10px; font-size: 14px; }
 .filtres-eggs select { padding: 6px 8px; font-size: 14px; }
+
+/* Choix du lieu d'atterrissage : anciennes missions sur deux colonnes */
+.grille-lieux { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 4px 12px; }
+.grille-lieux label { display: block; padding: 3px 4px; border-radius: 4px; cursor: pointer; font-size: 0.92em; }
+.grille-lieux label:hover { background: rgba(255,255,255,0.06); }
+.grille-lieux .doux { display: block; margin-left: 1.6em; font-size: 0.9em; }

@@ -170,6 +170,9 @@ const TRACES_REELLES = {
     { id: 'curiosity', dx: -1200, nom: 'Curiosity', annee: 2012, materiel: 'rover américain toujours en activité', objets: [['roverMSL', 0]] },
     { id: 'zhurong', dx: -1500, nom: 'Zhurong', annee: 2021, materiel: 'premier rover chinois sur Mars, endormi depuis l’hiver martien de 2022', objets: [['zhurong', 0]] },
   ],
+  mercure: [
+    { id: 'messenger', dx: 400, nom: 'Impact de MESSENGER', annee: 2015, materiel: 'sonde américaine, en orbite quatre ans, qui a trouvé la glace des cratères polaires ; à court d’ergols, elle s’est écrasée le 30 avril 2015 à 3,9 km/s, en creusant un cratère de 16 m', objets: [['impactMessenger', 0]] },
+  ],
   venus: [
     { id: 'venera13', dx: 300, nom: 'Site de Venera 13', annee: 1982, materiel: 'sonde soviétique, 127 minutes de survie à 457 °C et 89 bar, premières photos en couleur du sol de Vénus', objets: [['venera', 0]] },
   ],
@@ -687,7 +690,7 @@ function verifierDecouvertes(x) {
     }
   }
   for (const t of tracesSur(x.astre.id)) {
-    const tx = x.posLibre(x.xFusee + t.dx);
+    const tx = x.posLibre(xTrace(x.astre, t));
     if (distSol(x.astre, p.x, tx) < 12 && !x.vusIci['t:' + t.id]) {
       x.vusIci['t:' + t.id] = true;
       x.dire(`📍 ${t.nom} — ${t.annee} — ${t.materiel}.`);
@@ -735,7 +738,7 @@ function decouvrir(e, x) {
 function dessinerDecouvertes(ctx, x, versEcran, s, W) {
   const p = x.p, humain = x.type === 'spationaute';
   for (const t of tracesSur(x.astre.id)) {
-    const tx = x.posLibre(x.xFusee + t.dx);
+    const tx = x.posLibre(xTrace(x.astre, t));
     const [sx, sy] = versEcran(tx, x.sol(tx));
     if (sx < -60 * s || sx > W + 60 * s) continue;
     let hMax = 0;
@@ -765,6 +768,13 @@ function roue(ctx, x, y, r) { disque(ctx, x, y, r, '#37474f'); disque(ctx, x, y,
 
 // Chaque fonction dessine au pied (x, y), à s pixels par mètre, et renvoie sa hauteur en mètres.
 const DESSINS_TRACES = {
+  impactMessenger(ctx, x, y, s) {
+    // Cratère d'impact de 16 m : une cuvette sombre, et des débris de la sonde éparpillés autour.
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.beginPath(); ctx.ellipse(x, y, 8 * s, 0.7 * s, 0, 0, Math.PI * 2); ctx.fill();
+    for (const [dx, w] of [[-11, 0.6], [-6.5, 0.3], [5.5, 0.5], [9.5, 0.25], [13, 0.4]]) rect(ctx, x + dx * s, y - w * s, w * 1.4 * s, w * s, '#b8a46a');
+    return 0.7;
+  },
   lm(ctx, x, y, s) {
     // Étage de descente du module lunaire : caisson doré, quatre pieds, échelle.
     trait(ctx, [[x - 4.6 * s, y], [x - 2 * s, y - 1.9 * s]], '#b0a080', 0.12 * s);

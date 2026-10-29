@@ -31,6 +31,11 @@ function migrerVoyage(v) {
   m.provisions = { fleurs: 0, fruits: 0, ...(v.provisions || {}) };
   m.bases = (m.bases || []).map((b) => ({ niveau: 1, ...b }));
   m.sites = m.sites || {};
+  // Mercure : la zone de base repérée par une ancienne sonde passe au fond du cratère polaire.
+  if (m.sites.mercure && !m.sites.mercure.ombre && ASTRES_PAR_ID.mercure) {
+    const z = zoneDeBase(ASTRES_PAR_ID.mercure);
+    if (z) m.sites.mercure = { ...m.sites.mercure, ...z };
+  }
   m.cargos = m.cargos || [];
   // Les étapes de navigation contiennent des fonctions, perdues à la sauvegarde : elles seront recalculées.
   for (const s of [...(m.sondesEnVol || []), ...m.cargos]) delete s.etape;
@@ -396,9 +401,13 @@ function finVol(r) {
 function lancerVisite() {
   const a = ASTRES_PAR_ID[etat.destination];
   if (!a) return;
+  ouvrirChoixLieu(a, null, (site) => { etat.siteVisite = site; lancerVisiteIci(a); });
+}
+function lancerVisiteIci(a) {
+  const site = etat.siteVisite || undefined;
   if (!$('equip-auto').checked || !(a.type === 'solide' || a.type === 'gazeuse') || estOrigine(a.id)) {
     etat.fuseeVisite = null;
-    return lancer();
+    return lancer({ site });
   }
   const b = $('lancer');
   b.textContent = 'Préparation de la fusée (vols d’essai)…';
@@ -408,10 +417,10 @@ function lancerVisite() {
     b.textContent = 'Lancer la mission';
     b.disabled = false;
     etat.fuseeVisite = c.ok ? c : null;
-    lancer(c.ok ? { fusee: fuseeDeConception(c, a) } : {});
+    lancer(c.ok ? { fusee: fuseeDeConception(c, a), site } : { site });
   }, 30);
 }
-function rejouerVisite() { lancer(etat.fuseeVisite ? { fusee: fuseeDeConception(etat.fuseeVisite, ASTRES_PAR_ID[etat.destination]) } : {}); }
+function rejouerVisite() { const site = etat.siteVisite || undefined; lancer(etat.fuseeVisite ? { fusee: fuseeDeConception(etat.fuseeVisite, ASTRES_PAR_ID[etat.destination]), site } : { site }); }
 
 // ---------- Campagne : lancement, descente, robot, retour ----------
 function lancerMegaFusee(type = etat.typeLanceur || 'station') {
@@ -496,7 +505,7 @@ function fournisseurLanceurRetour(astreId) {
   };
 }
 
-function descendre(id) {
+function descendre(id, site) {
   const v = etat.voyage, a = ASTRES_PAR_ID[id];
   const c = concevoirAtterrisseur(a);
   if (!c.ok) return Orbiteur.log(c.raison);
@@ -525,13 +534,14 @@ function descendre(id) {
     carb = dispo * 0.6;
     Orbiteur.log(`😰 Fausse manœuvre au départ de la descente ${sur(a)} : l’équipage traumatisé a gaspillé 40 % des ergols de l’atterrisseur.`);
   }
-  lancer({ voyage: true, fusee: c.fusee, carburant: carb, bases: basesSur(id), site: siteDescente(id) });
+  lancer({ voyage: true, fusee: c.fusee, carburant: carb, bases: basesSur(id), site: site || siteDescente(id) });
 }
 
 // Dangers d'une sortie (spationaute ou robot) là où l'on est posé : pression, chaleur, rayonnement.
 // Pour le rayonnement, le temps maximal dehors avant la dose mortelle.
 function dangersSortie(vol, type) {
-  const d = EXPLORATEURS[type], c = vol.c || conditions(vol.astre, vol.y), l = [];
+  const d = EXPLORATEURS[type], c0 = vol.c || conditions(vol.astre, vol.y), l = [];
+  const tl = temperatureLocale(vol), c = tl === null ? c0 : { ...c0, t: tl };
   const qui = type === 'robot' ? 'le robot' : 'la combinaison';
   if (c.p > d.pressionMax) l.push(`Pression ${fmtP(c.p)} : ${qui} ne résiste qu’à ${fmt(d.pressionMax, 1)} bar. ${type === 'robot' ? 'Il' : 'Elle'} se déformera puis cédera.`);
   if (c.t > d.tempMax) l.push(`Température ${fmt(c.t)} °C : ${qui} ne supporte que ${fmt(d.tempMax)} °C.`);
@@ -549,7 +559,7 @@ function siteDescente(id) {
 }
 
 // Robot largué en aller simple (là où un atterrisseur ne pourrait pas repartir, comme sur Vénus).
-function larguerRobot(id, blindage) {
+function larguerRobot(id, blindage, site) {
   const v = etat.voyage, a = ASTRES_PAR_ID[id];
   if (v.robots <= 0) return Orbiteur.log('Plus de robot à bord.');
   v.robots--;
@@ -559,7 +569,7 @@ function larguerRobot(id, blindage) {
   const cout = coutBlindage(a, blindage);
   if (cout.ergols > v.ergolsAtt) { v.robots++; return Orbiteur.log(`Pas assez d’ergols en réserve pour descendre le blindage ${BLINDAGES_ROBOT[blindage].nom.toLowerCase()} (${fmt(cout.ergols, 0)} kg).`); }
   v.ergolsAtt -= cout.ergols;
-  etat.vol = new Vol(a, assemblerFusee(equipementParDefaut()), { voyage: true, depuisSol: true, bases: basesSur(id), site: siteDescente(id) });
+  etat.vol = new Vol(a, assemblerFusee(equipementParDefaut()), { voyage: true, depuisSol: true, bases: basesSur(id), site: site || siteDescente(id) });
   etat.vol.robotSeul = true;
   etat.enVoyage = true;
   Orbiteur.log(`Robot largué ${sur(a)} (blindage ${BLINDAGES_ROBOT[blindage].nom.toLowerCase()}, rayonnement ${fmtDose(doseSurface(a).svJour)}).`);
@@ -612,7 +622,7 @@ function deployerDrone() {
   x.droneParti = true;
   const a = x.astre;
   etat.retourRobot = { explo: x, vol: etat.vol };
-  const vd = new Vol(a, fuseeDrone(a), { voyage: true, depuisSol: true, bases: x.vol.bases });
+  const vd = new Vol(a, fuseeDrone(a), { voyage: true, depuisSol: true, bases: x.vol.bases, site: x.vol.site });
   vd.x = x.p.x + 2; vd.y = vd.sol(vd.x) + 0.01;
   vd.xDepart = x.xFusee;            // les repérages se placent comme pour le robot
   vd.droneSeul = true; vd.equipier = null;
@@ -623,13 +633,13 @@ function deployerDrone() {
 }
 
 // Drone : largué depuis l'orbite dans une petite capsule, il se pilote ensuite comme un module d'atterrissage.
-function larguerDrone(id) {
+function larguerDrone(id, site) {
   const v = etat.voyage, a = ASTRES_PAR_ID[id];
   if (!droneVolePossible(a)) return Orbiteur.log(`Impossible de faire voler un drone ${sur(a)} : il faut de l’air pour ses rotors.`);
   if (!(v.drones > 0)) return Orbiteur.log('Plus de drone à bord : l’atelier d’une station en fabrique.');
   v.drones--;
   etat.destination = id;
-  lancer({ voyage: true, fusee: fuseeDrone(a), bases: basesSur(id), site: siteDescente(id) });
+  lancer({ voyage: true, fusee: fuseeDrone(a), bases: basesSur(id), site: site || siteDescente(id) });
   etat.vol.droneSeul = true;
   etat.vol.equipier = null;   // pas d'équipage
   etat.vol.messageExplo = { texte: `🚁 Drone largué ${sur(a)} : pilotez-le comme un module (gaz, inclinaison, L pour le pilote auto). Volez bas pour repérer. Échap : fin de la mission.`, vie: 9 };
@@ -982,9 +992,9 @@ Orbiteur.contexte = {
   estEnPause: () => etat.pause,
   basculerPause: () => { etat.pause = !etat.pause; },
   hangar: () => { sauver(etat); allerAccueil(); },
-  descendre: (id) => descendre(id),
-  larguerRobot: (id, blindage) => larguerRobot(id, blindage),
-  larguerDrone: (id) => larguerDrone(id),
+  descendre: (id, site) => descendre(id, site),
+  larguerRobot: (id, blindage, site) => larguerRobot(id, blindage, site),
+  larguerDrone: (id, site) => larguerDrone(id, site),
   rentrer: () => rentrerSurTerre(),
   renvoyerEchantillons: () => renvoyerEchantillons(),
   finExpedition: (texte) => terminerExpedition(texte),
@@ -1261,6 +1271,12 @@ addEventListener('keydown', (e) => {
     if (type === 'spationaute' && v.spatioPerdu) {
       const q = v.equipier || { nom: nomSpatio(), acc: acc() };
       return refus(`${majuscule(q.nom)} n’est pas revenu${q.acc || ''} de sa sortie : plus personne à bord ne peut sortir. Il reste le robot (R), ou le décollage (T).`);
+    }
+    // En plein jour sur un astre sans air (Mercure) : la combinaison ne tiendrait pas. On attend la nuit.
+    const tl = type === 'spationaute' ? temperatureLocale(v) : null;
+    if (tl !== null && tl > EXPLORATEURS.spationaute.tempMax) {
+      const sonde = etat.enVoyage && etat.voyage && (etat.voyage.sites || {})[v.astre.id];
+      return refus(`Sortie impossible : ${fmt(tl)} °C au sol en plein jour ${de(v.astre)}, la combinaison ne tient que ${EXPLORATEURS.spationaute.tempMax} °C. On ne sort que la nuit${v.astre.id === 'mercure' ? (sonde ? ', ou au fond du cratère polaire' : ' : envoyez une sonde, elle trouvera la nuit et le cratère polaire') : ''}. Le robot (R), lui, tient ${EXPLORATEURS.robot.tempMax} °C.`);
     }
     // Dehors, c'est mortel (pression, chaleur, rayonnement) : on prévient, mais on laisse sortir.
     const dangers = dangersSortie(v, type);

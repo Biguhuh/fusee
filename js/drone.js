@@ -39,7 +39,7 @@ function reperagesDrone(vol) {
     }
   }
   for (const t of tracesSur(a.id)) {
-    const tx = x0 + t.dx;
+    const tx = xTrace(a, t);   // à sa vraie place
     if (distSol(a, vol.x, tx) < 40 && !vol.vusDrone['t:' + t.id]) {
       vol.vusDrone['t:' + t.id] = true;
       vol.messageExplo = { texte: `📷 ${t.nom} — ${t.annee} — ${t.materiel}.`, vie: 8 };

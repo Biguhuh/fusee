@@ -1097,7 +1097,7 @@ function zenithCiel(a, t, porteur) {
     // ailleurs, on arrive le matin (Soleil à α = −30°).
     let psi, alpha;
     if (a.parent) { const pp = etatAbsolu(a.parent, t).r; psi = Math.atan2(pp[1] - pos[1], pp[0] - pos[0]); alpha = 35 * DEG; }
-    else { psi = Math.atan2(-pos[1], -pos[0]); alpha = a.id === 'mercure' ? 100 * DEG : -30 * DEG; }   // Mercure : on arrive à la tombée de la nuit
+    else { psi = Math.atan2(-pos[1], -pos[0]); alpha = porteur.site && porteur.site.nuit ? 100 * DEG : -30 * DEG; }   // Mercure, avec une sonde : à la tombée de la nuit
     porteur.ciel = { t0: t, phi0: psi + alpha };
   }
   return porteur.ciel.phi0 + (2 * Math.PI * (t - porteur.ciel.t0)) / (rot.heures * 3600);
@@ -1107,6 +1107,7 @@ const angleDansPi = (x) => { x %= 2 * Math.PI; if (x > Math.PI) x -= 2 * Math.PI
 // Jour local (0 : nuit, 1 : plein jour), sans dessiner : élévation du Soleil vue du lieu de la mission.
 function jourLocal(a, t, porteur) {
   if (a.type === 'etoile') return 1;
+  if (dansLOmbre(porteur)) return 0;   // fond d'un cratère polaire
   const phi = zenithCiel(a, t, porteur), pos = etatAbsolu(a.id, t).r;
   const elev = Math.PI / 2 - Math.abs(angleDansPi(phi - Math.atan2(-pos[1], -pos[0])));
   const u = Math.max(0, Math.min(1, (elev + 6 * DEG) / (12 * DEG)));
@@ -1146,6 +1147,9 @@ function dessinerFond(ctx, a, c, W, H, sousLesNuages, t = DATE_DEBUT, porteur = 
       if (couvert > 0 && distP < V.norm(pos)) { jour *= 1 - 0.9 * couvert; porteur.eclipse = couvert; } else porteur.eclipse = 0;
     }
   }
+  // Au fond d'un cratère polaire de Mercure, le Soleil reste sous le rempart : nuit éternelle.
+  const ombre = !vide && dansLOmbre(porteur);
+  if (ombre) jour = 0;
   LUMIERE_SOL = vide ? 1 : 0.3 + 0.7 * jour;
   // Ciel : noir dans le vide ou la nuit, couleur de l'atmosphère quand l'air s'épaissit et qu'il fait jour.
   let tCiel = 0;
@@ -1174,7 +1178,7 @@ function dessinerFond(ctx, a, c, W, H, sousLesNuages, t = DATE_DEBUT, porteur = 
 
   // Soleil, à sa vraie place et à sa taille apparente (avec un halo).
   const pS = posCiel(alphaSoleil);
-  if (pS.visible && !(porteur.eclipse > 0.98)) {
+  if (pS.visible && !ombre && !(porteur.eclipse > 0.98)) {
     // Proportionnelle à la vraie taille apparente (agrandie ×3 pour qu'on la voie) : depuis Mercure, le Soleil paraît
     // 2,6 fois plus grand que depuis la Terre. Au moins 2 px (Pluton).
     const rS = Math.max(2, Math.asin(etoileRacine().rayonKm / V.norm(pos)) * kAng * 3);
@@ -1946,7 +1950,8 @@ function dessinerBases(ctx, vol, W, echelle, fuseeY) {
     dessinerBase(ctx, sx, (dx) => ecranY(b.x + dx), Math.max(echelle, 0.4), b.niveau || 1, productionBase(vol.astre) > 0);
   }
   // Zone repérée par une sonde, pas encore construite : un fanion vert.
-  if (vol.site && !vol.bases.some((b) => distSol(vol.astre, b.x, vol.site.x) < 500)) dessinerFanion(ctx, W / 2 + ecartSol(vol.astre, vol.site.x, vol.x) * echelle, ecranY(vol.site.x), Math.max(echelle, 0.4), vol);
+  const zs = zoneSondeDuVol(vol);
+  if (zs && !vol.bases.some((b) => distSol(vol.astre, b.x, zs.x) < 500)) dessinerFanion(ctx, W / 2 + ecartSol(vol.astre, zs.x, vol.x) * echelle, ecranY(zs.x), Math.max(echelle, 0.4), vol);
   // Drapeaux plantés lors des visites précédentes
   for (const d of drapeauxSur(vol.astre.id)) {
     const sx = W / 2 + ecartSol(vol.astre, d.x, vol.x) * echelle;
@@ -2364,7 +2369,9 @@ function corpsHudDetail(ctx, vol, x, larg, compact, dessiner) {
   const ft = (vol.temp + KELVIN) / (f.tempMax + KELVIN);
   ligne('Temp. coque', fmt(vol.temp) + ' / ' + fmt(f.tempMax) + ' °C', couleurRisque(ft));
   jauge(ctx, x, y - 4, larg, ft, couleurRisque(ft)); y += 6;
-  ligne('Temp. extérieure', fmt(c.t) + ' °C');
+  // Près du sol, la température du moment (jour ou nuit, ombre d'un cratère polaire).
+  const tSol = vol.astre.type === 'solide' && vol.y - vol.sol(vol.x) < 2000 ? temperatureLocale(vol) : null;
+  ligne('Temp. extérieure', fmt(tSol === null ? c.t : tSol) + ' °C');
 
   ligne('Gravité locale', fmtG(c.g));
   if (a.type !== 'etoile') {

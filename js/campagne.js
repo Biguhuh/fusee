@@ -436,7 +436,7 @@ function moduleExtension(a) {
 
 // Zone pour une base : un tronçon de 120 m en pente douce (moins de 8°, moins de 6 m de dénivelé),
 // le plus près possible du point de descente. La construction terrasse ensuite le terrain.
-function chercherZonePlate(a) {
+function chercherZonePlate(a, x0 = 0) {
   const h = creerTerrain(a);
   if (!h) return null;
   const plat = (x) => {
@@ -449,8 +449,8 @@ function chercherZonePlate(a) {
     return max - min < 6;
   };
   for (let r = 0; r <= 60000; r += 25) {
-    if (plat(r)) return r;
-    if (r && plat(-r)) return -r;
+    if (plat(x0 + r)) return x0 + r;
+    if (r && plat(x0 - r)) return x0 - r;
   }
   return null;
 }

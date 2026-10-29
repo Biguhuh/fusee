@@ -393,7 +393,7 @@ const Orbiteur = {
 
   // Fenêtre « Temps réel » : réglages, prochaine manœuvre à l'heure réelle, agenda.
   // Avant de larguer un robot : rayonnement du lieu et choix du blindage (masse, Δv, durée de vie).
-  ouvrirLargageRobot(astreId) {
+  ouvrirLargageRobot(astreId, site) {
     const a = ASTRES_PAR_ID[astreId], m = $('modale');
     const v = this.v, d = doseSurface(a), conseil = blindageConseille(a);
     const sources = { mesure: 'mesure', reference: 'valeur de référence', estimation: 'estimation' };
@@ -416,7 +416,7 @@ const Orbiteur = {
       const coche = m.querySelector('input[name=blindage]:checked');
       const cle = coche ? coche.value : 'standard';
       Infos.fermer();
-      this.contexte.larguerRobot(astreId, cle);
+      this.contexte.larguerRobot(astreId, cle, site);
     };
   },
 
@@ -878,9 +878,12 @@ const Orbiteur = {
     v.sites = v.sites || {};
     let texte = `${s.nom} est en orbite : données ${de(a)} reçues.`;
     if (a.type === 'solide' && !estOrigine(a.id)) {
-      const x = chercherZonePlate(a);
+      const z = zoneDeBase(a), x = z && z.x;
       const [ressource, prod] = ressourceLocale(a);
-      if (x !== null) {
+      if (z && z.ombre) {
+        v.sites[a.id] = { ...z, ressource, prod, t: v.t };
+        texte += ` Mercure : 430 °C le jour, −180 °C la nuit. La base doit être construite dans un cratère à un pôle, au fond duquel le Soleil ne se lève jamais : zone repérée dans le ${z.lieu}, avec de la glace d’eau. La sonde a aussi calculé l’heure locale : un atterrisseur envoyé ailleurs arrivera à la tombée de la nuit.`;
+      } else if (z) {
         v.sites[a.id] = { x, ressource, prod, t: v.t };
         texte += ` Zone plate pour une base repérée à ${fmtAlt(Math.abs(x))} du point de descente habituel.` +
           (prod ? ` Ressource détectée : ${ressource}.` : ' Aucune ressource exploitable détectée : tout viendra de la Terre.');
@@ -2255,7 +2258,7 @@ const Orbiteur = {
     const site = (v.sites || {})[c.id];
     if (c.type === 'solide' && !estOrigine(c.id)) {
       d += site
-        ? `<p class="doux">🟢 Zone de base repérée${site.prod ? ` — ${site.ressource}` : ' — pas de ressource locale'}. La descente la vise.</p>`
+        ? `<p class="doux">🟢 Zone de base repérée${site.ombre ? ` au fond du ${site.lieu}` : ''}${site.prod ? ` — ${site.ressource}` : ' — pas de ressource locale'}. On choisit où se poser au moment de descendre.</p>`
         : `<p class="doux">Aucune zone de base repérée ${sur(c)} : envoyez une sonde.</p>`;
       if (!this.peutDeployerBase(c)) d += `<button id="nav-deployer-base">🏠 Déployer la base depuis l’orbite (kit de base)</button>`;
     }
@@ -2319,8 +2322,8 @@ const Orbiteur = {
     bind('nav-avancer', () => { this.avance = !this.avance; this.majHud(true); });
     bind('nav-executer', () => { this.executerEtape(); this.majHud(true); });
     bind('nav-auto', () => { this.auto = !this.auto; this.majHud(true); });
-    bind('nav-descendre', () => this.contexte.descendre(o.centre));
-    bind('nav-robot', () => this.ouvrirLargageRobot(o.centre));
+    bind('nav-descendre', () => ouvrirChoixLieu(ASTRES_PAR_ID[o.centre], v, (site) => this.contexte.descendre(o.centre, site)));
+    bind('nav-robot', () => ouvrirChoixLieu(ASTRES_PAR_ID[o.centre], v, (site) => this.ouvrirLargageRobot(o.centre, site), 'Larguer le robot'));
     bind('nav-rentrer', () => this.contexte.rentrer());
     bind('nav-capsule-ech', () => this.contexte.renvoyerEchantillons());
     bind('nav-sonde-ech', () => this.renvoyerParSonde());

@@ -122,6 +122,9 @@ class Exploration {
       this.doseGy = 0;
       this.dire(`Rayonnement ici : ${fmtDose(this.irradiation.svJour)}. Blindage ${BLINDAGES_ROBOT[this.blindage].nom.toLowerCase()} : l’électronique tient ${this.vieRestante()}.`);
     }
+    // Posé près d'une ancienne mission : on dit où elle est.
+    const tp = !this.terre && tracePlusProche(this.astre, this.xFusee);
+    if (tp && tp.d < 5000) this.dire(`📍 ${tp.trace.nom} (${tp.trace.annee}) à ${fmt(tp.d)} m, ${tp.ecart < 0 ? 'à gauche ◀' : 'à droite ▶'}.`);
   }
 
   // ---------- Promenade sur Terre ----------
@@ -873,8 +876,9 @@ class Exploration {
       if (bx > -4000 && bx < W + 4000) dessinerBase(ctx, bx, (dx) => versEcran(b.x + dx, this.sol(b.x + dx))[1], echelle, b.niveau || 1, productionBase(this.astre) > 0);
     }
     // Zone de base repérée par une sonde
-    if (this.vol.site && !(this.vol.bases || []).some((b) => distSol(this.astre, b.x, this.vol.site.x) < 500)) {
-      const [fx2, fy2] = versEcran(this.vol.site.x, this.sol(this.vol.site.x));
+    const zs = zoneSondeDuVol(this.vol);
+    if (zs && !(this.vol.bases || []).some((b) => distSol(this.astre, b.x, zs.x) < 500)) {
+      const [fx2, fy2] = versEcran(zs.x, this.sol(zs.x));
       if (fx2 > -200 && fx2 < W + 200) dessinerFanion(ctx, fx2, fy2, echelle, this.vol);
     }
 
@@ -1022,6 +1026,7 @@ class Exploration {
       l.push([this.type === 'robot' ? 'Robot' : 'Combi.', fmt(this.integrite) + ' %', this.integrite > 60 ? '#66bb6a' : this.integrite > 30 ? '#ffca28' : '#ef5350']);
       l.push([this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? `${sc.analyses} (+${this.donneesEnAttente})` : `${this.sac.length}/${d.capacite}` + (this.rover ? ` · astromobile ${this.sacRover.length}/20` : ''), this.donneesEnAttente ? '#ffca28' : '#fff']);
       l.push(['Module', fmt(distSol(this.astre, this.p.x, this.xFusee)) + ' m', '#fff']);
+      { const tp = tracePlusProche(this.astre, this.p.x); if (tp && tp.d < 5000 && tp.d > 15) l.push(['📍 ' + tp.trace.nom, `${tp.ecart < 0 ? '◀' : '▶'} ${fmt(tp.d)} m`, '#ffe0a3']); }
       if (this.type === 'spationaute' && !this.terre && this.retour && this.retour.dist > 0) l.push(['Retour', this.retour.bloque ? 'bloqué ⛔' : '≈ ' + fmtDuree(this.retour.temps), this.retour.bloque || this.reserve < this.retour.temps * 1.3 ? '#ef5350' : '#fff']);
       if (this.rover) l.push(['Astromob.', fmtDuree(this.batterieRover), this.batterieRover < 30 * 60 ? '#ef5350' : '#66bb6a']);
       if (this.secours) l.push(['🆘 Secours', this.texteSecours(), '#ffca28']);
