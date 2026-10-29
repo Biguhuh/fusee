@@ -22,6 +22,8 @@ const CHAMP_ORBITEUR = { ergols: 'ergolsAtt' };   // clé du stock d'une station
 const DV_PROPULSEUR_SOLAIRE = 20;   // km/s de poussées possibles pour ramener l'orbiteur (propulseur ionique)
 const PALIERS_NAV = [1, 10, 100, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8];
 const DATE_DEBUT = (2461336.5 - J2000_JD) * JOUR; // 23 octobre 2026
+// Date du jour (la vraie), en secondes depuis J2000 : une nouvelle campagne commence aujourd'hui.
+function dateDuJour() { return Math.max(DATE_DEBUT, (Date.now() / 86400000 + 2440587.5 - J2000_JD) * JOUR); }
 
 const ORIENTATIONS = {
   prograde: 'Prograde', retrograde: 'Rétrograde', radialExt: 'Radial +', radialInt: 'Radial −',
@@ -51,17 +53,18 @@ const Orbiteur = {
   // Une campagne : ce qui dure (stations, bases, sondes, journal, échantillons rapportés).
   // L'orbiteur (orb) n'existe que pendant une expédition, lancée depuis la Terre par la méga-fusée.
   nouveauVoyage() {
-    // Nouvelle campagne : artefacts remis à zéro (les easter eggs trouvés restent), voiture rouge remise en orbite.
-    if (typeof etat !== 'undefined') etat.tracesVues = {};
+    // Nouvelle campagne : elle commence à la date du jour, sans aucune expédition ; la voiture rouge est remise en orbite.
+    // (Ce qu'on remet à zéro en plus — échantillons, drapeaux, artefacts, easter eggs — se choisit dans la fenêtre.)
     if (ASTRES_PAR_ID.roadster) ASTRES_PAR_ID.roadster.cachee = false;
+    const debut = dateDuJour();
     return {
-      t: DATE_DEBUT,
+      t: debut,
       systeme: SYSTEME.id,
       orb: null,
       idCampagne: 'c' + Date.now().toString(36), voitureEtapes: {},   // nouvelle campagne : la voiture rouge est de retour
       carburant: 0, ergolsAtt: 0, sondes: 0, kits: 0, kitsBase: 0, robots: 0, drones: 0, atterrisseurs: 0,
       sondesEnVol: [], stations: [], bases: [],
-      journal: [{ t: DATE_DEBUT, texte: 'Début de la campagne. Première étape : lancer la méga-fusée et construire la station spatiale.' }],
+      journal: [{ t: debut, texte: 'Début de la campagne. Première étape : lancer la méga-fusée et construire la station spatiale.' }],
       mode: 'assistant', cible: null, manette: 0, orientation: 'prograde', warp: 1,
       visites: {}, echantillonsABord: {}, echantillonsRapportes: {}, provisions: { fleurs: 0, fruits: 0 }, bieres: 0,
       expeditions: 0,

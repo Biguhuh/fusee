@@ -367,6 +367,14 @@ class Exploration {
       this.surveillerRetour();
     }
     // Entraînement : on ne meurt pas. Réserves vides : un avertissement, et elles sont rechargées.
+    if (this.liaison) {
+      this.liaison.attente -= dt;
+      if (this.reserve <= 0) return this.terminer('perdu', `Batterie vide avant le passage de l’orbite : ${this.liaison.n} analyse${this.liaison.n > 1 ? 's' : ''} perdue${this.liaison.n > 1 ? 's' : ''}. Le robot s’est arrêté pour toujours.`);
+      if (this.liaison.attente <= 0) {
+        const n = this.transmettre();
+        return this.terminer('retour', `📡 ${this.liaison.qui} passe au-dessus : ${n} analyse${n > 1 ? 's' : ''} transmise${n > 1 ? 's' : ''} directement en orbite. Le robot, coincé, reste sur place.`);
+      }
+    }
     if (this.essai && this.reserve <= 0) {
       this.reserve = this.def.autonomie;
       this.dire(`⚠ Attention : ${this.type === 'robot' ? 'batterie vide' : 'plus d’oxygène'}. En mission, c’était la mort assurée. Réserves rechargées pour l’entraînement.`);
@@ -493,6 +501,25 @@ class Exploration {
 
   terminer(issue, texte) { this.fin = { issue, texte }; }
 
+  // Robot coincé (pente trop raide, paroi) : il ne peut pas rejoindre sa base. Avec ce qui lui reste de batterie, il
+  // pointe son antenne vers le ciel et attend que la station (ou l'orbiteur) passe au-dessus de lui pour lui envoyer
+  // ses analyses. Le passage peut tarder jusqu'à une période orbitale : si la batterie lâche avant, tout est perdu.
+  liaisonOrbite(chemin) {
+    const paroi = `une paroi de ${fmt(chemin.bloque.hauteur, 1)} m, à ${fmt(chemin.bloque.distance)} m`;
+    if (this.liaison) return this.dire(`📡 Antenne pointée vers le ciel : passage dans ≈ ${fmtDuree(Math.max(0, this.liaison.attente))}, batterie ${fmtDuree(this.reserve / 0.3)}.`);
+    const n = this.donneesEnAttente;
+    if (!n) return this.terminer('retour', `Le robot est coincé (${paroi}) : il ne peut pas rejoindre sa base et reste sur place. Aucune analyse à transmettre.`);
+    const a = this.astre, v = etat.enVoyage && etat.voyage;
+    const st = v && (v.stations || []).find((s) => s.centre === a.id);
+    const qui = st ? majuscule(le(st)) : 'L’orbiteur';
+    const r = a.rayonKm + Math.max(100, altitudeOrbite(a) / 1000);       // km
+    const periode = 2 * Math.PI * Math.sqrt((r * r * r) / a.gm);
+    const attente = periode * (0.15 + 0.85 * Math.random());
+    const autonomie = this.reserve / 0.3;                                // immobile, le robot consomme peu
+    this.liaison = { attente, n, qui };
+    this.dire(`📡 Le robot ne peut pas rejoindre sa base (${paroi}). Il pointe son antenne vers le ciel : ${qui.toLowerCase().startsWith('l’orbiteur') ? 'l’orbiteur' : le(st)} passera au-dessus dans ≈ ${fmtDuree(attente)}. Batterie : ≈ ${fmtDuree(autonomie)}.${autonomie < attente ? ' ⚠ Elle risque de lâcher avant : les analyses seraient perdues.' : ''} (+ pour accélérer le temps)`);
+  }
+
   transmettre() {
     const n = this.donneesEnAttente;
     if (n) {
@@ -511,6 +538,8 @@ class Exploration {
       const bases = [{ x: this.xFusee, nom: 'à son module' }, ...(this.vol.bases || []).map((b) => ({ x: b.x, nom: 'à la base' }))];
       const proche = bases.reduce((m, b) => (distSol(this.astre, b.x, this.p.x) < distSol(this.astre, m.x, this.p.x) ? b : m));
       if (distSol(this.astre, proche.x, this.p.x) > 4) {
+        const chemin = this.cheminVers(proche.x, false);
+        if (chemin.bloque) return this.liaisonOrbite(chemin);   // coincé : il ne peut pas rejoindre sa base
         const x = this.p.x + ecartSol(this.astre, proche.x, this.p.x) + (proche.x === this.xFusee ? 2 : 0);
         Object.assign(this.p, { x, y: this.sol(x), vx: 0, vy: 0, auSol: true });
         const n = this.transmettre();

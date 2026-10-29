@@ -1001,9 +1001,43 @@ Orbiteur.contexte = {
   alerte: (texte) => { Orbiteur.messages.push({ texte, vie: 8 }); },
 };
 
+// Nouvelle campagne : on recommence à la date du jour, sans expédition. On choisit ce qu'on remet à zéro en plus
+// (par défaut tout, sauf les easter eggs). Le registre des équipages et la progression « toutes campagnes » restent.
+const REMISES_A_ZERO = [
+  ['science', 'Échantillons et sites étudiés', true],
+  ['drapeaux', 'Drapeaux plantés', true],
+  ['artefacts', 'Artefacts et traces réelles vus', true],
+  ['eggs', 'Easter eggs trouvés', false],
+];
+function ouvrirNouvelleCampagne(lancer) {
+  const m = $('modale');
+  m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>↺ Nouvelle campagne</h2>
+    <p>On recommence à la date du jour : aucune expédition, aucune station, aucune base. Les stations, bases et sondes actuelles seront perdues.</p>
+    <p class="doux">Le registre des équipages et la progression « toutes campagnes » sont gardés.</p></div><button class="fermer">✕</button></header>
+    <section><h3>Remettre aussi à zéro</h3>${REMISES_A_ZERO.map(([cle, nom, defaut]) => `<label class="choix-ravito"><input type="checkbox" data-raz="${cle}" ${defaut ? 'checked' : ''}> ${nom}</label>`).join('')}</section>
+    <div class="actions"><button class="annuler">Annuler</button><button id="nc-ok" class="principal">↺ Commencer la nouvelle campagne</button></div></div>`;
+  m.classList.remove('cache');
+  m.querySelector('.fermer').onclick = () => Infos.fermer();
+  m.querySelector('.annuler').onclick = () => Infos.fermer();
+  $('nc-ok').onclick = () => {
+    const raz = {};
+    m.querySelectorAll('[data-raz]').forEach((c) => { raz[c.dataset.raz] = c.checked; });
+    Infos.fermer();
+    if (etat.voyage) cumulerProgression(etat.voyage);   // ce qu'elle a fait reste dans « Toutes campagnes »
+    if (raz.science) etat.science = {};
+    if (raz.drapeaux) etat.drapeaux = {};
+    if (raz.artefacts) { etat.tracesVues = {}; etat.reperes = {}; }
+    if (raz.eggs) { etat.decouvertes = {}; etat.reperes = {}; }
+    lancer();
+  };
+}
 $('voyage-nouveau').onclick = () => {
-  if (etat.voyage && !confirm('Recommencer une nouvelle campagne ? Les stations, bases et sondes actuelles seront perdues.')) return;
-  cumulerProgression(etat.voyage);   // ce qu'elle a fait reste dans « Toutes campagnes »
+  if (etat.voyage) return ouvrirNouvelleCampagne(() => {
+    etat.voyage = Orbiteur.nouveauVoyage();
+    Orbiteur.camPlacee = false;
+    sauver(etat);
+    allerNavigation();
+  });
   etat.voyage = Orbiteur.nouveauVoyage();
   Orbiteur.camPlacee = false;
   sauver(etat);
