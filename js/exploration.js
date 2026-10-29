@@ -262,7 +262,7 @@ class Exploration {
     if (this.delorean && this.delorean.phase === 'disparu') { this.vol.t += dt; this.majDelorean(dt); return; }
     this.dureeSortie = (this.dureeSortie || 0) + dt;   // pour le registre (plus longue sortie)
     const p = this.p, g = this.c.g;
-    this.c = conditions(this.astre, p.y);
+    this.c = this.jourNuit(conditions(this.astre, p.y));
     this.vol.t += dt;
     // Le lanceur de retour demandé à la station continue de descendre pendant la sortie.
     if (this.vol.lanceurRetour && this.vol.lanceurRetour.etat === 'descente') this.vol.descenteLanceur(dt);
@@ -390,11 +390,11 @@ class Exploration {
     this.integrite -= (tp + tc) * dt;
     if (this.type === 'robot') {
       const b = BLINDAGES_ROBOT[this.blindage];
-      this.doseGy += (this.irradiation.svJour * b.facteur * dt) / 86400;
+      this.doseGy += (this.irradiation.svJour * (this.facteurDose || 1) * b.facteur * dt) / 86400;
       this.dose = (100 * this.doseGy) / b.tolerance;            // part de la tolérance de l'électronique déjà encaissée
     } else {
       // Spationaute : la combinaison n'arrête presque rien ; la dose s'ajoute à celle reçue dans la fusée.
-      this.doseSv += (this.irradiation.svJour * dt) / 86400;
+      this.doseSv += (this.irradiation.svJour * (this.facteurDose || 1) * dt) / 86400;
       this.dose = (100 * this.doseSv) / DOSE_MORTELLE;
     }
     if (tp + tc > 0) this.causeDegats = tp >= tc ? 'pression' : 'chaleur';
@@ -501,6 +501,24 @@ class Exploration {
 
   terminer(issue, texte) { this.fin = { issue, texte }; }
 
+  // Jour et nuit au sol : la température suit l'élévation du Soleil (sans air, de −180 °C à 430 °C sur Mercure),
+  // et le rayonnement solaire baisse la nuit (l'astre fait écran ; pas pour les lunes des géantes, dont le
+  // rayonnement vient surtout de la planète).
+  jourNuit(c) {
+    if (this.terre || this.astre.type !== 'solide') return c;
+    const j = jourLocal(this.astre, tempsCiel(this.vol), this.vol);
+    this.jour = j;
+    const parent = this.astre.parent && ASTRES_PAR_ID[this.astre.parent];
+    this.facteurDose = (!this.astre.atm || this.astre.atm.p0 < 0.05) && !(parent && parent.type === 'gazeuse') ? 0.35 + 0.65 * j : 1;
+    const plage = plageTemperature(this.astre);
+    if (!plage) return c;
+    const t = plage.nuit + (plage.jour - plage.nuit) * j;
+    if (this.tPrecedente !== undefined && ((this.tPrecedente > this.def.tempMax) !== (t > this.def.tempMax))) {
+      this.dire(t > this.def.tempMax ? `☀️ Le Soleil se lève : ${fmt(t)} °C, au-delà de ce que tient ${this.type === 'robot' ? 'le robot' : 'la combinaison'} (${this.def.tempMax} °C). Rentrez !` : `🌙 La nuit tombe : ${fmt(t)} °C, on peut sortir.`);
+    }
+    this.tPrecedente = t;
+    return { ...c, t };
+  }
   // Robot coincé (pente trop raide, paroi) : il ne peut pas rejoindre sa base. Avec ce qui lui reste de batterie, il
   // pointe son antenne vers le ciel et attend que la station (ou l'orbiteur) passe au-dessus de lui pour lui envoyer
   // ses analyses. Le passage peut tarder jusqu'à une période orbitale : si la batterie lâche avant, tout est perdu.

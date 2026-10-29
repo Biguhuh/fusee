@@ -1097,12 +1097,29 @@ function zenithCiel(a, t, porteur) {
     // ailleurs, on arrive le matin (Soleil à α = −30°).
     let psi, alpha;
     if (a.parent) { const pp = etatAbsolu(a.parent, t).r; psi = Math.atan2(pp[1] - pos[1], pp[0] - pos[0]); alpha = 35 * DEG; }
-    else { psi = Math.atan2(-pos[1], -pos[0]); alpha = -30 * DEG; }
+    else { psi = Math.atan2(-pos[1], -pos[0]); alpha = a.id === 'mercure' ? 100 * DEG : -30 * DEG; }   // Mercure : on arrive à la tombée de la nuit
     porteur.ciel = { t0: t, phi0: psi + alpha };
   }
   return porteur.ciel.phi0 + (2 * Math.PI * (t - porteur.ciel.t0)) / (rot.heures * 3600);
 }
 const angleDansPi = (x) => { x %= 2 * Math.PI; if (x > Math.PI) x -= 2 * Math.PI; if (x < -Math.PI) x += 2 * Math.PI; return x; };
+
+// Jour local (0 : nuit, 1 : plein jour), sans dessiner : élévation du Soleil vue du lieu de la mission.
+function jourLocal(a, t, porteur) {
+  if (a.type === 'etoile') return 1;
+  const phi = zenithCiel(a, t, porteur), pos = etatAbsolu(a.id, t).r;
+  const elev = Math.PI / 2 - Math.abs(angleDansPi(phi - Math.atan2(-pos[1], -pos[0])));
+  const u = Math.max(0, Math.min(1, (elev + 6 * DEG) / (12 * DEG)));
+  return u * u * (3 - 2 * u);
+}
+// Températures de jour et de nuit au sol. Sans air (ou presque), l'écart est énorme ; une atmosphère épaisse le lisse.
+const TEMPERATURES_JOUR_NUIT = { mercure: [430, -180], lune: [120, -170], mars: [-20, -80] };
+function plageTemperature(a) {
+  if (TEMPERATURES_JOUR_NUIT[a.id]) { const [jour, nuit] = TEMPERATURES_JOUR_NUIT[a.id]; return { jour, nuit }; }
+  if (a.type !== 'solide' || (a.atm && a.atm.p0 >= 0.05)) return null;   // Vénus, Titan, la Terre : pas d'écart notable
+  const A = Math.max(10, Math.min(150, (a.tempSurface + KELVIN) * 0.3));
+  return { jour: a.tempSurface + A, nuit: a.tempSurface - A };
+}
 
 // t : temps du jeu (s) ; porteur : objet qui garde le lieu de la mission (le vol). Renvoie l'éclairage (0 à 1).
 // Positions réelles des astres à cet instant, tailles apparentes réelles, phases, jour et nuit, éclipses.
@@ -1155,10 +1172,12 @@ function dessinerFond(ctx, a, c, W, H, sousLesNuages, t = DATE_DEBUT, porteur = 
   }
   if (vide) return 1;
 
-  // Soleil, à sa vraie place et à sa taille apparente (au moins 5 px, avec un halo).
+  // Soleil, à sa vraie place et à sa taille apparente (avec un halo).
   const pS = posCiel(alphaSoleil);
   if (pS.visible && !(porteur.eclipse > 0.98)) {
-    const rS = Math.max(5, Math.asin(etoileRacine().rayonKm / V.norm(pos)) * kAng);
+    // Proportionnelle à la vraie taille apparente (agrandie ×3 pour qu'on la voie) : depuis Mercure, le Soleil paraît
+    // 2,6 fois plus grand que depuis la Terre. Au moins 2 px (Pluton).
+    const rS = Math.max(2, Math.asin(etoileRacine().rayonKm / V.norm(pos)) * kAng * 3);
     const g = ctx.createRadialGradient(pS.x, pS.y, 0, pS.x, pS.y, rS * 4);
     g.addColorStop(0, 'rgba(255,250,225,1)'); g.addColorStop(0.25, 'rgba(255,240,200,0.9)'); g.addColorStop(1, 'rgba(255,220,150,0)');
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(pS.x, pS.y, rS * 4, 0, Math.PI * 2); ctx.fill();
