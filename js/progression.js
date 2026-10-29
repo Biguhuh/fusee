@@ -76,6 +76,9 @@ const REFERENCES_EGGS = {
   'mars-soucoupes': 'Mars Attacks! (Tim Burton, 1996) : les soucoupes martiennes, et le célèbre « Ack ack ack ! » des envahisseurs.',
   'lune-melies': 'Le Voyage dans la Lune (Georges Méliès, 1902) : l’obus des savants se plante dans l’œil de la Lune, l’une des images les plus célèbres du cinéma.',
   'delorean': 'Retour vers le futur (1985) : à 88 miles à l’heure, la DeLorean voyage dans le temps et laisse deux traînées de feu sur la route.',
+  'mercure-asimov': 'Cercle vicieux (Isaac Asimov, 1942) : sur Mercure, un robot tourne autour d’une mare de sélénium, coincé entre deux des Trois Lois de la robotique, qui y apparaissent pour la première fois.',
+  'venus-lem': 'Les Astronautes (Stanisław Lem, 1951 ; film L’Étoile du silence, 1960) : sur Vénus, les explorateurs découvrent les ruines d’une civilisation qui s’est anéantie elle-même.',
+  'venus-perelandra': 'Perelandra (C. S. Lewis, 1943) : une Vénus d’océans tièdes et d’îles flottantes, encore paradisiaque.',
   'proxima-b': 'Blade Runner (1982) : la ville sous la pluie, et le test qui démasque les répliquants.',
   'lune-soucoupe': 'Independence Day (1996) : le vaisseau-mère extraterrestre, large de 550 km, en orbite près de la Lune, vaincu par un virus informatique un 4 juillet.',
   saturne: 'Space Oddity (David Bowie, 1969) : Major Tom, perdu dans sa capsule.',
@@ -100,6 +103,7 @@ function lieuEgg(e) {
   if (e.orbite) return `en orbite ${de(astrePartout(e.astre))} : l’équipage de l’orbiteur l’aperçoit après un tour complet (en campagne)`;
   const def = EASTER_EGGS.find((x) => x.id === e.id);
   if (!def) return sur(astrePartout(e.astre));
+  if (def.robot) return `au sol, à ${fmt(Math.abs(def.dx))} m ${def.dx < 0 ? 'à gauche ◀' : 'à droite ▶'} du site de descente, en robot (la pression écrase toute combinaison)`;
   return `au sol, à ${fmt(Math.abs(def.dx))} m ${def.dx < 0 ? 'à gauche ◀' : 'à droite ▶'} du site de descente, à pied ou en astromobile`;
 }
 

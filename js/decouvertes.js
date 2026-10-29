@@ -130,6 +130,12 @@ const EASTER_EGGS = [
     texte: 'Dans le noir, deux yeux argentés brillent. Ils vous voient très bien. Vous, non.' },
   { id: 'mars-casque', astre: 'mars', dx: 380, dessin: 'casqueCerveau',
     texte: 'Un casque de verre fendu ; dedans, un cerveau énorme, tout ratatiné. À côté, une petite radio grésille encore une chanson de yodel. Ack.' },
+  // Mercure et Vénus.
+  { id: 'mercure-asimov', astre: 'mercure', dx: -300, dessin: 'robotCercle',
+    texte: 'Un robot tourne en rond autour d’une flaque de sélénium qui brille au soleil, en récitant des vers. Il hésite entre obéir et se protéger, et n’arrive pas à choisir.' },
+  // Au sol de Vénus, la pression écrase toute combinaison : un robot peut découvrir celui-ci.
+  { id: 'venus-lem', astre: 'venus', dx: 260, dessin: 'ruinesVitrifiees', robot: true,
+    texte: 'Des ruines vitrifiées sous un ciel jaune. Sur un mur, des ombres de silhouettes gravées dans la roche par un éclair immense. Une civilisation s’est effacée ici, de sa propre main.' },
   { id: 'proxima-b', astre: 'proxima_p2', dx: -400, dessin: 'villePluie',
     texte: 'Une pluie noire tombe sur la ville. Des silhouettes répondent à des questions étranges.' },
 ];
@@ -197,6 +203,8 @@ const EGGS_ORBITE = [
     texte: 'Un vaisseau de guerre gris, long comme une ville, escorte une flotte de fortune autour de cette géante. Ils cherchent une planète nommée Terre, à huit années-lumière d’ici. Personne n’ose leur indiquer le chemin.' },
   { id: 'mars-soucoupes', astre: 'mars',
     texte: 'Une escadrille de soucoupes argentées décolle de Mars à votre arrivée. Elles tournent autour du vaisseau, puis repartent en ricanant. Ack ack ack !' },
+  { id: 'venus-perelandra', astre: 'venus',
+    texte: 'Dans une trouée des nuages, une île dorée flotte et ondule sur un océan tiède. Le ciel de Vénus n’a pas toujours été un enfer.' },
   { id: 'tauceti-balise', astre: 'tauceti_p4',
     texte: 'Une vieille balise rouillée, frappée du sigle d’une grande compagnie interstellaire : Weyland. Elle répète le nom d’une survivante, Ripley, et parle d’un chat.' },
   { id: 'trappist-f', astre: 'trappist1_p5',
@@ -669,7 +677,7 @@ function verifierDecouvertes(x) {
       x.vusIci['proche:' + e.id] = true;
       x.dire(`👀 Quelque chose d’inhabituel, ${ecartSol(x.astre, ex, p.x) < 0 ? 'à gauche ◀' : 'à droite ▶'}, à ${fmt(d)} m. Approchez-vous !`);
     }
-    if (humain && d < (x.enRover ? 6 : 4) && !eggTrouve(e.id)) {
+    if ((humain || e.robot) && d < (x.enRover ? 6 : 4) && !eggTrouve(e.id)) {   // e.robot : découvrable par un robot (Vénus)
       decouvrir(e, x);
     } else if (!humain && d < 20 && !eggTrouve(e.id) && !x.vusIci[e.id]) {
       x.vusIci[e.id] = true;
@@ -741,7 +749,7 @@ function dessinerDecouvertes(ctx, x, versEcran, s, W) {
   }
   for (const e of eggsSur(x.astre.id)) {
     const ex = x.posLibre(x.xFusee + e.dx);
-    const visible = eggTrouve(e.id) || (humain && Math.abs(p.x - ex) < 25);
+    const visible = eggTrouve(e.id) || ((humain || e.robot) && Math.abs(p.x - ex) < 25);
     if (!visible) continue;
     const [sx, sy] = versEcran(ex, x.sol(ex));
     if (sx < -40 * s || sx > W + 40 * s) continue;
@@ -923,6 +931,33 @@ const DESSINS_TRACES = {
 };
 
 const DESSINS_EGGS = {
+  // Cercle vicieux : un robot tourne autour d'une mare de sélénium (vue de côté : il passe devant, puis derrière).
+  robotCercle(ctx, x, y, s) {
+    ctx.fillStyle = 'rgba(220,230,240,0.85)'; ctx.beginPath(); ctx.ellipse(x, y - 0.05 * s, 2.2 * s, 0.25 * s, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.fillRect(x - 1 * s, y - 0.12 * s, 0.6 * s, 0.05 * s);   // reflet
+    const a = performance.now() / 900, rx = x + Math.cos(a) * 2.6 * s, devant = Math.sin(a) > 0, k = devant ? 1 : 0.8;
+    const ry = y + (devant ? 0.1 : -0.15) * s, c = devant ? '#b0bec5' : '#78909c';
+    rect(ctx, rx - 0.22 * k * s, ry - 1.3 * k * s, 0.44 * k * s, 0.6 * k * s, c);
+    disque(ctx, rx, ry - 1.5 * k * s, 0.16 * k * s, c);
+    disque(ctx, rx + 0.05 * k * s, ry - 1.52 * k * s, 0.04 * k * s, '#ff5252');
+    const pas = Math.sin(a * 8) * 0.12 * s;
+    trait(ctx, [[rx - 0.1 * k * s, ry - 0.7 * k * s], [rx - 0.1 * k * s + pas, ry]], c, 0.1 * k * s);
+    trait(ctx, [[rx + 0.1 * k * s, ry - 0.7 * k * s], [rx + 0.1 * k * s - pas, ry]], c, 0.1 * k * s);
+  },
+  // Les Astronautes : murs vitrifiés, et des ombres humaines gravées dans la roche.
+  ruinesVitrifiees(ctx, x, y, s) {
+    ctx.fillStyle = 'rgba(40,60,50,0.85)';
+    for (const [dx, h, w] of [[-2.5, 2.4, 1.2], [-0.8, 3.4, 1.6], [1.2, 1.6, 1.4], [2.8, 2.6, 0.9]]) {
+      ctx.beginPath(); ctx.moveTo(x + dx * s, y); ctx.lineTo(x + dx * s, y - h * s); ctx.lineTo(x + (dx + w * 0.6) * s, y - (h - 0.5) * s); ctx.lineTo(x + (dx + w) * s, y - h * 0.7 * s); ctx.lineTo(x + (dx + w) * s, y); ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(160,220,190,0.25)'; ctx.fillRect(x - 0.8 * s, y - 3.2 * s, 0.2 * s, 3 * s);   // reflet vitreux
+    ctx.fillStyle = 'rgba(10,15,12,0.9)';
+    for (const dx of [-0.4, 0.2]) {   // ombres de silhouettes
+      disque(ctx, x + dx * s, y - 1.75 * s, 0.13 * s, 'rgba(10,15,12,0.9)');
+      ctx.fillRect(x + (dx - 0.12) * s, y - 1.6 * s, 0.24 * s, 0.75 * s);
+      ctx.fillRect(x + (dx - 0.1) * s, y - 0.85 * s, 0.08 * s, 0.6 * s); ctx.fillRect(x + (dx + 0.02) * s, y - 0.85 * s, 0.08 * s, 0.6 * s);
+    }
+  },
   // Crématoria : des pas qui s'éloignent vers l'ouest (la gauche), sur le sol brûlé.
   tracesVersOuest(ctx, x, y, s) {
     for (let k = 0; k < 24; k++) {
