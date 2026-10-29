@@ -1224,6 +1224,11 @@ addEventListener('keydown', (e) => {
     if (e.code === 'KeyE') x.agir();
     if (e.code === 'KeyV') x.basculerRover();
     if (e.code === 'KeyB') x.basculerBridage();
+    if (e.code === 'Tab') x.changerPersonnage();
+    if (e.code === 'KeyG') x.basculerSuivi();
+    if (e.code === 'KeyC') x.courteEchelle();
+    if (e.code === 'KeyK') x.ruban();
+    if (e.code === 'KeyO') x.partagerOxygene();
     if (e.code === 'KeyH') deployerDrone();
     if (e.code === 'KeyU') x.appelUrgence();
     if (e.code === 'KeyF') x.planterDrapeau();

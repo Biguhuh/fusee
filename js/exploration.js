@@ -136,6 +136,7 @@ class Exploration {
     // Posé près d'une ancienne mission : on dit où elle est.
     const tp = !this.terre && tracePlusProche(this.astre, this.xFusee);
     if (tp && tp.d < 5000) this.dire(`📍 ${tp.trace.nom} (${tp.trace.annee}) à ${fmt(tp.d)} m, ${tp.ecart < 0 ? 'à gauche ◀' : 'à droite ▶'}.`);
+    this.duo = creerDuo(this);   // sortie à deux, s'il y a quelqu'un d'autre à bord
   }
 
   // ---------- Promenade sur Terre ----------
@@ -257,10 +258,12 @@ class Exploration {
     if (this.enRover) {
       this.enRover = false;
       this.rover.x = p.x;
+      if (this.duo && this.duo.enRover) { this.duo.enRover = false; this.duo.p.x = p.x - 1.5; this.duo.p.y = this.sol(this.duo.p.x); this.duo.p.auSol = true; this.duo.p.vx = 0; }
       this.dire(`Vous descendez de l’astromobile. ${this.sacRover.length} échantillon${this.sacRover.length > 1 ? 's' : ''} dans sa caisse.`);
     } else if (distSol(this.astre, p.x, this.rover.x) < 4 && p.auSol) {
       this.enRover = true;
       p.x = this.rover.x;
+      if (this.duo && this.duo.mode === 'suit' && distSol(this.astre, this.duo.p.x, this.rover.x) < 8) { this.duo.enRover = true; this.dire(`${this.duo.eq.nom} monte à côté de vous : deux places dans l’astromobile.`); }
       this.dire('À bord de l’astromobile : jusqu’à ' + fmtV(this.vMaxRover) + ` et ${this.caisseRover} échantillons.`);
     } else this.dire('Approchez-vous de l’astromobile (à côté du module) pour monter dedans.');
   }
@@ -444,6 +447,7 @@ class Exploration {
 
     // Sur Terre : on respire, rien ne menace.
     if (this.terre) { this.taux = 0; return; }
+    if (this.duo) this.majDuo(dt);
     // Easter eggs et traces réelles des environs.
     verifierDecouvertes(this);
 
@@ -539,7 +543,7 @@ class Exploration {
     }
     if (this.presDeLaFusee() && !this.vol.robotSeul) {
       // On rentre : les échantillons du sac et du rover montent à bord de l'atterrisseur.
-      const tous = [...this.sac, ...(this.rover ? this.sacRover : [])];
+      const tous = [...this.sac, ...(this.rover ? this.sacRover : []), ...(this.duo ? this.duo.sac : [])];   // l'autre rentre avec vous
       const n = tous.length;
       if (n) {
         const s = (this.science[this.astre.id] = this.science[this.astre.id] || { sites: {}, echantillons: 0, analyses: 0 });
@@ -589,7 +593,7 @@ class Exploration {
       : `🚩 ${robot ? qui + ' un drapeau de plus' : 'Un drapeau de plus'} ${sur(this.astre)} (${liste.length}).`);
   }
 
-  terminer(issue, texte) { this.fin = { issue, texte }; }
+  terminer(issue, texte) { if (this.duo && !this.fin) this.finDuo(issue); this.fin = { issue, texte }; }
 
   // Jour et nuit au sol : la température suit l'élévation du Soleil (sans air, de −180 °C à 430 °C sur Mercure),
   // et le rayonnement solaire baisse la nuit (l'astre fait écran ; pas pour les lunes des géantes, dont le
@@ -815,7 +819,7 @@ class Exploration {
     }
     if (s.phase === 'decollage' && s.t < 6) return false;
     // Sauvé : le spationaute rentre avec son sac (et celui de l'astromobile s'il y était).
-    const tous = [...this.sac, ...(s.sacRover ? this.sacRover || [] : [])];
+    const tous = [...this.sac, ...(s.sacRover ? this.sacRover || [] : []), ...(this.duo ? this.duo.sac : [])];
     const n = tous.length;
     if (n) {
       const sc = (this.science[this.astre.id] = this.science[this.astre.id] || { sites: {}, echantillons: 0, analyses: 0 });
@@ -1048,6 +1052,7 @@ class Exploration {
       ctx.fillRect(sx, sy, 3, 3);
     }
 
+    if (this.duo) this.dessinerDuo(ctx, versEcran, echelle);   // l'autre spationaute
     // Explorateur
     const [sx, sy] = versEcran(p.x, p.y);
     // Les véhicules suivent la pente (en l'air, ils gardent leur dernière inclinaison).
@@ -1113,6 +1118,7 @@ class Exploration {
       l.push([this.type === 'robot' ? 'Robot' : 'Combi.', fmt(this.integrite) + ' %', this.integrite > 60 ? '#66bb6a' : this.integrite > 30 ? '#ffca28' : '#ef5350']);
       l.push([this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? `${sc.analyses} (+${this.donneesEnAttente})` : `${this.sac.length}/${d.capacite}` + (this.rover ? ` · astromobile ${this.sacRover.length}/${this.caisseRover}` : ''), this.donneesEnAttente ? '#ffca28' : '#fff']);
       l.push(['Module', fmt(distSol(this.astre, this.p.x, this.xFusee)) + ' m', '#fff']);
+      if (this.duo) l.push([`👥 ${this.duo.eq.nom}`, `O₂ ${fmtDuree(this.duo.reserve)} · ${fmt(this.duo.integrite)} % · ${this.duo.sac.length}/${this.def.capacite}${this.duo.mode === 'attend' ? ' · attend' : ''}`, this.duo.reserve < 900 ? '#ef5350' : '#b3e5fc']);
       { const tp = tracePlusProche(this.astre, this.p.x); if (tp && tp.d < 5000 && tp.d > 15) l.push(['📍 ' + tp.trace.nom, `${tp.ecart < 0 ? '◀' : '▶'} ${fmt(tp.d)} m`, '#ffe0a3']); }
       if (this.type === 'spationaute' && !this.terre && this.retour && this.retour.dist > 0) l.push(['Retour', this.retour.bloque ? 'bloqué ⛔' : '≈ ' + fmtDuree(this.retour.temps), this.retour.bloque || this.reserve < this.retour.temps * 1.3 ? '#ef5350' : '#fff']);
       if (this.rover) l.push(['Astromob.', fmtDuree(this.batterieRover), this.batterieRover < 30 * 60 ? '#ef5350' : '#66bb6a']);
@@ -1166,6 +1172,7 @@ class Exploration {
     ligne(this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? `${sc.analyses} envoyées, ${this.donneesEnAttente} en mémoire` : `${this.sac.length} / ${d.capacite}` + (this.rover ? `  astromobile ${this.sacRover.length} / ${this.caisseRover}` : ''), this.donneesEnAttente ? '#ffca28' : '#fff');
     ligne('Sites étudiés ici', String(Object.keys(sc.sites || {}).length));
     ligne('Distance module', fmt(distSol(this.astre, this.p.x, this.xFusee)) + ' m');
+    if (this.duo) ligne(`👥 ${this.duo.eq.nom}`, `O₂ ${fmtDuree(this.duo.reserve)} · combi. ${fmt(this.duo.integrite)} % · sac ${this.duo.sac.length}/${this.def.capacite}${this.duo.mode === 'attend' ? ' · attend' : this.duo.enRover ? ' · à bord' : ' · suit'}`, this.duo.reserve < 900 ? '#ef5350' : '#b3e5fc');
     if (this.type === 'spationaute' && !this.terre && this.retour && this.retour.dist > 0) ligne('Retour au module', this.retour.bloque ? `bloqué : paroi de ${fmt(this.retour.bloque.hauteur, 1)} m` : `≈ ${fmtDuree(this.retour.temps)}${this.retour.enRover ? ' (astromobile)' : ''}`, this.retour.bloque || this.reserve < this.retour.temps * 1.3 ? '#ef5350' : '#fff');
     if (this.rover) ligne('Batterie astromobile', fmtDuree(this.batterieRover), this.batterieRover < 30 * 60 ? '#ef5350' : '#66bb6a');
     if (this.secours) ligne('🆘 Secours', this.texteSecours(), '#ffca28');
@@ -1190,7 +1197,7 @@ class Exploration {
       ctx.textAlign = 'left';
     }
     if (!ECRAN_TACTILE) {
-      texteSurFond(ctx, `←→ / Q D : ${this.type === 'robot' ? 'rouler' : this.enRover ? 'accélérer' : 'marcher'}${this.enRover ? ` · ↓ / S : freiner · B : ${this.roverBride ? 'débrider' : 'brider'}` : ''}${this.saut && !this.enRover ? ' · ↑ / Z / Espace : sauter' : ''}${this.rover ? ` · V : ${this.enRover ? 'descendre de' : 'monter dans'} l’astromobile` : ''} · E : ${this.type === 'robot' ? 'analyser' : 'ramasser'} (ou rentrer près du module) · F : planter le drapeau${this.type === 'spationaute' && !this.terre ? ' · U : appel d’urgence' : ''} · Échap : rappeler`, W / 2, H - 12, { police: '12px system-ui' });
+      texteSurFond(ctx, `←→ / Q D : ${this.type === 'robot' ? 'rouler' : this.enRover ? 'accélérer' : 'marcher'}${this.enRover ? ` · ↓ / S : freiner · B : ${this.roverBride ? 'débrider' : 'brider'}` : ''}${this.saut && !this.enRover ? ' · ↑ / Z / Espace : sauter' : ''}${this.rover ? ` · V : ${this.enRover ? 'descendre de' : 'monter dans'} l’astromobile` : ''} · E : ${this.type === 'robot' ? 'analyser' : 'ramasser'} (ou rentrer près du module) · F : planter le drapeau${this.type === 'spationaute' && !this.terre ? ' · U : appel d’urgence' : ''}${this.duo ? ' · Tab G C K O : à deux' : ''} · Échap : rappeler`, W / 2, H - 12, { police: '12px system-ui' });
     }
     ctx.textAlign = 'left';
   }
