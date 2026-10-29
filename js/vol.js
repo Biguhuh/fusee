@@ -527,9 +527,9 @@ class Vol {
           const rep = this.fournisseurLanceur();
           this.messageExplo = { texte: rep.texte, vie: 10 };
           if (!rep.ok) return;
-          // Capsule sous parachute, depuis 15 km au-dessus du site, posée à 30 m du module.
-          const x = this.x + 30;
-          this.lanceurRetour = { etat: 'descente', x, y: this.sol(x) + 15000, vy: -150 };
+          // Capsule sous parachute, depuis 15 km au-dessus du site : elle se pose sur le module et s'arrime à son sas.
+          const x = this.x;
+          this.lanceurRetour = { etat: 'descente', x, y: this.sol(x) + 15000, vy: -150, surModule: true };
           return;
         }
       } else if (lr.etat !== 'pret') {
@@ -550,7 +550,7 @@ class Vol {
     if (this.f.aerostat && !this.ascension) {
       this.xModule = this.x;   // le module blindé reste au sol
       this.x = this.lanceurRetour.x;
-      this.y = this.sol(this.x) + 0.01;
+      this.y = Math.max(this.sol(this.x) + 0.01, this.lanceurRetour.y);   // arrimé : on part du sommet du module
       this.lanceurRetour.etat = 'parti';
       this.pose = false;
       this.phase = 'ballon';
@@ -564,15 +564,18 @@ class Vol {
   // Capsule du lanceur de retour : entrée freinée par son bouclier, puis parachute (≈ 8 m/s dans l'air épais de Vénus).
   descenteLanceur(dt) {
     const lr = this.lanceurRetour;
-    const sol = this.sol(lr.x);
-    const vLimite = lr.y - sol > 8000 ? -60 : -8;      // parachute principal sous 8 km
-    lr.vy += (vLimite - lr.vy) * Math.min(1, dt / 15);
+    // Arrimé sur le module : le contact se fait au sommet de sa cabine, pas au sol.
+    const sol = this.sol(lr.x) + (lr.surModule ? HAUTEUR_MODULE * 0.9 : 0);
+    const h = lr.y - sol;
+    const vLimite = h > 8000 ? -60 : h > 40 ? -8 : -1.5;      // parachute principal sous 8 km ; rétrofusées à la fin
+    lr.vy += (vLimite - lr.vy) * Math.min(1, dt / (h > 40 ? 15 : 2));
     lr.y += lr.vy * dt;
-    if (!lr.parachute && lr.y - sol < 8000) { lr.parachute = true; this.messageExplo = { texte: 'Parachute ouvert : le lanceur de retour descend vers le site.', vie: 5 }; }
+    if (!lr.parachute && h < 8000) { lr.parachute = true; this.messageExplo = { texte: 'Parachute ouvert : le lanceur de retour descend vers le module.', vie: 5 }; }
+    if (!lr.retro && h < 40) { lr.retro = true; this.messageExplo = { texte: 'Rétrofusées : le lanceur s’aligne au-dessus du module pour s’y arrimer.', vie: 5 }; }
     if (lr.y <= sol) {
       lr.y = sol;
       lr.etat = 'pret';
-      this.messageExplo = { texte: 'Lanceur de retour posé à 30 m du module. T : gonfler le ballon et repartir.', vie: 10 };
+      this.messageExplo = { texte: lr.surModule ? 'Lanceur de retour arrimé sur le module : l’équipage passe par le sas, sans sortir. T : gonfler le ballon et repartir.' : 'Lanceur de retour posé à côté du module. T : gonfler le ballon et repartir.', vie: 10 };
     }
   }
 
@@ -927,13 +930,17 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
   }
 
   // Fumée et étincelles, puis fusée ou explosion.
-  const hPx = vol.f.mega ? Math.max(vol.f.hauteur * echelle, 90) : Math.max(HAUTEUR_MODULE * echelle, gaz ? 60 : 44);
+  // Vénus, lanceur de retour en descente : la caméra recule jusqu'à 4 km ; le module reste alors à l'échelle,
+  // comme la base et la capsule (sinon il paraît énorme à côté d'elles).
+  const cadreLanceur = !!(vol.lanceurRetour && vol.lanceurRetour.etat === 'descente');
+  const hPx = vol.f.mega ? Math.max(vol.f.hauteur * echelle, 90) : Math.max(HAUTEUR_MODULE * echelle, cadreLanceur ? 2 : gaz ? 60 : 44);
   if (solide) dessinerBases(ctx, vol, W, echelle, fuseeY);
   // Vénus : lanceur de retour envoyé par la station (capsule sous parachute, puis posé à côté du module).
   if (solide && vol.lanceurRetour && vol.lanceurRetour.etat !== 'parti') {
     const lr = vol.lanceurRetour;
     const sx = W / 2 + (lr.x - vol.x) * echelle, sy = fuseeY + (vol.y - lr.y) * echelle;
-    if (sx > -200 && sx < W + 200 && sy > -400 && sy < H + 200) dessinerLanceurRetour(ctx, lr, sx, sy, Math.max(echelle, 0.6));
+    if (sx > -200 && sx < W + 200 && sy > -400 && sy < H + 200) dessinerLanceurRetour(ctx, lr, sx, sy, lr.etat === 'descente' ? echelle : Math.max(echelle, 0.6));
+    if (cadreLanceur && hPx < 14) texteSurFond(ctx, 'Module', W / 2, fuseeY - hPx - 12, { police: '11px system-ui, sans-serif', couleur: '#ffd54f' });
     // Encore trop haut pour être cadré : une flèche en haut de l'écran indique où il arrive.
     if (lr.etat === 'descente' && sy < 40) {
       const x = Math.max(30, Math.min(W - 30, sx));
@@ -1786,7 +1793,7 @@ function dessinerCoiffe(ctx, yb, hc, wc, wHaut, tour) {
 function dessinerLanceurRetour(ctx, lr, sx, sy, k) {
   const fa = dessinerBallon.lanceur || (dessinerBallon.lanceur = fuseeAscension());
   if (lr.etat === 'descente') {
-    const hC = Math.max(14, 5 * k), wC = hC * 1.1;
+    const hC = Math.max(3, 5 * k), wC = hC * 1.1;   // à l'échelle (≈ 5 m), comme le module
     // Capsule : cône, bouclier thermique en bas
     ctx.fillStyle = '#b0bec5';
     ctx.beginPath(); ctx.moveTo(sx - wC / 2, sy); ctx.lineTo(sx - wC * 0.18, sy - hC); ctx.lineTo(sx + wC * 0.18, sy - hC); ctx.lineTo(sx + wC / 2, sy); ctx.fill();
