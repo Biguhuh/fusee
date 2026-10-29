@@ -15,7 +15,7 @@ function fuseeDrone(a) {
   const c0 = conditions(a, 0);
   return {
     drone: true, nom: 'Drone', choix: {},
-    masseSeche: DRONE.masse, carburant: DRONE.batterie, masseTotale: DRONE.masse,
+    masseSeche: DRONE.masse, carburant: DRONE.batterie * (1 + 0.5 * niveauAmelio('batterieDrone')), masseTotale: DRONE.masse,
     poussee: DRONE.twrSol * DRONE.masse * c0.g, rhoRef: Math.max(1e-6, c0.rho), isp: 1,
     pressionMax: 5, tempMax: 150, protection: 20, hauteur: DRONE.hauteur,
   };

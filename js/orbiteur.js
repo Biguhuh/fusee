@@ -907,7 +907,7 @@ const Orbiteur = {
   // La station a-t-elle encore quelque chose à donner à l'orbiteur ?
   stockAPrendre(s) {
     const v = this.v, k = s.stock;
-    const max = { carburant: ORBITEUR.carburantMax, ergols: ORBITEUR.ergolsAtt, sondes: ORBITEUR.sondes, kits: ORBITEUR.kits + 1, kitsBase: 2, robots: ORBITEUR.robots, drones: ORBITEUR.drones, atterrisseurs: ORBITEUR.atterrisseurs, propulseurs: 2 };
+    const max = { carburant: capOrbiteur(this.v, 'carburantMax'), ergols: capOrbiteur(this.v, 'ergolsAtt'), sondes: capOrbiteur(this.v, 'sondes'), kits: capOrbiteur(this.v, 'kits') + 1, kitsBase: 2, robots: capOrbiteur(this.v, 'robots'), drones: capOrbiteur(this.v, 'drones'), atterrisseurs: capOrbiteur(this.v, 'atterrisseurs'), propulseurs: 2 };
     return Object.entries(max).some(([c, m]) => (k[c] || 0) > 0 && (v[CHAMP_ORBITEUR[c] || c] || 0) < m - (c === 'carburant' || c === 'ergols' ? 1 : 0));
   },
   orbiteFermee() {
@@ -943,6 +943,13 @@ const Orbiteur = {
       s.stock = { ...STOCK_VIDE(), ...(s.stock || {}) };
       // Chantiers de l'atelier terminés
       for (const c of (s.chantiers || []).filter((x) => v.t >= x.fin)) {
+        if (c.cle.startsWith('rd:')) {
+          const [, k, niv] = c.cle.split(':');
+          v.ameliorations = v.ameliorations || {};
+          v.ameliorations[k] = Math.max(v.ameliorations[k] || 0, Number(niv));
+          this.log(`🔬 Atelier ${de(s)} : ${AMELIORATIONS[k].nom.toLowerCase()} au point (niveau ${niv}) : ${AMELIORATIONS[k].effet(Number(niv))}.`);
+          continue;
+        }
         s.stock[c.cle] = (s.stock[c.cle] || 0) + 1;
         this.log(`Atelier ${de(s)} : ${RECETTES[c.cle].nom.toLowerCase()} terminé${RECETTES[c.cle].fem ? 'e' : ''}, prêt${RECETTES[c.cle].fem ? 'e' : ''} à être envoyé${RECETTES[c.cle].fem ? 'e' : ''}.`);
       }
@@ -1010,13 +1017,13 @@ const Orbiteur = {
     if (!v.orb || v.orb.centre !== o.id) return this.log(`Il faut être ${enOrbite(o)} pour faire le plein depuis ${SYSTEME.nomOrigine}.`);
     const pris = [];
     const remplir = (cle, max, nom, kg) => { const q = Math.max(0, max - (v[cle] || 0)); if (q > 0) { v[cle] = max; pris.push(kg ? `${fmt(q / 1000, 1)} t ${nom}` : `${fmt(q)} ${nom}`); } };
-    remplir('carburant', ORBITEUR.carburantMax, 'de carburant', true);
-    remplir('ergolsAtt', ORBITEUR.ergolsAtt, 'd’ergols', true);
-    remplir('sondes', ORBITEUR.sondes, 'sondes');
-    remplir('kits', ORBITEUR.kits, 'kits de station');
+    remplir('carburant', capOrbiteur(this.v, 'carburantMax'), 'de carburant', true);
+    remplir('ergolsAtt', capOrbiteur(this.v, 'ergolsAtt'), 'd’ergols', true);
+    remplir('sondes', capOrbiteur(this.v, 'sondes'), 'sondes');
+    remplir('kits', capOrbiteur(this.v, 'kits'), 'kits de station');
     remplir('kitsBase', ORBITEUR.kitsBase, 'kits de base');
-    remplir('robots', ORBITEUR.robots, 'robots');
-    remplir('atterrisseurs', ORBITEUR.atterrisseurs, 'atterrisseurs');
+    remplir('robots', capOrbiteur(this.v, 'robots'), 'robots');
+    remplir('atterrisseurs', capOrbiteur(this.v, 'atterrisseurs'), 'atterrisseurs');
     this.log(pris.length ? `Plein fait depuis ${SYSTEME.nomOrigine}, sans station ni base : ${pris.join(', ')}.` : 'L’orbiteur est déjà plein.');
   },
 
@@ -1195,6 +1202,22 @@ const Orbiteur = {
     this.log(`Atelier ${de(st)} : ${r.nom.toLowerCase()} fabriqué${r.fem ? 'e' : ''} avec ${cout}.`);
   },
 
+  // R&D : l'atelier met au point le niveau suivant d'une amélioration (matériaux du stock, quelques jours).
+  rechercher(stationId, cle) {
+    const v = this.v, st = v.stations.find((s) => s.id === stationId), a = AMELIORATIONS[cle];
+    if (!st || !a) return;
+    const n = niveauAmelio(cle, v);
+    if (n >= NIVEAU_MAX_AMELIO) return this.log(`${a.nom} : déjà au niveau maximal.`);
+    if (rdEnCours(v, cle)) return this.log(`${a.nom} : déjà en cours de mise au point.`);
+    const c = COUT_AMELIO[n + 1];
+    if (st.stock.materiaux < c.materiaux) return this.log(`${st.nom} : pas assez de matériaux pour ${a.nom.toLowerCase()} (${fmtStock('materiaux', c.materiaux)} nécessaires).`);
+    st.stock.materiaux -= c.materiaux;
+    const duree = (c.jours * JOUR) / niveauStation(st).vitesse;
+    st.chantiers = st.chantiers || [];
+    st.chantiers.push({ cle: `rd:${cle}:${n + 1}`, fin: v.t + duree });
+    this.log(`🔬 Atelier ${de(st)} : mise au point « ${a.nom} », niveau ${n + 1} (${a.effet(n + 1)}). Prête le ${fmtDate(v.t + duree)}.`);
+  },
+
   // La vraie Station spatiale internationale, en orbite terrestre : un amarrage, et un clin d’œil.
   rendezVousISS() {
     const v = this.v, terre = ASTRES_PAR_ID.terre;
@@ -1273,14 +1296,14 @@ const Orbiteur = {
       const q = Math.max(0, Math.min(s.stock[cle] || 0, max - (v[champ] || 0)));
       if (q > 0) { s.stock[cle] -= q; v[champ] = (v[champ] || 0) + q; pris.push(`${unite === 'kg' ? fmt(q / 1000, 1) + ' t' : fmt(q)} ${nom}`); }
     };
-    prendre('carburant', ORBITEUR.carburantMax, 'de carburant', 'kg');
-    prendre('ergols', ORBITEUR.ergolsAtt, 'd’ergols pour l’atterrisseur', 'kg');
-    prendre('sondes', ORBITEUR.sondes, 'sondes');
-    prendre('kits', ORBITEUR.kits + 1, 'kits de station');
+    prendre('carburant', capOrbiteur(this.v, 'carburantMax'), 'de carburant', 'kg');
+    prendre('ergols', capOrbiteur(this.v, 'ergolsAtt'), 'd’ergols pour l’atterrisseur', 'kg');
+    prendre('sondes', capOrbiteur(this.v, 'sondes'), 'sondes');
+    prendre('kits', capOrbiteur(this.v, 'kits') + 1, 'kits de station');
     prendre('kitsBase', 2, 'kits de base');
-    prendre('robots', ORBITEUR.robots, 'robots');
-    prendre('drones', ORBITEUR.drones, 'drones');
-    prendre('atterrisseurs', ORBITEUR.atterrisseurs, 'atterrisseurs');
+    prendre('robots', capOrbiteur(this.v, 'robots'), 'robots');
+    prendre('drones', capOrbiteur(this.v, 'drones'), 'drones');
+    prendre('atterrisseurs', capOrbiteur(this.v, 'atterrisseurs'), 'atterrisseurs');
     // Propulseurs solaires : 2 au plus (un pour la voiture, un pour rentrer sans ergols).
     v.propulseurs = v.propulseurs || 0;
     prendre('propulseurs', 2, 'propulseurs solaires');
@@ -2270,14 +2293,14 @@ const Orbiteur = {
       if (onglet === 'orbiteur') {
         const ech = Object.values(v.echantillonsABord || {}).reduce((s, n) => s + n, 0);
         const lignesOrb = [
-          ['carburant', 'Carburant (orbiteur)', v.carburant, ORBITEUR.carburantMax],
-          ['ergols', 'Ergols (atterrisseur)', v.ergolsAtt, ORBITEUR.ergolsAtt],
-          ['sondes', 'Sondes', v.sondes, ORBITEUR.sondes],
-          ['kits', 'Kits de station', v.kits, ORBITEUR.kits + 1],
+          ['carburant', 'Carburant (orbiteur)', v.carburant, capOrbiteur(this.v, 'carburantMax')],
+          ['ergols', 'Ergols (atterrisseur)', v.ergolsAtt, capOrbiteur(this.v, 'ergolsAtt')],
+          ['sondes', 'Sondes', v.sondes, capOrbiteur(this.v, 'sondes')],
+          ['kits', 'Kits de station', v.kits, capOrbiteur(this.v, 'kits') + 1],
           ['kitsBase', 'Kits de base', v.kitsBase, 2],
-          ['robots', 'Robots', v.robots, ORBITEUR.robots],
-          ['drones', 'Drones', v.drones || 0, ORBITEUR.drones],
-          ['atterrisseurs', 'Atterrisseurs', v.atterrisseurs, ORBITEUR.atterrisseurs],
+          ['robots', 'Robots', v.robots, capOrbiteur(this.v, 'robots')],
+          ['drones', 'Drones', v.drones || 0, capOrbiteur(this.v, 'drones')],
+          ['atterrisseurs', 'Atterrisseurs', v.atterrisseurs, capOrbiteur(this.v, 'atterrisseurs')],
           ['propulseurs', 'Propulseurs solaires', v.propulseurs || 0, 2],
         ];
         d += '<dl>' + lignesOrb.map(([cle, nom, n, max]) => `<dt>${nom}</dt><dd>${fmtStock(cle, n || 0)} <span class="doux">/ ${fmtStock(cle, max)}</span></dd>`).join('') +
@@ -2290,7 +2313,8 @@ const Orbiteur = {
         d += `<p class="doux"><b>🔧 Atelier : construire</b> avec les matériaux et les ergols du stock (cliquez pour lancer la fabrication) :</p><div class="orientations">` +
           Object.entries(RECETTES).filter(([cle]) => recetteVisible(cle, st)).map(([cle, r]) =>
             `<button data-fab="${cle}" ${k.materiaux < r.materiaux || (r.ergols && k.ergols < r.ergols) ? 'disabled' : ''}>${r.nom} · ${fmtStock('materiaux', r.materiaux)}${r.ergols ? ` + ${fmtStock('ergols', r.ergols)} d’ergols` : ''}${r.duree ? ` · ${fmtDuree(r.duree)}` : ''}</button>`).join('') + '</div>';
-        for (const ch of st.chantiers || []) d += `<p class="doux">🔧 Chantier : ${RECETTES[ch.cle].nom}, prêt le ${fmtDate(ch.fin)} (dans ${fmtDuree(ch.fin - v.t)}).</p>`;
+        d += htmlRD(v, st);
+        for (const ch of st.chantiers || []) d += `<p class="doux">🔧 Chantier : ${nomChantier(ch.cle)}, prêt le ${fmtDate(ch.fin)} (dans ${fmtDuree(ch.fin - v.t)}).</p>`;
       }
     }
     const bases = v.bases.filter((b) => ancetres(b.astre).includes(c.id) || b.astre === c.id);
@@ -2313,6 +2337,7 @@ const Orbiteur = {
     if (sondes.length) d += '<h3>Sondes</h3><ul class="sondes">' + sondes.map((s) => `<li>${s.nom} — ${s.etat === 'vol' ? 'en route' : 'en orbite'}</li>`).join('') + '</ul>';
     this.ecrirePanneau($('nav-actions'), d);
     $('nav-actions').querySelectorAll('[data-fab]').forEach((b) => { b.onclick = () => { this.fabriquer(st.id, b.dataset.fab); this.majHud(true); }; });
+    $('nav-actions').querySelectorAll('[data-rd]').forEach((b) => { b.onclick = () => { this.rechercher(st.id, b.dataset.rd); this.majHud(true); }; });
     $('nav-actions').querySelectorAll('[data-mission]').forEach((b) => { b.onclick = () => ouvrirMission(v, b.dataset.mission, (t) => this.log(t), () => this.majHud(true)); });
     const bRobotAuto = $('nav-robot-auto');
     if (bRobotAuto) bRobotAuto.onclick = () => ouvrirRobotAuto(v, (t) => this.log(t), () => this.majHud(true));

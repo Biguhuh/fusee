@@ -178,7 +178,7 @@ function tableauAstre(v, a, actif) {
     else suivant = `${NIVEAUX_STATION[n + 1].apport} — il faut 1 extension de station (atelier : ${fmtStock('materiaux', RECETTES.extensionsStation.materiaux)} de matériaux, ou ravito « Extension de station »)`;
     if (n < 5 || st.agrandissement) orb += `<dt>Niveau ${Math.min(5, n + 1)}</dt><dd>${suivant}</dd>`;
     if (niveauStation(st).habitat && v.equipe) orb += `<dt>Habitat</dt><dd>équipe ${survivants(v).length}/${capaciteEquipe(v)} ${v.equipe.length < capaciteEquipe(v) ? bouton('recruter', '🧑‍🚀 Accueillir une recrue') : ''}</dd>`;
-    for (const ch of st.chantiers || []) orb += ligne('🔧 Chantier', `${RECETTES[ch.cle].nom}, prêt dans ${fmtDuree(ch.fin - v.t)}`);
+    for (const ch of st.chantiers || []) orb += ligne('🔧 Chantier', `${nomChantier(ch.cle)}, prêt dans ${fmtDuree(ch.fin - v.t)}`);
     if (actif) {
       const fab = Object.entries(RECETTES).filter(([cle]) => recetteVisible(cle, st))
         .map(([cle, r]) => bouton(`fab:${st.id}:${cle}`, `🔧 ${r.nom}`, k.materiaux < r.materiaux || (r.ergols && k.ergols < r.ergols))).join(' ');

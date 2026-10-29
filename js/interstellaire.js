@@ -198,7 +198,7 @@ function arriverDansSysteme(v, info) {
   const r0 = rayonOrbiteBasse(a), vc = Math.sqrt(a.gm / r0);
   v.orb = { centre: a.id, r: [r0, 0], v: [0, vc], transfert: null };
   for (const cle of ['kits', 'kitsBase', 'atterrisseurs', 'robots', 'sondes']) v[cle] = (v[cle] || 0) + (k[cle] || 0);
-  v.carburant = ORBITEUR.carburantMax;
+  v.carburant = capOrbiteur(v, 'carburantMax');
   const r1 = r0 * 1.02;
   const station = {
     id: 's' + Date.now(), nom: nomStation(a), centre: a.id, r: [0, r1], v: [-Math.sqrt(a.gm / r1), 0], t0: v.t, terrestre: false, niveau: 1,

@@ -254,7 +254,7 @@ function lancer(options = {}) {
   if (AEROSTAT[astre.id] && !options.fournisseurLanceur) options = { ...options, fournisseurLanceur: fournisseurLanceurRetour(astre.id) };
   etat.vol = new Vol(astre, options.fusee || equiperAerostat(assemblerFusee(etat.equipement), astre), options);
   // Campagne : qui pilote cette descente (votre spationaute, ou un survivant s'il est mort).
-  if (options.voyage && etat.voyage) etat.vol.equipier = equipierDescente(etat.voyage);
+  if (options.voyage && etat.voyage) { etat.vol.equipier = equipierDescente(etat.voyage); ameliorerAtterrisseur(etat.vol); }
   etat.enVoyage = !!options.voyage;
   etat.warp = 1;
   etat.pause = false;

@@ -11,7 +11,7 @@ const DUREES_MISSION = [1, 3, 7];   // jours
 const HEURES_PAR_ECHANTILLON = 6;
 const ECHANTILLONS_MAX_MISSION = 8;
 
-function capaciteEquipe(v) { return v.stations.some((s) => niveauStation(s).habitat) ? TAILLE_EQUIPE_HABITAT : TAILLE_EQUIPE; }
+function capaciteEquipe(v) { return (v.stations.some((s) => niveauStation(s).habitat) ? TAILLE_EQUIPE_HABITAT : TAILLE_EQUIPE) + 2 * niveauAmelio('habitat', v); }
 
 // ---------- Pertes de l'expédition (pour le message du retour sur Terre) ----------
 // Chaque perte : { nom, astre, cause, t }. Remises à zéro à chaque nouvelle expédition.
