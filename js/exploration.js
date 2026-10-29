@@ -100,6 +100,8 @@ class Exploration {
     this.sacRover = [];
     this.vMaxRover = Math.min(5, 2.8 * Math.sqrt(g));          // ≈ 3,6 m/s sur la Lune, comme le rover d'Apollo
     this.accRover = Math.min(1.5, 0.5 * g + 0.001);
+    this.vMoteurRover = Math.min(10, 2 * this.vMaxRover);     // débridé : ce que le moteur peut donner
+    this.roverBride = true;                                     // accélérateur bridé par la gravité locale
     this.warp = 1;
     // Robot : ses analyses attendent dans sa mémoire jusqu'au retour à sa base (module robot ou fusée).
     this.moduleRobot = !!vol.robotSeul;
@@ -175,6 +177,45 @@ class Exploration {
     if (c) c.provisions.fleurs++;
     this.dire(`${proche.nom} cueilli${proche.nom === 'Marguerite' || proche.nom === 'Rose' || proche.nom === 'Lavande' ? 'e' : ''} pour égayer la station.`);
   }
+
+  // Astromobile : → ou ← accélère dans ce sens, ↓ freine, rien : roue libre. L'accélérateur est bridé à la vitesse
+  // sûre pour la gravité locale (au-delà, chaque bosse fait décoller) ; B lève le bridage, à vos risques.
+  conduireRover(dt, veut, frein, kPente) {
+    const p = this.p, vLim = (this.roverBride ? this.vMaxRover : this.vMoteurRover) * kPente;
+    if (frein) {
+      p.vx -= Math.sign(p.vx) * Math.min(Math.abs(p.vx), 2.5 * this.accRover * dt);
+    } else if (veut) {
+      if (Math.sign(p.vx) === -veut && Math.abs(p.vx) > 0.05) p.vx += veut * Math.min(Math.abs(p.vx), 2 * this.accRover * dt);   // à contresens : on freine d'abord
+      else if (veut * p.vx < vLim) p.vx = veut * Math.min(vLim, veut * p.vx + this.accRover * dt);
+      else if (this.roverBride) p.vx -= Math.sign(p.vx) * Math.min(veut * p.vx - vLim, this.accRover * dt);   // le bridage retient
+    } else {
+      p.vx -= Math.sign(p.vx) * Math.min(Math.abs(p.vx), 0.15 * this.accRover * dt);   // roue libre : le sol freine à peine
+    }
+    if (!this.roverBride && Math.abs(p.vx) > this.vMaxRover * 1.05 && !this.alerteVitesseRover) {
+      this.alerteVitesseRover = true;
+      this.dire(`⚠ ${fmtV(Math.abs(p.vx))} : plus vite que ne le permet la gravité ${de(this.astre)}. À chaque bosse, l’astromobile décolle, et retombe mal. ↓ pour freiner.`);
+    }
+    if (Math.abs(p.vx) < this.vMaxRover) this.alerteVitesseRover = false;
+  }
+  basculerBridage() {
+    if (!this.enRover) return this.dire('Bridage de l’accélérateur (B) : montez d’abord dans l’astromobile (V).');
+    this.roverBride = !this.roverBride;
+    this.dire(this.roverBride ? `🔒 Accélérateur bridé à ${fmtV(this.vMaxRover)}, la vitesse sûre ${sur(this.astre)}.`
+      : `🔓 Bridage levé : jusqu’à ${fmtV(this.vMoteurRover)}. Au-delà de ${fmtV(this.vMaxRover)}, la gravité ${de(this.astre)} ne colle plus les roues au sol : à vos risques.`);
+  }
+  // Retombée après un bond : trop vite, l'astromobile capote (dégâts, batterie abîmée, combinaison secouée).
+  receptionRover() {
+    const p = this.p, r = Math.abs(p.vx) / this.vMaxRover;
+    if (r < 1.3 || Math.random() > Math.min(1, (r - 1.3) / 0.5)) return;
+    p.vx = 0;
+    const choc = Math.min(40, 10 + (r - 1.3) * 40);
+    this.integrite -= choc;
+    this.causeDegats = 'chute';
+    this.batterieRover = Math.max(0, this.batterieRover - 1800);
+    this.poussiere(14);
+    this.dire(`💥 L’astromobile capote en retombant ! Combinaison secouée (−${fmt(choc)} %), batterie abîmée (−30 min). Le bridage était là pour ça.`);
+  }
+
 
   // Monter dans le rover ou en descendre (touche V).
   basculerRover() {
@@ -297,9 +338,12 @@ class Exploration {
     if (p.auSol) {
       // Après quelques bières, la démarche devient… approximative.
       const titube = this.bieres >= 2 ? Math.sin(this.vol.t * 3) * 0.4 * Math.min(1, (this.bieres - 1) / 3) : 0;
-      const cible = veut * vMax * (1 + titube);
-      const dv = cible - p.vx;
-      p.vx += Math.sign(dv) * Math.min(Math.abs(dv), acc * dt);
+      if (this.enRover && !this.delorean) this.conduireRover(dt, veut, cmd.frein, vMax / (this.vMaxRover || 1));
+      else {
+        const cible = veut * vMax * (1 + titube);
+        const dv = cible - p.vx;
+        p.vx += Math.sign(dv) * Math.min(Math.abs(dv), acc * dt);
+      }
       // Pente trop raide pour des roues
       // Montée trop raide (falaise) : on s'arrête. Une descente raide ne bloque jamais.
       const pente = Math.atan2(this.sol(p.x + 0.5 * Math.sign(p.vx || 1)) - this.sol(p.x), 0.5);
@@ -349,6 +393,7 @@ class Exploration {
           this.causeDegats = 'chute';
           this.dire('Réception brutale !');
         }
+        if (this.enRover) this.receptionRover();
         p.vy = 0; p.auSol = true;
         this.poussiere(8);
         if (this.sautEnCours) { this.finSaut(this.sautEnCours.max, this.sautEnCours.duree); this.sautEnCours = null; }
@@ -1103,7 +1148,7 @@ class Exploration {
       ctx.textAlign = 'left';
     }
     if (!ECRAN_TACTILE) {
-      texteSurFond(ctx, `←→ / Q D : ${this.type === 'robot' || this.enRover ? 'rouler' : 'marcher'}${this.saut && !this.enRover ? ' · ↑ / Z / Espace : sauter' : ''}${this.rover ? ` · V : ${this.enRover ? 'descendre de' : 'monter dans'} l’astromobile` : ''} · E : ${this.type === 'robot' ? 'analyser' : 'ramasser'} (ou rentrer près du module) · F : planter le drapeau${this.type === 'spationaute' && !this.terre ? ' · U : appel d’urgence' : ''} · Échap : rappeler`, W / 2, H - 12, { police: '12px system-ui' });
+      texteSurFond(ctx, `←→ / Q D : ${this.type === 'robot' ? 'rouler' : this.enRover ? 'accélérer' : 'marcher'}${this.enRover ? ` · ↓ / S : freiner · B : ${this.roverBride ? 'débrider' : 'brider'}` : ''}${this.saut && !this.enRover ? ' · ↑ / Z / Espace : sauter' : ''}${this.rover ? ` · V : ${this.enRover ? 'descendre de' : 'monter dans'} l’astromobile` : ''} · E : ${this.type === 'robot' ? 'analyser' : 'ramasser'} (ou rentrer près du module) · F : planter le drapeau${this.type === 'spationaute' && !this.terre ? ' · U : appel d’urgence' : ''} · Échap : rappeler`, W / 2, H - 12, { police: '12px system-ui' });
     }
     ctx.textAlign = 'left';
   }

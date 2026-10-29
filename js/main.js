@@ -1223,6 +1223,7 @@ addEventListener('keydown', (e) => {
     const x = etat.explo;
     if (e.code === 'KeyE') x.agir();
     if (e.code === 'KeyV') x.basculerRover();
+    if (e.code === 'KeyB') x.basculerBridage();
     if (e.code === 'KeyH') deployerDrone();
     if (e.code === 'KeyU') x.appelUrgence();
     if (e.code === 'KeyF') x.planterDrapeau();
@@ -1310,6 +1311,7 @@ function commandes() {
     gauche: t('ArrowLeft') || t('KeyA'),
     droite: t('ArrowRight') || t('KeyD'),
     saut: t('ArrowUp') || t('KeyW') || t('Space'),
+    frein: t('ArrowDown') || t('KeyS'),
   };
 }
 
