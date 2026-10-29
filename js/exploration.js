@@ -359,12 +359,17 @@ class Exploration {
 
     // Réserve d'oxygène ou de batterie (le module robot recharge la batterie au soleil quand le robot est à côté)
     const effort = Math.abs(p.vx) > 0.05 ? 1 : 0.3;
-    if (!this.essai) this.reserve -= dt * (this.type === 'robot' ? effort : 1);   // centre d'essai : réserves illimitées
+    this.reserve -= dt * (this.type === 'robot' ? effort : 1);
     if (this.moduleRobot && this.presDeLaFusee()) this.reserve = Math.min(this.def.autonomie, this.reserve + dt * 20);
     if (this.rover && distSol(this.astre, this.rover.x, this.xFusee) < 12) this.batterieRover = Math.min(AUTONOMIE_ROVER, this.batterieRover + dt * 20);
     if (this.type === 'spationaute' && !this.terre) {
       if (this.suivreSecours(dt)) return;
       this.surveillerRetour();
+    }
+    // Entraînement : on ne meurt pas. Réserves vides : un avertissement, et elles sont rechargées.
+    if (this.essai && this.reserve <= 0) {
+      this.reserve = this.def.autonomie;
+      this.dire(`⚠ Attention : ${this.type === 'robot' ? 'batterie vide' : 'plus d’oxygène'}. En mission, c’était la mort assurée. Réserves rechargées pour l’entraînement.`);
     }
     if (this.reserve <= 0) {
       return this.terminer('perdu', this.type === 'robot' ? 'Batterie vide : le robot s’est arrêté pour toujours.' : `Plus d’oxygène : ${this.def.nom} n’a pas pu rentrer à temps.`);
@@ -385,6 +390,10 @@ class Exploration {
       this.dose = (100 * this.doseSv) / DOSE_MORTELLE;
     }
     if (tp + tc > 0) this.causeDegats = tp >= tc ? 'pression' : 'chaleur';
+    if (this.essai && this.integrite <= 0) {
+      this.integrite = 100;
+      this.dire(`⚠ Attention : ${this.type === 'robot' ? 'le robot est détruit' : 'la combinaison a lâché'}. En mission, c’était la mort assurée. Tout est réparé pour l’entraînement.`);
+    }
     if (this.integrite <= 0) {
       // La vraie cause : pression, chaleur, ou réceptions trop brutales (sauts, chutes).
       const qui = this.type === 'robot' ? 'le robot' : 'la combinaison';
@@ -393,6 +402,7 @@ class Exploration {
           : `Des réceptions trop brutales ont ${this.type === 'robot' ? 'disloqué le robot' : 'déchiré la combinaison'}.`;
       return this.terminer('perdu', texte);
     }
+    if (this.essai && this.dose >= 100) { this.dose = 0; this.doseSv = 0; this.dire('⚠ Attention : dose mortelle. En mission, c’était la mort assurée.'); }
     if (this.dose >= 100) return this.terminer('perdu', `Le rayonnement a ${this.type === 'robot' ? 'grillé l’électronique du robot' : `été mortel pour ${this.def.nom}`}.`);
   }
 
@@ -713,7 +723,8 @@ class Exploration {
   }
 
   // Retour vers le futur : pied au plancher en astromobile, longtemps, loin du module, elle s'emballe jusqu'à 88 miles à l'heure,
-  // disparaît dans un éclair en laissant deux traînées de feu, et réapparaît 20 s plus tard un peu plus loin.
+  // disparaît dans un éclair en laissant deux traînées de feu, et réapparaît 7 s plus tard un peu plus loin, lancée.
+  // Seulement à l'entraînement, sur Terre, après le passage du plot orange, et une fois par sortie.
   // Pour l'équipage, le saut est instantané : ni oxygène ni batterie consommés.
   surveillerDelorean(dt, veut, vMax) {
     const d = this.delorean;
@@ -728,7 +739,8 @@ class Exploration {
     // Aller jusqu'à un échantillon, ou rentrer au module, ne le déclenche pas.
     const loin = distSol(this.astre, this.p.x, this.xFusee) > 150;
     const sEloigne = Math.sign(ecartSol(this.astre, this.p.x, this.xFusee)) === Math.sign(this.p.vx);
-    const pleinPot = veut && this.p.auSol && Math.abs(this.p.vx) >= this.vMaxRover * 0.97 && loin && sEloigne;
+    const apresPlot = !!(this.essai && this.essai.cle === 'astromobile' && this.essai.etape >= 2 && this.astre.id === 'terre');
+    const pleinPot = apresPlot && !this.deloreanFait && veut && this.p.auSol && Math.abs(this.p.vx) >= this.vMaxRover * 0.97 && loin && sEloigne;
     this.pleinGaz = pleinPot ? (this.pleinGaz || 0) + dt : 0;
     if (this.pleinGaz >= 40) { this.delorean = { phase: 'emballe', t: 0, x0: this.p.x }; this.dire('⚡ Pied au plancher… l’astromobile s’emballe !'); }
     return vMax;
@@ -738,6 +750,7 @@ class Exploration {
     this.traceFeu = { x0: d.x0, x1: p.x, age: 0 };
     d.phase = 'disparu'; d.t = 0;
     d.xRetour = p.x + (Math.sign(p.vx) || p.dir || 1) * 15;
+    d.vitesse = p.vx;   // retrouvée au retour
     p.vx = 0;
     if (typeof flashBlanc === 'function') flashBlanc();
     this.dire('⚡ 88 miles à l’heure ! L’astromobile disparaît dans un éclair.');
@@ -745,9 +758,10 @@ class Exploration {
   majDelorean(dt) {
     const d = this.delorean;
     d.t += dt;
-    if (d.t < 20) return;
+    if (d.t < 7) return;
     const p = this.p;
-    p.x = this.posLibre(d.xRetour); p.y = this.sol(p.x); p.vx = 0; p.vy = 0; p.auSol = true;
+    p.x = this.posLibre(d.xRetour); p.y = this.sol(p.x); p.vx = d.vitesse || 0; p.vy = 0; p.auSol = true;   // toujours lancée à 88 mph
+    this.deloreanFait = true;
     if (this.rover) this.rover.x = p.x;
     this.delorean = null; this.pleinGaz = 0;
     if (typeof flashBlanc === 'function') flashBlanc();
@@ -758,7 +772,7 @@ class Exploration {
       if (etat.enVoyage && etat.voyage) regArtefact(piloteDuVol(etat.voyage), 'delorean');
       sauver(etat);
     }
-    this.dire(`${premiere ? '✨ ' : '⚡ '}L’astromobile réapparaît dans un éclair, 20 secondes plus tard. Pour vous, c’était instantané : ni oxygène ni batterie consommés.`);
+    this.dire(`${premiere ? '✨ ' : '⚡ '}L’astromobile réapparaît dans un éclair, 7 secondes plus tard, toujours lancée. Pour vous, c’était instantané : ni oxygène ni batterie consommés.`);
   }
   // Les deux traînées de feu laissées au sol, qui s'éteignent en 40 s.
   dessinerTraceFeu(ctx, versEcran, echelle) {

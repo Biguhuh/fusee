@@ -310,7 +310,7 @@ function perdreEquipageLancement(v, r) {
 }
 
 function finVol(r) {
-  if (etat.vol && etat.vol.essai) return finEssai(etat.vol.essai, r.cause === 'abandon' ? '' : { ecrasee: 'drone écrasé', carburant: 'batterie vide' }[r.cause] || '');   // centre d'essai
+  if (etat.vol && etat.vol.essai) return finEssai(etat.vol.essai, r.cause === 'abandon' ? '' : { ecrasee: 'drone écrasé', carburant: 'batterie vide' }[r.cause] || '');   // entraînement
   const rang = { pose: 1, orbite: 2, liberation: 2, plongee: 2 };
   if (rang[r.cause] && (rang[r.cause] > (rang[etat.records[r.astre.id]] || 0))) etat.records[r.astre.id] = r.cause;
   const v = etat.voyage;
@@ -1411,7 +1411,7 @@ function image(t) {
       etat.explo = null;
       touches.clear();
       sauver(etat);
-      if (etat.vol.essai) return finEssai(etat.vol.essai);   // centre d'essai : retour au centre
+      if (etat.vol.essai) return finEssai(etat.vol.essai);   // entraînement : retour au centre
       if (etat.vol.promenade) allerAccueil();                // fin de la promenade sur Terre
       else if (etat.vol.robotSeul) allerNavigation();        // le robot reste sur place, on revient à l'orbiteur
       else if (x.fin.issue === 'secouru') finSecours();             // le module de secours a ramené le spationaute

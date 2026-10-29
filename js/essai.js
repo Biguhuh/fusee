@@ -1,6 +1,7 @@
 'use strict';
-// Centre d'essai, sur Terre : on apprend à conduire l'astromobile, à piloter le robot et le drone, sans risque.
-// Rien n'est pris à la campagne ; l'oxygène ne baisse pas. Chaque exercice est une liste d'objectifs, cochés
+// Entraînement, sur Terre : on apprend à conduire l'astromobile, à piloter le robot et le drone, sans risque.
+// Rien n'est pris à la campagne. L'oxygène et les batteries se consomment, l'appel d'urgence (U) marche, mais on ne
+// meurt pas : réserves vides, un avertissement. Chaque exercice est une liste d'objectifs, cochés
 // l'un après l'autre. Les exercices réussis sont gardés (etat.essais).
 
 const PLOT_ESSAI = 120;          // m : le plot orange de l'exercice d'astromobile
@@ -18,7 +19,7 @@ const ESSAIS = {
       ['Sauter (↑, Z ou Espace)', (x, e) => x.dernierSaut !== e.refSaut && x.dernierSaut > 0],
       ['Ramasser un échantillon : approchez-vous d’un caillou jaune et appuyez sur E', (x) => x.sac.length + x.sacRover.length > 0],
     ],
-    fin: 'Exercice réussi ! Échap pour revenir au centre d’essai (ou continuez à rouler).',
+    fin: 'Exercice réussi ! Échap pour revenir à l’entraînement (ou continuez à rouler).',
   },
   robot: {
     titre: '🤖 Robot', resume: 'Rouler jusqu’à un site, l’analyser, revenir transmettre les données, rappeler le robot.',
@@ -27,7 +28,7 @@ const ESSAIS = {
       ['L’analyser : appuyez sur E (l’analyse dure 5 secondes)', (x) => x.donneesEnAttente > 0],
       ['Revenir au module et transmettre les données (E près du module)', (x, e) => ((x.science.terre || {}).analyses || 0) > e.refAnalyses],
     ],
-    fin: 'Exercice réussi ! Échap pour rappeler le robot et revenir au centre d’essai.',
+    fin: 'Exercice réussi ! Échap pour rappeler le robot et revenir à l’entraînement.',
   },
   drone: {
     titre: '🚁 Drone', resume: 'Décoller, voler 200 m sans monter trop haut, se poser en douceur.',
@@ -36,11 +37,11 @@ const ESSAIS = {
       [`Voler ${DISTANCE_DRONE} m vers la droite (inclinez avec →), en restant sous 60 m`, (v, e) => v.x - e.x0 > DISTANCE_DRONE],
       ['Se poser en douceur (réduisez les gaz, vitesse de contact sous 2 m/s)', (v) => v.pose && !v.fin],
     ],
-    fin: 'Exercice réussi ! Échap pour revenir au centre d’essai.',
+    fin: 'Exercice réussi ! Échap pour revenir à l’entraînement.',
   },
 };
 
-// ---------- Fenêtre du centre d'essai ----------
+// ---------- Fenêtre de l’entraînement ----------
 function ouvrirCentreEssai(message) {
   const m = $('modale'), faits = etat.essais || {};
   const carte = ([cle, e]) => `<article class="carte-essai ${faits[cle] ? 'fait' : ''}">
@@ -48,8 +49,8 @@ function ouvrirCentreEssai(message) {
       <p class="doux">${e.resume}</p>
       <ol>${e.objectifs.map(([t]) => `<li>${t}</li>`).join('')}</ol>
       <button data-essai="${cle}" class="${faits[cle] ? '' : 'principal'}">${faits[cle] ? '↺ Refaire' : '▶ Commencer'}</button></article>`;
-  m.innerHTML = `<div class="fenetre large"><header class="entete"><div><h2>🎓 Centre d’essai</h2>
-    <p>Sur Terre, sans risque : apprenez à conduire l’astromobile, à piloter le robot et le drone avant de partir. L’oxygène ne baisse pas, rien n’est pris à la campagne.</p>
+  m.innerHTML = `<div class="fenetre large"><header class="entete"><div><h2>🎓 Entraînement</h2>
+    <p>Sur Terre : apprenez à conduire l’astromobile, à piloter le robot et le drone avant de partir. Comme en mission, l’oxygène et les batteries s’épuisent, et l’appel d’urgence (U) fonctionne ; mais ici, on ne meurt pas. Rien n’est pris à la campagne.</p>
     ${message ? `<p class="encart">${message}</p>` : ''}</div><button class="fermer">✕</button></header>
     <div class="cartes-essai">${Object.entries(ESSAIS).map(carte).join('')}</div></div>`;
   m.classList.remove('cache');
@@ -68,7 +69,7 @@ function lancerEssai(cle) {
     const v = new Vol(terre, fuseeDrone(terre), { depuisSol: true });
     v.droneSeul = true; v.equipier = null; v.essai = essai;
     essai.x0 = v.x;
-    v.messageExplo = { texte: '🎓 Centre d’essai : le drone. Suivez les objectifs en haut de l’écran.', vie: 6 };
+    v.messageExplo = { texte: '🎓 Entraînement : le drone. Suivez les objectifs en haut de l’écran.', vie: 6 };
     etat.vol = v; etat.explo = null;
     touches.clear(); redim(); montrer('vol');
     return;
@@ -81,7 +82,7 @@ function lancerEssai(cle) {
   essai.refSaut = x.dernierSaut;
   essai.refAnalyses = ((x.science.terre || {}).analyses) || 0;
   x.message = ''; x.fileMessages = [];
-  x.dire(`🎓 Centre d’essai : ${ESSAIS[cle].titre}. Suivez les objectifs en haut de l’écran.`);
+  x.dire(`🎓 Entraînement : ${ESSAIS[cle].titre}. Suivez les objectifs en haut de l’écran.`);
   etat.explo = x;
   touches.clear(); redim(); montrer('explo');
 }
@@ -103,7 +104,7 @@ function majEssai(engin) {
   } else dire(`✅ ${texte.split(' :')[0].split(' (')[0]}. Suivant : ${def.objectifs[e.etape][0]}`);
 }
 
-// Fin de l'exercice (Échap, crash, rappel) : retour à l'accueil, fenêtre du centre d'essai.
+// Fin de l'exercice (Échap, crash, rappel) : retour à l'accueil, fenêtre de l’entraînement.
 function finEssai(e, texte) {
   const def = ESSAIS[e.cle];
   etat.explo = null; etat.vol = null;
@@ -121,7 +122,7 @@ function dessinerPanneauEssai(ctx, W, H, e) {
   ctx.fillRect(x0, y0, w, 26 + def.objectifs.length * lh);
   ctx.font = '600 13px system-ui, sans-serif'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
   ctx.fillStyle = '#ffcc80';
-  ctx.fillText(`🎓 Centre d’essai · ${def.titre}${e.fait ? ' · ✅ réussi' : ''}`, x0 + 10, y0 + 6);
+  ctx.fillText(`🎓 Entraînement · ${def.titre}${e.fait ? ' · ✅ réussi' : ''}`, x0 + 10, y0 + 6);
   ctx.font = '12px system-ui, sans-serif';
   def.objectifs.forEach(([t], i) => {
     ctx.fillStyle = i < e.etape ? '#81c784' : i === e.etape ? '#ffffff' : '#78909c';

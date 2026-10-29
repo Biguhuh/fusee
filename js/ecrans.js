@@ -14,7 +14,7 @@ function charger() {
         equipement: { ...equipementParDefaut(), ...s.equipement },
         records: s.records || {}, science: s.science || {}, masque: !!s.masque, voyage: s.voyage || null,
         drapeaux: s.drapeaux || {},   // drapeaux plantés : { astreId: [{ x, par, quand }] }
-        essais: s.essais || {},           // centre d'essai : exercices réussis
+        essais: s.essais || {},           // entraînement : exercices réussis
         sautsDuree: s.sautsDuree || {},   // records de durée de saut : { astreId: { d (s), par, quand } }
         progression: s.progression || { campagnes: {} },   // ce que chaque campagne a fait (onglet Progression)
         sauts: s.sauts || {},         // records de saut : { astreId: { h, par, quand } }

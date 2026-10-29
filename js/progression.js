@@ -96,7 +96,7 @@ const REFERENCES_EGGS = {
 // Où retrouver un easter egg déjà trouvé.
 function lieuEgg(e) {
   if (e.id === 'betelgeuse') return 'dans « Se promener », en observant Bételgeuse';
-  if (e.id === 'delorean') return 'en astromobile, sur n’importe quel astre : loin du module, pied au plancher en s’en éloignant, longtemps';
+  if (e.id === 'delorean') return 'à l’entraînement (sur Terre) : en astromobile, après le plot orange, pied au plancher en vous éloignant du module, longtemps';
   if (e.id === 'rama') return 'en route, en orbite autour du Soleil au-delà de 3 UA, avec l’équipage (en campagne)';
   if (e.id === 'iss-wolowitz') return 'à la Station spatiale internationale, en orbite terrestre (rendez-vous et amarrage, en campagne)';
   if (e.id.startsWith('voiture-')) return 'en orbite autour du Soleil, sur la route de la voiture rouge (en campagne)';
