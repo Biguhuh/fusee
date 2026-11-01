@@ -77,6 +77,7 @@ const Tactile = {
       b.push({ zone: 'gauche', label: '▶', code: 'ArrowRight', maintenu: true, titre: 'Droite' });
       if (x.saut && !x.enRover) b.push({ zone: 'droite', label: '⤒', code: 'ArrowUp', maintenu: true, titre: 'Sauter' });
       if (x.enRover) b.push({ zone: 'droite', label: '⏹', code: 'ArrowDown', maintenu: true, titre: 'Freiner' });
+      else if (x.auBordFalaise || x.rappel) b.push({ zone: 'droite', label: '⤓', code: 'ArrowDown', maintenu: true, titre: 'Descendre en rappel' });
       if (x.enRover) b.push({ zone: 'actions', label: x.roverBride ? '🔒 Bridé' : '🔓 Débridé', code: 'KeyB', titre: 'Bridage de l’accélérateur' });
       // Émojis anciens seulement : 🪨 et 🛞 (récents) s'affichent en carré vide sur beaucoup de téléphones.
       const action = x.terre ? '🌸 Cueillir' : x.type === 'robot' ? '🔬 Analyser' : '🤲 Ramasser';

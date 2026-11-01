@@ -154,6 +154,17 @@ Object.assign(Exploration.prototype, {
       if (q.y <= this.sol(q.x)) { q.y = this.sol(q.x); q.vy = 0; q.vx = 0; q.auSol = true; }
       return;
     }
+    // Rappel : vous êtes en bas, la corde est plantée au bord ; l'autre descend à son tour, le long de la paroi.
+    if (d.enRappel) {
+      const gr = this.grappin, sens = gr ? -gr.sens : (q.dir || 1);
+      const kG = Math.max(0.5, Math.min(2.5, Math.sqrt(9.81 / Math.max(0.05, g))));
+      const ds = 0.8 * kG * dt;
+      this.glisserLeLong(q, sens, ds);
+      q.grimpe = (q.grimpe || 0) + ds; q.dir = -sens; q.vx = 0;
+      d.enEscalade = true;
+      if (!this.bordFalaise(q.x, sens)) { this.poserAuPied(q, sens); d.enRappel = false; d.enEscalade = false; q.dir = sens; this.dire(`🧗 ${d.eq.nom} vous a rejoint en bas.`); }
+      return;
+    }
     // Cordée : le grappin est accroché à cette paroi ; l'autre grimpe derrière vous, le long de la corde.
     const gp = this.grappin;
     if (gp && gp.t >= DUREE_GRAPPIN && d.mode === 'suit' && Math.abs(ecartSol(this.astre, gp.x, q.x)) < 30) {
@@ -187,8 +198,12 @@ Object.assign(Exploration.prototype, {
       if (!d.bloque && d.mode === 'suit') { d.bloque = true; this.dire(`🧗 ${d.eq.nom} est bloqué${d.eq.acc} au pied de la paroi : tendez-lui la main d’en haut (C), ou faites-lui la courte-échelle.`); }
     } else if (pente < -(this.def.penteMax + 10) && veut && veut > 0 === q.vx > 0) {
       // Bord d'une falaise (on vient d'y tomber, par exemple) : l'autre ne saute pas derrière, il attend en haut.
+      // Si votre corde de rappel est plantée là et que vous êtes en bas, il descend à son tour.
       q.vx = 0;
-      if (!d.auBord && d.mode === 'suit') { d.auBord = true; this.dire(`🧗 ${d.eq.nom} s’arrête au bord : trop raide pour descendre. ${d.eq.acc ? 'Elle' : 'Il'} vous attend en haut (Tab pour ${d.eq.acc ? 'la' : 'le'} piloter).`); }
+      const gr = this.grappin;
+      if (gr && gr.rappel && d.mode === 'suit' && Math.abs(ecartSol(this.astre, gr.x, q.x)) < 4) {
+        if (!this.rappel) { d.enRappel = true; d.auBord = false; q.grimpe = q.grimpe || 0; }   // sinon, il attend son tour
+      } else if (!d.auBord && d.mode === 'suit') { d.auBord = true; this.dire(`🧗 ${d.eq.nom} s’arrête au bord : trop raide pour descendre. ${d.eq.acc ? 'Elle' : 'Il'} vous attend en haut (Tab pour ${d.eq.acc ? 'la' : 'le'} piloter).`); }
     } else if (Math.abs(q.vx) > 0.05) { d.bloque = false; d.auBord = false; }
     q.x += q.vx * dt; q.y = this.sol(q.x); q.pas += Math.abs(q.vx) * dt;
   },

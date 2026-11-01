@@ -248,12 +248,48 @@ class Exploration {
   // La corde ne sert plus : on est arrivé en haut (et l'autre aussi, s'il suit encordé), ou on s'est éloigné du grappin.
   cordeInutile() {
     const gp = this.grappin, d = this.duo;
-    if (d && d.enEscalade) return false;
+    if (this.rappel || (d && (d.enEscalade || d.enRappel))) return false;
     if (Math.abs(ecartSol(this.astre, gp.x, this.p.x)) > 25) return true;
+    const suit = d && !d.enRover && d.mode === 'suit' && Math.abs(ecartSol(this.astre, gp.x, d.p.x)) < 30;
+    // Après un rappel : tout le monde en bas, on tire la corde à soi.
+    if (gp.rappel) { const enBas = (q) => q.y < gp.y - 1; return enBas(this.p) && (!suit || enBas(d.p)); }
     // En haut : au sommet, près du grappin, ou déjà passé de l'autre côté du rebord.
     const enHaut = (q) => { const e = ecartSol(this.astre, q.x, gp.x) * gp.sens; return e > 1 || (e > -1 && q.y >= gp.y - 0.5); };
-    const suit = d && !d.enRover && d.mode === 'suit' && Math.abs(ecartSol(this.astre, gp.x, d.p.x)) < 30;
     return !this.enEscalade && enHaut(this.p) && (!suit || enHaut(d.p));
+  }
+  // Bord d'une falaise devant soi (plus raide que ce qu'on peut descendre à pied).
+  bordFalaise(x, sens) {
+    return Math.atan2(this.sol(x + 0.6 * sens) - this.sol(x), 0.6) * 180 / Math.PI < -(this.def.penteMax + 10);
+  }
+  // Fin du rappel : on se laisse glisser jusqu'au pied de la paroi (pas de petit saut au dernier mètre).
+  poserAuPied(q, sens) {
+    for (let i = 0; i < 300 && Math.atan2(this.sol(q.x + 0.05 * sens) - this.sol(q.x), 0.05) * 180 / Math.PI < -(this.def.penteMax + 10); i++) q.x += 0.01 * sens;
+    q.y = this.sol(q.x); q.vx = 0; q.vy = 0; q.auSol = true;
+  }
+  // Rappel : ↓ au bord d'une falaise. Le grappin est planté au bord, on descend le long de la paroi, retenu par
+  // la corde : ni chute ni blessure. ↓ maintenu pour descendre ; relâché, on reste pendu.
+  commencerRappel(sens) {
+    const p = this.p, xa = p.x - 0.4 * sens;
+    // sens du grappin : celui de la montée (vers le rebord), comme pour l'escalade ; on peut remonter par la même corde.
+    this.grappin = { x: xa, y: this.sol(xa), x0: p.x, y0: p.y, t: DUREE_GRAPPIN, sens: -sens, rappel: true };
+    this.rappel = { sens, y0: p.y };
+    p.vx = 0; p.grimpe = p.grimpe || 0;
+    this.dire(`🧗 Grappin planté au bord : descente en rappel, maintenez ↓${this.duo && this.duo.mode === 'suit' ? `. ${this.duo.eq.nom} descendra ensuite, encordé${this.duo.eq.acc}` : ''}.`);
+  }
+  descendreEnRappel(dt, cmd) {
+    const p = this.p, r = this.rappel;
+    this.enEscalade = true;                      // pose contre la paroi, pas de saut
+    p.dir = -r.sens; p.vx = 0; p.vy = 0; p.auSol = true;   // face à la paroi
+    if (!cmd.frein) return;
+    const kG = Math.max(0.5, Math.min(2.5, Math.sqrt(9.81 / Math.max(0.05, this.c.g))));
+    const v = 0.8 * kG;                          // m/s le long de la paroi
+    this.glisserLeLong(p, r.sens, v * dt);
+    p.grimpe = (p.grimpe || 0) + v * dt;
+    if (!this.bordFalaise(p.x, r.sens)) {        // en bas : le sol redevient praticable
+      this.poserAuPied(p, r.sens);
+      this.rappel = null; this.enEscalade = false; p.dir = r.sens;
+      this.dire(`🧗 En bas, ${fmt(r.y0 - p.y, 1)} m plus bas.${this.duo && this.duo.mode === 'suit' ? ` ${this.duo.eq.nom} descend à son tour.` : ''}`);
+    }
   }
   // Le grappin vise le rebord, un peu au-delà.
   lancerGrappin(sens) {
@@ -539,7 +575,8 @@ class Exploration {
     this.quatrePattes = quatre;
     const vMax = this.surveillerDelorean(dt, veut, (this.enRover ? (this.batterieRover > 0 ? this.vMaxRover : 0) : this.vMax * (quatre ? VITESSE_QUATRE_PATTES : 1)) * freinPente);
     const acc = this.enRover ? (this.delorean ? 12 : this.accRover) : this.acc;
-    if (p.auSol) {
+    if (this.rappel) this.descendreEnRappel(dt, cmd);
+    else if (p.auSol) {
       // Après quelques bières, la démarche devient… approximative.
       const titube = this.bieres >= 2 ? Math.sin(this.vol.t * 3) * 0.4 * Math.min(1, (this.bieres - 1) / 3) : 0;
       if (this.enRover && !this.delorean) this.conduireRover(dt, veut, cmd.frein, vMax / (this.vMaxRover || 1));
@@ -553,6 +590,10 @@ class Exploration {
       const pente = Math.atan2(this.sol(p.x + 0.5 * Math.sign(p.vx || 1)) - this.sol(p.x), 0.5);
       this.enEscalade = false;
       if (this.grappin && this.grappin.t >= DUREE_GRAPPIN && this.cordeInutile()) { this.grappin = null; this.dire('🪝 Corde récupérée : le grappin est rangé.'); }
+      // Bord d'une falaise : ↓ pour descendre en rappel.
+      this.auBordFalaise = this.type === 'spationaute' && !this.enRover && this.bordFalaise(p.x, p.dir || 1);
+      if (this.auBordFalaise && !this.astuceRappel) { this.astuceRappel = true; this.dire('🧗 Bord d’une falaise : maintenez ↓ (S) pour descendre en rappel.'); }
+      if (this.auBordFalaise && cmd.frein) { this.commencerRappel(p.dir || 1); p.vx = 0; }
       if (pente * 180 / Math.PI > penteMax && Math.abs(p.vx) > 0 && !this.delorean) {
         if (this.enRover && Math.abs(p.vx) > 1.5) this.chocRover(Math.abs(p.vx));
         p.vx = 0;
@@ -1564,6 +1605,7 @@ class Exploration {
         `←→ / Q D : ${robot ? 'rouler' : this.enRover ? 'accélérer' : 'marcher'}`,
         ...(this.enRover ? ['↓ / S : freiner', `B : ${this.roverBride ? 'débrider' : 'brider'}`] : []),
         ...(this.saut && !this.enRover ? ['↑ / Z / Espace : sauter'] : []),
+        ...(this.auBordFalaise || this.rappel ? ['↓ / S : descendre en rappel'] : []),
         ...(this.rover ? [`V : ${this.enRover ? 'descendre de' : 'monter dans'} l’astromobile`] : []),
         `E : ${robot ? 'analyser' : 'ramasser'} (ou rentrer près du module)`,
         'F : planter le drapeau',
