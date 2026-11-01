@@ -4,7 +4,7 @@ Dernière mise à jour : 1er novembre 2026
 
 ## En une phrase
 
-Jeu web de simulation spatiale (vol, atterrissage, exploration, campagne dans le Système solaire et au-delà), jouable en ligne, en bêta test : la carte 5 est terminée (points 1 à 22), les bugs connus de la bêta sont corrigés, et tout est fusionné dans `main`.
+Jeu web de simulation spatiale (vol, atterrissage, exploration, campagne dans le Système solaire et au-delà), jouable en ligne, en bêta test : la carte 5 est terminée (points 1 à 22), les bugs connus de la bêta sont corrigés, des retours de jeu ont été traités (rappel, tonneaux, corde…), et tout est fusionné dans `main`.
 
 ## Fait
 
@@ -49,6 +49,16 @@ Hors carte :
 - Bugs de la bêta corrigés : aide clavier de l'exploration sur plusieurs lignes si l'écran est étroit ; température des astres sans air qui suit la hauteur du Soleil (`chaleurLocale`, dans `vol.js`), combinaison à 130 °C ; accord « 1 sonde » (`nombre()` dans `francais.js`) ; paroi qui barre le retour annoncée sur toute sa hauteur, distance au pied.
 - Textes des écrans en justifié, avec césure (`css/style.css`) ; les blocs centrés le restent.
 
+Retours de jeu (1er novembre 2026, après la carte 5) :
+- Panneau de l'exploration à la taille de son contenu (colonne des valeurs après la plus longue étiquette).
+- Entraînement à l'astromobile : deux objectifs de plus, débrider (B) et dépasser 5 m/s, puis rebrider et ralentir.
+- Astromobile à batterie vide : l'accélérateur ne répond plus (roue libre), même débridée.
+- Corde du grappin rangée d'elle-même dès que la cordée est en haut (`cordeInutile`).
+- Quatre pattes seulement en montée, au-delà de 35° (`monteeDevant`) ; debout en descente.
+- Sortie à deux : le compagnon ne saute pas d'une falaise pour suivre, il attend au bord (Tab pour le piloter).
+- Descente en rappel : ↓ au bord d'une falaise (plus de 45°), le grappin est planté au bord ; le compagnon descend ensuite ; corde récupérée quand tous sont en bas ; bouton ⤓ sur téléphone.
+- Astromobile qui capote : tonneaux avec l'élan conservé (70 % de la vitesse après le choc), freinés par le frottement (0,6 × g), puis retour sur les roues.
+
 ## En cours
 
 - Rien.
@@ -56,8 +66,8 @@ Hors carte :
 ## À faire, dans l'ordre
 
 1. Jouer une vraie campagne avec tous ces ajouts : beaucoup n'ont été testés que par appels directs (vivres, déchets, extensions, secours, capsules multiples, atterrissage progressif, easter eggs de la carte 5).
-2. Vérifier les blocs centrés (chiffres de l'accueil, cartes de l'équipage) avec le texte justifié : ils n'ont pas été vus à l'écran.
-3. Mode à deux : l'aide clavier découpée n'a pas été vue avec « Tab G C K O ».
+2. Rappel et tonneaux : testés sur des terrains de test seulement. Vérifier en jouant que ↓ au bord se déclenche facilement (il faut appuyer dans les 60 derniers centimètres, sinon on tombe).
+3. Vérifier les blocs centrés (chiffres de l'accueil, cartes de l'équipage) avec le texte justifié : ils n'ont pas été vus à l'écran.
 
 ## Bugs connus de la bêta
 
@@ -78,6 +88,9 @@ Hors carte :
 - Descente : quelqu'un reste toujours en orbite ; 2 places, 3 avec le module d'habitation.
 - Module d'urgence = module de secours (appel U) ; le module posé sur place est l'autre.
 - Vivres et eau : pénurie = rationnement puis morts ; production hors Terre limitée (eau des glaces, petite serre) ; 100 % d'autonomie seulement avec l'écosystème fermé, exigé pour quitter le Système solaire.
+- Quatre pattes : en montée seulement, entre 35° (pente de marche) et 45° (paroi, on escalade).
+- Falaise en descente : on peut y tomber ; le compagnon, lui, attend au bord. Pour descendre proprement : le rappel (↓).
+- Capotage : physique de l'élan (quantité de mouvement conservée, énergie dissipée par le choc puis le frottement), pas d'arrêt net.
 - Température au sol sans air : sin(élévation du Soleil)^¼ entre la nuit et le maximum de midi ; la Lune monte à 120 °C seulement à midi, la combinaison tient 130 °C. Sur Mercure, on peut sortir quand le Soleil est à moins de 3° environ (voulu).
 - Espaces insécables : jamais dans le code, les commandes, les noms de fichiers ; gardées dans les textes affichés (`outils/typo.py`).
 
@@ -94,6 +107,10 @@ Hors carte :
 - Créer la branche (`git switch -c …`) avant de commiter, et vérifier avec `git branch --show-current` : un commit est déjà parti sur la branche du point précédent.
 - Ne pas forcer `x.duo = true` en test : sans second personnage, `dessinerDuo` plante à chaque image.
 - `ECRAN_TACTILE` est calculé au chargement, et une largeur sous 768 px dans le navigateur intégré émule un téléphone. Pour voir un écran étroit au clavier : charger à 768 px ou plus, puis rétrécir sans recharger.
+- Après `navigate`, attendre le chargement (`await new Promise(r => setTimeout(r, 1000))`) avant d'appeler les fonctions du jeu : sinon « lancerEssai is not defined ».
+- Scripts Python d'édition : les lancer depuis la racine du dépôt (`cd ~/code/Biguhuh/fusee && python3 …`), sinon « No such file ».
+- Émojis récents (🪢, 🪨, 🛞…) : carré vide sur beaucoup d'écrans. Préférer les anciens (🧗, 🚙…).
+- Tester un terrain précis : remplacer `x.sol` par une fonction (plateau, falaise…) et faire avancer `x.step(1/30, { droite, frein… })` avec `etat.pause = true`.
 - Tester l'amarrage sans campagne : `Orbiteur.amarrer.call(faux, true)`, avec un objet `faux` qui fournit `v`, `stationIci()`, `etatStation()` et `log()`.
 
 ## Carte des fichiers importants
@@ -125,12 +142,12 @@ Campagne :
 - `js/rayonnement.js` : doses de rayonnement réelles.
 
 Au sol :
-- `js/exploration.js` : sortie à pied, astromobile, robot ; chutes et blessures, combinaison, escalade et grappin, quatre pattes, jour et nuit, retour (`cheminVers`), appel d'urgence et départs séparés.
-- `js/duo.js` : sortie à deux (suivre, cordée, courte-échelle, main tendue, oxygène partagé).
+- `js/exploration.js` : sortie à pied, astromobile (bridage, tonneaux), robot ; chutes et blessures, combinaison, escalade, grappin et rappel, quatre pattes, jour et nuit, retour (`cheminVers`), appel d'urgence et départs séparés.
+- `js/duo.js` : sortie à deux (suivre, cordée, rappel, arrêt au bord d'une falaise, courte-échelle, main tendue, oxygène partagé).
 - `js/decouvertes.js` : easter eggs et leurs dessins, traces réelles, signalements du compagnon.
 - `js/descente-robot.js`, `js/drone.js` : largage du robot, drone.
 - `js/visuels.js` : visuels des niveaux de R&D sur les véhicules, planche d'évolution.
-- `js/essai.js` : entraînement sur Terre.
+- `js/essai.js` : entraînement sur Terre (objectifs de chaque exercice dans `ESSAIS`).
 
 Écrans et interface :
 - `js/ecrans.js` : hangar, carte, résultat, sauvegarde.
