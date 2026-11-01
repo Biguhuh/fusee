@@ -43,10 +43,10 @@ Object.assign(Exploration.prototype, {
     const d = this.duo;
     if (!d) return this.dire('Personne d’autre dehors : vous êtes seul·e à sortir.');
     if (this.fin || this.enEmbarquement()) return;
-    const moi = { p: this.p, reserve: this.reserve, integrite: this.integrite, sac: this.sac, doseSv: this.doseSv, dose: this.dose, enRover: this.enRover, eq: this.vol.equipier || equipierDescente(null) };
-    this.p = d.p; this.reserve = d.reserve; this.integrite = d.integrite; this.sac = d.sac; this.doseSv = d.doseSv; this.dose = d.dose; this.enRover = d.enRover;
+    const moi = { p: this.p, reserve: this.reserve, integrite: this.integrite, sac: this.sac, doseSv: this.doseSv, dose: this.dose, enRover: this.enRover, blessure: this.blessure, eq: this.vol.equipier || equipierDescente(null) };
+    this.p = d.p; this.reserve = d.reserve; this.integrite = d.integrite; this.sac = d.sac; this.doseSv = d.doseSv; this.dose = d.dose; this.enRover = d.enRover; this.blessure = d.blessure || null;
     this.vol.equipier = d.eq; this.def.nom = d.eq.nom;
-    Object.assign(d, { p: moi.p, reserve: moi.reserve, integrite: moi.integrite, sac: moi.sac, doseSv: moi.doseSv, dose: moi.dose, enRover: moi.enRover, eq: moi.eq });
+    Object.assign(d, { p: moi.p, reserve: moi.reserve, integrite: moi.integrite, sac: moi.sac, doseSv: moi.doseSv, dose: moi.dose, enRover: moi.enRover, blessure: moi.blessure, eq: moi.eq });
     this.permute = !this.permute;
     this.dire(`🔁 Vous pilotez ${this.def.nom}. ${d.eq.nom} ${d.mode === 'suit' ? 'vous suit' : 'attend'}.`);
   },

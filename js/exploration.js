@@ -2,6 +2,9 @@
 const ZONE_BASE = 150;
 const AUTONOMIE_ROVER = 6 * 3600;   // s de conduite (l'astromobile d'Apollo roulait environ 7 h)
 const DELAI_SECOURS = 45 * 60;     // s : préparation et descente du module de secours   // m de part et d'autre d'une base : ni site d'échantillon, ni artefact dessus
+// Chutes : la blessure dépend de la vitesse d'impact, v = √(2gh). La même hauteur est donc bien plus douce
+// en faible gravité : blessure bénigne dès 2,5 m de chute sur Terre, 15 m sur la Lune ; grave dès 6 m sur Terre, 37 m sur la Lune.
+const IMPACT_BENIGNE = 7, IMPACT_GRAVE = 11;   // m/s
 const V_88MPH = 39.34;              // m/s : 88 miles à l'heure (Retour vers le futur)
 // Exploration de la surface en vue de côté, par un spationaute ou un robot.
 // La gravité locale change tout : sauts immenses sur les petites lunes, démarche lourde sur Terre.
@@ -119,6 +122,7 @@ class Exploration {
     this.irradiation = doseSurface(this.astre);
     if (type === 'spationaute') {
       this.doseSv = vol.doseSv || 0;
+      this.blessure = vol.blessure || null;
       this.dose = (100 * this.doseSv) / DOSE_MORTELLE;
       const t = tempsAvantDoseMortelle(this.irradiation.svJour, this.doseSv);
       if (!this.terre && t < 30 * 86400) this.dire(`Rayonnement ici : ${fmtDose(this.irradiation.svJour)}. Dose mortelle atteinte dehors en ${fmtDureeLongue(t)}.${t < this.def.autonomie ? ` ⏱ Sortie de ${fmtDuree(t * 0.8)} au plus, retour compris.` : ''}`);
@@ -422,6 +426,7 @@ class Exploration {
       if (this.sol(nxAir) > p.y + 0.3 && this.sol(nxAir) > this.sol(p.x) + 0.3) p.vx = 0;
       else p.x = nxAir;
       p.y += p.vy * dt;
+      this.yHautAir = Math.max(this.yHautAir ?? p.y, p.y);
       if (this.sautEnCours) { this.sautEnCours.max = Math.max(this.sautEnCours.max, p.y - this.sautEnCours.y0); this.sautEnCours.duree += dt; }
       // Câble de sécurité : on ne s'éloigne pas à plus de 30 m de la fusée.
       if (this.cable) {
@@ -438,6 +443,8 @@ class Exploration {
           this.causeDegats = 'chute';
           this.dire('Réception brutale !');
         }
+        this.receptionCorps(-p.vy, (this.yHautAir ?? p.y) - p.y);
+        this.yHautAir = undefined;
         if (this.enRover) this.receptionRover();
         p.vy = 0; p.auSol = true;
         this.poussiere(8);
@@ -593,7 +600,26 @@ class Exploration {
       : `🚩 ${robot ? qui + ' un drapeau de plus' : 'Un drapeau de plus'} ${sur(this.astre)} (${liste.length}).`);
   }
 
-  terminer(issue, texte) { if (this.duo && !this.fin) this.finDuo(issue); this.fin = { issue, texte }; }
+  terminer(issue, texte) {
+    if (this.duo && !this.fin) this.finDuo(issue);
+    if (this.type === 'spationaute' && !this.essai) this.vol.blessure = this.blessure || null;   // la blessure reste après la sortie
+    this.fin = { issue, texte };
+  }
+
+  // Réception d'un saut ou d'une chute, à pied : au-delà d'une vitesse d'impact, on se blesse.
+  receptionCorps(vImpact, h) {
+    if (this.type !== 'spationaute' || this.enRover || vImpact < IMPACT_BENIGNE) return;
+    const grave = vImpact >= IMPACT_GRAVE;
+    const parties = grave ? ['fracture de la jambe', 'fracture du poignet', 'côtes fêlées'] : ['entorse de la cheville', 'genou contusionné', 'poignet foulé'];
+    const partie = parties[Math.floor(Math.random() * parties.length)];
+    const chute = `Chute de ${fmt(h, 1)} m, impact à ${fmtV(vImpact)}`;
+    if (this.essai) return this.dire(`🩹 ${chute} : en mission, ${grave ? 'blessure grave' : 'blessure bénigne'} (${partie}). À l’entraînement, plus de peur que de mal.`);
+    // On garde la plus grave des blessures.
+    if (!this.blessure || (grave && this.blessure.gravite !== 'grave')) this.blessure = { gravite: grave ? 'grave' : 'benigne', partie, t: this.vol.t };
+    this.dire(grave ? `🚑 ${chute} : ${this.def.nom} est grièvement blessé${this.equipier().acc} (${partie}).`
+      : `🩹 ${chute} : ${this.def.nom} est blessé${this.equipier().acc} (${partie}), sans gravité.`);
+  }
+  texteBlessure(b = this.blessure) { return b ? `${b.gravite === 'grave' ? 'blessure grave' : 'blessure bénigne'} (${b.partie})` : 'en forme'; }
 
   // Jour et nuit au sol : la température suit l'élévation du Soleil (sans air, de −180 °C à 430 °C sur Mercure),
   // et le rayonnement solaire baisse la nuit (l'astre fait écran ; pas pour les lunes des géantes, dont le
@@ -1116,6 +1142,7 @@ class Exploration {
       const l = [];
       l.push([d.ressource, fmtDuree(this.reserve), fr < 0.2 ? '#ef5350' : '#66bb6a']);
       l.push([this.type === 'robot' ? 'Robot' : 'Combi.', fmt(this.integrite) + ' %', this.integrite > 60 ? '#66bb6a' : this.integrite > 30 ? '#ffca28' : '#ef5350']);
+      if (this.blessure) l.push(['Santé', this.texteBlessure(), this.blessure.gravite === 'grave' ? '#ef5350' : '#ffca28']);
       l.push([this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? `${sc.analyses} (+${this.donneesEnAttente})` : `${this.sac.length}/${d.capacite}` + (this.rover ? ` · astromobile ${this.sacRover.length}/${this.caisseRover}` : ''), this.donneesEnAttente ? '#ffca28' : '#fff']);
       l.push(['Module', fmt(distSol(this.astre, this.p.x, this.xFusee)) + ' m', '#fff']);
       if (this.duo) l.push([`👥 ${this.duo.eq.nom}`, `O₂ ${fmtDuree(this.duo.reserve)} · ${fmt(this.duo.integrite)} % · ${this.duo.sac.length}/${this.def.capacite}${this.duo.mode === 'attend' ? ' · attend' : ''}`, this.duo.reserve < 900 ? '#ef5350' : '#b3e5fc']);
@@ -1150,6 +1177,7 @@ class Exploration {
     ctx.font = 'bold 15px system-ui'; ctx.fillStyle = '#fff'; ctx.fillText(majuscule(`${d.nom} ${sur(a)}`), 16, y); y += 24;
     ligne(d.ressource, fmtDuree(this.reserve), fr < 0.2 ? '#ef5350' : '#66bb6a');
     ligne(this.type === 'robot' ? 'État du robot' : 'Combinaison', fmt(this.integrite) + ' %', this.integrite > 60 ? '#66bb6a' : this.integrite > 30 ? '#ffca28' : '#ef5350');
+    if (this.type === 'spationaute') ligne('Santé', this.texteBlessure(), !this.blessure ? '#66bb6a' : this.blessure.gravite === 'grave' ? '#ef5350' : '#ffca28');
     ligne('Pression', fmtP(c.p) + ' / ' + fmt(d.pressionMax, 1), couleurRisque(c.p / d.pressionMax));
     ligne('Température', fmt(c.t) + ' / ' + fmt(d.tempMax) + ' °C', couleurRisque((c.t + KELVIN) / (d.tempMax + KELVIN)));
     if (this.type === 'robot') {
