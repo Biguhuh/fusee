@@ -82,3 +82,6 @@ function nomBase(x) {
 const Le = (x) => majuscule(le(x));
 const De = (x) => majuscule(de(x));
 const Sur = (x) => majuscule(sur(x));
+
+// Quantité suivie du nom accordé : nombre(1, 'sonde') → « 1 sonde », nombre(3, 'kit de base', 'kits de base').
+function nombre(n, singulier, pluriel = singulier + 's') { return `${fmt(n)} ${n >= 2 ? pluriel : singulier}`; }

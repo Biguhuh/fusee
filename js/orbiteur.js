@@ -1312,25 +1312,27 @@ const Orbiteur = {
     v.amarre = s.id;   // reste amarré : l'orbiteur suit la station jusqu'à la prochaine poussée
     // On prend ce que la station a en stock, dans la limite de ce que l'orbiteur peut emporter.
     const pris = [];
+    // nom : texte après la quantité ; pour les objets qu'on compte, [singulier, pluriel].
     const prendre = (cle, max, nom, unite = '') => {
       // Les ergols du stock vont dans la réserve de l'atterrisseur (v.ergolsAtt).
       const champ = CHAMP_ORBITEUR[cle] || cle;
       const q = Math.max(0, Math.min(s.stock[cle] || 0, max - (v[champ] || 0)));
-      if (q > 0) { s.stock[cle] -= q; v[champ] = (v[champ] || 0) + q; pris.push(`${unite === 'kg' ? fmt(q / 1000, 1) + ' t' : fmt(q)} ${nom}`); }
+      const mot = Array.isArray(nom) ? nom[q >= 2 ? 1 : 0] : nom;
+      if (q > 0) { s.stock[cle] -= q; v[champ] = (v[champ] || 0) + q; pris.push(`${unite === 'kg' ? fmt(q / 1000, 1) + ' t' : fmt(q)} ${mot}`); }
     };
     prendre('carburant', capOrbiteur(this.v, 'carburantMax'), 'de carburant', 'kg');
     prendre('ergols', capOrbiteur(this.v, 'ergolsAtt'), 'd’ergols pour l’atterrisseur', 'kg');
-    prendre('sondes', capOrbiteur(this.v, 'sondes'), 'sondes');
-    prendre('kits', capOrbiteur(this.v, 'kits') + 1, 'kits de station');
-    prendre('kitsBase', 2, 'kits de base');
-    prendre('robots', capOrbiteur(this.v, 'robots'), 'robots');
-    prendre('drones', capOrbiteur(this.v, 'drones'), 'drones');
-    prendre('atterrisseurs', capOrbiteur(this.v, 'atterrisseurs'), 'atterrisseurs');
+    prendre('sondes', capOrbiteur(this.v, 'sondes'), ['sonde', 'sondes']);
+    prendre('kits', capOrbiteur(this.v, 'kits') + 1, ['kit de station', 'kits de station']);
+    prendre('kitsBase', 2, ['kit de base', 'kits de base']);
+    prendre('robots', capOrbiteur(this.v, 'robots'), ['robot', 'robots']);
+    prendre('drones', capOrbiteur(this.v, 'drones'), ['drone', 'drones']);
+    prendre('atterrisseurs', capOrbiteur(this.v, 'atterrisseurs'), ['atterrisseur', 'atterrisseurs']);
     prendre('vivres', vivresMax(v), 'de vivres', 'kg');
     prendre('eau', eauMax(v), 'd’eau potable', 'kg');
     // Propulseurs solaires : 2 au plus (un pour la voiture, un pour rentrer sans ergols).
     v.propulseurs = v.propulseurs || 0;
-    prendre('propulseurs', 2, 'propulseurs solaires');
+    prendre('propulseurs', 2, ['propulseur solaire', 'propulseurs solaires']);
     // Les échantillons peuvent attendre à la station ; ils repartent vers la Terre avec le cargo.
     this.etape = null;
     this.log(`Amarré ${au(s)}${pris.length ? ' : ' + pris.join(', ') : ' : stock vide, attendez le prochain cargo'}.`);

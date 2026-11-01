@@ -146,7 +146,7 @@ const Depart = {
       if (ch.base && !bases.some((b) => b.a.id === ch.base && b.site)) ch.base = null;
       const sondes = !es
         ? `<p>Aucune sonde n’a encore exploré ce système. Une grappe de ${SONDES_GRAPPE_INTERSTELLAIRE} sondes à voile laser (20 % de la vitesse de la lumière) arriverait vers ${fmtAnnee(anneeDuJeu(v.t) + d.distanceAL / VITESSE_SONDES_INTERSTELLAIRES)}, et ses données reviendraient à la vitesse de la lumière vers ${fmtAnnee(anneeDuJeu(v.t) + d.distanceAL / VITESSE_SONDES_INTERSTELLAIRES + d.distanceAL)}.</p>
-           <button id="dep-sondes" ${sondesDisponibles(v) < SONDES_GRAPPE_INTERSTELLAIRE ? 'disabled' : ''}>🛰 Envoyer la grappe (${sondesDisponibles(v)} sondes disponibles)</button>`
+           <button id="dep-sondes" ${sondesDisponibles(v) < SONDES_GRAPPE_INTERSTELLAIRE ? 'disabled' : ''}>🛰 Envoyer la grappe (${nombre(sondesDisponibles(v), 'sonde disponible', 'sondes disponibles')})</button>`
         : es.enRoute ? `<p>🛰 Grappe en route : arrivée vers ${fmtAnnee(anneeDuJeu(es.arrivee))}, données reçues vers ${fmtAnnee(anneeDuJeu(es.reception))}. Accélérez le temps à l’orbiteur.</p>`
           : `<p>✅ Données reçues : les planètes sont cartographiées.</p>`;
       const techs = Object.entries(TECHNOLOGIES).map(([cle, T]) => {

@@ -977,7 +977,7 @@ function partirVersSysteme(info) {
       <dt>Date d’arrivée</dt><dd>${fmtAnnee(info.anneeDepart + info.ans)}</dd>
       <dt>Planète de base</dt><dd>${info.nomBase}</dd>
       <dt>Station</dt><dd>${decrireContenu(st.stock) || 'stock vide'}</dd>
-      <dt>À bord de l’orbiteur</dt><dd>${v.kitsBase} kits de base, ${v.kits} kits de station, ${v.atterrisseurs} atterrisseurs, ${v.robots} robots, ${v.sondes} sondes</dd>
+      <dt>À bord de l’orbiteur</dt><dd>${nombre(v.kitsBase, 'kit de base', 'kits de base')}, ${nombre(v.kits, 'kit de station', 'kits de station')}, ${nombre(v.atterrisseurs, 'atterrisseur')}, ${nombre(v.robots, 'robot')}, ${nombre(v.sondes, 'sonde')}</dd>
       <dt>Équipe</dt><dd>${v.equipe ? survivants(v).map((m) => m.nom).join(', ') : nomSpatio()}</dd>`;
     etat.suiteResultat = 'nav';
     $('vers-hangar').textContent = 'Aller à l’orbiteur';
