@@ -371,6 +371,20 @@ function extensionsEnTrop(v, st, contenu) {
   return '';
 }
 
+// Depuis une station, une extension (de station ou de base) part seule : les matériaux qui l'accompagnent depuis la
+// Terre sont facultatifs, on emporte ce que la station a (jusqu'à la quantité prévue).
+function contenuPourSource(contenu, st) {
+  if (!st || !(contenu.extensions || contenu.extensionsStation)) return { ...contenu };
+  const c = { ...contenu }, m = Math.min(c.materiaux || 0, st.stock.materiaux || 0);
+  if (m > 0) c.materiaux = m; else delete c.materiaux;
+  return c;
+}
+// Une extension de base agrandit une base existante, elle n'en crée pas : sans base sur l'astre, elle attend au stock.
+function noteExtensionSansBase(v, st, contenu) {
+  if (!contenu.extensions || (v.bases || []).some((b) => b.astre === st.centre)) return '';
+  return `Pas encore de base ${sur(ASTRES_PAR_ID[st.centre])} : l’extension de base attendra dans le stock ${de(st)}. Elle agrandit une base, elle n’en crée pas (il faut d’abord un kit de base).`;
+}
+
 // Cargo vers une station du même astre (Terre → station terrestre) : lancement et rendez-vous en orbite.
 const DUREE_RDV_LOCAL = JOUR;
 

@@ -786,6 +786,8 @@ const Orbiteur = {
     v.cargos.push(cargo);
     this.arriveePrevue(cargo);
     this.log(`Cargo « ${nom} » lancé depuis ${le(origine)} vers ${le(dest)} : ${decrireContenu(contenu)}.`);
+    const note = noteExtensionSansBase(v, dest, contenu);   // une extension n'est pas une base
+    if (note) this.log(note);
     if (cargo.local) this.log(`Rendez-vous en orbite ${au(dest)} dans ${fmtDuree(DUREE_RDV_LOCAL)}.`);
     else this.ouvrirTrajet(id);
   },
@@ -1112,7 +1114,7 @@ const Orbiteur = {
       const l = ressourcesIllimitees() ? [{ id: SYSTEME.origine, nom: `${nomO} (lanceur cargo, stock illimité)`, ok: true }] : [];
       for (const s of v.stations) {
         if (s.id === d || estOrigine(s.centre)) continue;    // la station de la planète d'origine, c'est la source « origine »
-        const manque = Object.entries(c).filter(([k, q]) => (s.stock[k] || 0) < q).map(([k]) => NOMS_STOCK[k]);
+        const manque = Object.entries(contenuPourSource(c, s)).filter(([k, q]) => (s.stock[k] || 0) < q).map(([k]) => NOMS_STOCK[k]);
         l.push({ id: s.id, nom: s.nom, ok: !manque.length, manque });
       }
       return l;
@@ -1129,7 +1131,7 @@ const Orbiteur = {
       const stD = v.stations.find((s) => s.id === $('rav-dest').value);
       const enTrop = stD ? extensionsEnTrop(v, stD, CONTENUS_CARGO[contenuChoisi()].contenu) : '';
       $('rav-lancer').disabled = !origineChoisie || !!enTrop;
-      $('rav-info').textContent = enTrop || (origineChoisie ? '' : 'Aucune source possible.');
+      $('rav-info').textContent = enTrop || (origineChoisie ? (stD ? noteExtensionSansBase(v, stD, CONTENUS_CARGO[contenuChoisi()].contenu) : '') : 'Aucune source possible.');
     };
     const calculer = () => {
       const d = $('rav-dest').value;
@@ -1172,7 +1174,8 @@ const Orbiteur = {
       const k = contenuChoisi();
       memoriser();
       this.calculRavito = null;
-      this.lancerCargo(origineChoisie, $('rav-dest').value, { ...CONTENUS_CARGO[k].contenu }, CONTENUS_CARGO[k].nom);
+      const stO = v.stations.find((s) => s.id === origineChoisie);   // depuis une station : l'extension part seule si besoin
+      this.lancerCargo(origineChoisie, $('rav-dest').value, contenuPourSource(CONTENUS_CARGO[k].contenu, stO), CONTENUS_CARGO[k].nom);
       Infos.fermer();
       this.majHud(true);
     };
