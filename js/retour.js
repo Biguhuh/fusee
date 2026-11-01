@@ -181,11 +181,17 @@ class RetourTerre {
     // Halo d'atmosphère au-dessus de l'horizon (vu d'en haut).
     if (h > 15000) { ctx.strokeStyle = 'rgba(140,200,255,0.35)'; ctx.lineWidth = 6; ctx.stroke(); }
     ctx.restore();
-    // Nuages : couche entre 1 et 4 km, qui remonte quand on la traverse.
+    // Nuages : couche entre 1 et 4 km, qui remonte quand on la traverse. La capsule avance vers la droite
+    // (bouclier devant) : les nuages défilent donc vers la gauche, à sa vraie vitesse horizontale à l'écran.
+    // Sous parachute, elle finit par descendre à la verticale : les nuages s'arrêtent.
+    const dtSim = Math.max(0, this.t - (this.tDessinNuages ?? this.t));
+    this.tDessinNuages = this.t;
+    this.decalNuages = (this.decalNuages || 0) + this.vx * dtSim * echelle;
+    const L = W * 1.3;
     for (const n of this.nuages) {
       const y = cy + (h - n.alt) * echelle;
       if (y < -30 || y > H + 30) continue;
-      const x = ((n.x + this.t * 0.0004) % 1) * W * 1.3 - W * 0.15;
+      const x = (((n.x * L - this.decalNuages) % L) + L) % L - W * 0.15;
       ctx.fillStyle = 'rgba(255,255,255,0.75)';
       // Épaisseur réelle (≈ 600 m) à l'échelle : de fines bandes vues de haut, de gros nuages en dessous.
       const ry = Math.max(1.5, Math.min(n.l * W * 0.18, 600 * echelle));
