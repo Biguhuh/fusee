@@ -1305,6 +1305,7 @@ class Exploration {
 
     // Easter eggs et traces réelles
     if (!this.terre) dessinerDecouvertes(ctx, this, versEcran, echelle, W);
+    if (!this.terre) dessinerSignalements(ctx, this, versEcran, echelle, W, H);   // « Viens voir ça ! »
 
     // Promenade sur Terre : fleurs, arbres fruitiers, bar
     if (this.terre) {

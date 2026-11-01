@@ -676,6 +676,14 @@ function verifierDecouvertes(x) {
   }
   for (const e of eggsSur(x.astre.id)) {
     const ex = x.posLibre(x.xFusee + e.dx), d = distSol(x.astre, p.x, ex);
+    // L'autre spationaute a l'œil (80 m) : il repère l'objet avant vous et vous appelle. La découverte ne compte
+    // que quand vous l'examinez vous-même, de près.
+    const autre = humain && x.duo && !x.duo.dansModule && !x.duo.dansSecours ? x.duo : null;
+    if (autre && d >= 60 && distSol(x.astre, autre.p.x, ex) < 80 && !eggTrouve(e.id) && !x.vusIci['signal:' + e.id]) {
+      x.vusIci['signal:' + e.id] = true;
+      (x.signalements = x.signalements || []).push({ id: e.id, x: ex, nom: autre.eq.nom });
+      x.dire(`📣 ${autre.eq.nom} : « Viens voir ça ! » Quelque chose d’inhabituel, ${ecartSol(x.astre, ex, p.x) < 0 ? 'à gauche ◀' : 'à droite ▶'}, à ${fmt(d)} m.`);
+    }
     if (humain && d < 60 && d >= (x.enRover ? 6 : 4) && !eggTrouve(e.id) && !x.vusIci['proche:' + e.id]) {
       x.vusIci['proche:' + e.id] = true;
       x.dire(`👀 Quelque chose d’inhabituel, ${ecartSol(x.astre, ex, p.x) < 0 ? 'à gauche ◀' : 'à droite ▶'}, à ${fmt(d)} m. Approchez-vous !`);
@@ -731,6 +739,24 @@ function decouvrir(e, x) {
   if (e.id === 'chat') replique('chat');
   if (etat.enVoyage && etat.voyage) etat.voyage.journal.push({ t: etat.voyage.t, texte: `✨ Découverte ${sur(x.astre)} : ${texte}` });
   sauver(etat);
+}
+
+// Repères posés par l'autre spationaute (« Viens voir ça ! ») : un cercle qui clignote sur l'objet, ou une flèche au
+// bord de l'écran s'il est hors champ. Ils disparaissent quand on l'a examiné.
+function dessinerSignalements(ctx, x, versEcran, s, W, H) {
+  const pulse = 0.55 + 0.45 * Math.sin(performance.now() / 250);
+  for (const sg of x.signalements || []) {
+    if (eggTrouve(sg.id)) continue;
+    const [sx, sy] = versEcran(sg.x, x.sol(sg.x));
+    if (sx > -30 && sx < W + 30) {
+      ctx.strokeStyle = `rgba(255,213,79,${pulse})`; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(sx, sy - 0.8 * s, 1.4 * s + 6, 0, Math.PI * 2); ctx.stroke();
+      texteSurFond(ctx, `📣 ${sg.nom} : « Viens voir ça ! »`, sx, sy - 2.4 * s - 16, { police: '12px system-ui, sans-serif', couleur: '#ffd54f' });
+    } else {
+      const droite = sx >= W + 30;
+      texteSurFond(ctx, `${droite ? '' : '◀ '}📣 ${sg.nom} · ${fmt(distSol(x.astre, x.p.x, sg.x))} m${droite ? ' ▶' : ''}`, droite ? W - 90 : 90, H * 0.38, { police: '13px system-ui, sans-serif', couleur: pulse > 0.6 ? '#ffd54f' : '#ffb300' });
+    }
+  }
 }
 
 // Dessin des découvertes autour de l'explorateur. Les easter eggs n'apparaissent qu'à un humain proche,
