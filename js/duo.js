@@ -139,6 +139,7 @@ Object.assign(Exploration.prototype, {
 
   // À chaque pas : l'autre suit (ou attend), respire, encaisse la dose.
   majDuo(dt) {
+    if (this.duo.dansModule) return;   // à l'abri dans le module posé : il attend le départ
     const d = this.duo, p = this.p, q = d.p, g = this.c.g;
     d.reserve -= dt * etatCombi(d.integrite).fuite;   // combinaison abîmée : elle fuit
     d.doseSv += (this.irradiation.svJour * (this.facteurDose || 1) * dt) / 86400;
@@ -210,7 +211,7 @@ Object.assign(Exploration.prototype, {
 
   dessinerDuo(ctx, versEcran, echelle) {
     const d = this.duo;
-    if (!d || d.enRover || d.dansSecours) return;   // à bord de l'astromobile ou du module de secours
+    if (!d || d.enRover || d.dansSecours || d.dansModule) return;   // à bord de l'astromobile ou du module de secours
     const [sx, sy] = versEcran(d.p.x, d.p.y);
     if (this.poseGeste('autre') === 'allonge') dessinerAllonge(ctx, sx, sy, echelle, this.geste.sens, d.eq.profil);
     else dessinerSpationaute(ctx, sx, sy, echelle, { ...d.p, grimpe: d.enEscalade ? d.p.grimpe : undefined, pose: this.poseGeste('autre') || (d.quatrePattes && !d.enEscalade ? 'quatre-pattes' : undefined), inclinaison: this.penteSous(d.p.x) }, false, d.eq.profil);

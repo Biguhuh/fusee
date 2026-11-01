@@ -606,14 +606,14 @@ function finSecours() {
   const h = $('res-titre');
   h.textContent = '🆘 Sauvetage réussi';
   h.className = 'succes';
-  $('res-message').textContent = `Le module de secours a ramené ${nom} ${v ? 'à l’orbiteur' : 'en orbite'}${n ? ` avec ${n} échantillon${n > 1 ? 's' : ''}` : ''}. Le premier atterrisseur reste ${sur(a)}, pour toujours.`;
+  $('res-message').textContent = `Le module de secours a ramené ${nom} ${v ? 'à l’orbiteur' : 'en orbite'}${n ? ` avec ${n} échantillon${n > 1 ? 's' : ''}` : ''}. ${vol.departSepare ? `${vol.departSepare} est remonté${vol.departSepareAcc || ''} avec le premier atterrisseur : départs séparés, aucun module perdu.` : `Le premier atterrisseur reste ${sur(a)}, pour toujours.`}`;
   $('res-stats').innerHTML = '';
   if (v) {
-    v.atterrisseurs = Math.max(0, v.atterrisseurs - 1);   // l'atterrisseur bloqué est perdu ; celui de secours remonte
+    if (!vol.departSepare) v.atterrisseurs = Math.max(0, v.atterrisseurs - 1);   // l'atterrisseur bloqué est perdu ; celui de secours remonte
     if (n) v.echantillonsABord[a.id] = (v.echantillonsABord[a.id] || 0) + n;
     v.visites[a.id] = { ...(v.visites[a.id] || {}), pose: true };
     if (vol.doseSv) regDose(piloteDuVol(v), vol.doseSv);
-    Orbiteur.log(`🆘 Sauvetage ${sur(a)} : ${nom} est de retour à bord${n ? ` avec ${n} échantillon${n > 1 ? 's' : ''}` : ''}. Un atterrisseur reste au sol (il en reste ${v.atterrisseurs}).`);
+    Orbiteur.log(`🆘 Sauvetage ${sur(a)} : ${nom} est de retour à bord${n ? ` avec ${n} échantillon${n > 1 ? 's' : ''}` : ''}. ${vol.departSepare ? `${vol.departSepare} est remonté${vol.departSepareAcc || ''} avec le premier atterrisseur.` : `Un atterrisseur reste au sol (il en reste ${v.atterrisseurs}).`}`);
     etat.suiteResultat = 'nav';
     $('vers-hangar').textContent = 'Aller à l’orbiteur';
   } else {
