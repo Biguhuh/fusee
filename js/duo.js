@@ -185,7 +185,11 @@ Object.assign(Exploration.prototype, {
     if (pente > this.def.penteMax + 10 && veut > 0 === q.vx > 0 && q.vx) {
       q.vx = 0;
       if (!d.bloque && d.mode === 'suit') { d.bloque = true; this.dire(`🧗 ${d.eq.nom} est bloqué${d.eq.acc} au pied de la paroi : tendez-lui la main d’en haut (C), ou faites-lui la courte-échelle.`); }
-    } else if (Math.abs(q.vx) > 0.05) d.bloque = false;
+    } else if (pente < -(this.def.penteMax + 10) && veut && veut > 0 === q.vx > 0) {
+      // Bord d'une falaise (on vient d'y tomber, par exemple) : l'autre ne saute pas derrière, il attend en haut.
+      q.vx = 0;
+      if (!d.auBord && d.mode === 'suit') { d.auBord = true; this.dire(`🧗 ${d.eq.nom} s’arrête au bord : trop raide pour descendre. ${d.eq.acc ? 'Elle' : 'Il'} vous attend en haut (Tab pour ${d.eq.acc ? 'la' : 'le'} piloter).`); }
+    } else if (Math.abs(q.vx) > 0.05) { d.bloque = false; d.auBord = false; }
     q.x += q.vx * dt; q.y = this.sol(q.x); q.pas += Math.abs(q.vx) * dt;
   },
   perdreDuo(cause) {
