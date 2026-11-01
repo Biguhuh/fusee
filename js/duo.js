@@ -32,6 +32,7 @@ function creerDuo(x) {
   x.dire(`👥 Sortie à deux : ${eq.nom} vous accompagne. Tab : changer de spationaute · G : suis-moi / attends · C : courte-échelle · K : ruban adhésif · O : partager l’oxygène.`);
   return {
     eq, mode: 'suit', enRover: false, rubans: RUBANS,
+    blessure: (etat.enVoyage && etat.voyage && (membreDe(etat.voyage, eq) || {}).blessure) || null,
     p: { x: px, y: x.sol(px), vx: 0, vy: 0, auSol: true, dir: 1, pas: 0 },
     reserve: x.def.autonomie, integrite: 100, sac: [], doseSv: 0, dose: 0,   // dose reçue pendant cette sortie
   };
@@ -44,7 +45,7 @@ Object.assign(Exploration.prototype, {
     if (!d) return this.dire('Personne d’autre dehors : vous êtes seul·e à sortir.');
     if (this.fin || this.enEmbarquement()) return;
     const moi = { p: this.p, reserve: this.reserve, integrite: this.integrite, sac: this.sac, doseSv: this.doseSv, dose: this.dose, enRover: this.enRover, blessure: this.blessure, eq: this.vol.equipier || equipierDescente(null) };
-    this.p = d.p; this.reserve = d.reserve; this.integrite = d.integrite; this.sac = d.sac; this.doseSv = d.doseSv; this.dose = d.dose; this.enRover = d.enRover; this.blessure = d.blessure || null;
+    this.p = d.p; this.reserve = d.reserve; this.integrite = d.integrite; this.sac = d.sac; this.doseSv = d.doseSv; this.dose = d.dose; this.enRover = d.enRover; this.blessure = d.blessure || null; this.appliquerBlessure();
     this.vol.equipier = d.eq; this.def.nom = d.eq.nom;
     Object.assign(d, { p: moi.p, reserve: moi.reserve, integrite: moi.integrite, sac: moi.sac, doseSv: moi.doseSv, dose: moi.dose, enRover: moi.enRover, blessure: moi.blessure, eq: moi.eq });
     this.permute = !this.permute;
@@ -153,6 +154,7 @@ Object.assign(Exploration.prototype, {
     if (!d) return;
     if (this.permute && issue !== 'perdu') this.changerPersonnage();
     const v = etat.enVoyage && etat.voyage;
+    if (v && d.blessure) noterBlessure(v, d.eq, d.blessure);
     if (v && d.doseSv) regDose(d.eq.id ? (v.equipe || []).find((m) => m.id === d.eq.id) : principal(v), d.doseSv);
   },
 

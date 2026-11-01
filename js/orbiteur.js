@@ -1415,6 +1415,15 @@ const Orbiteur = {
     this.contexte.rentrer();   // capsule vide, échantillons rapportés, orbiteur garé à la station
   },
 
+  // Rappel de l'équipage : le pilote auto ramène l'orbiteur vers la Terre (après une perte, ou un blessé grave).
+  rappelerEquipage() {
+    const v = this.v;
+    v.traumatise = false;
+    v.cible = SYSTEME.origine; v.mode = 'pilote'; this.etape = null; this.auto = true;
+    this.log(`🏠 Équipage rappelé : le pilote auto ramène l’orbiteur vers ${le(planeteOrigine())}. Ensuite, « 🏠 Rentrer sur Terre (capsule) ».`);
+    this.majHud(true);
+  },
+
   // Un membre d'équipage vient de mourir : rappeler les autres sur Terre, ou continuer, traumatisés.
   proposerRappel() {
     const v = this.v, info = v.proposerRappel;
@@ -1430,13 +1439,7 @@ const Orbiteur = {
       <p class="doux">Vous pouvez continuer quand même, mais l’équipage a le moral dans les chaussettes et il lui manque désormais des compétences : chaque manœuvre et chaque descente risque d’être ratée (${fmt(risque * 100)} % de risque), sauf le retour sur Terre, automatisé.</p></div></header>
       <div class="actions">${peutRappeler ? '<button id="rappel-oui" class="principal">🏠 Rappeler l’équipage sur Terre</button>' : '<span></span>'}<button id="rappel-non">Continuer la mission malgré tout</button></div></div>`;
     m.classList.remove('cache');
-    if (peutRappeler) $('rappel-oui').onclick = () => {
-      Infos.fermer();
-      v.traumatise = false;
-      v.cible = SYSTEME.origine; v.mode = 'pilote'; this.etape = null; this.auto = true;
-      this.log(`🏠 Équipage rappelé : le pilote auto ramène l’orbiteur vers ${le(planeteOrigine())}. Ensuite, « 🏠 Rentrer sur Terre (capsule) ».`);
-      this.majHud(true);
-    };
+    if (peutRappeler) $('rappel-oui').onclick = () => { Infos.fermer(); this.rappelerEquipage(); };
     $('rappel-non').onclick = () => {
       Infos.fermer();
       v.traumatise = true;

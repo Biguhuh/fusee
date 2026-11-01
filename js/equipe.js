@@ -25,7 +25,7 @@ function noterPerte(v, nom, astreId, cause) {
 function pilote(v) {
   if (!v || !v.equipe) return null;
   const p = v.equipe.find((m) => m.principal);
-  if (p && !v.equipagePerdu && p.etat !== 'perdu') return p;
+  if (p && !v.equipagePerdu && p.etat !== 'perdu' && p.etat !== 'rapatrie') return p;
   return v.equipe.find((m) => !m.principal && m.etat === 'bord') || null;
 }
 // Nom, profil et accord de la personne qui descend (hors campagne : votre spationaute).
@@ -57,6 +57,46 @@ function verifierEquipageEntierPerdu(v) {
   v.proposerRappel = null;
   v.traumatise = false;
   if (!v.retourAuto) v.retourAuto = 'a_annoncer';
+}
+
+// ---------- Blessures et soins ----------
+// Une blessure bénigne se soigne à bord, en quelques jours de mission. Une blessure grave ne se soigne pas
+// dans le vaisseau : rapatriement du blessé par capsule (la mission continue, en mode dégradé), ou retour de tous.
+const SOINS_JOURS = { 'entorse de la cheville': 6, 'genou contusionné': 4, 'poignet foulé': 5 };
+function accordMembre(m) { return m && !m.principal ? (GENRES[(m.profil || PROFIL_DEFAUT).genre] || GENRES.aucun).accord : acc(); }
+// Le membre d'équipage qui correspond à une personne qui descend ou qui sort (voir equipierDescente).
+function membreDe(v, eq) {
+  if (!v || !v.equipe) return null;
+  return eq && eq.id ? v.equipe.find((m) => m.id === eq.id) || null : principal(v);
+}
+function texteBlessureMembre(m, v) {
+  const b = m.blessure;
+  if (!b) return '';
+  if (b.gravite === 'grave') return `🚑 ${b.partie}${b.choix === 'rentrer' ? ', retour sur Terre en cours' : ''}`;
+  return `🩹 ${b.partie}${b.fin ? `, guéri${accordMembre(m)} dans ${fmtDuree(Math.max(0, b.fin - v.t))}` : ''}`;
+}
+// Fin d'une sortie : la blessure passe sur la fiche du membre ; les soins commencent à bord.
+function noterBlessure(v, eq, blessure) {
+  const m = membreDe(v, eq);
+  if (!m || !blessure) return;
+  const b = { ...blessure };
+  if (b.gravite === 'benigne' && !b.fin) b.fin = v.t + (SOINS_JOURS[b.partie] || 5) * JOUR;
+  m.blessure = b;
+}
+// Blessé grave de retour à bord : on applique le choix fait au moment de la blessure.
+function traiterBlessesGraves(v, log, rappeler) {
+  for (const m of v.equipe || []) {
+    const b = m.blessure;
+    if (!b || b.gravite !== 'grave' || b.traite || m.etat !== 'bord') continue;
+    b.traite = true;
+    const nom = m.principal ? majuscule(nomSpatio()) : m.nom;
+    if (b.choix === 'rentrer') { log(`🚑 ${nom} est blessé${accordMembre(m)} (${b.partie}) : toute l’expédition rentre sur Terre.`); rappeler(); continue; }
+    // Rapatriement : le blessé rentre seul en capsule ; la mission continue, avec une personne en moins.
+    m.etat = 'rapatrie';
+    v.traumatise = true;
+    log(`🚑 ${nom} (${b.partie}) part en capsule de rapatriement vers la Terre, où l’attend un hôpital. La mission continue sans ${m.principal ? 'vous' : nom} : il manque des compétences, les manœuvres risquent d’être ratées (${fmt(risqueTrauma(v) * 100)} %).`);
+    verifierEquipageEntierPerdu(v);
+  }
 }
 
 // ---------- Équipage traumatisé ----------
@@ -135,6 +175,7 @@ function empechementMission(v, a) {
 function lancerMission(v, membreId, a, jours, log) {
   const m = v.equipe.find((x) => x.id === membreId);
   if (!m || m.etat !== 'bord') return;
+  if (m.blessure) return log(`${m.nom} est blessé${accordMembre(m)} : pas de mission avant d’être guéri${accordMembre(m)}.`);
   const pb = empechementMission(v, a);
   if (pb) return log(`Mission impossible : ${pb}.`);
   const c = concevoirAtterrisseur(a);
@@ -148,6 +189,13 @@ function lancerMission(v, membreId, a, jours, log) {
 // Missions terminées : retour à bord avec les échantillons, ou perte si la dose a été mortelle.
 function mettreAJourEquipe(v, log) {
   mettreAJourRobotsAuto(v, log);
+  for (const m of v.equipe || []) {
+    const b = m.blessure;
+    if (b && b.fin && v.t >= b.fin && m.etat !== 'perdu') {
+      m.blessure = null;
+      log(`🩹 ${m.principal ? majuscule(nomSpatio()) : m.nom} est guéri${accordMembre(m)} (${b.partie}) : de nouveau en pleine forme.`);
+    }
+  }
   for (const m of v.equipe || []) {
     if (m.etat !== 'mission' || v.t < m.mission.fin) continue;
     const a = ASTRES_PAR_ID[m.mission.astre], jours = m.mission.jours;
@@ -253,7 +301,8 @@ function ouvrirRobotAuto(v, log, apres) {
 }
 
 function missionsEnCours(v) { return (v.equipe || []).filter((m) => m.etat === 'mission'); }
-function survivants(v) { return (v.equipe || []).filter((m) => m.etat !== 'perdu' && !(m.principal && v.equipagePerdu)); }
+// Encore dans l'expédition : ni mort, ni rapatrié sur Terre.
+function survivants(v) { return (v.equipe || []).filter((m) => m.etat !== 'perdu' && m.etat !== 'rapatrie' && !(m.principal && v.equipagePerdu)); }
 
 // Liste de l'équipe pour le panneau de l'orbiteur, avec les boutons de mission vers l'astre survolé.
 function htmlEquipe(v) {
@@ -265,7 +314,9 @@ function htmlEquipe(v) {
     if (m.etat === 'perdu' || (m.principal && v.equipagePerdu)) etat = '✝ perdu';
     else if (m.etat === 'mission') etat = `en mission ${sur(ASTRES_PAR_ID[m.mission.astre])}, retour dans ${fmtDuree(m.mission.fin - v.t)}`;
     else etat = m.principal ? 'à bord (vous)' : 'à bord';
-    const btn = m.etat === 'bord' && !m.principal && !pb ? ` <button data-mission="${m.id}">🧑‍🚀 Mission</button>` : '';
+    if (m.etat === 'rapatrie') etat = '🏥 rapatrié' + accordMembre(m) + ' sur Terre';
+    if (m.blessure && m.etat === 'bord') etat += ` · ${texteBlessureMembre(m, v)}`;
+    const btn = m.etat === 'bord' && !m.principal && !pb && !m.blessure ? ` <button data-mission="${m.id}">🧑‍🚀 Mission</button>` : '';
     return `<li>${m.nom} — ${etat}${m.dose > 0.001 ? ` · ${fmtDoseTotale(m.dose)}` : ''}${btn}</li>`;
   }).join('');
   // Robots de prélèvement en cours, conteneurs en attente, et bouton pour en larguer un ici.

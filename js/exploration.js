@@ -122,7 +122,9 @@ class Exploration {
     this.irradiation = doseSurface(this.astre);
     if (type === 'spationaute') {
       this.doseSv = vol.doseSv || 0;
-      this.blessure = vol.blessure || null;
+      const vC = etat.enVoyage && etat.voyage, mb = vC ? membreDe(vC, this.equipier()) : null;
+      this.blessure = vol.blessure || (mb && mb.blessure) || null;
+      this.appliquerBlessure();
       this.dose = (100 * this.doseSv) / DOSE_MORTELLE;
       const t = tempsAvantDoseMortelle(this.irradiation.svJour, this.doseSv);
       if (!this.terre && t < 30 * 86400) this.dire(`Rayonnement ici : ${fmtDose(this.irradiation.svJour)}. Dose mortelle atteinte dehors en ${fmtDureeLongue(t)}.${t < this.def.autonomie ? ` ⏱ Sortie de ${fmtDuree(t * 0.8)} au plus, retour compris.` : ''}`);
@@ -392,7 +394,8 @@ class Exploration {
         p.vx = 0;
         // Escalade : à pied, ↑ contre la paroi fait grimper.
         if (this.type === 'spationaute' && !this.enRover && !this.terreSansParoi() && veut) {
-          if (cmd.saut) this.grimper(dt, veut);
+          if (cmd.saut && this.blessure && this.blessure.gravite === 'grave') { if (!this.astuceBlesse) { this.astuceBlesse = true; this.dire(`🚑 Blessé${this.equipier().acc} gravement : impossible d’escalader.`); } }
+          else if (cmd.saut) this.grimper(dt, veut);
           else if (!this.astuceEscalade) { this.astuceEscalade = true; this.dire('🧗 Paroi trop raide pour marcher : maintenez ↑ (avec → ou ←) pour l’escalader.'); }
         }
         if (this.type === 'robot' || this.enRover) this.dire(`Pente trop raide pour les roues ${this.enRover ? 'de l’astromobile' : 'du robot'}.`);
@@ -602,7 +605,11 @@ class Exploration {
 
   terminer(issue, texte) {
     if (this.duo && !this.fin) this.finDuo(issue);
-    if (this.type === 'spationaute' && !this.essai) this.vol.blessure = this.blessure || null;   // la blessure reste après la sortie
+    if (this.type === 'spationaute' && !this.essai) {
+      this.vol.blessure = this.blessure || null;   // la blessure reste après la sortie
+      const v = etat.enVoyage && etat.voyage;
+      if (v && this.blessure && issue !== 'perdu') noterBlessure(v, this.equipier(), this.blessure);
+    }
     this.fin = { issue, texte };
   }
 
@@ -615,9 +622,39 @@ class Exploration {
     const chute = `Chute de ${fmt(h, 1)} m, impact à ${fmtV(vImpact)}`;
     if (this.essai) return this.dire(`🩹 ${chute} : en mission, ${grave ? 'blessure grave' : 'blessure bénigne'} (${partie}). À l’entraînement, plus de peur que de mal.`);
     // On garde la plus grave des blessures.
-    if (!this.blessure || (grave && this.blessure.gravite !== 'grave')) this.blessure = { gravite: grave ? 'grave' : 'benigne', partie, t: this.vol.t };
+    const pire = !this.blessure || (grave && this.blessure.gravite !== 'grave');
+    if (pire) this.blessure = { gravite: grave ? 'grave' : 'benigne', partie, t: this.vol.t };
+    this.appliquerBlessure();
+    if (pire && grave && etat.enVoyage && etat.voyage) setTimeout(() => this.choixBlessureGrave(), 600);
     this.dire(grave ? `🚑 ${chute} : ${this.def.nom} est grièvement blessé${this.equipier().acc} (${partie}).`
       : `🩹 ${chute} : ${this.def.nom} est blessé${this.equipier().acc} (${partie}), sans gravité.`);
+  }
+  // Un blessé marche moins vite et saute moins haut ; grièvement blessé, il ne saute plus.
+  appliquerBlessure() {
+    if (this.vMaxSain === undefined) { this.vMaxSain = this.vMax; this.sautSain = this.saut; }
+    const g = this.blessure && this.blessure.gravite;
+    this.vMax = this.vMaxSain * (g === 'grave' ? 0.35 : g === 'benigne' ? 0.65 : 1);
+    this.saut = g === 'grave' ? 0 : this.sautSain * (g === 'benigne' ? 0.5 : 1);
+  }
+  // Blessure grave (campagne) : le choix tout de suite, appliqué au retour à l'orbiteur.
+  choixBlessureGrave() {
+    const b = this.blessure, nom = this.def.nom, m = $('modale');
+    if (!b || b.choix || this.fin) return;
+    const avant = etat.pause;
+    etat.pause = true;
+    m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>🚑 ${majuscule(nom)} est grièvement blessé${this.equipier().acc}</h2>
+      <p>${majuscule(b.partie)}. Le vaisseau n’a pas de quoi soigner une blessure aussi grave. Il faut d’abord ramener ${nom} à l’atterrisseur, puis à l’orbiteur.</p>
+      <p>Là, deux possibilités :</p></div></header>
+      <div class="sections"><section><label class="choix-ravito"><input type="radio" name="bl-choix" value="rapatrier" checked> <b>Rapatrier ${nom} par capsule</b><br><span class="doux">${majuscule(nom)} rentre seul${this.equipier().acc} sur Terre. La mission continue sans ${this.equipier().principal ? 'vous' : nom}, en mode dégradé comme après une perte : il manque des compétences, les manœuvres risquent d’être ratées.</span></label>
+      <label class="choix-ravito"><input type="radio" name="bl-choix" value="rentrer"> <b>Tout le monde rentre</b><br><span class="doux">Le pilote auto ramène l’orbiteur vers la Terre, puis la capsule ramène toute l’équipe.</span></label></section></div>
+      <div class="actions"><span></span><button id="bl-ok" class="principal">Décider</button></div></div>`;
+    m.classList.remove('cache');
+    $('bl-ok').onclick = () => {
+      b.choix = m.querySelector('input[name=bl-choix]:checked').value;
+      Infos.fermer();
+      etat.pause = avant;
+      this.dire(b.choix === 'rentrer' ? '🏠 Décidé : toute l’expédition rentrera sur Terre. Ramenez d’abord le blessé au module.' : `🚑 Décidé : ${nom} sera rapatrié${this.equipier().acc} par capsule. Ramenez-${this.equipier().principal ? 'vous' : 'le'} d’abord au module.`);
+    };
   }
   texteBlessure(b = this.blessure) { return b ? `${b.gravite === 'grave' ? 'blessure grave' : 'blessure bénigne'} (${b.partie})` : 'en forme'; }
 

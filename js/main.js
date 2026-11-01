@@ -833,6 +833,8 @@ function allerNavigation() {
   montrer('nav');
   // Mission en temps réel : la simulation rattrape le temps écoulé depuis la dernière visite, puis le résume.
   Orbiteur.rattraperAbsence();
+  // Blessé grave de retour à bord : rapatriement, ou retour de tous (choisi au moment de la blessure).
+  traiterBlessesGraves(etat.voyage, (t) => Orbiteur.log(t), () => Orbiteur.rappelerEquipage());
   // Un membre d'équipage vient de mourir : proposer de rappeler les autres sur Terre.
   if (etat.voyage.proposerRappel && !Infos.estOuverte()) Orbiteur.proposerRappel();
   // Plus personne à bord : l'orbiteur rentre seul (on l'annonce, puis le pilote auto le ramène).
