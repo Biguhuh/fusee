@@ -121,7 +121,11 @@ class Exploration {
     this.accRover = Math.min(1.5, 0.5 * g + 0.001);
     const kMoteur = 1 + 0.25 * niveauAmelio('moteurRover');
     this.accRover *= kMoteur;
-    this.vMoteurRover = Math.min(10, 2 * this.vMaxRover) * kMoteur;     // débridé : ce que le moteur peut donner
+    this.vMoteurRover = Math.min(10, 2 * this.vMaxRover) * kMoteur;
+    // Dégâts de l'astromobile (0 à 100), gardés d'une sortie à l'autre (et dans la campagne).
+    const vR = etat.enVoyage && etat.voyage;
+    this.degatsRover = vol.degatsRover ?? (vR ? vR.degatsRover : null) ?? 0;
+    this.appliquerDegatsRover();     // débridé : ce que le moteur peut donner
     this.roverBride = true;                                     // accélérateur bridé par la gravité locale
     this.warp = 1;
     // Robot : ses analyses attendent dans sa mémoire jusqu'au retour à sa base (module robot ou fusée).
@@ -247,6 +251,29 @@ class Exploration {
     }
     if (Math.abs(p.vx) < this.vMaxRover) this.alerteVitesseRover = false;
   }
+  // L'astromobile percute une paroi : elle s'abîme, et ses passagers sont secoués. Le conducteur se retient au
+  // volant ; le passager, lui, n'a rien pour se retenir : il encaisse davantage. Sous 1,5 m/s, rien.
+  chocRover(v) {
+    const avant = this.degatsRover;
+    this.degatsRover = Math.min(100, this.degatsRover + (v - 1) * (v - 1) * 4);
+    this.appliquerDegatsRover();
+    this.poussiere(10);
+    const d = this.duo && this.duo.enRover ? this.duo : null;
+    const choc = `Choc à ${fmtV(v)} contre la paroi`;
+    this.integrite -= Math.max(0, (v - 2) * 5);                     // combinaisons cognées
+    if (d) d.integrite -= Math.max(0, (v - 2) * 6);
+    this.dire(`💥 ${choc} : astromobile abîmée (${fmt(avant)} % → ${fmt(this.degatsRover)} %${this.degatsRover >= 100 ? ', hors d’usage' : ''}).`);
+    this.blesser(this, v * 1.2, `${choc}, au volant`);
+    if (d) this.blesser(d, v * 1.4, `${choc}, sur le siège passager`);
+    if (this.degatsRover >= 100) this.dire('🛠 L’astromobile est hors d’usage : descendez (V) et rentrez à pied. On la réparera à bord.');
+  }
+  // Abîmée, l'astromobile roule moins vite (jusqu'à moitié) ; hors d'usage, elle ne roule plus.
+  appliquerDegatsRover() {
+    if (this.vMaxRoverSain === undefined) { this.vMaxRoverSain = this.vMaxRover; this.vMoteurRoverSain = this.vMoteurRover; }
+    const k = this.degatsRover >= 100 ? 0 : 1 - 0.5 * this.degatsRover / 100;
+    this.vMaxRover = this.vMaxRoverSain * k;
+    this.vMoteurRover = this.vMoteurRoverSain * k;
+  }
   basculerBridage() {
     if (!this.enRover) return this.dire('Bridage de l’accélérateur (B) : montez d’abord dans l’astromobile (V).');
     this.roverBride = !this.roverBride;
@@ -255,6 +282,7 @@ class Exploration {
   }
   // Retombée après un bond : trop vite, l'astromobile capote (dégâts, batterie abîmée, combinaison secouée).
   receptionRover() {
+    if (!this.vMaxRover) return;
     const p = this.p, r = Math.abs(p.vx) / this.vMaxRover;
     if (r < 1.3 || Math.random() > Math.min(1, (r - 1.3) / 0.5)) return;
     p.vx = 0;
@@ -401,6 +429,7 @@ class Exploration {
       const pente = Math.atan2(this.sol(p.x + 0.5 * Math.sign(p.vx || 1)) - this.sol(p.x), 0.5);
       this.enEscalade = false;
       if (pente * 180 / Math.PI > penteMax && Math.abs(p.vx) > 0 && !this.delorean) {
+        if (this.enRover && Math.abs(p.vx) > 1.5) this.chocRover(Math.abs(p.vx));
         p.vx = 0;
         // Escalade : à pied, ↑ contre la paroi fait grimper.
         if (this.type === 'spationaute' && !this.enRover && !this.terreSansParoi() && veut) {
@@ -431,12 +460,12 @@ class Exploration {
         if (this.traces.length > 600) this.traces.shift();
         if (this.enRover && Math.random() < 0.3) this.poussiere(1);
       }
-      if (this.enRover) { this.rover.x = p.x; if (Math.abs(p.vx) > 0.05) this.batterieRover = Math.max(0, this.batterieRover - dt); }
+      if (this.enRover) { this.rover.x = p.x; if (Math.abs(p.vx) > 0.05) this.batterieRover = Math.max(0, this.batterieRover - dt * (1 + this.degatsRover / 100)); }   // abîmée, elle consomme plus
     } else {
       p.vy -= g * dt;
       // En l'air, on ne traverse pas une paroi : on s'y cogne (pour monter, il faut l'escalader).
       const nxAir = p.x + p.vx * dt;
-      if (this.sol(nxAir) > p.y + 0.3 && this.sol(nxAir) > this.sol(p.x) + 0.3) p.vx = 0;
+      if (this.sol(nxAir) > p.y + 0.3 && this.sol(nxAir) > this.sol(p.x) + 0.3) { if (this.enRover && Math.abs(p.vx) > 1.5) this.chocRover(Math.abs(p.vx)); p.vx = 0; }
       else p.x = nxAir;
       p.y += p.vy * dt;
       this.yHautAir = Math.max(this.yHautAir ?? p.y, p.y);
@@ -617,6 +646,11 @@ class Exploration {
 
   terminer(issue, texte) {
     if (this.duo && !this.fin) this.finDuo(issue);
+    if (this.rover && !this.essai) {
+      this.vol.degatsRover = this.degatsRover;
+      const vR = etat.enVoyage && etat.voyage;
+      if (vR && this.degatsRover > (vR.degatsRover || 0)) { vR.degatsRover = this.degatsRover; vR.tRepRover = vR.t; }
+    }
     if (this.type === 'spationaute' && !this.essai) {
       this.vol.blessure = this.blessure || null;   // la blessure reste après la sortie
       const v = etat.enVoyage && etat.voyage;
@@ -627,19 +661,24 @@ class Exploration {
 
   // Réception d'un saut ou d'une chute, à pied : au-delà d'une vitesse d'impact, on se blesse.
   receptionCorps(vImpact, h) {
-    if (this.type !== 'spationaute' || this.enRover || vImpact < IMPACT_BENIGNE) return;
+    if (this.type !== 'spationaute' || this.enRover) return;
+    this.blesser(this, vImpact, `Chute de ${fmt(h, 1)} m, impact à ${fmtV(vImpact)}`);
+  }
+  // Blessure d'une personne : celle qu'on pilote (this), ou l'autre spationaute (this.duo).
+  // Bénigne dès IMPACT_BENIGNE, grave dès IMPACT_GRAVE ; on garde la plus grave.
+  blesser(qui, vImpact, contexte) {
+    if (vImpact < IMPACT_BENIGNE) return;
     const grave = vImpact >= IMPACT_GRAVE;
     const parties = grave ? ['fracture de la jambe', 'fracture du poignet', 'côtes fêlées'] : ['entorse de la cheville', 'genou contusionné', 'poignet foulé'];
     const partie = parties[Math.floor(Math.random() * parties.length)];
-    const chute = `Chute de ${fmt(h, 1)} m, impact à ${fmtV(vImpact)}`;
-    if (this.essai) return this.dire(`🩹 ${chute} : en mission, ${grave ? 'blessure grave' : 'blessure bénigne'} (${partie}). À l’entraînement, plus de peur que de mal.`);
-    // On garde la plus grave des blessures.
-    const pire = !this.blessure || (grave && this.blessure.gravite !== 'grave');
-    if (pire) this.blessure = { gravite: grave ? 'grave' : 'benigne', partie, t: this.vol.t };
-    this.appliquerBlessure();
-    if (pire && grave && etat.enVoyage && etat.voyage) setTimeout(() => this.choixBlessureGrave(), 600);
-    this.dire(grave ? `🚑 ${chute} : ${this.def.nom} est grièvement blessé${this.equipier().acc} (${partie}).`
-      : `🩹 ${chute} : ${this.def.nom} est blessé${this.equipier().acc} (${partie}), sans gravité.`);
+    const eq = qui === this ? this.equipier() : qui.eq;
+    if (this.essai) return this.dire(`🩹 ${contexte} : en mission, ${grave ? 'blessure grave' : 'blessure bénigne'} pour ${eq.nom} (${partie}). À l’entraînement, plus de peur que de mal.`);
+    const pire = !qui.blessure || (grave && qui.blessure.gravite !== 'grave');
+    if (pire) qui.blessure = { gravite: grave ? 'grave' : 'benigne', partie, t: this.vol.t };
+    if (qui === this) this.appliquerBlessure();
+    if (pire && grave && etat.enVoyage && etat.voyage) { const b = qui.blessure; setTimeout(() => this.choixBlessureGrave(b, eq), 600); }
+    this.dire(grave ? `🚑 ${contexte} : ${eq.nom} est grièvement blessé${eq.acc} (${partie}).`
+      : `🩹 ${contexte} : ${eq.nom} est blessé${eq.acc} (${partie}), sans gravité.`);
   }
   // La combinaison passe à un état plus abîmé : on prévient, une fois par état.
   surveillerCombi() {
@@ -674,15 +713,15 @@ class Exploration {
     this.saut = g === 'grave' ? 0 : this.sautSain * (g === 'benigne' ? 0.5 : 1);
   }
   // Blessure grave (campagne) : le choix tout de suite, appliqué au retour à l'orbiteur.
-  choixBlessureGrave() {
-    const b = this.blessure, nom = this.def.nom, m = $('modale');
+  choixBlessureGrave(b = this.blessure, eq = this.equipier()) {
+    const nom = eq.nom, m = $('modale');
     if (!b || b.choix || this.fin) return;
     const avant = etat.pause;
     etat.pause = true;
-    m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>🚑 ${majuscule(nom)} est grièvement blessé${this.equipier().acc}</h2>
+    m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>🚑 ${majuscule(nom)} est grièvement blessé${eq.acc}</h2>
       <p>${majuscule(b.partie)}. Le vaisseau n’a pas de quoi soigner une blessure aussi grave. Il faut d’abord ramener ${nom} à l’atterrisseur, puis à l’orbiteur.</p>
       <p>Là, deux possibilités :</p></div></header>
-      <div class="sections"><section><label class="choix-ravito"><input type="radio" name="bl-choix" value="rapatrier" checked> <b>Rapatrier ${nom} par capsule</b><br><span class="doux">${majuscule(nom)} rentre seul${this.equipier().acc} sur Terre. La mission continue sans ${this.equipier().principal ? 'vous' : nom}, en mode dégradé comme après une perte : il manque des compétences, les manœuvres risquent d’être ratées.</span></label>
+      <div class="sections"><section><label class="choix-ravito"><input type="radio" name="bl-choix" value="rapatrier" checked> <b>Rapatrier ${nom} par capsule</b><br><span class="doux">${majuscule(nom)} rentre seul${eq.acc} sur Terre. La mission continue sans ${eq.principal ? 'vous' : nom}, en mode dégradé comme après une perte : il manque des compétences, les manœuvres risquent d’être ratées.</span></label>
       <label class="choix-ravito"><input type="radio" name="bl-choix" value="rentrer"> <b>Tout le monde rentre</b><br><span class="doux">Le pilote auto ramène l’orbiteur vers la Terre, puis la capsule ramène toute l’équipe.</span></label></section></div>
       <div class="actions"><span></span><button id="bl-ok" class="principal">Décider</button></div></div>`;
     m.classList.remove('cache');
@@ -690,7 +729,7 @@ class Exploration {
       b.choix = m.querySelector('input[name=bl-choix]:checked').value;
       Infos.fermer();
       etat.pause = avant;
-      this.dire(b.choix === 'rentrer' ? '🏠 Décidé : toute l’expédition rentrera sur Terre. Ramenez d’abord le blessé au module.' : `🚑 Décidé : ${nom} sera rapatrié${this.equipier().acc} par capsule. Ramenez-${this.equipier().principal ? 'vous' : 'le'} d’abord au module.`);
+      this.dire(b.choix === 'rentrer' ? '🏠 Décidé : toute l’expédition rentrera sur Terre. Ramenez d’abord le blessé au module.' : `🚑 Décidé : ${nom} sera rapatrié${eq.acc} par capsule. Ramenez-${eq.principal ? 'vous' : 'le'} d’abord au module.`);
     };
   }
   texteBlessure(b = this.blessure) { return b ? `${b.gravite === 'grave' ? 'blessure grave' : 'blessure bénigne'} (${b.partie})` : 'en forme'; }
@@ -1133,7 +1172,7 @@ class Exploration {
     // Rover garé
     if (this.rover && !this.enRover) {
       const [rx, ry] = versEcran(this.rover.x, this.sol(this.rover.x));
-      dessinerRover(ctx, rx, ry, echelle, { dir: this.rover.dir, pas: this.rover.pas }, false, this.penteSous(this.rover.x));
+      dessinerRover(ctx, rx, ry, echelle, { dir: this.rover.dir, pas: this.rover.pas }, false, this.penteSous(this.rover.x), this.degatsRover);
     }
 
     // Câble de sécurité
@@ -1159,7 +1198,7 @@ class Exploration {
     if (p.auSol) this.inclinaison = this.penteSous(p.x);
     if (this.delorean && this.delorean.phase === 'disparu') { /* quelque part dans le temps */ }
     else if (this.enRover) {
-      dessinerRover(ctx, sx, sy, echelle, p, true, this.inclinaison || 0);
+      dessinerRover(ctx, sx, sy, echelle, p, true, this.inclinaison || 0, this.degatsRover);
       if (this.delorean) texteSurFond(ctx, `${fmt(Math.abs(p.vx) * 2.2369)} mph`, sx, sy - 3.2 * echelle, { police: '700 16px system-ui, sans-serif', couleur: Math.abs(p.vx) > 30 ? '#ff5252' : '#ffca28' });
     }
     else if (this.type === 'spationaute' && this.secours && this.secours.phase === 'decollage') { /* à bord du module de secours */ }
@@ -1277,6 +1316,7 @@ class Exploration {
     if (this.duo) ligne(`👥 ${this.duo.eq.nom}`, `O₂ ${fmtDuree(this.duo.reserve)} · combi. ${fmt(this.duo.integrite)} % · sac ${this.duo.sac.length}/${this.def.capacite}${this.duo.mode === 'attend' ? ' · attend' : this.duo.enRover ? ' · à bord' : ' · suit'}`, this.duo.reserve < 900 ? '#ef5350' : '#b3e5fc');
     if (this.type === 'spationaute' && !this.terre && this.retour && this.retour.dist > 0) ligne('Retour au module', this.retour.bloque ? `bloqué : paroi de ${fmt(this.retour.bloque.hauteur, 1)} m` : `≈ ${fmtDuree(this.retour.temps)}${this.retour.enRover ? ' (astromobile)' : ''}`, this.retour.bloque || this.reserve < this.retour.temps * 1.3 ? '#ef5350' : '#fff');
     if (this.rover) ligne('Batterie astromobile', fmtDuree(this.batterieRover), this.batterieRover < 30 * 60 ? '#ef5350' : '#66bb6a');
+    if (this.rover && this.degatsRover > 0) ligne('État astromobile', this.degatsRover >= 100 ? 'hors d’usage' : `abîmée à ${fmt(this.degatsRover)} %, vitesse ×${fmt(1 - 0.5 * this.degatsRover / 100, 2)}`, this.degatsRover >= 50 ? '#ef5350' : '#ffca28');
     if (this.secours) ligne('🆘 Secours', this.texteSecours(), '#ffca28');
     }
 
@@ -1383,7 +1423,7 @@ function dessinerNuages(ctx, W, H, decalage) {
 
 // Rover lunaire (inspiré du rover d'Apollo), avec le spationaute assis s'il est à bord.
 // inclinaison : angle de la pente (rad, positif quand le sol monte vers la droite) ; le véhicule reste parallèle au sol.
-function dessinerRover(ctx, x, y, s, p, aBord, inclinaison = 0) {
+function dessinerRover(ctx, x, y, s, p, aBord, inclinaison = 0, degats = 0) {
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(-inclinaison);
@@ -1398,12 +1438,26 @@ function dessinerRover(ctx, x, y, s, p, aBord, inclinaison = 0) {
   }
   // Châssis, garde-boue, sièges, antenne parabolique
   ctx.fillStyle = '#cfd8dc'; ctx.fillRect(-1.5 * s, -0.95 * s, 3 * s, 0.25 * s);
-  ctx.fillStyle = '#ffb300'; ctx.fillRect(-1.5 * s, -0.95 * s, 0.6 * s, 0.12 * s); ctx.fillRect(0.9 * s, -0.95 * s, 0.6 * s, 0.12 * s);
+  // Garde-boue : l'avant est arraché après un gros choc.
+  ctx.fillStyle = '#ffb300'; ctx.fillRect(-1.5 * s, -0.95 * s, 0.6 * s, 0.12 * s); if (degats < 50) ctx.fillRect(0.9 * s, -0.95 * s, 0.6 * s, 0.12 * s);
   ctx.fillStyle = '#90a4ae'; ctx.fillRect(-0.6 * s, -1.4 * s, 0.15 * s, 0.45 * s); ctx.fillRect(0.2 * s, -1.4 * s, 0.15 * s, 0.45 * s);
   ctx.fillStyle = '#795548'; ctx.fillRect(-1.4 * s, -1.25 * s, 0.6 * s, 0.3 * s); // caisse à échantillons
+  // Antenne : tordue vers l'arrière quand l'engin est abîmé.
+  const tord = Math.min(1, degats / 40) * 0.5 * s;
   ctx.strokeStyle = '#b0bec5'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(1.2 * s, -0.95 * s); ctx.lineTo(1.2 * s, -1.9 * s); ctx.stroke();
-  ctx.fillStyle = '#eceff1'; ctx.beginPath(); ctx.arc(1.2 * s, -2 * s, 0.3 * s, Math.PI * 0.9, Math.PI * 2.1); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(1.2 * s, -0.95 * s); ctx.lineTo(1.2 * s - tord, -1.9 * s + tord * 0.3); ctx.stroke();
+  ctx.fillStyle = '#eceff1'; ctx.beginPath(); ctx.arc(1.2 * s - tord, -2 * s + tord * 0.3, 0.3 * s, Math.PI * 0.9 + tord / s, Math.PI * 2.1 + tord / s); ctx.fill();
+  // Châssis cabossé : fissures noires ; hors d'usage, il fume.
+  if (degats >= 20) {
+    ctx.strokeStyle = '#263238'; ctx.lineWidth = Math.max(1, 0.05 * s);
+    ctx.beginPath(); ctx.moveTo(1.3 * s, -0.95 * s); ctx.lineTo(1.05 * s, -0.8 * s); ctx.lineTo(1.2 * s, -0.72 * s);
+    if (degats >= 50) { ctx.moveTo(-0.2 * s, -0.95 * s); ctx.lineTo(0.05 * s, -0.78 * s); }
+    ctx.stroke();
+  }
+  if (degats >= 100) {
+    const t = performance.now() / 1000;
+    for (let k = 0; k < 3; k++) { const ph = (t * 0.6 + k / 3) % 1; ctx.fillStyle = `rgba(120,120,120,${0.5 * (1 - ph)})`; ctx.beginPath(); ctx.arc(1 * s + ph * 0.4 * s, -1.1 * s - ph * 1.6 * s, (0.15 + ph * 0.35) * s, 0, Math.PI * 2); ctx.fill(); }
+  }
   ctx.restore();
 }
 

@@ -189,6 +189,13 @@ function lancerMission(v, membreId, a, jours, log) {
 // Missions terminées : retour à bord avec les échantillons, ou perte si la dose a été mortelle.
 function mettreAJourEquipe(v, log) {
   mettreAJourRobotsAuto(v, log);
+  // L'astromobile abîmée se répare à bord, 25 % par jour de mission.
+  if (v.degatsRover > 0) {
+    const dt = Math.max(0, v.t - (v.tRepRover ?? v.t));
+    v.degatsRover = Math.max(0, v.degatsRover - (25 * dt) / JOUR);
+    v.tRepRover = v.t;
+    if (v.degatsRover === 0) log('🛠 Astromobile réparée à bord : de nouveau en état de rouler.');
+  }
   for (const m of v.equipe || []) {
     const b = m.blessure;
     if (b && b.fin && v.t >= b.fin && m.etat !== 'perdu') {
