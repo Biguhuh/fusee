@@ -953,14 +953,20 @@ class Exploration {
     const g = Math.max(1e-6, this.c.g);
     const hSaut = enRover ? 0 : (this.saut * this.saut) / (2 * g);
     const pas = dist > 4000 ? 1 : 0.5;
-    let montee = 0, bloque = null;
+    // Une paroi trop haute pour un saut bloque ; on continue jusqu'au rebord pour annoncer toute sa hauteur,
+    // et sa distance depuis le pied.
+    let montee = 0, pied = 0, bloque = null;
     for (let s = 0; s < dist; s += pas) {
       const xa = x0 + sens * s;
       const dh = this.sol(xa + sens * pas) - this.sol(xa);
       if (Math.atan2(dh, pas) > penteMax) {
+        if (!montee) pied = s;
         montee += dh;
-        if (montee > hSaut * 0.9 + 0.05) { bloque = { distance: s, hauteur: montee }; break; }
-      } else montee = 0;
+        if (montee > hSaut * 0.9 + 0.05) bloque = { distance: pied, hauteur: montee };
+      } else {
+        if (bloque) break;
+        montee = 0;
+      }
     }
     const v = enRover ? this.vMaxRover : this.vMax;
     return { dist, temps: (dist / Math.max(0.01, v)) * 1.25 + 30, bloque, enRover };
