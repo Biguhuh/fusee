@@ -14,7 +14,7 @@ En ligne : https://biguhuh.github.io/fusee/ (GitHub Pages, branche `main`). Dép
 
 - Langage : JavaScript sans framework ni build, canvas 2D, HTML et CSS. Pas de npm, pas de modules : tous les fichiers de `js/` sont des scripts classiques chargés dans l'ordre par `index.html`, et partagent la portée globale.
 - Lancer le jeu : `python3 -m http.server 8765` à la racine (dans WSL, en arrière-plan), puis http://localhost:8765/. Ouvrir `index.html` directement marche aussi.
-- Lancer les tests : il n'y a pas de tests automatiques. On teste dans le navigateur intégré, en appelant les fonctions du jeu depuis la console (voir « Pièges » dans `ETAT.md`).
+- Lancer les tests : il n'y a pas de tests automatiques. On teste dans le navigateur intégré, en appelant les fonctions du jeu depuis la console (voir « Pièges » dans `ETAT.md`). Pendant un test, remplacer `window.sauver` par une fonction vide pour ne pas toucher la sauvegarde d'Edouard, puis recharger la page.
 - Typographie française : `python3 -I outils/typo.py .` (ajoute `--sec` pour voir sans écrire). À lancer avant chaque commit qui touche du texte.
 - Pas de `node` dans WSL : une erreur de syntaxe se voit au chargement de la page (console du navigateur).
 
@@ -34,7 +34,8 @@ En ligne : https://biguhuh.github.io/fusee/ (GitHub Pages, branche `main`). Dép
 - Petites modifications ciblées, pas de refonte sans demande.
 - Avant de modifier un gros fichier, dis ce que tu comptes changer.
 - Une branche par demande. Commit puis push de la branche ; test dans le navigateur intégré.
-- On ne fusionne dans `main` (et donc on ne publie) que quand Edouard dit « fusionne » (ou « fusionne et push »).
+- On ne fusionne dans `main` (et donc on ne publie) que quand Edouard dit « fusionne » (ou « fusionne et push »). Ordre : commit, push de la branche, puis fusion dans `main` et push de `main`.
+- Cartes de travail (« carte jeu fusée N ») : un point à la fois, dans l'ordre ; après chaque point, résumer ce qui a changé et comment tester, puis attendre la validation. Si un point est ambigu, poser la question au lieu de deviner. Les branches d'une carte s'enchaînent (`carte5-pointN` part de la précédente).
 - Avant chaque test dans le navigateur, monte la version : `sed -i 's/?v=N/?v=N+1/g' index.html`.
 - Textes du jeu : français soigné, accords (genre du ou de la spationaute via `acc()`), articles devant les astres via `francais.js` (`le()`, `sur()`, `de()`…).
 - Commentaires de code en français, courts.
