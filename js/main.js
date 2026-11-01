@@ -254,7 +254,11 @@ function lancer(options = {}) {
   if (AEROSTAT[astre.id] && !options.fournisseurLanceur) options = { ...options, fournisseurLanceur: fournisseurLanceurRetour(astre.id) };
   etat.vol = new Vol(astre, options.fusee || equiperAerostat(assemblerFusee(etat.equipement), astre), options);
   // Campagne : qui pilote cette descente (votre spationaute, ou un survivant s'il est mort).
-  if (options.voyage && etat.voyage) { etat.vol.equipier = equipierDescente(etat.voyage); ameliorerAtterrisseur(etat.vol); }
+  if (options.voyage && etat.voyage) {
+    etat.vol.equipier = options.equipier || equipierDescente(etat.voyage);   // choisi avant la descente
+    etat.vol.passagers = options.passagers || null;
+    ameliorerAtterrisseur(etat.vol);
+  }
   etat.enVoyage = !!options.voyage;
   etat.warp = 1;
   etat.pause = false;
@@ -380,6 +384,14 @@ function finVol(r) {
       v.atterrisseurs = Math.max(0, v.atterrisseurs - 1);
       if (!etat.vol.robotSeul) {                           // l'équipage était à bord de l'atterrisseur
         perdrePilote(v, a, causeVol(r.cause), etat.vol.equipier);
+        // Ceux qui étaient descendus avec le pilote restent avec lui.
+        for (const id of etat.vol.passagers || []) {
+          const m = v.equipe.find((x) => x.id === id);
+          if (!m || m.etat !== 'bord') continue;
+          if (m.principal) v.equipagePerdu = true; else m.etat = 'perdu';
+          noterPerte(v, m.principal ? nomSpatio() : m.nom, a, causeVol(r.cause));
+        }
+        verifierEquipageEntierPerdu(v);
       }
       Orbiteur.log(`Atterrisseur perdu ${sur(r.astre)}${etat.vol.echantillons ? ' avec ses échantillons' : ''}. Il en reste ${v.atterrisseurs}.`);
     }
@@ -505,7 +517,7 @@ function fournisseurLanceurRetour(astreId) {
   };
 }
 
-function descendre(id, site) {
+function descendre(id, site, compo) {
   const v = etat.voyage, a = ASTRES_PAR_ID[id];
   const c = concevoirAtterrisseur(a);
   if (!c.ok) return Orbiteur.log(c.raison);
@@ -534,7 +546,7 @@ function descendre(id, site) {
     carb = dispo * 0.6;
     Orbiteur.log(`😰 Fausse manœuvre au départ de la descente ${sur(a)} : l’équipage traumatisé a gaspillé 40 % des ergols de l’atterrisseur.`);
   }
-  lancer({ voyage: true, fusee: c.fusee, carburant: carb, bases: basesSur(id), site: site || siteDescente(id) });
+  lancer({ voyage: true, fusee: c.fusee, carburant: carb, bases: basesSur(id), site: site || siteDescente(id), ...(compo || {}) });
 }
 
 // Dangers d'une sortie (spationaute ou robot) là où l'on est posé : pression, chaleur, rayonnement.
@@ -994,7 +1006,7 @@ Orbiteur.contexte = {
   estEnPause: () => etat.pause,
   basculerPause: () => { etat.pause = !etat.pause; },
   hangar: () => { sauver(etat); allerAccueil(); },
-  descendre: (id, site) => descendre(id, site),
+  descendre: (id, site, compo) => descendre(id, site, compo),
   larguerRobot: (id, blindage, site) => larguerRobot(id, blindage, site),
   larguerDrone: (id, site) => larguerDrone(id, site),
   rentrer: () => rentrerSurTerre(),

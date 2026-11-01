@@ -17,6 +17,11 @@ function secondEquipier(vol) {
   if (vol.robotSeul || vol.droneSeul) return null;
   if (v) {
     if (!v.equipe) return null;
+    // Descente composée par le joueur : le premier passager encore en vie sort avec le pilote ; sinon personne.
+    if (vol.passagers) {
+      const m = vol.passagers.map((id) => v.equipe.find((x) => x.id === id)).find((x) => x && x.etat === 'bord' && !(x.principal && v.equipagePerdu));
+      return m ? equipierDeMembre(m) : null;
+    }
     const pil = vol.equipier || equipierDescente(v);
     const m = v.equipe.find((x) => x.etat === 'bord' && (pil.principal ? !x.principal : x.id !== pil.id) && !(x.principal && v.equipagePerdu));
     if (!m) return null;

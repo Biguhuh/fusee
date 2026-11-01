@@ -2350,7 +2350,9 @@ const Orbiteur = {
     bind('nav-avancer', () => { this.avance = !this.avance; this.majHud(true); });
     bind('nav-executer', () => { this.executerEtape(); this.majHud(true); });
     bind('nav-auto', () => { this.auto = !this.auto; this.majHud(true); });
-    bind('nav-descendre', () => ouvrirChoixLieu(ASTRES_PAR_ID[o.centre], v, (site) => this.contexte.descendre(o.centre, site)));
+    bind('nav-descendre', () => ouvrirChoixLieu(ASTRES_PAR_ID[o.centre], v, (site) => (v.equipe
+      ? ouvrirChoixEquipage(v, ASTRES_PAR_ID[o.centre], (compo) => this.contexte.descendre(o.centre, site, compo))
+      : this.contexte.descendre(o.centre, site))));
     bind('nav-robot', () => ouvrirChoixLieu(ASTRES_PAR_ID[o.centre], v, (site) => this.ouvrirLargageRobot(o.centre, site), 'Larguer le robot'));
     bind('nav-rentrer', () => this.contexte.rentrer());
     bind('nav-capsule-ech', () => this.contexte.renvoyerEchantillons());

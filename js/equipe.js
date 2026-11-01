@@ -59,6 +59,68 @@ function verifierEquipageEntierPerdu(v) {
   if (!v.retourAuto) v.retourAuto = 'a_annoncer';
 }
 
+// ---------- Qui descend ? ----------
+// Le module de descente a 2 places (3 avec le module d'habitation de la R&D). Quelqu'un reste toujours en orbite,
+// à bord de l'orbiteur. Un blessé grave ne descend pas. Le pilote est votre spationaute s'il descend, sinon le premier choisi.
+function placesModule(v) { return 2 + (niveauAmelio('habitat', v) > 0 ? 1 : 0); }
+function equipierDeMembre(m) {
+  if (m.principal) return { nom: nomSpatio(), profil: SPATIO, acc: acc(), principal: true };
+  const profil = m.profil || PROFIL_DEFAUT;
+  return { nom: m.nom, profil, acc: (GENRES[profil.genre] || GENRES.aucun).accord, principal: false, id: m.id };
+}
+function aBordOrbiteur(v) { return (v.equipe || []).filter((m) => m.etat === 'bord' && !(m.principal && v.equipagePerdu)); }
+// Composition proposée : votre spationaute (ou le pilote) et un coéquipier en forme, en laissant quelqu'un en orbite.
+function compositionProposee(v) {
+  const dispo = aBordOrbiteur(v).filter((m) => !(m.blessure && m.blessure.gravite === 'grave'));
+  const pil = pilote(v);
+  const ordre = [...dispo.filter((m) => m === pil), ...dispo.filter((m) => m !== pil && !m.blessure), ...dispo.filter((m) => m !== pil && m.blessure)];
+  return ordre.slice(0, Math.min(2, aBordOrbiteur(v).length - 1)).map((m) => m.id);
+}
+// Ce qui ne va pas dans une composition ('' si elle est possible).
+function erreurComposition(v, ids) {
+  const bord = aBordOrbiteur(v), places = placesModule(v);
+  if (!ids.length) return 'Choisissez au moins une personne pour piloter le module.';
+  if (ids.length > places) return `Le module n’a que ${places} places.`;
+  if (ids.length >= bord.length) return 'Quelqu’un doit rester en orbite, à bord de l’orbiteur.';
+  return '';
+}
+function ouvrirChoixEquipage(v, a, suite) {
+  const bord = aBordOrbiteur(v), m = $('modale'), places = placesModule(v);
+  if (bord.length < 2) return Orbiteur.log(`Descente impossible : il ne reste qu’une personne à bord, et quelqu’un doit rester en orbite. Recrutez (station de niveau 4) ou rentrez sur Terre.`);
+  const choisis = new Set(compositionProposee(v));
+  const ligne = (x) => {
+    const grave = x.blessure && x.blessure.gravite === 'grave';
+    const sante = x.blessure ? texteBlessureMembre(x, v) : 'en forme';
+    return `<label class="choix-ravito"><input type="checkbox" name="eq-desc" value="${x.id}" ${choisis.has(x.id) ? 'checked' : ''} ${grave ? 'disabled' : ''}>
+      <b>${x.principal ? `${majuscule(nomSpatio())} (vous)` : x.nom}</b> — ${sante}${x.dose > 0.001 ? ` · dose ${fmtDoseTotale(x.dose)}` : ''}${grave ? ` <span class="doux">(blessé${accordMembre(x)} grave : ne descend pas)</span>` : ''}</label>`;
+  };
+  m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>🧑‍🚀 Qui descend ${sur(a)} ?</h2>
+    <p>Le module a ${places} places${places > 2 ? ' (module d’habitation)' : ''}. Quelqu’un reste toujours en orbite, à bord de l’orbiteur. Le pilote est votre spationaute s’il descend, sinon le premier coché ; le second sort avec lui.</p></div><button class="fermer">✕</button></header>
+    <section>${bord.map(ligne).join('')}</section>
+    <p id="eq-erreur" class="encart-refus cache"></p>
+    <div class="actions"><span id="eq-orbite" class="doux"></span><button id="eq-ok" class="principal">⬇ Descendre</button></div></div>`;
+  m.classList.remove('cache');
+  m.querySelector('.fermer').onclick = () => Infos.fermer();
+  const lire = () => [...m.querySelectorAll('input[name=eq-desc]:checked')].map((i) => i.value);
+  const maj = () => {
+    const ids = lire(), err = erreurComposition(v, ids);
+    $('eq-erreur').textContent = err; $('eq-erreur').classList.toggle('cache', !err);
+    $('eq-ok').disabled = !!err;
+    const restent = bord.filter((x) => !ids.includes(x.id)).map((x) => (x.principal ? majuscule(nomSpatio()) : x.nom));
+    $('eq-orbite').textContent = restent.length ? `En orbite : ${restent.join(', ')}.` : '';
+  };
+  m.querySelectorAll('input[name=eq-desc]').forEach((i) => { i.onchange = maj; });
+  maj();
+  $('eq-ok').onclick = () => {
+    const ids = lire();
+    if (erreurComposition(v, ids)) return;
+    const membres = ids.map((id) => v.equipe.find((x) => x.id === id));
+    const pil = membres.find((x) => x.principal) || membres[0];
+    Infos.fermer();
+    suite({ equipier: equipierDeMembre(pil), passagers: membres.filter((x) => x !== pil).map((x) => x.id) });
+  };
+}
+
 // ---------- Blessures et soins ----------
 // Une blessure bénigne se soigne à bord, en quelques jours de mission. Une blessure grave ne se soigne pas
 // dans le vaisseau : rapatriement du blessé par capsule (la mission continue, en mode dégradé), ou retour de tous.

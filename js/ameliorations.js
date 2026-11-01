@@ -6,7 +6,7 @@
 const AMELIORATIONS = {
   coqueThermique: { groupe: '🚀 Vaisseau', nom: 'Bouclier thermique renforcé', effet: (n) => `atterrisseurs : +${25 * n} % de température supportée` },
   blindageBord: { groupe: '🚀 Vaisseau', nom: 'Blindage anti-rayonnement', effet: (n) => `rayonnement à bord des atterrisseurs divisé par ${1 + n}` },
-  habitat: { groupe: '🚀 Vaisseau', nom: 'Module d’habitation', effet: (n) => `+${2 * n} places pour l’équipe` },
+  habitat: { groupe: '🚀 Vaisseau', nom: 'Module d’habitation', effet: (n) => `+${2 * n} places pour l’équipe, et une 3ᵉ place dans le module de descente` },
   reservoirs: { groupe: '🚀 Vaisseau', nom: 'Réservoirs agrandis', effet: (n) => `+${25 * n} % de carburant et d’ergols (autonomie)` },
   soutes: { groupe: '🚀 Vaisseau', nom: 'Soutes agrandies', effet: (n) => `+${2 * n} sondes, +${n} robot, drone, atterrisseur et kit de station` },
   batterieRover: { groupe: '🚙 Astromobile', nom: 'Batteries de l’astromobile', effet: (n) => `+${50 * n} % d’autonomie` },
