@@ -937,6 +937,7 @@ const Orbiteur = {
   mettreAJourLogistique() {
     const v = this.v;
     if (v.equipe) mettreAJourEquipe(v, (t) => this.log(t));
+    mettreAJourDechets(v, (t) => this.log(t), (st) => this.estAmarre(st));
     if (v.sondesInterstellaires && v.sondesInterstellaires.length) mettreAJourSondesInterstellaires(v, (t) => this.log(t));
     this.arriveesEchantillons();
     for (const s of v.stations) {
@@ -1200,6 +1201,18 @@ const Orbiteur = {
     }
     st.stock[cle] = (st.stock[cle] || 0) + 1;
     this.log(`Atelier ${de(st)} : ${r.nom.toLowerCase()} fabriqué${r.fem ? 'e' : ''} avec ${cout}.`);
+  },
+
+  // Vidange des déchets à la station où l'on est amarré : le transfert prend du temps (100 kg par heure, 30 min
+  // au moins). La station ne prend que ce qu'elle a la place de garder.
+  vidanger() {
+    const v = this.v, st = this.stationIci();
+    if (!st || !this.estAmarre(st)) return this.log('Vidange : il faut être amarré à une station.');
+    if (v.vidange) return this.log('Vidange déjà en cours.');
+    const dv = devisVidange(v, st);
+    if (dv.kg < 1) return this.log(`${Le(st)} ne peut plus prendre de déchets : elle en élimine ${fmtKg(ELIMINATION_STATION * niveauStation(st).stock)} par jour.`);
+    v.vidange = { st: st.id, kg: dv.kg, fin: v.t + dv.duree };
+    this.log(`🗑 Vidange ${au(st)} : ${fmtKg(dv.kg)} de déchets${dv.kg < v.dechets - 0.5 ? ` (la station n’a de place que pour ça, sur ${fmtKg(v.dechets)})` : ''}, terminée dans ${fmtDuree(dv.duree)}. Restez amarré.`);
   },
 
   // R&D : l'atelier met au point le niveau suivant d'une amélioration (matériaux du stock, quelques jours).
@@ -2271,6 +2284,12 @@ const Orbiteur = {
       else {
         d += `<button disabled title="L’orbiteur est déjà amarré">⚓ Amarré ${au(st)}</button>`;
         if (this.stockAPrendre(st)) d += `<button id="nav-amarrer" class="principal">⛽ Faire le plein (carburant, ergols, matériel)</button>`;
+        if (v.vidange && v.vidange.st === st.id) d += `<p class="doux">🗑 Vidange en cours : ${fmtKg(v.vidange.kg)}, terminée dans ${fmtDuree(Math.max(0, v.vidange.fin - v.t))}. Restez amarré.</p>`;
+        else if ((v.dechets || 0) >= 1) {
+          const dv = devisVidange(v, st);
+          d += dv.kg >= 1 ? `<button id="nav-vidange">🗑 Vidanger les déchets (${fmtKg(dv.kg)}${dv.kg < v.dechets - 0.5 ? ` sur ${fmtKg(v.dechets)}` : ''}, ≈ ${fmtDuree(dv.duree)})</button>`
+            : `<button disabled title="La station élimine ${fmtKg(ELIMINATION_STATION * niveauStation(st).stock)} par jour">🗑 Station pleine de déchets : vidange impossible pour l’instant</button>`;
+        }
       }
     }
     // Une seule station et une seule sonde par astre : bouton grisé avec la raison.
@@ -2307,10 +2326,12 @@ const Orbiteur = {
           ['propulseurs', 'Propulseurs solaires', v.propulseurs || 0, 2],
         ];
         d += '<dl>' + lignesOrb.map(([cle, nom, n, max]) => `<dt>${nom}</dt><dd>${fmtStock(cle, n || 0)} <span class="doux">/ ${fmtStock(cle, max)}</span></dd>`).join('') +
-          `<dt>Échantillons à bord</dt><dd>${ech}</dd></dl>`;
+          `<dt>Échantillons à bord</dt><dd>${ech}</dd>` +
+          `<dt>Déchets</dt><dd>${fmtKg(v.dechets || 0)} <span class="doux">/ ${fmtKg(DECHETS_MAX_ORBITEUR)}</span></dd></dl>`;
         d += `<p class="doux">À bord de l’orbiteur, ce qu’il emporte en expédition. ${this.estAmarre(st) ? '« ⛽ Faire le plein » le complète avec le stock de la station.' : 'Amarré à la station, « ⛽ Faire le plein » le complète avec son stock.'}</p>`;
       } else {
-        d += '<dl>' + Object.keys(NOMS_STOCK).map((cle) => `<dt>${NOMS_STOCK[cle]}</dt><dd>${fmtStock(cle, k[cle] || 0)}</dd>`).join('') + '</dl>';
+        d += '<dl>' + Object.keys(NOMS_STOCK).map((cle) => `<dt>${NOMS_STOCK[cle]}</dt><dd>${fmtStock(cle, k[cle] || 0)}</dd>`).join('') +
+          `<dt>Déchets</dt><dd>${fmtKg(st.dechets || 0)} <span class="doux">/ ${fmtKg(capaciteDechetsStation(st))}, −${fmtKg(ELIMINATION_STATION * niveauStation(st).stock)} par jour</span></dd></dl>`;
         d += '<p class="doux">Stock de la station : il reste dans la station tant que l’orbiteur ne vient pas le prendre (amarrage, « ⛽ Faire le plein »).</p>';
         if (ressourcesIllimitees() && st.prochainCargo) d += `<p class="doux">Ravitaillement courant de la Terre dans ${fmtDuree(st.prochainCargo - v.t)}.</p>`;
         d += `<p class="doux"><b>🔧 Atelier : construire</b> avec les matériaux et les ergols du stock (cliquez pour lancer la fabrication) :</p><div class="orientations">` +
@@ -2367,6 +2388,7 @@ const Orbiteur = {
     bind('nav-ressources', () => ouvrirRessources(this.v));
     document.querySelectorAll('[data-onglet-stock]').forEach((bt) => { bt.onclick = () => { this.ongletStock = bt.dataset.ongletStock; this.majHud(true); }; });
     bind('nav-amarrer', () => { this.amarrer(); this.majHud(true); });
+    bind('nav-vidange', () => { this.vidanger(); this.majHud(true); });
     bind('nav-rdv-annuler', () => { this.v.rdvStation = null; this.log('Rendez-vous avec la station annulé (le Δv dépensé ne revient pas).'); this.majHud(true); });
     bind('nav-station', () => { this.construireStation(); this.majHud(true); });
     bind('nav-sonde', () => { this.lancerSonde(v.cible); this.majHud(true); });

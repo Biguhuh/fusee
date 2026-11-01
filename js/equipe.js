@@ -171,7 +171,7 @@ function risqueTrauma(v) {
 }
 function rateParTrauma(v) {
   if (v.cible && estOrigine(v.cible)) return false;   // retour sur Terre : automatisé
-  return Math.random() < risqueTrauma(v);
+  return Math.random() < risqueTrauma(v) + risqueDechets(v);   // soute à déchets pleine : hygiène dégradée
 }
 function causeSortie(texte) {
   if (/pression/.test(texte)) return 'combinaison écrasée par la pression';
