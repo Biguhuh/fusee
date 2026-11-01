@@ -1303,6 +1303,9 @@ addEventListener('keydown', (e) => {
     if (etat.enVoyage && v.droneSeul && !v.fin && !confirm(`Arrêter la mission du drone ? Il reste ${v.pose ? 'posé' : 'là où il est'} ${sur(v.astre)} : on ne le récupère pas.`)) return;
     if (etat.enVoyage && v.pose && !v.robotSeul && !v.droneSeul && !v.lancement && !v.fin
       && !confirm(`Laisser l’atterrisseur et ${(etat.vol.equipier || equipierDescente(null)).nom} ${sur(v.astre)} ? Ils ne reviendront pas.\n\nPour repartir, décollez plutôt (T).`)) return;
+    // Campagne, remontée vers l'orbite après s'être posé : quitter fait perdre l'atterrisseur et son équipage.
+    if (etat.enVoyage && !v.pose && v.dejaPose && !v.robotSeul && !v.droneSeul && !v.lancement && !v.fin
+      && !confirm(`Quitter maintenant condamne ${(etat.vol.equipier || equipierDescente(null)).nom} : l’atterrisseur n’a pas encore rejoint l’orbite, il serait perdu avec son équipage.\n\nConfirmer ? (Annuler : continuer la remontée.)`)) return;
     v.abandonner();
   }
 });

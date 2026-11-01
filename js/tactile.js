@@ -70,7 +70,7 @@ const Tactile = {
       }
       temps('actions');
       b.push({ zone: 'actions', label: etat.pause ? '▶' : '⏸', code: 'KeyP' });
-      b.push({ zone: 'actions', label: '✕', code: 'Escape', confirmer: v.pose ? null : 'Abandonner ce vol ?' });
+      b.push({ zone: 'actions', label: '✕', code: 'Escape', confirmer: v.pose || (etat.enVoyage && v.dejaPose) ? null : 'Abandonner ce vol ?' });   // remontée : main.js demande déjà
     } else if (etat.ecran === 'explo' && etat.explo && !etat.explo.fin) {
       const x = etat.explo;
       b.push({ zone: 'gauche', label: '◀', code: 'ArrowLeft', maintenu: true, titre: 'Gauche' });
