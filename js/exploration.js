@@ -1526,7 +1526,25 @@ class Exploration {
       ctx.textAlign = 'left';
     }
     if (!ECRAN_TACTILE) {
-      texteSurFond(ctx, `←→ / Q D : ${this.type === 'robot' ? 'rouler' : this.enRover ? 'accélérer' : 'marcher'}${this.enRover ? ` · ↓ / S : freiner · B : ${this.roverBride ? 'débrider' : 'brider'}` : ''}${this.saut && !this.enRover ? ' · ↑ / Z / Espace : sauter' : ''}${this.rover ? ` · V : ${this.enRover ? 'descendre de' : 'monter dans'} l’astromobile` : ''} · E : ${this.type === 'robot' ? 'analyser' : 'ramasser'} (ou rentrer près du module) · F : planter le drapeau${this.type === 'spationaute' && !this.terre ? ' · U : appel d’urgence' : ''}${this.duo ? ' · Tab G C K O : à deux' : ''} · Échap : rappeler`, W / 2, H - 12, { police: '12px system-ui' });
+      // Aide clavier : découpée en plusieurs lignes si elle ne tient pas dans la largeur.
+      const robot = this.type === 'robot', aide = [
+        `←→ / Q D : ${robot ? 'rouler' : this.enRover ? 'accélérer' : 'marcher'}`,
+        ...(this.enRover ? ['↓ / S : freiner', `B : ${this.roverBride ? 'débrider' : 'brider'}`] : []),
+        ...(this.saut && !this.enRover ? ['↑ / Z / Espace : sauter'] : []),
+        ...(this.rover ? [`V : ${this.enRover ? 'descendre de' : 'monter dans'} l’astromobile`] : []),
+        `E : ${robot ? 'analyser' : 'ramasser'} (ou rentrer près du module)`,
+        'F : planter le drapeau',
+        ...(this.type === 'spationaute' && !this.terre ? ['U : appel d’urgence'] : []),
+        ...(this.duo ? ['Tab G C K O : à deux'] : []),
+        'Échap : rappeler',
+      ];
+      ctx.font = '12px system-ui';
+      const lignes = [''];
+      for (const m of aide) {
+        const der = lignes[lignes.length - 1], essai = der ? `${der} · ${m}` : m;
+        if (der && ctx.measureText(essai).width > W - 24) lignes.push(m); else lignes[lignes.length - 1] = essai;
+      }
+      lignes.forEach((t, i) => texteSurFond(ctx, t, W / 2, H - 12 - (lignes.length - 1 - i) * 17, { police: '12px system-ui' }));
     }
     ctx.textAlign = 'left';
   }
