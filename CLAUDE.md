@@ -38,6 +38,9 @@ En ligne : https://biguhuh.github.io/fusee/ (GitHub Pages, branche `main`). Dép
 - Avant chaque test dans le navigateur, monte la version : `sed -i 's/?v=N/?v=N+1/g' index.html`.
 - Textes du jeu : français soigné, accords (genre du ou de la spationaute via `acc()`), articles devant les astres via `francais.js` (`le()`, `sur()`, `de()`…).
 - Commentaires de code en français, courts.
+- Dans le code, les commandes et les noms de fichiers, jamais d’espace insécable, uniquement des espaces normales.
+  - Pour les repérer : `grep -nP '\x{00A0}|\x{202F}' fichier`
+  - Pour les remplacer : `sed -i 's/\xC2\xA0/ /g' fichier` (et `sed -i 's/\xE2\x80\xAF/ /g' fichier` pour l’espace fine insécable, que le `grep` repère aussi)
 - Fin des messages de commit : `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 
 ## Fin de session

@@ -5,7 +5,7 @@ apostrophes courbes. Ne touche jamais le code : seulement le texte des littérau
 Usage : python3 typo.py <racine> [--sec]   (--sec : n'écrit rien, affiche les changements)"""
 import re, sys, os
 
-NBSP, FINE = ' ', ' '
+NBSP, FINE = '\u00a0', '\u202f'   # espace insécable, espace fine insécable (écrites en code, jamais en dur)
 TROU = ''   # place d'une interpolation ${…} dans le texte d'un gabarit
 L = r"A-Za-zÀ-ÖØ-öø-ÿœŒæÆ"
 UNITES = r"(?:km/s|km/h|km|m/s²|m/s|mm/s²|mm|cm|m|s|h|min|j|t|kg|kN|MN|°C|K|bar|kPa|Pa|%|UA|Sv|mSv|µSv|g|W|ans|an|années-lumière|année-lumière|jours|jour|mois)"
