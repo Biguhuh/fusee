@@ -219,15 +219,28 @@ class Exploration {
       q.x += sens * (ds / 6) * Math.cos(pente); q.y = this.sol(q.x);
     }
   }
-  // Le grappin vise le rebord : le premier point où la pente redevient praticable, un peu au-delà.
-  lancerGrappin(sens) {
-    const p = this.p;
-    let x = p.x;
+  // Rebord d'une paroi devant x : le premier point où la pente redevient praticable.
+  rebordDevant(x, sens) {
     for (let i = 0; i < 400; i++) {
       const pente = Math.atan2(this.sol(x + 0.2 * sens) - this.sol(x), 0.2) * 180 / Math.PI;
       if (i > 3 && pente < this.def.penteMax) break;
       x += 0.2 * sens;
     }
+    return { x, y: this.sol(x) };
+  }
+  // Pied d'une paroi devant x : là où la pente devient trop raide pour marcher.
+  piedDevant(x, sens) {
+    for (let i = 0; i < 200; i++) {
+      const pente = Math.atan2(this.sol(x + 0.3 * sens) - this.sol(x), 0.3) * 180 / Math.PI;
+      if (pente > this.def.penteMax + 10) break;
+      x += 0.1 * sens;
+    }
+    return x;
+  }
+  // Le grappin vise le rebord, un peu au-delà.
+  lancerGrappin(sens) {
+    const p = this.p;
+    let x = this.rebordDevant(p.x, sens).x;
     x += 0.6 * sens;
     this.grappin = { x, y: this.sol(x), x0: p.x, y0: p.y, t: 0, sens };
     this.dire(`🪝 Grappin lancé vers le rebord, ${fmt(this.grappin.y - p.y, 1)} m plus haut. On grimpe le long de la corde${this.duo ? ` ; ${this.duo.eq.nom} suit, encordé${this.duo.eq.acc}` : ''}.`);
@@ -276,6 +289,7 @@ class Exploration {
     this.enEscalade = true;
     if (p.grimpe === undefined) p.grimpe = 0;
     if (this.grappin.t < DUREE_GRAPPIN) { this.grappin.t += dt; return; }
+    if (this.suspendu > 0) { this.suspendu -= dt; return; }        // retenu par la corde : on se rattrape
     const kG = Math.max(0.5, Math.min(2.5, Math.sqrt(9.81 / Math.max(0.05, g))));   // plus facile en faible gravité
     const v = (forme ? 0.5 : 0.3) * kG;                                               // m/s le long de la paroi
     this.glisserLeLong(p, veut, v * dt);
@@ -283,7 +297,11 @@ class Exploration {
     this.reserve -= dt;                                                               // l'effort : deux fois plus d'oxygène
     this.hauteurEscalade = Math.max(this.hauteurEscalade || 0, p.y - (this.yPiedParoi ?? (this.yPiedParoi = p.y)));
     const risque = (forme ? 0.012 : 0.06) * Math.max(0.3, Math.min(1.5, Math.sqrt(g / 9.81)));
-    if (Math.random() < risque * dt) {
+    if (Math.random() < risque * dt && this.grappin) {
+      // Encordé : la corde retient la glissade. On pend quelques secondes, puis on repart.
+      this.suspendu = 2;
+      this.dire(`🪢 Une prise lâche, mais la corde retient ${this.def.nom} : quelques secondes pour se rattraper.${forme ? '' : ' Entraîné à l’escalade (sur Terre), on glisse bien moins souvent.'}`);
+    } else if (Math.random() < risque * dt) {
       p.auSol = false; p.vy = 0; p.vx = -veut * 0.8; this.enEscalade = false; this.yPiedParoi = null;
       this.dire(forme ? '😱 Une prise lâche : glissade !' : '😱 Glissade ! Sans entraînement à l’escalade (sur Terre), les prises lâchent souvent.');
     }
@@ -463,6 +481,7 @@ class Exploration {
 
   step(dt, cmd) {
     if (this.fin) return;
+    if (this.geste) { this.majGeste(dt); this.vol.t += dt; this.reserve -= dt; return; }
     if (this.enEmbarquement()) { this.reserve -= dt; this.vol.t += dt; this.suivreSecours(dt); return; }
     if (this.traceFeu) this.traceFeu.age += dt;
     if (this.delorean && this.delorean.phase === 'disparu') { this.vol.t += dt; this.majDelorean(dt); return; }
@@ -1289,7 +1308,8 @@ class Exploration {
       if (this.delorean) texteSurFond(ctx, `${fmt(Math.abs(p.vx) * 2.2369)} mph`, sx, sy - 3.2 * echelle, { police: '700 16px system-ui, sans-serif', couleur: Math.abs(p.vx) > 30 ? '#ff5252' : '#ffca28' });
     }
     else if (this.type === 'spationaute' && this.secours && this.secours.phase === 'decollage') { /* à bord du module de secours */ }
-    else if (this.type === 'spationaute') dessinerSpationaute(ctx, sx, sy, echelle, this.enEscalade ? p : { ...p, grimpe: undefined }, this.terre, this.equipier().profil);
+    else if (this.type === 'spationaute' && this.poseGeste('moi') === 'allonge') dessinerAllonge(ctx, sx, sy, echelle, this.geste.sens, this.equipier().profil);
+    else if (this.type === 'spationaute') dessinerSpationaute(ctx, sx, sy, echelle, { ...p, grimpe: this.enEscalade ? p.grimpe : undefined, pose: this.poseGeste('moi') }, this.terre, this.equipier().profil);
     else {
       // Le bras sort pendant une analyse, ou un instant après avoir planté le drapeau.
       if (this.brasDrapeau > 0) this.brasDrapeau -= dt;

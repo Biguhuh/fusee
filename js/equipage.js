@@ -191,6 +191,15 @@ let redessinerApercu = null;
 window.addEventListener('resize', () => { if (redessinerApercu && !$('ecran-spatio').classList.contains('cache')) redessinerApercu(); });
 
 // ---------- Dessin ----------
+// Couché à plat ventre au bord d'une paroi, la tête vers le vide, le bras tendu vers le bas (main tendue).
+// (x, y) : les pieds ; sens : +1 si le vide est à gauche (on est monté vers la droite), −1 sinon.
+function dessinerAllonge(ctx, x, y, s, sens, profil) {
+  ctx.save();
+  ctx.translate(x, y - 0.2 * s);
+  ctx.rotate(-sens * Math.PI / 2);
+  dessinerSpationaute(ctx, 0, 0, s, { dir: -sens, pas: 0, pose: 'allonge' }, false, profil);
+  ctx.restore();
+}
 // (x, y) : pieds au sol ; s : pixels par mètre ; p : { dir, pas } ; surTerre : combinaison de vol, tête nue.
 function dessinerSpationaute(ctx, x, y, s, p, surTerre, profil) {
   const h = 1.8 * s;
@@ -213,7 +222,10 @@ function dessinerSpationaute(ctx, x, y, s, p, surTerre, profil) {
   // Escalade (p.grimpe : distance grimpée) : face à la paroi, une main puis l'autre plus haut, genoux pliés,
   // un pied puis l'autre sur une prise.
   const grimpe = p.grimpe !== undefined, pg = grimpe ? Math.sin(p.grimpe * 5) : 0;
+  const pose = p.pose;   // 'courte' (mains jointes en marchepied), 'bras-hauts', 'allonge' (dessiné couché par dessinerAllonge)
   const jambe = (sgn) => {
+    if (pose === 'courte') return { genou: [h * 0.14 + sgn * h * 0.03, -h * 0.27], pied: [sgn * h * 0.06, -h * 0.03] };
+    if (pose === 'allonge' || pose === 'bras-hauts') return { genou: [sgn * h * 0.02, -h * 0.23], pied: [sgn * h * 0.03, -h * 0.03] };
     if (grimpe) return { genou: [h * 0.14, -h * (0.3 + 0.07 * sgn * pg)], pied: [h * 0.12, -h * (0.08 + 0.09 * Math.max(0, sgn * pg))] };
     const genou = [sgn * phase * h * 0.12, -h * 0.23], pied = [sgn * phase * h * 0.16, -h * 0.03];
     return { genou, pied };
@@ -257,7 +269,10 @@ function dessinerSpationaute(ctx, x, y, s, p, surTerre, profil) {
 
   // Bras : humain, bionique (à pince), ou humain soutenu par une attelle d'exosquelette.
   const epaule = [0, -h * 0.76];
-  const brasPts = (sgn) => grimpe
+  const brasPts = (sgn) => pose === 'courte' ? [epaule, [h * 0.14, -h * 0.6], [h * 0.2, -h * 0.52]]
+    : pose === 'bras-hauts' ? [epaule, [h * 0.06 + sgn * h * 0.03, -h * 0.97], [h * 0.08 + sgn * h * 0.02, -h * 1.15]]
+    : pose === 'allonge' ? [epaule, [h * 0.15, -h * 0.9 + sgn * h * 0.02], [h * 0.36, -h * 0.95 + sgn * h * 0.03]]
+    : grimpe
     ? [epaule, [h * 0.12, -h * (0.88 + 0.06 * sgn * pg)], [h * 0.16, -h * (1.0 + 0.1 * sgn * pg)]]
     : [epaule, [sgn * -phase * h * 0.1 + h * 0.05, -h * 0.57], [h * 0.09 + sgn * -phase * h * 0.04, -h * 0.46]];
   const dessinerBras = (sgn, devant) => {
