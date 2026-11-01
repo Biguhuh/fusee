@@ -6,7 +6,6 @@
 // oxygène partagé (O). L'astromobile a deux places.
 
 const DUO_PROCHE = 2.5;     // m : distance pour s'entraider
-const RUBANS = 3;           // rouleaux de ruban adhésif
 
 // Le second spationaute : un membre d'équipage à bord (campagne), ou un coéquipier en visite rapide.
 function secondEquipier(vol) {
@@ -31,7 +30,7 @@ function creerDuo(x) {
   const px = x.p.x - 1.5;
   x.dire(`👥 Sortie à deux : ${eq.nom} vous accompagne. Tab : changer de spationaute · G : suis-moi / attends · C : courte-échelle · K : ruban adhésif · O : partager l’oxygène.`);
   return {
-    eq, mode: 'suit', enRover: false, rubans: RUBANS,
+    eq, mode: 'suit', enRover: false, rubans: RUBANS_PAR_PERSONNE,
     blessure: (etat.enVoyage && etat.voyage && (membreDe(etat.voyage, eq) || {}).blessure) || null,
     p: { x: px, y: x.sol(px), vx: 0, vy: 0, auSol: true, dir: 1, pas: 0 },
     reserve: x.def.autonomie, integrite: 100, sac: [], doseSv: 0, dose: 0,   // dose reçue pendant cette sortie
@@ -81,20 +80,6 @@ Object.assign(Exploration.prototype, {
     p.x = x; p.y = this.sol(x); p.vx = 0; p.vy = 0;
     this.dire(`🤝 Courte-échelle : ${d.eq.nom} vous hisse de ${fmt(p.y - y0, 1)} m. Tendez-lui la main (C) une fois en haut.`);
   },
-  // K : ruban adhésif sur la combinaison abîmée (la sienne, ou celle de l'autre s'il est à côté).
-  ruban() {
-    const d = this.duo;
-    if (!d) return this.dire('Le ruban adhésif se pose à deux : personne pour vous aider.');
-    if (!this.procheDuo()) return this.dire(`Approchez-vous de ${d.eq.nom} pour réparer une combinaison.`);
-    if (d.rubans <= 0) return this.dire('Plus de ruban adhésif.');
-    const qui = this.integrite <= d.integrite ? 'moi' : 'autre';
-    const avant = qui === 'moi' ? this.integrite : d.integrite;
-    if (avant > 90) return this.dire('Les deux combinaisons sont en bon état.');
-    const apres = Math.min(100, avant + 25);
-    if (qui === 'moi') this.integrite = apres; else d.integrite = apres;
-    d.rubans--;
-    this.dire(`🩹 Ruban adhésif sur la combinaison ${qui === 'moi' ? 'que vous portez' : `de ${d.eq.nom}`} : ${fmt(avant)} % → ${fmt(apres)} %. Encore ${d.rubans} rouleau${d.rubans > 1 ? 'x' : ''}.`);
-  },
   // O : on relie les deux combinaisons et on partage l'oxygène à parts égales.
   partagerOxygene() {
     const d = this.duo;
@@ -109,7 +94,7 @@ Object.assign(Exploration.prototype, {
   // À chaque pas : l'autre suit (ou attend), respire, encaisse la dose.
   majDuo(dt) {
     const d = this.duo, p = this.p, q = d.p, g = this.c.g;
-    d.reserve -= dt;
+    d.reserve -= dt * etatCombi(d.integrite).fuite;   // combinaison abîmée : elle fuit
     d.doseSv += (this.irradiation.svJour * (this.facteurDose || 1) * dt) / 86400;
     d.dose = (100 * d.doseSv) / DOSE_MORTELLE;
     if (this.essai && d.reserve <= 0) d.reserve = this.def.autonomie;

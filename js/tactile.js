@@ -87,9 +87,9 @@ const Tactile = {
         b.push({ zone: 'actions', label: '🔁', code: 'Tab', titre: `Piloter ${x.duo.eq.nom}` });
         b.push({ zone: 'actions', label: x.duo.mode === 'suit' ? '✋' : '👣', code: 'KeyG', titre: x.duo.mode === 'suit' ? 'Attends ici' : 'Suis-moi' });
         b.push({ zone: 'actions', label: '🤝', code: 'KeyC', titre: 'Courte-échelle ou main tendue' });
-        b.push({ zone: 'actions', label: '🔧', code: 'KeyK', titre: 'Ruban adhésif sur la combinaison' });
         b.push({ zone: 'actions', label: '💨', code: 'KeyO', titre: 'Partager l’oxygène' });
       }
+      if (x.type === 'spationaute' && !x.terre && x.integrite < 90) b.push({ zone: 'actions', label: '🔧', code: 'KeyK', titre: 'Ruban adhésif sur la combinaison' });
       if (x.type === 'spationaute' && !x.terre) b.push({ zone: 'actions', label: '🆘', code: 'KeyU', titre: 'Appel d’urgence : un module de secours' });
       if (!x.terre && !x.enRover) b.push({ zone: 'actions', label: '🚩', code: 'KeyF', titre: 'Planter le drapeau' });
       temps('actions');

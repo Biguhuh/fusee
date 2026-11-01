@@ -5,6 +5,15 @@ const DELAI_SECOURS = 45 * 60;     // s : préparation et descente du module de 
 // Chutes : la blessure dépend de la vitesse d'impact, v = √(2gh). La même hauteur est donc bien plus douce
 // en faible gravité : blessure bénigne dès 2,5 m de chute sur Terre, 15 m sur la Lune ; grave dès 6 m sur Terre, 37 m sur la Lune.
 const IMPACT_BENIGNE = 7, IMPACT_GRAVE = 11;   // m/s
+// Combinaison abîmée : elle fuit, et l'oxygène part plus vite. Le ruban adhésif colmate (2 rouleaux par personne).
+const ETATS_COMBI = [
+  { min: 90, nom: 'intacte', fuite: 1 },
+  { min: 60, nom: 'éraflée', fuite: 1.3 },
+  { min: 30, nom: 'fissurée', fuite: 2 },
+  { min: -Infinity, nom: 'déchirée', fuite: 3.5 },
+];
+function etatCombi(integrite) { return ETATS_COMBI.find((e) => integrite >= e.min); }
+const RUBANS_PAR_PERSONNE = 2;
 const V_88MPH = 39.34;              // m/s : 88 miles à l'heure (Retour vers le futur)
 // Exploration de la surface en vue de côté, par un spationaute ou un robot.
 // La gravité locale change tout : sauts immenses sur les petites lunes, démarche lourde sur Terre.
@@ -124,6 +133,7 @@ class Exploration {
       this.doseSv = vol.doseSv || 0;
       const vC = etat.enVoyage && etat.voyage, mb = vC ? membreDe(vC, this.equipier()) : null;
       this.blessure = vol.blessure || (mb && mb.blessure) || null;
+      this.rubans = RUBANS_PAR_PERSONNE;
       this.appliquerBlessure();
       this.dose = (100 * this.doseSv) / DOSE_MORTELLE;
       const t = tempsAvantDoseMortelle(this.irradiation.svJour, this.doseSv);
@@ -441,8 +451,9 @@ class Exploration {
       }
       if (p.y <= this.sol(p.x)) {
         p.y = this.sol(p.x);
-        if (p.vy < -3 * Math.sqrt(g * 2) - 2) {
-          this.integrite -= Math.min(60, (-p.vy - 2) * 8);
+        if (this.type === 'spationaute' ? -p.vy >= IMPACT_BENIGNE : p.vy < -3 * Math.sqrt(g * 2) - 2) {
+          // Spationaute : selon la vitesse d'impact (6 % à 7 m/s, 30 % à 11 m/s) ; robot : règle d'origine.
+          this.integrite -= this.type === 'spationaute' ? Math.min(60, (-p.vy - IMPACT_BENIGNE + 1) * 6) : Math.min(60, (-p.vy - 2) * 8);
           this.causeDegats = 'chute';
           this.dire('Réception brutale !');
         }
@@ -463,7 +474,8 @@ class Exploration {
 
     // Réserve d'oxygène ou de batterie (le module robot recharge la batterie au soleil quand le robot est à côté)
     const effort = Math.abs(p.vx) > 0.05 ? 1 : 0.3;
-    this.reserve -= dt * (this.type === 'robot' ? effort : 1);
+    this.reserve -= dt * (this.type === 'robot' ? effort : etatCombi(this.integrite).fuite);
+    if (this.type === 'spationaute') this.surveillerCombi();
     if (this.moduleRobot && this.presDeLaFusee()) this.reserve = Math.min(this.def.autonomie, this.reserve + dt * 20);
     if (this.rover && distSol(this.astre, this.rover.x, this.xFusee) < 12) this.batterieRover = Math.min(this.autonomieRover, this.batterieRover + dt * 20);
     if (this.type === 'spationaute' && !this.terre) {
@@ -628,6 +640,31 @@ class Exploration {
     if (pire && grave && etat.enVoyage && etat.voyage) setTimeout(() => this.choixBlessureGrave(), 600);
     this.dire(grave ? `🚑 ${chute} : ${this.def.nom} est grièvement blessé${this.equipier().acc} (${partie}).`
       : `🩹 ${chute} : ${this.def.nom} est blessé${this.equipier().acc} (${partie}), sans gravité.`);
+  }
+  // La combinaison passe à un état plus abîmé : on prévient, une fois par état.
+  surveillerCombi() {
+    const e = etatCombi(this.integrite), i = ETATS_COMBI.indexOf(e);
+    if (i > (this.niveauCombi || 0) && this.integrite > 0) {
+      this.dire(`⚠ Combinaison ${e.nom} : oxygène en baisse (consommation ×${fmt(e.fuite, 1)}).${this.rubans > 0 || (this.duo && this.duo.rubans > 0) ? ' K : la réparer au ruban adhésif.' : ' Plus de ruban : rentrez.'}`);
+    }
+    this.niveauCombi = i;
+  }
+  // K : ruban adhésif. Seul, on colmate mal les fissures qu'on ne voit pas (+15 %) ; à deux, l'autre répare
+  // la combinaison la plus abîmée (+25 %). Chacun emporte 2 rouleaux ; on peut prendre ceux de l'autre.
+  ruban() {
+    if (this.type !== 'spationaute' || this.terre) return;
+    const d = this.duo && this.procheDuo() && !this.enRover && !this.duo.enRover ? this.duo : null;
+    const cible = d && d.integrite < this.integrite ? d : this;
+    const avant = cible.integrite;
+    if (avant >= 90) return this.dire(d ? 'Les deux combinaisons sont en bon état.' : 'Combinaison en bon état : pas besoin de ruban.');
+    const porteur = this.rubans > 0 ? this : d && d.rubans > 0 ? d : null;
+    if (!porteur) return this.dire(this.duo && !d && this.duo.rubans > 0 ? `Plus de ruban sur vous : ${this.duo.eq.nom} en a encore, approchez-vous.` : 'Plus de ruban adhésif : rentrez au module.');
+    porteur.rubans--;
+    const apres = Math.min(95, avant + (d ? 25 : 15));
+    cible.integrite = apres;
+    if (cible === this) this.niveauCombi = ETATS_COMBI.indexOf(etatCombi(apres));
+    const reste = this.rubans + (this.duo ? this.duo.rubans : 0);
+    this.dire(`🩹 Ruban adhésif sur la combinaison ${cible === this ? (d ? `que vous portez, posé par ${d.eq.nom}` : 'que vous portez, posé seul') : `de ${d.eq.nom}`} : ${fmt(avant)} % → ${fmt(apres)} %, ${etatCombi(apres).nom}. Encore ${reste} rouleau${reste > 1 ? 'x' : ''}.`);
   }
   // Un blessé marche moins vite et saute moins haut ; grièvement blessé, il ne saute plus.
   appliquerBlessure() {
@@ -1178,7 +1215,7 @@ class Exploration {
       // Petit écran : l'essentiel, et les limites seulement si elles approchent.
       const l = [];
       l.push([d.ressource, fmtDuree(this.reserve), fr < 0.2 ? '#ef5350' : '#66bb6a']);
-      l.push([this.type === 'robot' ? 'Robot' : 'Combi.', fmt(this.integrite) + ' %', this.integrite > 60 ? '#66bb6a' : this.integrite > 30 ? '#ffca28' : '#ef5350']);
+      l.push([this.type === 'robot' ? 'Robot' : 'Combi.', fmt(this.integrite) + ' %' + (this.type === 'spationaute' && this.integrite < 90 ? ` · ${etatCombi(this.integrite).nom}` : ''), this.integrite > 60 ? '#66bb6a' : this.integrite > 30 ? '#ffca28' : '#ef5350']);
       if (this.blessure) l.push(['Santé', this.texteBlessure(), this.blessure.gravite === 'grave' ? '#ef5350' : '#ffca28']);
       l.push([this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? `${sc.analyses} (+${this.donneesEnAttente})` : `${this.sac.length}/${d.capacite}` + (this.rover ? ` · astromobile ${this.sacRover.length}/${this.caisseRover}` : ''), this.donneesEnAttente ? '#ffca28' : '#fff']);
       l.push(['Module', fmt(distSol(this.astre, this.p.x, this.xFusee)) + ' m', '#fff']);
@@ -1213,7 +1250,7 @@ class Exploration {
     };
     ctx.font = 'bold 15px system-ui'; ctx.fillStyle = '#fff'; ctx.fillText(majuscule(`${d.nom} ${sur(a)}`), 16, y); y += 24;
     ligne(d.ressource, fmtDuree(this.reserve), fr < 0.2 ? '#ef5350' : '#66bb6a');
-    ligne(this.type === 'robot' ? 'État du robot' : 'Combinaison', fmt(this.integrite) + ' %', this.integrite > 60 ? '#66bb6a' : this.integrite > 30 ? '#ffca28' : '#ef5350');
+    ligne(this.type === 'robot' ? 'État du robot' : 'Combinaison', fmt(this.integrite) + ' %' + (this.type === 'spationaute' ? ` · ${etatCombi(this.integrite).nom}${etatCombi(this.integrite).fuite > 1 ? `, O₂ ×${fmt(etatCombi(this.integrite).fuite, 1)}` : ''} · ruban ${this.rubans + (this.duo ? this.duo.rubans : 0)}` : ''), this.integrite > 60 ? '#66bb6a' : this.integrite > 30 ? '#ffca28' : '#ef5350');
     if (this.type === 'spationaute') ligne('Santé', this.texteBlessure(), !this.blessure ? '#66bb6a' : this.blessure.gravite === 'grave' ? '#ef5350' : '#ffca28');
     ligne('Pression', fmtP(c.p) + ' / ' + fmt(d.pressionMax, 1), couleurRisque(c.p / d.pressionMax));
     ligne('Température', fmt(c.t) + ' / ' + fmt(d.tempMax) + ' °C', couleurRisque((c.t + KELVIN) / (d.tempMax + KELVIN)));
