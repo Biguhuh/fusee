@@ -68,6 +68,10 @@ function temperatureLocale(vol) {
   return plage.nuit + (plage.jour - plage.nuit) * j;
 }
 
+// Campagne, atterrissage progressif : tant qu'on ne s'est jamais posé sur l'astre, seulement la zone de la sonde
+// ou l'équateur ; les autres sites (anciennes missions, ailleurs) viennent ensuite, en suggestions.
+function premiereDescente(a, v) { return !!v && !((v.visites || {})[a.id] || {}).pose; }
+
 // Les lieux où l'on peut se poser. v : la campagne (null en visite rapide, où l'on sait tout d'avance).
 function lieuxDescente(a, v) {
   const l = [];
@@ -85,7 +89,8 @@ function lieuxDescente(a, v) {
         : `Terrain plat${sonde.prod ? `, ${sonde.ressource}` : ''}. C’est là qu’on peut construire la base.`,
       xDescente: sonde.x - 90, nuit: nuit && !sonde.ombre, conseille: !base });
   }
-  l.push({ cle: 'defaut', nom: '⬇ Point de descente habituel', detail: 'Longitude 0°.', x: 0, xDescente: 0, nuit, conseille: !l.some((u) => u.conseille) });
+  l.push({ cle: 'defaut', nom: '⬇ À l’équateur (longitude 0°)', detail: 'C’est là que la rotation de l’astre est la plus rapide : elle donne de l’élan pour repartir en orbite.', x: 0, xDescente: 0, nuit, conseille: !l.some((u) => u.conseille) });
+  if (premiereDescente(a, v)) return l;   // les anciennes missions viendront après une première descente
   for (const t of tracesSur(a.id)) {
     const p = POSITIONS_TRACES[t.id], x = xTrace(a, t) + DISTANCE_TRACE;
     l.push({ cle: 'trace:' + t.id, trace: t.id, nom: `${t.nom} (${t.annee})`, detail: p ? fmtCoord(p[0], p[1]) : '', x, xDescente: x, nuit });
@@ -107,17 +112,18 @@ function ouvrirChoixLieu(a, v, suite, titre = 'Descendre') {
   if (a.type !== 'solide' || estOrigine(a.id)) return suite(null);
   const lieux = lieuxDescente(a, v), m = $('modale');
   const choisi = lieux.find((u) => u.conseille) || lieux[0];
-  const note = noteLieux(a, v), traces = lieux.filter((u) => u.trace);
+  const note = noteLieux(a, v), traces = lieux.filter((u) => u.trace), premiere = premiereDescente(a, v), nAutres = tracesSur(a.id).length;
   const option = (u) => `<label class="choix-ravito"><input type="radio" name="lieu" value="${u.cle}" ${u === choisi ? 'checked' : ''}> <b>${u.nom}</b>${u.conseille ? ' <span class="doux">(conseillé)</span>' : ''}<br><span class="doux">${u.detail}</span></label>`;
   m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>📍 Où se poser ${sur(a)} ?</h2>
     <p>On pose la base là où l’on veut exploiter les ressources, mais on peut explorer ailleurs : les anciennes missions sont à leur vraie place.</p>${note ? `<p class="encart-refus">${note}</p>` : ''}</div><button class="fermer">✕</button></header>
+    ${premiere ? `<p class="encart">Première descente ${sur(a)} : on se pose d’abord sur la zone repérée par la sonde, ou à défaut à l’équateur. Ensuite, d’autres sites seront proposés${nAutres ? ` (${nAutres} ancienne${nAutres > 1 ? 's' : ''} mission${nAutres > 1 ? 's' : ''} à aller voir)` : ''}.</p>` : ''}
     <section>${lieux.filter((u) => !u.trace).map(option).join('')}
-    <label class="choix-ravito"><input type="radio" name="lieu" value="libre"> <b>🧭 Ailleurs</b>, longitude <input type="number" id="lieu-lon" min="-180" max="180" step="1" value="90" style="width:5em">° <span class="doux">(est positif)</span><br><span class="doux">Explorer un coin que personne n’a vu.</span></label></section>
-    ${traces.length ? `<section><h3>📍 Anciennes missions, à leur vraie place</h3><p class="doux">On se pose à ${DISTANCE_TRACE} m, pour aller voir à pied, en astromobile ou avec le robot.</p><div class="grille-lieux">${traces.map((u) => `<label><input type="radio" name="lieu" value="${u.cle}"> <b>${u.nom}</b> <span class="doux">${u.detail}</span></label>`).join('')}</div></section>` : ''}
+    ${premiere ? '' : `<label class="choix-ravito"><input type="radio" name="lieu" value="libre"> <b>🧭 Ailleurs</b>, longitude <input type="number" id="lieu-lon" min="-180" max="180" step="1" value="90" style="width:5em">° <span class="doux">(est positif)</span><br><span class="doux">Explorer un coin que personne n’a vu.</span></label>`}</section>
+    ${traces.length ? `<section><h3>🧭 Suggestions : les anciennes missions, à leur vraie place</h3><p class="doux">Rien d’obligatoire : des sites à visiter si le cœur vous en dit. On se pose à ${DISTANCE_TRACE} m, pour aller voir à pied, en astromobile ou avec le robot.</p><div class="grille-lieux">${traces.map((u) => `<label><input type="radio" name="lieu" value="${u.cle}"> <b>${u.nom}</b> <span class="doux">${u.detail}</span></label>`).join('')}</div></section>` : ''}
     <div class="actions"><span></span><button id="lieu-ok" class="principal">⬇ ${titre} ici</button></div></div>`;
   m.classList.remove('cache');
   m.querySelector('.fermer').onclick = () => Infos.fermer();
-  $('lieu-lon').onfocus = () => { m.querySelector('input[name=lieu][value=libre]').checked = true; };
+  if ($('lieu-lon')) $('lieu-lon').onfocus = () => { m.querySelector('input[name=lieu][value=libre]').checked = true; };
   $('lieu-ok').onclick = () => {
     const cle = (m.querySelector('input[name=lieu]:checked') || {}).value || 'defaut';
     let site = lieux.find((u) => u.cle === cle);
