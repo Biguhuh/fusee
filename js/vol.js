@@ -1109,14 +1109,24 @@ function zenithCiel(a, t, porteur) {
 }
 const angleDansPi = (x) => { x %= 2 * Math.PI; if (x > Math.PI) x -= 2 * Math.PI; if (x < -Math.PI) x += 2 * Math.PI; return x; };
 
-// Jour local (0 : nuit, 1 : plein jour), sans dessiner : élévation du Soleil vue du lieu de la mission.
+// Élévation du Soleil (radians) vue du lieu de la mission.
+function elevationSoleil(a, t, porteur) {
+  const phi = zenithCiel(a, t, porteur), pos = etatAbsolu(a.id, t).r;
+  return Math.PI / 2 - Math.abs(angleDansPi(phi - Math.atan2(-pos[1], -pos[0])));
+}
+// Jour local (0 : nuit, 1 : plein jour), sans dessiner.
 function jourLocal(a, t, porteur) {
   if (a.type === 'etoile') return 1;
   if (dansLOmbre(porteur)) return 0;   // fond d'un cratère polaire
-  const phi = zenithCiel(a, t, porteur), pos = etatAbsolu(a.id, t).r;
-  const elev = Math.PI / 2 - Math.abs(angleDansPi(phi - Math.atan2(-pos[1], -pos[0])));
-  const u = Math.max(0, Math.min(1, (elev + 6 * DEG) / (12 * DEG)));
+  const u = Math.max(0, Math.min(1, (elevationSoleil(a, t, porteur) + 6 * DEG) / (12 * DEG)));
   return u * u * (3 - 2 * u);
+}
+// Chaleur du Soleil au sol (0 : nuit, 1 : Soleil au zénith). Sans air, le sol suit à peu près sin(élévation)^¼
+// (équilibre entre le Soleil reçu et la chaleur rayonnée) : frais au lever, le maximum seulement à midi.
+function chaleurLocale(a, t, porteur) {
+  if (a.type === 'etoile') return 1;
+  if (dansLOmbre(porteur)) return 0;
+  return Math.pow(Math.max(0, Math.sin(elevationSoleil(a, t, porteur))), 0.25);
 }
 // Températures de jour et de nuit au sol. Sans air (ou presque), l'écart est énorme ; une atmosphère épaisse le lisse.
 const TEMPERATURES_JOUR_NUIT = { mercure: [430, -180], lune: [120, -170], mars: [-20, -80] };

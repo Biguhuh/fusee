@@ -64,8 +64,7 @@ function dansLOmbre(porteur) {
 function temperatureLocale(vol) {
   const a = vol.astre, plage = plageTemperature(a);
   if (!plage || a.type !== 'solide') return null;
-  const j = jourLocal(a, tempsCiel(vol), vol);
-  return plage.nuit + (plage.jour - plage.nuit) * j;
+  return plage.nuit + (plage.jour - plage.nuit) * chaleurLocale(a, tempsCiel(vol), vol);
 }
 
 // Campagne, atterrissage progressif : tant qu'on ne s'est jamais posé sur l'astre, seulement la zone de la sonde

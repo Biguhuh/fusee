@@ -25,7 +25,7 @@ const V_88MPH = 39.34;              // m/s : 88 miles à l'heure (Retour vers le
 const EXPLORATEURS = {
   spationaute: {
     nom: 'Spationaute', hauteur: 1.8, autonomie: 4 * 3600, ressource: 'Oxygène',
-    pressionMax: 1.2, tempMax: 120, tempMin: -270, protection: 3, capacite: 6, penteMax: 35,
+    pressionMax: 1.2, tempMax: 130, tempMin: -270, protection: 3, capacite: 6, penteMax: 35,
   },
   robot: {
     nom: 'Robot', hauteur: 1.3, autonomie: 8 * 3600, ressource: 'Batterie',
@@ -845,7 +845,7 @@ class Exploration {
   }
   texteBlessure(b = this.blessure) { return b ? `${b.gravite === 'grave' ? 'blessure grave' : 'blessure bénigne'} (${b.partie})` : 'en forme'; }
 
-  // Jour et nuit au sol : la température suit l'élévation du Soleil (sans air, de −180 °C à 430 °C sur Mercure),
+  // Jour et nuit au sol : la température suit la hauteur du Soleil (fraîche au lever, maximale à midi) (sans air, de −180 °C à 430 °C sur Mercure),
   // et le rayonnement solaire baisse la nuit (l'astre fait écran ; pas pour les lunes des géantes, dont le
   // rayonnement vient surtout de la planète).
   jourNuit(c) {
@@ -856,7 +856,7 @@ class Exploration {
     this.facteurDose = (!this.astre.atm || this.astre.atm.p0 < 0.05) && !(parent && parent.type === 'gazeuse') ? 0.35 + 0.65 * j : 1;
     const plage = plageTemperature(this.astre);
     if (!plage) return c;
-    const t = plage.nuit + (plage.jour - plage.nuit) * j;
+    const t = plage.nuit + (plage.jour - plage.nuit) * chaleurLocale(this.astre, tempsCiel(this.vol), this.vol);
     if (this.tPrecedente !== undefined && ((this.tPrecedente > this.def.tempMax) !== (t > this.def.tempMax))) {
       this.dire(t > this.def.tempMax ? `☀️ Le Soleil se lève : ${fmt(t)} °C, au-delà de ce que tient ${this.type === 'robot' ? 'le robot' : 'la combinaison'} (${this.def.tempMax} °C). Rentrez !` : `🌙 La nuit tombe : ${fmt(t)} °C, on peut sortir.`);
     }
