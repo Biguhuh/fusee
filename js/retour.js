@@ -7,6 +7,25 @@
 // La rentrée est calculée : traînée (coefficient balistique de la capsule), portance (finesse 0,3) et gravité.
 
 const CAPSULE_RETOUR = { beta: 400, finesse: 0.2, betaPilote: 60, betaPrincipal: 4 };   // kg/m²
+// La capsule grandit avec l'équipage : petite à 3 places (comme Soyouz), standard à 4 (comme Orion), grande à 7
+// (comme le Crew Dragon dans sa version à 7 places). Au-delà de 7, il faut plusieurs capsules, qui se partagent l'équipage.
+const TYPES_CAPSULE = [
+  { places: 3, nom: 'petite capsule (3 places, comme Soyouz)', echelle: 0.85 },
+  { places: 4, nom: 'capsule standard (4 places, comme Orion)', echelle: 1 },
+  { places: 7, nom: 'grande capsule (7 places, comme le Crew Dragon)', echelle: 1.3 },
+];
+const PLACES_MAX_CAPSULE = 7;
+function typeCapsule(n) { return TYPES_CAPSULE.find((t) => n <= t.places) || TYPES_CAPSULE[TYPES_CAPSULE.length - 1]; }
+// Répartit les passagers en capsules aussi égales que possible : [{ personnes: [indices], type }].
+function repartirCapsules(n) {
+  const nb = Math.max(1, Math.ceil(n / PLACES_MAX_CAPSULE)), l = [];
+  for (let i = 0, k = 0; i < nb; i++) {
+    const q = Math.floor(n / nb) + (i < n % nb ? 1 : 0);
+    l.push({ personnes: Array.from({ length: q }, (_, j) => k + j), type: typeCapsule(Math.max(1, q)) });
+    k += q;
+  }
+  return l;
+}
 
 class RetourTerre {
   constructor(options = {}) {
@@ -15,6 +34,9 @@ class RetourTerre {
     this.nom = options.nom || 'l’équipage';
     // Personnes de la capsule, hélitreuillées une par une, chacune avec son apparence.
     this.personnes = options.personnes && options.personnes.length ? options.personnes : [{ nom: this.nom, profil: SPATIO }];
+    // Capsules : une seule jusqu'à 7 passagers (plus grande s'il y a du monde), plusieurs au-delà.
+    this.capsules = repartirCapsules(this.equipage ? this.personnes.length : 1);
+    this.capsules.forEach((c, i) => c.personnes.forEach((p) => { if (this.personnes[p]) this.personnes[p].capsule = i; }));
     this.vitesse = 1;             // vitesse choisie par le joueur (multiplie le temps accéléré)
     this.terre = ASTRES_PAR_ID.terre;
     // Interface d'entrée : 120 km, 7,8 km/s, pente de −2°.
@@ -36,7 +58,8 @@ class RetourTerre {
         ...this.personnes.flatMap((p, i) => [['treuil', i ? 2 : 3, 3 * 60, i], ['montee', 3, 4 * 60, i]]),
         ['depart', 3, 5 * 60],
         // Puis le navire vient récupérer la capsule (et ses échantillons) avec sa grue.
-        ['bateau', 5, 2 * 3600], ['grue', 4, 20 * 60], ['hisse', 3, 10 * 60], ['pose', 3, 5 * 60], ['fin', 2, 0]]
+        ...this.capsules.flatMap((c, i) => [['bateau', i ? 3 : 5, i ? 20 * 60 : 2 * 3600, undefined, i], ['grue', 4, 20 * 60, undefined, i], ['hisse', 3, 10 * 60, undefined, i], ['pose', 3, 5 * 60, undefined, i]]),
+        ['fin', 2, 0, undefined, this.capsules.length - 1]]
       : [['flotte', 3.5, 300], ['bateau', 6, 2 * 3600], ['grue', 4, 20 * 60], ['hisse', 3, 10 * 60], ['pose', 3, 5 * 60], ['fin', 2, 0]];
   }
 
@@ -197,10 +220,14 @@ class RetourTerre {
       const ry = Math.max(1.5, Math.min(n.l * W * 0.18, 600 * echelle));
       ctx.beginPath(); ctx.ellipse(x, y, n.l * W, ry, 0, 0, 2 * Math.PI); ctx.fill();
     }
-    // Capsule (taille fixe à l'écran), inclinée selon sa trajectoire pendant la rentrée.
-    const taille = Math.min(46, H * 0.07);
+    // Capsules (taille fixe à l'écran, selon leur type), inclinées selon leur trajectoire pendant la rentrée.
+    // Plusieurs capsules : elles descendent côte à côte, un peu décalées.
+    const DECALAGES = [[0, 0], [-95, 55], [95, 75], [-60, 130]];
+    this.capsules.forEach((cap, ic) => {
+    const [ox, oy] = DECALAGES[ic % DECALAGES.length];
+    const taille = Math.min(46, H * 0.07) * cap.type.echelle * (ic ? 0.85 : 1);   // les autres, un peu plus loin
     ctx.save();
-    ctx.translate(cx, cy);
+    ctx.translate(cx + ox, cy + oy);
     const pente = Math.atan2(-this.vy, this.vx);                       // angle sous l'horizontale
     // Pendant la rentrée, le bouclier thermique fait face à la vitesse.
     if (this.phase === 'rentree') ctx.rotate(pente - Math.PI / 2);
@@ -231,6 +258,7 @@ class RetourTerre {
     }
     dessinerCapsule(ctx, taille * 0.5, taille, taille * 1.1);
     ctx.restore();
+    });
   }
 
   dessinerParachutes(ctx, taille) {
@@ -278,83 +306,103 @@ class RetourTerre {
     const e = this.recup[this.iRecup], f = Math.min(1, this.tPhase / e[1]);
     const lisse = f * f * (3 - 2 * f);
 
-    // Capsule qui flotte (ballons de redressement gonflés), sauf une fois hissée sur le navire.
-    let xCap = cx, yCap = houle(cx) + 6 * k, capsuleSurPont = false;
-    const taille = 40 * k;
-
+    // Capsules qui flottent (ballons de redressement gonflés), côte à côte ; hissées une à une sur le navire.
+    const nC = this.capsules.length, ecart = 130 * k;
+    const xFlotte = (i) => cx + (i - (nC - 1) / 2) * ecart;
+    const tailleDe = (i) => 40 * k * this.capsules[i].type.echelle;
+    const cCour = e[4] ?? 0;                                       // capsule dont s'occupe le navire
+    const etatCap = this.capsules.map((c, i) => ({ x: xFlotte(i), y: houle(xFlotte(i)) + 6 * k, pont: false, pend: false }));
+    let xB = null, pont = 0;
     // Avec équipage, le navire n'entre en scène qu'après le départ de l'hélicoptère.
     if (!this.equipage || ['bateau', 'grue', 'hisse', 'pose', 'fin'].includes(this.phase)) {
-      // Navire : il arrive du bord gauche, s'arrête à côté de la capsule, puis la grue la hisse.
-      // Arrêt calculé pour que le bout de la flèche (abaissée) soit juste au-dessus de la capsule.
+      // Navire : il arrive du bord gauche (puis d'une capsule à la suivante), s'arrête à côté de la capsule, et la
+      // grue la hisse. Arrêt calculé pour que le bout de la flèche (abaissée) soit juste au-dessus d'elle.
       const BAS = 0.15, RANGE = 1.25;
-      const xArret = cx - (80 + 150 * Math.cos(BAS)) * k;
-      let xB = xArret;
-      if (this.phase === 'flotte') xB = -400 * k;
-      else if (this.phase === 'bateau') xB = -400 * k + (xArret + 400 * k) * lisse;
+      const arret = (i) => xFlotte(i) - (80 + 150 * Math.cos(BAS)) * k;
+      xB = arret(cCour);
+      if (this.phase === 'flotte' || this.phase === 'helico') xB = -400 * k;
+      else if (this.phase === 'bateau') { const x0 = cCour ? arret(cCour - 1) : -400 * k; xB = x0 + (arret(cCour) - x0) * lisse; }
       let angleGrue = RANGE, crochetY = 0, suit = false;
       if (this.phase === 'grue') { angleGrue = RANGE - (RANGE - BAS) * lisse; crochetY = lisse; }
       if (this.phase === 'hisse') { angleGrue = BAS + (RANGE - BAS) * lisse; crochetY = 1 - lisse; suit = true; }
-      // Puis la grue, flèche relevée au-dessus du pont, descend doucement la capsule jusqu'à le toucher.
-      const pont = houle(xB) - 18 * k;
-      let yRef = yCap;
+      pont = houle(xB) - 18 * k;
+      const tC = tailleDe(cCour);
+      let yRef = etatCap[cCour].y;
       if (this.phase === 'pose' || this.phase === 'fin') {
-        // La flèche se redresse encore un peu pour amener la capsule au-dessus du pont, puis la descend.
+        // La flèche se redresse au-dessus du pont, puis descend la capsule jusqu'à le toucher.
         angleGrue = this.phase === 'fin' ? 1.5 : RANGE + (1.5 - RANGE) * Math.min(1, lisse * 2); suit = true;
         crochetY = this.phase === 'fin' ? 1 : lisse;
-        yRef = pont - taille - 8 * k + 44 * k;     // le crochet s'arrête quand le bas de la capsule touche le pont
+        yRef = pont - tC - 8 * k + 44 * k;
       }
       const pos = this.dessinerNavire(ctx, xB, houle(xB), k, angleGrue, crochetY, yRef);
-      if (suit) { xCap = pos.xCrochet; yCap = Math.min(pont, pos.yCrochet + taille); }   // la capsule pend au crochet
-      if (this.phase === 'fin') { yCap = pont; capsuleSurPont = true; }
+      // Capsules déjà rangées sur le pont : en file vers l'arrière, la dernière posée sous la grue.
+      const posees = (i) => i < cCour || (i === cCour && this.phase === 'fin');
+      for (let i = 0; i < nC; i++) {
+        if (i === cCour && suit && this.phase !== 'fin') {
+          etatCap[i].x = pos.xCrochet; etatCap[i].y = Math.min(pont, pos.yCrochet + tailleDe(i)); etatCap[i].pend = true;
+          if (this.phase === 'pose') this.dxPose = pos.xCrochet - xB;   // retenu : là où la grue pose sur le pont
+        }
+        if (posees(i)) {
+          const rang = cCour - i;   // la capsule sous la grue est au rang 0 ; les précédentes reculent sur le pont
+          etatCap[i].x = xB + (this.dxPose ?? (pos.xCrochet - xB)) - rang * 1.15 * tailleDe(i);
+          etatCap[i].y = pont; etatCap[i].pont = true;
+        }
+      }
       if (!this.equipage && (this.phase === 'flotte' || this.phase === 'bateau')) {
         texteSurFond(ctx, 'Capsule vide', cx, H * 0.2, { police: `600 ${Math.round(22 * k)}px system-ui, sans-serif`, couleur: '#ffd666' });
       }
     }
-    // Capsule
-    ctx.save();
-    ctx.translate(xCap, yCap);
-    if (!capsuleSurPont && this.iRecup !== undefined && !['hisse', 'pose', 'fin'].includes(this.phase)) {
-      ctx.rotate(Math.sin(this.tAnim * 1.3) * 0.06);
-      // Ballons de redressement
-      ctx.fillStyle = '#fafafa';
-      for (const dx of [-0.22, 0, 0.22]) { ctx.beginPath(); ctx.arc(dx * taille, -taille * 0.95, taille * 0.13, 0, 2 * Math.PI); ctx.fill(); }
+    const xCap = etatCap[0].x, yCap = etatCap[0].y, taille = tailleDe(0);
+    for (let i = 0; i < nC; i++) {
+      const c = etatCap[i], t = tailleDe(i);
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      if (!c.pont && !c.pend) {
+        ctx.rotate(Math.sin(this.tAnim * 1.3 + i) * 0.06);
+        ctx.fillStyle = '#fafafa';   // ballons de redressement
+        for (const dx of [-0.22, 0, 0.22]) { ctx.beginPath(); ctx.arc(dx * t, -t * 0.95, t * 0.13, 0, 2 * Math.PI); ctx.fill(); }
+      }
+      dessinerCapsule(ctx, 0, t, t * 1.1);
+      if (Math.floor(this.tAnim * 2 + i) % 2 === 0) { ctx.fillStyle = '#ff5252'; ctx.beginPath(); ctx.arc(0, -t * 1.05, 2.5 * k, 0, 2 * Math.PI); ctx.fill(); }   // balise
+      ctx.restore();
+      // Écume autour des capsules qui flottent
+      if (!c.pont && !c.pend) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.ellipse(c.x, houle(c.x) + 4 * k, t * 0.75, 4 * k, 0, 0, 2 * Math.PI); ctx.stroke();
+      }
     }
-    dessinerCapsule(ctx, 0, taille, taille * 1.1);
-    // Balise lumineuse
-    if (Math.floor(this.tAnim * 2) % 2 === 0) { ctx.fillStyle = '#ff5252'; ctx.beginPath(); ctx.arc(0, -taille * 1.05, 2.5 * k, 0, 2 * Math.PI); ctx.fill(); }
-    ctx.restore();
     // Plouf : gerbe d'eau au moment de l'amerrissage (début de la phase « flotte »).
     if (this.phase === 'flotte' && this.tPhase < 1.6) {
       const f = this.tPhase / 1.6;
-      ctx.save();
-      ctx.globalAlpha = 1 - f;
-      ctx.fillStyle = '#e3f2fd';
-      for (let i = 0; i < 14; i++) {
-        const ang = Math.PI * (0.1 + 0.8 * (i / 13)), v0 = (60 + 50 * hash(i * 3.7)) * k;
-        const px = xCap - Math.cos(ang) * v0 * f * 1.4, py = houle(xCap) - Math.sin(ang) * v0 * f * 2 + 160 * k * f * f;
-        ctx.beginPath(); ctx.arc(px, py, (3 + 3 * hash(i * 1.9)) * k, 0, 2 * Math.PI); ctx.fill();
+      for (let i = 0; i < nC; i++) {
+        const xc = etatCap[i].x, t = tailleDe(i);
+        ctx.save();
+        ctx.globalAlpha = 1 - f;
+        ctx.fillStyle = '#e3f2fd';
+        for (let j = 0; j < 14; j++) {
+          const ang = Math.PI * (0.1 + 0.8 * (j / 13)), v0 = (60 + 50 * hash(j * 3.7 + i)) * k;
+          const px = xc - Math.cos(ang) * v0 * f * 1.4, py = houle(xc) - Math.sin(ang) * v0 * f * 2 + 160 * k * f * f;
+          ctx.beginPath(); ctx.arc(px, py, (3 + 3 * hash(j * 1.9)) * k, 0, 2 * Math.PI); ctx.fill();
+        }
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.ellipse(xc, houle(xc) + 4 * k, t * (0.8 + 2 * f), 6 * k * (1 + f), 0, 0, 2 * Math.PI); ctx.stroke();
+        ctx.restore();
       }
-      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.ellipse(xCap, houle(xCap) + 4 * k, taille * (0.8 + 2 * f), 6 * k * (1 + f), 0, 0, 2 * Math.PI); ctx.stroke();
-      ctx.restore();
-      if (f < 0.7) texteSurFond(ctx, 'PLOUF !', xCap, houle(xCap) - taille * 2.2, { police: `800 ${Math.round(26 * k)}px system-ui, sans-serif`, couleur: '#ffffff' });
-    }
-    // Écume autour de la capsule qui flotte
-    if (!['hisse', 'pose', 'fin'].includes(this.phase)) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.ellipse(xCap, houle(xCap) + 4 * k, taille * 0.75, 4 * k, 0, 0, 2 * Math.PI); ctx.stroke();
+      if (f < 0.7) texteSurFond(ctx, 'PLOUF !', cx, houle(cx) - taille * 2.2, { police: `800 ${Math.round(26 * k)}px system-ui, sans-serif`, couleur: '#ffffff' });
     }
 
     if (this.equipage) {
       // Hélicoptère : il arrive par la droite, se place au-dessus, descend le treuil, remonte l'équipage, repart.
-      const yStat = yMer - 210 * k, xStat = cx + 20 * k;
+      const quiH = this.personneCourante(), iCapH = quiH && quiH.capsule !== undefined ? quiH.capsule : 0;
+      const prec = this.recup[this.iRecup - 2], iCapAvant = prec && prec[3] !== undefined && this.personnes[prec[3]] ? this.personnes[prec[3]].capsule || 0 : iCapH;
+      const yStat = yMer - 210 * k, xStat = etatCap[iCapH].x + 20 * k + (this.phase === 'treuil' ? (etatCap[iCapAvant].x - etatCap[iCapH].x) * Math.max(0, 1 - lisse * 3) : 0);
       let xH = W + 200 * k, yH = yStat - 60 * k, cable = 0, personne = null;
       if (this.phase === 'helico') { xH = W + 200 * k + (xStat - W - 200 * k) * lisse; yH = yStat - 60 * k * (1 - lisse); }
       if (this.phase === 'treuil') { xH = xStat; yH = yStat; cable = lisse; personne = 0; }
       if (this.phase === 'montee') { xH = xStat; yH = yStat; cable = 1 - lisse; personne = lisse; }
       if (this.phase === 'depart') { xH = xStat - (xStat + 300 * k) * lisse; yH = yStat - 80 * k * lisse; }
       const qui = this.personneCourante();
-      if (['helico', 'treuil', 'montee', 'depart'].includes(this.phase)) this.dessinerHelico(ctx, xH, yH, k, cable, yCap - taille * 1.1, personne, qui && qui.profil);
+      if (['helico', 'treuil', 'montee', 'depart'].includes(this.phase)) this.dessinerHelico(ctx, xH, yH, k, cable, etatCap[iCapH].y - tailleDe(iCapH) * 1.1, personne, qui && qui.profil);
       // Vent du rotor sur la mer
       if (this.phase === 'treuil' || this.phase === 'montee') {
         ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1.5;
@@ -458,6 +506,7 @@ class RetourTerre {
     const lignes = [];
     const recup = this.iRecup !== undefined;
     lignes.push(['Retour sur Terre', '#ffffff', true]);
+    if (this.equipage) lignes.push([this.capsules.length > 1 ? `${this.capsules.length} capsules (au-delà de ${PLACES_MAX_CAPSULE} places, il en faut plusieurs) : ${this.capsules.map((c) => c.personnes.length).join(' + ')} à bord` : `${majuscule(this.capsules[0].type.nom)} : ${this.personnes.length} à bord`, '#cfd8e3']);
     if (!recup) {
       lignes.push([`Altitude ${fmtAlt(this.h)} · vitesse ${fmtV(this.v || 7800)} · ${fmt(this.decel || 0, 1)} g (max ${fmt(this.gMax, 1)} g)`, '#cfd8e3']);
       let etape;
