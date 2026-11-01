@@ -429,7 +429,9 @@ class Exploration {
     if (d) d.integrite -= Math.min(40, k * 4 * alea());
     const capote = r >= 1.3 && Math.random() < Math.min(1, (r - 1.3) / 0.5);
     if (capote) {
-      p.vx = 0;
+      // Le choc absorbe une partie de l'énergie (0,7² ≈ la moitié) ; le reste, l'élan, part en tonneaux.
+      p.vx *= 0.7;
+      this.tonneau = { angle: 0 };
       const choc = Math.min(40, 10 + (r - 1.3) * 40);
       this.integrite -= choc;
       if (d) d.integrite -= choc * alea();
@@ -440,6 +442,21 @@ class Exploration {
     this.causeDegats = 'chute';
     const combi = (x) => `${fmt(Math.max(0, x))} % (${etatCombi(x).nom})`;
     this.dire(`${capote ? '💥 L’astromobile capote en retombant ! ' : '🚙 '}Saut de ${fmt(h, 1)} m, retombée à ${fmtV(vImpact)} : batterie à ${fmt(100 - this.usureBatterieRover)} % de sa capacité (−${fmt(perteBat)} %), combinaison ${combi(this.integrite)}${d ? `, celle de ${d.eq.nom} ${combi(d.integrite)}` : ''}.`);
+  }
+  // Tonneaux après un capotage : l'astromobile garde sa quantité de mouvement et roule sur elle-même (rayon ≈ 1 m).
+  // Au sol, le frottement (≈ 0,6 × g) dissipe peu à peu son énergie : en faible gravité, elle va bien plus loin.
+  // Ni accélérateur ni frein ne répondent ; à l'arrêt, elle retombe sur ses roues.
+  rouleTonneau(dt) {
+    const p = this.p, t = this.tonneau;
+    if (t.cible === undefined) t.angle += p.vx * dt;
+    if (!p.auSol) return;
+    p.vx -= Math.sign(p.vx) * Math.min(Math.abs(p.vx), 0.6 * this.c.g * dt);
+    if (t.cible === undefined && Math.abs(p.vx) < 0.2) t.cible = Math.round(t.angle / (2 * Math.PI)) * 2 * Math.PI;   // presque arrêtée : elle bascule
+    if (t.cible === undefined) return;
+    p.vx = 0;
+    const reste = t.cible - t.angle;   // elle retombe sur ses roues, du côté le plus proche
+    t.angle += Math.sign(reste) * Math.min(Math.abs(reste), 5 * dt);
+    if (Math.abs(reste) < 0.01) { this.tonneau = null; this.dire('🚙 L’astromobile s’immobilise et retombe sur ses roues.'); }
   }
   // Batterie abîmée par les sauts : sa capacité baisse (la charge aussi, s'il le faut).
   appliquerUsureBatterie() {
@@ -575,11 +592,13 @@ class Exploration {
     this.quatrePattes = quatre;
     const vMax = this.surveillerDelorean(dt, veut, (this.enRover ? (this.batterieRover > 0 ? this.vMaxRover : 0) : this.vMax * (quatre ? VITESSE_QUATRE_PATTES : 1)) * freinPente);
     const acc = this.enRover ? (this.delorean ? 12 : this.accRover) : this.acc;
+    if (this.tonneau && this.enRover) this.rouleTonneau(dt); else this.tonneau = null;
     if (this.rappel) this.descendreEnRappel(dt, cmd);
     else if (p.auSol) {
       // Après quelques bières, la démarche devient… approximative.
       const titube = this.bieres >= 2 ? Math.sin(this.vol.t * 3) * 0.4 * Math.min(1, (this.bieres - 1) / 3) : 0;
-      if (this.enRover && !this.delorean) this.conduireRover(dt, veut, cmd.frein, vMax / (this.vMaxRover || 1));
+      if (this.enRover && this.tonneau) { /* en tonneaux : seul l'élan compte */ }
+      else if (this.enRover && !this.delorean) this.conduireRover(dt, veut, cmd.frein, vMax / (this.vMaxRover || 1));
       else {
         const cible = veut * vMax * (1 + titube);
         const dv = cible - p.vx;
@@ -626,7 +645,7 @@ class Exploration {
         if (this.traces.length > 600) this.traces.shift();
         if (this.enRover && Math.random() < 0.3) this.poussiere(1);
       }
-      if (this.enRover) { this.rover.x = p.x; if (Math.abs(p.vx) > 0.05) this.batterieRover = Math.max(0, this.batterieRover - dt * (1 + this.degatsRover / 100)); }   // abîmée, elle consomme plus
+      if (this.enRover) { this.rover.x = p.x; if (Math.abs(p.vx) > 0.05 && !this.tonneau) this.batterieRover = Math.max(0, this.batterieRover - dt * (1 + this.degatsRover / 100)); }   // abîmée, elle consomme plus
     } else {
       p.vy -= g * dt;
       // En l'air, on ne traverse pas une paroi : on s'y cogne (pour monter, il faut l'escalader).
@@ -1448,7 +1467,11 @@ class Exploration {
     if (p.auSol) this.inclinaison = this.penteSous(p.x);
     if (this.delorean && this.delorean.phase === 'disparu') { /* quelque part dans le temps */ }
     else if (this.enRover) {
-      dessinerRover(ctx, sx, sy, echelle, p, true, this.inclinaison || 0, this.degatsRover);
+      if (this.tonneau) {   // en tonneaux : elle tourne autour de son centre (≈ 0,8 m au-dessus des roues)
+        ctx.save(); ctx.translate(sx, sy - 0.8 * echelle); ctx.rotate(this.tonneau.angle);
+        dessinerRover(ctx, 0, 0.8 * echelle, echelle, p, true, 0, this.degatsRover);
+        ctx.restore();
+      } else dessinerRover(ctx, sx, sy, echelle, p, true, this.inclinaison || 0, this.degatsRover);
       if (this.delorean) texteSurFond(ctx, `${fmt(Math.abs(p.vx) * 2.2369)} mph`, sx, sy - 3.2 * echelle, { police: '700 16px system-ui, sans-serif', couleur: Math.abs(p.vx) > 30 ? '#ff5252' : '#ffca28' });
     }
     else if (this.type === 'spationaute' && this.secours && (this.secours.phase === 'decollage' || this.dansSecours)) { /* à bord du module de secours */ }
