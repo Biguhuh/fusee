@@ -255,7 +255,11 @@ class Vol {
     // Échauffement aérodynamique (≈ v²/2cp), efficace seulement dans un air assez dense.
     const aero = (v * v) / 2010 * (c.rho / (c.rho + 0.05));
     const tau = this.astre.type === 'etoile' ? 15 : 40 / (1 + Math.sqrt(c.rho));
-    this.temp += (c.t + aero - this.temp) * Math.min(1, dt / tau);
+    // Sans air (ou presque), c'est le Soleil qui chauffe la coque : elle suit la température du jour ou de la nuit
+    // (Mercure : 430 °C le jour, −180 °C la nuit ou au fond d'un cratère polaire). Avec de l'air, celle de l'air.
+    const sansAir = !this.astre.atm || this.astre.atm.p0 < 0.05;
+    const tLocale = this.astre.type === 'solide' && (sansAir || this.altSol() < 2000) ? temperatureLocale(this) : null;
+    this.temp += ((tLocale === null ? c.t : tLocale) + aero - this.temp) * Math.min(1, dt / tau);
     this.stats.pMax = Math.max(this.stats.pMax, c.p);
     this.stats.tMax = Math.max(this.stats.tMax, this.temp);
 
