@@ -1023,8 +1023,30 @@ class Exploration {
     if (DELAI_SECOURS + 5 * 60 > this.reserve) return this.dire(`🆘 Le module de secours mettrait ${fmtDuree(DELAI_SECOURS)} à arriver, mais il ne reste que ${fmtDuree(this.reserve)} d’oxygène : trop tard.`);
     const z = this.choisirZoneSecours();
     if (!z) return this.dire('🆘 Aucune zone d’atterrissage possible : il faut un sol plat, qu’on puisse rejoindre à pied (sans paroi infranchissable) avant la fin de l’oxygène. Déplacez-vous, puis rappelez (U).');
-    this.secours = { reste: DELAI_SECOURS, x: z.x, phase: 'vol', t: 0 };
+    this.secours = { reste: DELAI_SECOURS, x: z.x, phase: 'vol', t: 0, avecAutre: false };
+    if (this.duo) this.choisirPassagersSecours();
     this.dire(`🆘 Appel reçu ! Un module de secours ${v ? 'quitte l’orbiteur' : 'est envoyé'} : arrivée dans ${fmtDuree(DELAI_SECOURS)}. Zone d’atterrissage ${this.directionVers(z.x)}, à ${fmt(z.dist)} m (≈ ${fmtDuree(z.temps)} à pied) : soyez-y à son arrivée.`);
+  }
+  // Qui monte dans le module de secours : vous (qui appelez) et, s'il reste une place, l'autre spationaute.
+  // Celui qui ne monte pas reste au sol, avec le premier atterrisseur.
+  choisirPassagersSecours() {
+    const d = this.duo, m = $('modale'), s = this.secours;
+    const v = etat.enVoyage && etat.voyage, places = v ? placesModule(v) : 2;
+    const avant = etat.pause;
+    etat.pause = true;
+    m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>🆘 Qui monte dans le module de secours ?</h2>
+      <p>Le module de secours a ${places} places. Tous ceux qui montent doivent être sur la zone d’atterrissage à son arrivée.</p></div></header>
+      <section><label class="choix-ravito"><input type="checkbox" checked disabled> <b>${majuscule(this.def.nom)}</b> — vous appelez : vous montez</label>
+      <label class="choix-ravito"><input type="checkbox" id="sec-autre" ${places >= 2 ? 'checked' : 'disabled'}> <b>${d.eq.nom}</b> — ${d.blessure ? this.texteBlessure(d.blessure) : 'en forme'}, O₂ ${fmtDuree(d.reserve)}<br><span class="doux">S’il ne monte pas, ${d.eq.nom} reste au sol avec le premier atterrisseur.</span></label></section>
+      <div class="actions"><span></span><button id="sec-ok" class="principal">🆘 Confirmer</button></div></div>`;
+    m.classList.remove('cache');
+    $('sec-ok').onclick = () => {
+      s.avecAutre = $('sec-autre').checked;
+      Infos.fermer();
+      etat.pause = avant;
+      if (s.avecAutre) { d.mode = 'suit'; this.dire(`🆘 ${d.eq.nom} monte aussi : il vous suit vers la zone d’atterrissage.`.replace('il vous suit', `${d.eq.acc ? 'elle' : 'il'} vous suit`)); }
+      else this.dire(`🆘 ${d.eq.nom} reste au sol, avec le premier atterrisseur.`);
+    };
   }
   texteSecours() {
     const s = this.secours;
@@ -1053,22 +1075,35 @@ class Exploration {
       return false;
     }
     if (s.phase === 'pose') {
-      if (dZone < 6 && this.p.auSol) {
+      const autreLa = !s.avecAutre || !this.duo || distSol(this.astre, this.duo.p.x, s.x) < 8;
+      if (dZone < 6 && this.p.auSol && !autreLa && !s.attendAutre) { s.attendAutre = true; this.dire(`🆘 Attendez ${this.duo.eq.nom} : il faut être tous sur la zone pour embarquer.`); }
+      if (dZone < 6 && this.p.auSol && autreLa) {
         s.phase = 'embarquement'; s.t = 0;
+        if (this.duo && this.duo.enRover) this.duo.enRover = false;
         if (this.enRover) { s.sacRover = true; this.enRover = false; this.rover.x = this.p.x; }   // l'astromobile reste là, son sac part avec l'équipage
       }
       return false;
     }
     if (s.phase === 'embarquement') {
-      // Le spationaute marche jusqu'à la trappe, puis monte à bord.
-      const p = this.p, ecart = ecartSol(this.astre, s.x - 0.6, p.x);
-      if (Math.abs(ecart) > 0.05) { const pas = Math.sign(ecart) * Math.min(Math.abs(ecart), 1.2 * dt); p.x += pas; p.dir = Math.sign(ecart); p.pas += Math.abs(pas); }
-      p.y = this.sol(p.x); p.vx = 0; p.vy = 0;
-      if (s.t >= 3) { s.phase = 'decollage'; s.t = 0; this.dire('🆘 À bord ! Le module de secours redécolle.'); }
+      // Chacun marche jusqu'à la trappe, puis monte à bord : vous d'abord, l'autre ensuite.
+      const marcher = (q) => {
+        const ecart = ecartSol(this.astre, s.x - 0.6, q.x);
+        if (Math.abs(ecart) > 0.05) { const pas = Math.sign(ecart) * Math.min(Math.abs(ecart), 1.2 * dt); q.x += pas; q.dir = Math.sign(ecart); q.pas = (q.pas || 0) + Math.abs(pas); }
+        q.y = this.sol(q.x); q.vx = 0; q.vy = 0;
+        return Math.abs(ecart) <= 0.05;
+      };
+      const d = s.avecAutre && this.duo;
+      if (!this.dansSecours && marcher(this.p) && s.t >= 1.5) { this.dansSecours = true; s.tMonte = s.t; if (d) this.dire(`🆘 ${majuscule(this.def.nom)} est à bord. Au tour de ${d.eq.nom}.`); }
+      if (d && !d.dansSecours && s.t >= 0.8 && marcher(d.p) && this.dansSecours && s.t >= s.tMonte + 1.5) d.dansSecours = true;
+      if (this.dansSecours && (!d || d.dansSecours)) { s.phase = 'decollage'; s.t = 0; this.dire(`🆘 ${d ? 'Tout le monde est à bord' : 'À bord'} ! Le module de secours redécolle.`); }
       return false;
     }
     if (s.phase === 'decollage' && s.t < 6) return false;
-    // Sauvé : le spationaute rentre avec son sac (et celui de l'astromobile s'il y était).
+    // L'autre n'est pas monté : il reste au sol avec le premier atterrisseur.
+    if (this.duo && !s.avecAutre) this.perdreDuo('resté au sol avec le premier atterrisseur, sans pouvoir repartir');
+    const avec = s.avecAutre && this.duo ? this.duo.eq.nom : null;
+    this.vol.secourus = [this.def.nom, ...(avec ? [avec] : [])];
+    // Sauvés : leurs sacs (et celui de l'astromobile s'il y était) montent à bord.
     const tous = [...this.sac, ...(s.sacRover ? this.sacRover || [] : []), ...(this.duo ? this.duo.sac : [])];
     const n = tous.length;
     if (n) {
@@ -1077,7 +1112,7 @@ class Exploration {
       this.vol.echantillons = (this.vol.echantillons || 0) + n;
       this.recoltes = (this.recoltes || 0) + n;
     }
-    this.terminer('secouru', `🆘 Sauvetage réussi : ${this.def.nom} est monté${this.equipier().acc} dans le module de secours${n ? ` avec ${n} échantillon${n > 1 ? 's' : ''}` : ''}. Le premier atterrisseur reste au sol.`);
+    this.terminer('secouru', `🆘 Sauvetage réussi : ${avec ? `${this.def.nom} et ${avec} sont montés` : `${this.def.nom} est monté${this.equipier().acc}`} dans le module de secours${n ? ` avec ${n} échantillon${n > 1 ? 's' : ''}` : ''}. Le premier atterrisseur reste au sol.`);
     return true;
   }
   // Pendant l'embarquement et le décollage, on ne pilote plus : l'animation se déroule.
@@ -1313,7 +1348,7 @@ class Exploration {
       dessinerRover(ctx, sx, sy, echelle, p, true, this.inclinaison || 0, this.degatsRover);
       if (this.delorean) texteSurFond(ctx, `${fmt(Math.abs(p.vx) * 2.2369)} mph`, sx, sy - 3.2 * echelle, { police: '700 16px system-ui, sans-serif', couleur: Math.abs(p.vx) > 30 ? '#ff5252' : '#ffca28' });
     }
-    else if (this.type === 'spationaute' && this.secours && this.secours.phase === 'decollage') { /* à bord du module de secours */ }
+    else if (this.type === 'spationaute' && this.secours && (this.secours.phase === 'decollage' || this.dansSecours)) { /* à bord du module de secours */ }
     else if (this.type === 'spationaute' && this.poseGeste('moi') === 'allonge') dessinerAllonge(ctx, sx, sy, echelle, this.geste.sens, this.equipier().profil);
     else if (this.type === 'spationaute') dessinerSpationaute(ctx, sx, sy, echelle, { ...p, grimpe: this.enEscalade ? p.grimpe : undefined, pose: this.poseGeste('moi') || (this.quatrePattes ? 'quatre-pattes' : undefined), inclinaison: this.penteSous(p.x) }, this.terre, this.equipier().profil);
     else {

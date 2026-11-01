@@ -602,7 +602,7 @@ function larguerRobot(id, blindage, site) {
 // 🆘 Sauvetage réussi : le module de secours ramène le spationaute (et son sac). Le premier atterrisseur reste au sol.
 function finSecours() {
   const v = etat.enVoyage && etat.voyage, vol = etat.vol, a = vol.astre;
-  const nom = (vol.equipier || equipierDescente(null)).nom, n = vol.echantillons || 0;
+  const nom = vol.secourus && vol.secourus.length > 1 ? vol.secourus.join(' et ') : (vol.equipier || equipierDescente(null)).nom, n = vol.echantillons || 0;
   const h = $('res-titre');
   h.textContent = '🆘 Sauvetage réussi';
   h.className = 'succes';
