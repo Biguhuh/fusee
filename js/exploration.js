@@ -313,6 +313,7 @@ class Exploration {
   // Astromobile : → ou ← accélère dans ce sens, ↓ freine, rien : roue libre. L'accélérateur est bridé à la vitesse
   // sûre pour la gravité locale (au-delà, chaque bosse fait décoller) ; B lève le bridage, à vos risques.
   conduireRover(dt, veut, frein, kPente) {
+    if (this.batterieRover <= 0) veut = 0;   // batterie vide : l'accélérateur ne répond plus, roue libre
     const p = this.p, vLim = (this.roverBride ? this.vMaxRover : this.vMoteurRover) * kPente;
     if (frein) {
       p.vx -= Math.sign(p.vx) * Math.min(Math.abs(p.vx), 2.5 * this.accRover * dt);
