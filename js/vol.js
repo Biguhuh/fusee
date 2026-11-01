@@ -1586,6 +1586,7 @@ function dessinerModule(ctx, vol, x, y, h) {
   if (vol.enDegats && vol.enDegats() && Math.sin(performance.now() / 70) > 0) {
     ctx.strokeStyle = '#ff1744'; ctx.lineWidth = 2; ctx.stroke(forme);
   }
+  decorerModule(ctx, h, vol.niv);   // niveaux d'évolution (R&D)
   ctx.restore();
 }
 

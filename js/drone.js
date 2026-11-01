@@ -51,7 +51,7 @@ function reperagesDrone(vol) {
 
 // Dessin : corps, deux bras, deux rotors visibles (les deux autres sont derrière), patins.
 // (x, y) : point de contact au sol ; h : hauteur du module d'atterrissage à cette échelle (7 m).
-function dessinerDrone(ctx, vol, x, y, h) {
+function dessinerDrone(ctx, vol, x, y, h, niv = null) {
   const s = Math.max(32, (h / HAUTEUR_MODULE) * 3);      // px par mètre (agrandi pour rester bien visible)
   ctx.save();
   ctx.translate(x, y);
@@ -86,5 +86,6 @@ function dessinerDrone(ctx, vol, x, y, h) {
     ctx.strokeStyle = '#37474f'; ctx.lineWidth = Math.max(1.5, 0.04 * s);
     ctx.beginPath(); ctx.moveTo(xr - lb, yr - 0.07 * s); ctx.lineTo(xr + lb, yr - 0.07 * s); ctx.stroke();
   }
+  decorerDrone(ctx, s, niv);   // niveaux d'évolution (R&D)
   ctx.restore();
 }

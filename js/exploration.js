@@ -1610,7 +1610,7 @@ function dessinerNuages(ctx, W, H, decalage) {
 
 // Rover lunaire (inspiré du rover d'Apollo), avec le spationaute assis s'il est à bord.
 // inclinaison : angle de la pente (rad, positif quand le sol monte vers la droite) ; le véhicule reste parallèle au sol.
-function dessinerRover(ctx, x, y, s, p, aBord, inclinaison = 0, degats = 0) {
+function dessinerRover(ctx, x, y, s, p, aBord, inclinaison = 0, degats = 0, niv = null) {
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(-inclinaison);
@@ -1645,6 +1645,7 @@ function dessinerRover(ctx, x, y, s, p, aBord, inclinaison = 0, degats = 0) {
     const t = performance.now() / 1000;
     for (let k = 0; k < 3; k++) { const ph = (t * 0.6 + k / 3) % 1; ctx.fillStyle = `rgba(120,120,120,${0.5 * (1 - ph)})`; ctx.beginPath(); ctx.arc(1 * s + ph * 0.4 * s, -1.1 * s - ph * 1.6 * s, (0.15 + ph * 0.35) * s, 0, Math.PI * 2); ctx.fill(); }
   }
+  decorerRover(ctx, s, niv);   // niveaux d'évolution (R&D)
   ctx.restore();
 }
 
@@ -1656,7 +1657,7 @@ const BIERES_MAX = 3;
 // Hauteur des messages : au-dessus des boutons tactiles (en bas en portrait).
 function yMessagesExplo(W, H) { return ECRAN_TACTILE ? H - (H > W ? 210 : 70) : H - 46; }
 
-function dessinerRobot(ctx, x, y, s, p, analyse, inclinaison = 0) {
+function dessinerRobot(ctx, x, y, s, p, analyse, inclinaison = 0, niv = null) {
   const L = 1.6 * s, h = 1.3 * s;
   ctx.save();
   ctx.translate(x, y);
@@ -1684,5 +1685,6 @@ function dessinerRobot(ctx, x, y, s, p, analyse, inclinaison = 0) {
     ctx.beginPath(); ctx.moveTo(0.5 * L, -0.4 * s); ctx.lineTo(0.75 * L, -0.15 * s); ctx.stroke();
     ctx.fillStyle = 'rgba(79,195,247,0.5)'; ctx.beginPath(); ctx.arc(0.78 * L, -0.08 * s, 6, 0, Math.PI * 2); ctx.fill();
   }
+  decorerRobot(ctx, s, niv);   // niveaux d'évolution (R&D)
   ctx.restore();
 }
