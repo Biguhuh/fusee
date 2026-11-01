@@ -19,10 +19,13 @@ function profilMur(m, d) {
 // Objectifs : [texte, test(engin, essai)]. Un objectif n'est testé qu'une fois les précédents réussis.
 const ESSAIS = {
   astromobile: {
-    titre: '🚙 Astromobile', resume: 'Monter à bord, rouler jusqu’au plot, revenir, descendre, sauter, ramasser un échantillon.',
+    titre: '🚙 Astromobile', resume: 'Monter à bord, rouler jusqu’au plot, débrider puis rebrider l’accélérateur, revenir, descendre, sauter, ramasser un échantillon.',
     objectifs: [
       ['Monter dans l’astromobile : approchez-vous d’elle (à gauche du module) et appuyez sur V', (x) => x.enRover],
       [`Rouler jusqu’au plot orange, à ${PLOT_ESSAI} m (→)`, (x, e) => x.enRover && distSol(x.astre, x.p.x, e.plot) < 5],
+      // Le bridage : au-delà de la vitesse sûre (5 m/s sur Terre), l'astromobile décolle à chaque bosse sur un petit astre.
+      ['Débrider l’accélérateur (B) et dépasser 5 m/s, la vitesse sûre sur Terre (→)', (x) => x.enRover && !x.roverBride && Math.abs(x.p.vx) > x.vMaxRover * 1.05],
+      ['Brider de nouveau (B) et ralentir sous 5 m/s (↓ pour freiner)', (x) => x.enRover && x.roverBride && Math.abs(x.p.vx) <= x.vMaxRover * 1.02],
       ['Revenir au module en astromobile (←)', (x) => x.enRover && distSol(x.astre, x.p.x, x.xFusee) < 12],
       ['Descendre de l’astromobile (V)', (x) => !x.enRover],
       ['Sauter (↑, Z ou Espace)', (x, e) => x.dernierSaut !== e.refSaut && x.dernierSaut > 0],
@@ -114,7 +117,7 @@ function majEssai(engin) {
   const [texte, test] = def.objectifs[e.etape];
   if (!test(engin, e)) return;
   e.etape++;
-  if (e.cle === 'astromobile' && e.etape === 4) e.refSaut = engin.dernierSaut;   // le saut compte à partir d'ici
+  if (e.cle === 'astromobile' && e.etape === 6) e.refSaut = engin.dernierSaut;   // le saut compte à partir d'ici
   const dire = (t) => (engin.dire ? engin.dire(t) : (engin.messageExplo = { texte: t, vie: 6 }));
   if (e.etape >= def.objectifs.length) {
     e.fait = true;

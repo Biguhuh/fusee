@@ -1472,15 +1472,9 @@ class Exploration {
         yy += 16;
       }
     } else {
-    ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.fillRect(8, 8, 290, 272 + (this.retour && this.retour.dist > 0 ? 18 : 0) + (this.rover ? 18 : 0) + (this.secours ? 18 : 0));
-    let y = 28;
-    const ligne = (k, v, coul = '#fff') => {
-      ctx.font = '12px system-ui'; ctx.fillStyle = '#b0bec5'; ctx.fillText(k, 16, y);
-      ctx.font = 'bold 13px ui-monospace, Consolas, monospace'; ctx.fillStyle = coul; ctx.fillText(v, 140, y);
-      y += 18;
-    };
-    ctx.font = 'bold 15px system-ui'; ctx.fillStyle = '#fff'; ctx.fillText(majuscule(`${d.nom} ${sur(a)}`), 16, y); y += 24;
+    // On liste les lignes d'abord : le panneau prend ensuite la taille de son contenu.
+    const lignes = [], titre = majuscule(`${d.nom} ${sur(a)}`);
+    const ligne = (k, v, coul = '#fff') => lignes.push([k, v, coul]);
     ligne(d.ressource, fmtDuree(this.reserve), fr < 0.2 ? '#ef5350' : '#66bb6a');
     ligne(this.type === 'robot' ? 'État du robot' : 'Combinaison', fmt(this.integrite) + ' %' + (this.type === 'spationaute' ? ` · ${etatCombi(this.integrite).nom}${etatCombi(this.integrite).fuite > 1 ? `, O₂ ×${fmt(etatCombi(this.integrite).fuite, 1)}` : ''} · ruban ${this.rubans + (this.duo ? this.duo.rubans : 0)}` : ''), this.integrite > 60 ? '#66bb6a' : this.integrite > 30 ? '#ffca28' : '#ef5350');
     if (this.type === 'spationaute') ligne('Santé', this.texteBlessure(), !this.blessure ? '#66bb6a' : this.blessure.gravite === 'grave' ? '#ef5350' : '#ffca28');
@@ -1511,6 +1505,22 @@ class Exploration {
     if (this.rover) ligne('Batterie astromobile', fmtDuree(this.batterieRover) + (this.usureBatterieRover > 0 ? ` (capacité ${fmt(100 - this.usureBatterieRover)} %)` : ''), this.batterieRover < 30 * 60 ? '#ef5350' : this.usureBatterieRover > 30 ? '#ffca28' : '#66bb6a');
     if (this.rover && this.degatsRover > 0) ligne('État astromobile', this.degatsRover >= 100 ? 'hors d’usage' : `abîmée à ${fmt(this.degatsRover)} %, vitesse ×${fmt(1 - 0.5 * this.degatsRover / 100, 2)}`, this.degatsRover >= 50 ? '#ef5350' : '#ffca28');
     if (this.secours) ligne('🆘 Secours', this.texteSecours(), '#ffca28');
+    // Colonne des valeurs après la plus longue étiquette ; largeur selon la plus longue valeur.
+    ctx.font = '12px system-ui';
+    const xv = 16 + Math.max(...lignes.map(([k]) => ctx.measureText(k).width)) + 12;
+    ctx.font = 'bold 13px ui-monospace, Consolas, monospace';
+    const lv = Math.max(...lignes.map(([, v]) => ctx.measureText(v).width));
+    ctx.font = 'bold 15px system-ui';
+    const larg = Math.min(W - 16, Math.max(ctx.measureText(titre).width + 16, xv + lv) + 12);
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(8, 8, larg, 34 + lignes.length * 18);
+    let y = 28;
+    ctx.fillStyle = '#fff'; ctx.fillText(titre, 16, y); y += 24;
+    for (const [k, v, coul] of lignes) {
+      ctx.font = '12px system-ui'; ctx.fillStyle = '#b0bec5'; ctx.fillText(k, 16, y);
+      ctx.font = 'bold 13px ui-monospace, Consolas, monospace'; ctx.fillStyle = coul; ctx.fillText(v, xv, y);
+      y += 18;
+    }
     }
 
     // Site le plus proche non étudié
