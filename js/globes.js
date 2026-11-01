@@ -373,7 +373,10 @@ function dessinerGlobe(ctx, a, x, y, r, options = {}) {
   const anneaux = a.id === 'saturne';
   if (anneaux && vue !== 'pole') dessinerAnneaux(ctx, x, y, r, 'arriere', options.inclinaisonAnneaux);
   if (anneaux && vue === 'pole') dessinerAnneaux(ctx, x, y, r, 'pole');
-  ctx.drawImage(cv, x - r, y - r, 2 * r, 2 * r);
+  // Petits astres irréguliers : la silhouette de leur vraie forme (voir formes.js) ; les autres, un disque.
+  const fm = formeAstre(a);
+  if (fm) dessinerForme(ctx, cv, fm, x, y, r, options.angleForme || 0);
+  else ctx.drawImage(cv, x - r, y - r, 2 * r, 2 * r);
   if (anneaux && vue !== 'pole') dessinerAnneaux(ctx, x, y, r, 'avant', options.inclinaisonAnneaux);
   // Atmosphère : fin liseré coloré
   if (a.atm && a.atm.p0 > 0.003 && r > 8) {
@@ -420,7 +423,9 @@ function imageAstre(a, taille = 64) {
     gr.addColorStop(0, '#fff8d0'); gr.addColorStop(0.7, '#ffc040'); gr.addColorStop(1, '#ff8000');
     g.fillStyle = gr; g.beginPath(); g.arc(taille, taille, taille * 0.9, 0, Math.PI * 2); g.fill();
   } else {
-    dessinerGlobe(g, a, taille, taille, taille * (a.id === 'saturne' ? 0.42 : 0.9), { vue: 'equateur', lon0: 0, lumiere: [-0.5, -0.3, 0.8], inclinaisonAnneaux: 0.35 });
+    // Astre irrégulier : on réduit pour que son grand axe (et ses bosses) tienne dans l'image.
+    const fm = formeAstre(a), kf = fm ? Math.cbrt(fm.axes[0] * fm.axes[1] * fm.axes[2]) / fm.axes[0] / 1.15 : 1;
+    dessinerGlobe(g, a, taille, taille, taille * (a.id === 'saturne' ? 0.42 : 0.9) * kf, { vue: 'equateur', lon0: 0, lumiere: [-0.5, -0.3, 0.8], inclinaisonAnneaux: 0.35 });
   }
   return cv.toDataURL();
 }
