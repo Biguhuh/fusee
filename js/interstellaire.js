@@ -191,6 +191,7 @@ function arriverDansSysteme(v, info) {
   v.historique = v.historique || [];
   v.historique.push({ systeme: v.systeme || 'solaire', nom: SYSTEME.nom, quitte: info.tDepart, stations: v.stations.length, bases: v.bases.length, echantillons: ech });
   v.t = info.tArrivee;
+  v.tVivres = v.t; v.tDechets = v.t;   // traversée : écosystème fermé, rien à décompter d'un coup
   v.systeme = info.systeme;
   v.planeteBase = info.base;
   choisirSystemeCampagne(v);

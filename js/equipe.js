@@ -171,7 +171,7 @@ function risqueTrauma(v) {
 }
 function rateParTrauma(v) {
   if (v.cible && estOrigine(v.cible)) return false;   // retour sur Terre : automatisé
-  return Math.random() < risqueTrauma(v) + risqueDechets(v);   // soute à déchets pleine : hygiène dégradée
+  return Math.random() < risqueTrauma(v) + risqueDechets(v) + risqueVivres(v);   // soute à déchets pleine : hygiène dégradée
 }
 function causeSortie(texte) {
   if (/pression/.test(texte)) return 'combinaison écrasée par la pression';
@@ -394,7 +394,7 @@ function htmlEquipe(v) {
   const robots = (v.robotsAuto || []).map((r) => `<li>🤖 Robot ${sur(ASTRES_PAR_ID[r.astre])} — conteneur lancé dans ${fmtDuree(r.fin - v.t)}</li>`).join('');
   const conteneurs = (v.conteneurs || []).map((c) => `<li>📦 Conteneur de ${c.n} échantillons ${enOrbite(ASTRES_PAR_ID[c.astre])} (à récupérer)</li>`).join('');
   const pbR = a ? empechementRobotAuto(v, a) : 'pas d’orbiteur';
-  return `<h3>Équipe (${survivants(v).length}/${capaciteEquipe(v)})</h3><ul class="sondes">${lignes}${robots}${conteneurs}</ul>` +
+  return `<h3>Équipe (${survivants(v).length}/${capaciteEquipe(v)})</h3>${v.vivres !== undefined ? `<p class="doux">${resumeVivres(v)}</p>` : ''}<ul class="sondes">${lignes}${robots}${conteneurs}</ul>` +
     (pb && a ? `<p class="doux">Missions : ${pb}.</p>` : '') +
     (!pbR ? `<button id="nav-robot-auto">🤖 Robot de prélèvement (${v.robots})</button>` : '');
 }

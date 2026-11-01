@@ -87,6 +87,7 @@ const Orbiteur = {
       carburant: ORBITEUR.carburantMax, ergolsAtt: ORBITEUR.ergolsAtt, sondes: ORBITEUR.sondes,
       kits: ORBITEUR.kits + (station ? 0 : 1), kitsBase: ORBITEUR.kitsBase, robots: ORBITEUR.robots, drones: ORBITEUR.drones,
       atterrisseurs: ORBITEUR.atterrisseurs, echantillonsABord: {}, cible: null, manette: 0,
+      vivres: vivresMax(v), eau: eauMax(v), tVivres: v.t, dechets: 0, tDechets: v.t,   // expédition neuve : vivres et eau au plein
     });
     // Orbiteur garé : on retrouve ce qu'il restait à bord (la station le complètera : « Faire le plein »).
     if (gare) { Object.assign(v, gare); v.orbiteurGare = null; }
@@ -909,7 +910,7 @@ const Orbiteur = {
   // La station a-t-elle encore quelque chose à donner à l'orbiteur ?
   stockAPrendre(s) {
     const v = this.v, k = s.stock;
-    const max = { carburant: capOrbiteur(this.v, 'carburantMax'), ergols: capOrbiteur(this.v, 'ergolsAtt'), sondes: capOrbiteur(this.v, 'sondes'), kits: capOrbiteur(this.v, 'kits') + 1, kitsBase: 2, robots: capOrbiteur(this.v, 'robots'), drones: capOrbiteur(this.v, 'drones'), atterrisseurs: capOrbiteur(this.v, 'atterrisseurs'), propulseurs: 2 };
+    const max = { carburant: capOrbiteur(this.v, 'carburantMax'), ergols: capOrbiteur(this.v, 'ergolsAtt'), sondes: capOrbiteur(this.v, 'sondes'), kits: capOrbiteur(this.v, 'kits') + 1, kitsBase: 2, robots: capOrbiteur(this.v, 'robots'), drones: capOrbiteur(this.v, 'drones'), atterrisseurs: capOrbiteur(this.v, 'atterrisseurs'), propulseurs: 2, vivres: vivresMax(v), eau: eauMax(v) };
     return Object.entries(max).some(([c, m]) => (k[c] || 0) > 0 && (v[CHAMP_ORBITEUR[c] || c] || 0) < m - (c === 'carburant' || c === 'ergols' ? 1 : 0));
   },
   orbiteFermee() {
@@ -940,6 +941,7 @@ const Orbiteur = {
     const v = this.v;
     if (v.equipe) mettreAJourEquipe(v, (t) => this.log(t));
     mettreAJourDechets(v, (t) => this.log(t), (st) => this.estAmarre(st));
+    mettreAJourVivres(v, (t) => this.log(t));
     if (v.sondesInterstellaires && v.sondesInterstellaires.length) mettreAJourSondesInterstellaires(v, (t) => this.log(t));
     this.arriveesEchantillons();
     for (const s of v.stations) {
@@ -1027,6 +1029,8 @@ const Orbiteur = {
     remplir('kitsBase', ORBITEUR.kitsBase, 'kits de base');
     remplir('robots', capOrbiteur(this.v, 'robots'), 'robots');
     remplir('atterrisseurs', capOrbiteur(this.v, 'atterrisseurs'), 'atterrisseurs');
+    remplir('vivres', vivresMax(v), 'de vivres', true);
+    remplir('eau', eauMax(v), 'd’eau potable', true);
     this.log(pris.length ? `Plein fait depuis ${SYSTEME.nomOrigine}, sans station ni base : ${pris.join(', ')}.` : 'L’orbiteur est déjà plein.');
   },
 
@@ -1223,9 +1227,11 @@ const Orbiteur = {
     const v = this.v, st = v.stations.find((s) => s.id === stationId), a = AMELIORATIONS[cle];
     if (!st || !a) return;
     const n = niveauAmelio(cle, v);
-    if (n >= NIVEAU_MAX_AMELIO) return this.log(`${a.nom} : déjà au niveau maximal.`);
+    const pre = prerequisManquant(cle, v);
+    if (pre) return this.log(`${a.nom} : ${pre}.`);
+    if (n >= maxAmelio(cle)) return this.log(`${a.nom} : déjà au niveau maximal.`);
     if (rdEnCours(v, cle)) return this.log(`${a.nom} : déjà en cours de mise au point.`);
-    const c = COUT_AMELIO[n + 1];
+    const c = coutAmelio(cle, n + 1);
     if (st.stock.materiaux < c.materiaux) return this.log(`${st.nom} : pas assez de matériaux pour ${a.nom.toLowerCase()} (${fmtStock('materiaux', c.materiaux)} nécessaires).`);
     st.stock.materiaux -= c.materiaux;
     const duree = (c.jours * JOUR) / niveauStation(st).vitesse;
@@ -1320,6 +1326,8 @@ const Orbiteur = {
     prendre('robots', capOrbiteur(this.v, 'robots'), 'robots');
     prendre('drones', capOrbiteur(this.v, 'drones'), 'drones');
     prendre('atterrisseurs', capOrbiteur(this.v, 'atterrisseurs'), 'atterrisseurs');
+    prendre('vivres', vivresMax(v), 'de vivres', 'kg');
+    prendre('eau', eauMax(v), 'd’eau potable', 'kg');
     // Propulseurs solaires : 2 au plus (un pour la voiture, un pour rentrer sans ergols).
     v.propulseurs = v.propulseurs || 0;
     prendre('propulseurs', 2, 'propulseurs solaires');
@@ -2330,6 +2338,8 @@ const Orbiteur = {
         ];
         d += '<dl>' + lignesOrb.map(([cle, nom, n, max]) => `<dt>${nom}</dt><dd>${fmtStock(cle, n || 0)} <span class="doux">/ ${fmtStock(cle, max)}</span></dd>`).join('') +
           `<dt>Échantillons à bord</dt><dd>${ech}</dd>` +
+          `<dt>Vivres</dt><dd>${fmtKg(v.vivres || 0)} <span class="doux">/ ${fmtKg(vivresMax(v))} · ${texteJours(joursRestants(v, 'vivres'))}</span></dd>` +
+          `<dt>Eau potable</dt><dd>${fmtKg(v.eau || 0)} <span class="doux">/ ${fmtKg(eauMax(v))} · ${texteJours(joursRestants(v, 'eau'))}</span></dd>` +
           `<dt>Déchets</dt><dd>${fmtKg(v.dechets || 0)} <span class="doux">/ ${fmtKg(DECHETS_MAX_ORBITEUR)}</span></dd></dl>`;
         d += `<p class="doux">À bord de l’orbiteur, ce qu’il emporte en expédition. ${this.estAmarre(st) ? '« ⛽ Faire le plein » le complète avec le stock de la station.' : 'Amarré à la station, « ⛽ Faire le plein » le complète avec son stock.'}</p>`;
       } else {

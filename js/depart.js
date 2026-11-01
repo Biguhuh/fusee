@@ -83,6 +83,7 @@ function verifierDepart(v, sf) {
   }
   const vivants = v.equipe ? survivants(v).length : (v.equipagePerdu ? 0 : 1);
   items.push({ nom: `Équipe de ${TAILLE_EQUIPE} spationautes`, ok: vivants >= TAILLE_EQUIPE, detail: `${vivants} en vie` });
+  items.push({ nom: 'Écosystème fermé : 100 % autonome en vivres et en eau', ok: niveauAmelio('ecosysteme', v) >= 1, detail: niveauAmelio('ecosysteme', v) >= 1 ? 'au point' : `R&D d’une station${niveauAmelio('serre', v) < 3 ? ` (après la serre de bord niveau 3 ; actuel : ${niveauAmelio('serre', v)})` : ''}` });
   const es = sf && sf.sys ? etatSondesSysteme(v, sf.sys) : null;
   items.push({ nom: 'Grappe de sondes arrivée dans le système visé, planète de base choisie', ok: !!(es && es.recu && sf.base),
     detail: !sf || !sf.sys ? 'choisissez un système' : !es ? 'aucune sonde envoyée' : es.enRoute ? `données attendues vers ${fmtAnnee(anneeDuJeu(es.reception))}` : sf.base ? 'données reçues, planète choisie' : 'données reçues : choisissez la planète de base' });

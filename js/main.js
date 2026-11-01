@@ -50,6 +50,7 @@ function migrerVoyage(v) {
     if (v.ergolsAtt === undefined) m.ergolsAtt = ORBITEUR.ergolsAtt;
     if (v.robots === undefined) m.robots = ORBITEUR.robots;
     if (v.kitsBase === undefined) m.kitsBase = ORBITEUR.kitsBase;
+    if (v.vivres === undefined) { m.vivres = vivresMax(m); m.eau = eauMax(m); m.tVivres = m.t; m.tDechets = m.t; }   // vivres et eau : au plein
     if (!m.expeditions) m.expeditions = 1;
   }
   delete m.carburantAtt;

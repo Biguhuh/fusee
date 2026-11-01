@@ -7,8 +7,14 @@ const AMELIORATIONS = {
   coqueThermique: { groupe: '🚀 Vaisseau', nom: 'Bouclier thermique renforcé', effet: (n) => `atterrisseurs : +${25 * n} % de température supportée` },
   blindageBord: { groupe: '🚀 Vaisseau', nom: 'Blindage anti-rayonnement', effet: (n) => `rayonnement à bord des atterrisseurs divisé par ${1 + n}` },
   habitat: { groupe: '🚀 Vaisseau', nom: 'Module d’habitation', effet: (n) => `+${2 * n} places pour l’équipe, et une 3ᵉ place dans le module de descente` },
-  reservoirs: { groupe: '🚀 Vaisseau', nom: 'Réservoirs agrandis', effet: (n) => `+${25 * n} % de carburant et d’ergols (autonomie)` },
-  soutes: { groupe: '🚀 Vaisseau', nom: 'Soutes agrandies', effet: (n) => `+${2 * n} sondes, +${n} robot, drone, atterrisseur et kit de station` },
+  reservoirs: { groupe: '🚀 Vaisseau', nom: 'Réservoirs agrandis', effet: (n) => `+${25 * n} % de carburant, d’ergols et d’eau (autonomie)` },
+  soutes: { groupe: '🚀 Vaisseau', nom: 'Soutes agrandies', effet: (n) => `+${2 * n} sondes, +${n} robot, drone, atterrisseur et kit de station, +${25 * n} % de vivres` },
+  // Serre de bord, comme Veggie sur l'ISS : une part des vivres (laitue, tomates, piments), un peu plus d'eau consommée.
+  serre: { groupe: '🌱 Vivres', nom: 'Serre de bord', effet: (n) => `${10 * n} % des vivres produits à bord, +${fmt(0.1 * n, 1)} kg d’eau par personne et par jour` },
+  // Écosystème fermé (comme MELiSSA, ou Lunar Palace 1) : plantes, algues et bactéries recyclent tout. Indispensable
+  // pour quitter le Système solaire : plus aucun ravitaillement possible.
+  ecosysteme: { groupe: '🌱 Vivres', nom: 'Écosystème fermé', max: 1, requis: { serre: 3 }, couts: [null, { materiaux: 60000, jours: 60 }],
+    effet: () => '100 % des vivres et de l’eau produits et recyclés à bord : l’équipage est autonome, condition pour quitter le Système solaire' },
   batterieRover: { groupe: '🚙 Astromobile', nom: 'Batteries de l’astromobile', effet: (n) => `+${50 * n} % d’autonomie` },
   caisseRover: { groupe: '🚙 Astromobile', nom: 'Caisse à échantillons', effet: (n) => `+${10 * n} échantillons` },
   moteurRover: { groupe: '🚙 Astromobile', nom: 'Moteur de l’astromobile', effet: (n) => `+${25 * n} % d’accélération et de vitesse débridée` },
@@ -18,6 +24,14 @@ const AMELIORATIONS = {
 };
 const NIVEAU_MAX_AMELIO = 3;
 const COUT_AMELIO = [null, { materiaux: 6000, jours: 5 }, { materiaux: 12000, jours: 10 }, { materiaux: 20000, jours: 20 }];
+function maxAmelio(cle) { return AMELIORATIONS[cle].max || NIVEAU_MAX_AMELIO; }
+function coutAmelio(cle, n) { return (AMELIORATIONS[cle].couts || COUT_AMELIO)[n]; }
+// Ce qu'il faut avoir mis au point avant ('' si rien ne manque).
+function prerequisManquant(cle, v) {
+  const r = AMELIORATIONS[cle].requis || {};
+  const manque = Object.entries(r).filter(([k, n]) => niveauAmelio(k, v) < n).map(([k, n]) => `${AMELIORATIONS[k].nom} ${n}`);
+  return manque.length ? `il faut d’abord : ${manque.join(', ')}` : '';
+}
 
 // Niveau atteint (0 : rien). v : la campagne ; par défaut celle en cours (0 en visite rapide).
 function niveauAmelio(cle, v) {
@@ -59,11 +73,13 @@ function htmlRD(v, st) {
   for (const [cle, a] of Object.entries(AMELIORATIONS)) {
     if (a.groupe !== groupe) { d += `${groupe ? '</div>' : ''}<p class="doux" style="margin-bottom:2px">${a.groupe}</p><div class="orientations">`; groupe = a.groupe; }
     const n = niveauAmelio(cle, v), enCours = rdEnCours(v, cle);
-    if (n >= NIVEAU_MAX_AMELIO) { d += `<button disabled title="${a.effet(n)}">✓ ${a.nom} (niveau max)</button>`; continue; }
+    if (n >= maxAmelio(cle)) { d += `<button disabled title="${a.effet(n)}">✓ ${a.nom}${maxAmelio(cle) > 1 ? ' (niveau max)' : ''}</button>`; continue; }
+    const pre = prerequisManquant(cle, v);
+    if (pre) { d += `<button disabled title="${a.effet(n + 1)}">🔒 ${a.nom}<br><small class="doux">${pre}</small></button>`; continue; }
     if (enCours) { d += `<button disabled title="${a.effet(n + 1)}">⏳ ${a.nom} ${n + 1} · ${fmtDuree(enCours.c.fin - v.t)}</button>`; continue; }
-    const c = COUT_AMELIO[n + 1];
+    const c = coutAmelio(cle, n + 1);
     const titre = `Niveau ${n + 1} : ${a.effet(n + 1)}${n ? ` (actuel : ${a.effet(n)})` : ''}`;
-    d += `<button data-rd="${cle}" title="${titre}" ${k.materiaux < c.materiaux ? 'disabled' : ''}>${a.nom} ${n + 1} · ${fmtStock('materiaux', c.materiaux)} · ${fmtDuree(c.jours * JOUR / niveauStation(st).vitesse)}<br><small class="doux">${a.effet(n + 1)}</small></button>`;
+    d += `<button data-rd="${cle}" title="${titre}" ${k.materiaux < c.materiaux ? 'disabled' : ''}>${a.nom}${maxAmelio(cle) > 1 ? ` ${n + 1}` : ''} · ${fmtStock('materiaux', c.materiaux)} · ${fmtDuree(c.jours * JOUR / niveauStation(st).vitesse)}<br><small class="doux">${a.effet(n + 1)}</small></button>`;
   }
   d += '</div>';
   const acquis = Object.entries(AMELIORATIONS).filter(([cle]) => niveauAmelio(cle, v)).map(([cle, a]) => `${a.nom} ${niveauAmelio(cle, v)} (${a.effet(niveauAmelio(cle, v))})`);

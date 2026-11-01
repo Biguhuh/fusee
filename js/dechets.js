@@ -20,7 +20,7 @@ function risqueDechets(v) { return v && (v.dechets || 0) >= DECHETS_MAX_ORBITEUR
 function mettreAJourDechets(v, log, estAmarre) {
   const dt = Math.max(0, v.t - (v.tDechets ?? v.t));
   v.tDechets = v.t;
-  const aBord = v.equipe ? (v.equipe || []).filter((m) => m.etat === 'bord' && !(m.principal && v.equipagePerdu)).length : (v.equipagePerdu ? 0 : 1);
+  const aBord = !v.orb ? 0 : v.equipe ? (v.equipe || []).filter((m) => m.etat === 'bord' && !(m.principal && v.equipagePerdu)).length : (v.equipagePerdu ? 0 : 1);
   const avant = v.dechets || 0;
   v.dechets = Math.min(DECHETS_MAX_ORBITEUR, avant + (aBord * DECHETS_PAR_JOUR * dt) / JOUR);
   if (avant < 0.8 * DECHETS_MAX_ORBITEUR && v.dechets >= 0.8 * DECHETS_MAX_ORBITEUR) log(`🗑 Soute à déchets remplie à 80 % (${fmtKg(v.dechets)}) : vidangez-la à la prochaine station.`);

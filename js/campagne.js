@@ -224,14 +224,14 @@ function configurerEtage(f, i) {
 
 // ---------- Stocks des stations ----------
 const CAPACITES_STATION = {
-  carburant: 400000, ergols: 400000, materiaux: 300000, sondes: 10, kits: 4, kitsBase: 3, robots: 4, atterrisseurs: 4, extensions: 4, lanceurRetour: 2, extensionsStation: 2, propulseurs: 1, drones: 4,
+  carburant: 400000, ergols: 400000, materiaux: 300000, sondes: 10, kits: 4, kitsBase: 3, robots: 4, atterrisseurs: 4, extensions: 4, lanceurRetour: 2, extensionsStation: 2, propulseurs: 1, drones: 4, vivres: 10000, eau: 4000,
 };
-const STOCK_VIDE = () => ({ carburant: 0, ergols: 0, materiaux: 0, sondes: 0, kits: 0, kitsBase: 0, robots: 0, atterrisseurs: 0, extensions: 0, lanceurRetour: 0, extensionsStation: 0, propulseurs: 0, drones: 0 });
+const STOCK_VIDE = () => ({ carburant: 0, ergols: 0, materiaux: 0, sondes: 0, kits: 0, kitsBase: 0, robots: 0, atterrisseurs: 0, extensions: 0, lanceurRetour: 0, extensionsStation: 0, propulseurs: 0, drones: 0, vivres: 0, eau: 0 });
 const NOMS_STOCK = {
   carburant: 'carburant', ergols: 'ergols', materiaux: 'matériaux', sondes: 'sondes', kits: 'kits de station',
   kitsBase: 'kits de base', robots: 'robots', atterrisseurs: 'atterrisseurs', extensions: 'extensions de base',
   lanceurRetour: 'lanceurs de retour', extensionsStation: 'extensions de station', propulseurs: 'propulseurs solaires',
-  drones: 'drones',
+  drones: 'drones', vivres: 'vivres', eau: 'eau potable',
 };
 
 // Une seule station, une seule base et une seule sonde par astre.
@@ -301,11 +301,11 @@ function lanceurRetourDisponible(v, astreId) {
   const chantier = (st.chantiers || []).find((c) => c.cle === 'lanceurRetour');
   return { station: st, pret: (st.stock.lanceurRetour || 0) > 0, chantier };
 }
-function fmtStock(cle, q) { return ['carburant', 'ergols', 'materiaux'].includes(cle) ? `${fmt(q / 1000, q < 10000 ? 1 : 0)} t` : fmt(q); }
+function fmtStock(cle, q) { return ['carburant', 'ergols', 'materiaux', 'vivres', 'eau'].includes(cle) ? `${fmt(q / 1000, q < 10000 ? 1 : 0)} t` : fmt(q); }
 // « 1 extension de station, 10 t de matériaux, 60 t d’ergols » (accord au singulier, « de » devant les masses).
 function nomStockAccorde(k, q) {
   const nom = NOMS_STOCK[k];
-  if (['carburant', 'ergols', 'materiaux'].includes(k)) return (k === 'ergols' ? 'd’' : 'de ') + nom;
+  if (['carburant', 'ergols', 'materiaux', 'vivres', 'eau'].includes(k)) return (k === 'ergols' || k === 'eau' ? 'd’' : 'de ') + nom;
   return q === 1 ? nom.split(' ').map((w) => (w === 'de' ? w : w.replace(/s$/, ''))).join(' ') : nom;
 }
 function decrireContenu(c) { return Object.entries(c).filter(([, q]) => q > 0).map(([k, q]) => `${fmtStock(k, q)} ${nomStockAccorde(k, q)}`).join(', '); }
@@ -314,13 +314,14 @@ function decrireContenu(c) { return Object.entries(c).filter(([, q]) => q > 0).m
 const CONTENUS_CARGO = {
   expedition: {
     nom: 'Kit d’expédition', description: 'De quoi repartir plus loin : carburant de l’orbiteur, ergols et atterrisseurs, sondes, kits de station et de base, robots.',
-    contenu: { carburant: 60000, ergols: 60000, atterrisseurs: 2, sondes: 4, kits: 2, kitsBase: 1, robots: 2 },
+    contenu: { carburant: 60000, ergols: 60000, atterrisseurs: 2, sondes: 4, kits: 2, kitsBase: 1, robots: 2, vivres: 1500, eau: 400 },
   },
   extension: {
     nom: 'Extension de base', description: 'Agrandit la base de l’astre : plus de production, puis une mine de matériaux (à partir du niveau 2).',
     contenu: { extensions: 1, materiaux: 15000 },
   },
   // Cargos spécialisés (citerne, vrac) : trois fois ce qu'emporte un kit d'expédition, qui partage sa place avec le matériel.
+  vivres: { nom: 'Vivres et eau', description: 'Comme les cargos de l’ISS : repas emballés et eau potable, de quoi nourrir 4 personnes pendant environ un an (2,5 t de vivres, 0,7 t d’eau).', contenu: { vivres: 2500, eau: 700 } },
   ergols: { nom: 'Ergols', description: 'Cargo-citerne, trois fois plus qu’un kit d’expédition. Carburant pour l’orbiteur et ergols pour les atterrisseurs.', contenu: { carburant: 180000, ergols: 180000 } },
   materiaux: { nom: 'Matériaux', description: 'Cargo de vrac (120 t), trois fois plus qu’un kit d’expédition. Pour l’atelier de la station : sondes, robots, atterrisseurs, kits.', contenu: { materiaux: 120000, kitsBase: 1 } },
   extensionStation: {
@@ -409,7 +410,8 @@ function ajouterAuStock(s, contenu) {
 // Le reste, ce sont les ravitos lancés par le joueur.
 function livrerCargo(s) {
   const f = niveauStation(s).ravito;
-  ajouterAuStock(s, s.terrestre ? { carburant: 30000 * f, ergols: 30000 * f, sondes: f, kits: 1 } : { carburant: 15000 * f, ergols: 15000 * f, sondes: f });
+  // Comme les cargos de l'ISS : des vivres et de l'eau à chaque passage.
+  ajouterAuStock(s, s.terrestre ? { carburant: 30000 * f, ergols: 30000 * f, sondes: f, kits: 1, vivres: 2000 * f, eau: 500 * f } : { carburant: 15000 * f, ergols: 15000 * f, sondes: f, vivres: 2000 * f, eau: 500 * f });
 }
 
 // ---------- Bases au sol et ressources locales ----------
