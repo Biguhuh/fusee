@@ -20,6 +20,9 @@ body {
 .ecran { max-width: 1200px; margin: 0 auto; padding: 24px 16px 40px; }
 header h1 { margin: 0 0 4px; font-size: 28px; }
 header p { margin: 0 0 20px; color: var(--doux); }
+/* Textes en justifié, avec césure (la page est en français) ; les blocs centrés le restent. */
+p, li { text-align: justify; -webkit-hyphens: auto; hyphens: auto; }
+.chiffre p, .carte-membre p, #replique p, .aide-nav p { text-align: inherit; }
 
 button {
   font: inherit; color: var(--texte); background: var(--panneau);
