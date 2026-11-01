@@ -31,7 +31,7 @@ Carte 5 (novembre 2026), points 1 à 22 :
 - 8. Saut en astromobile : batterie, combinaison du conducteur et du passager abîmées séparément, au hasard.
 - 9. Escalade animée, grappin, cordée (Sam suit, encordé ; la corde retient les glissades).
 - 10. Courte-échelle (3,5 m au plus) et main tendue, allongé au bord (2,8 m au plus), animées.
-- 11. À quatre pattes au-delà de 25° de pente.
+- 11. À quatre pattes en montée au-delà de 35° (debout en descente).
 - 12. Choisir qui descend : 2 places (3 avec le module d'habitation), quelqu'un reste en orbite, blessé grave exclu.
 - 13. Module de secours : choisir qui monte, embarquement de chacun à son tour.
 - 14. Personnage coincé : départs séparés (module de secours, module posé), atterrisseur conservé.

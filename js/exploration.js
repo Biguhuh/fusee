@@ -16,8 +16,9 @@ function etatCombi(integrite) { return ETATS_COMBI.find((e) => integrite >= e.mi
 const RUBANS_PAR_PERSONNE = 2;
 // Escalade : une paroi de plus de 45° (pente de marche + 10°) se grimpe, grappin d'abord (1,5 s pour le lancer).
 const DUREE_GRAPPIN = 1.5;
-// Pente sous les pieds au-delà de laquelle on avance à quatre pattes (montée ou descente), plus lentement.
-const PENTE_QUATRE_PATTES = 25, VITESSE_QUATRE_PATTES = 0.6;
+// Montée au-delà de laquelle on avance à quatre pattes, plus lentement (la pente de marche de la combinaison ;
+// au-delà de 45°, c'est une paroi, qu'on escalade). En descente, on reste debout.
+const PENTE_QUATRE_PATTES = 35, VITESSE_QUATRE_PATTES = 0.6;
 const V_88MPH = 39.34;              // m/s : 88 miles à l'heure (Retour vers le futur)
 // Exploration de la surface en vue de côté, par un spationaute ou un robot.
 // La gravité locale change tout : sauts immenses sur les petites lunes, démarche lourde sur Terre.
@@ -238,6 +239,21 @@ class Exploration {
       x += 0.1 * sens;
     }
     return x;
+  }
+  // Montée (degrés) devant soi dans le sens de la marche ; 0 à l'arrêt, négative en descente.
+  monteeDevant(x, sens) {
+    if (!sens) return 0;
+    return Math.atan2(this.sol(x + 0.5 * sens) - this.sol(x - 0.5 * sens), 1) * 180 / Math.PI;
+  }
+  // La corde ne sert plus : on est arrivé en haut (et l'autre aussi, s'il suit encordé), ou on s'est éloigné du grappin.
+  cordeInutile() {
+    const gp = this.grappin, d = this.duo;
+    if (d && d.enEscalade) return false;
+    if (Math.abs(ecartSol(this.astre, gp.x, this.p.x)) > 25) return true;
+    // En haut : au sommet, près du grappin, ou déjà passé de l'autre côté du rebord.
+    const enHaut = (q) => { const e = ecartSol(this.astre, q.x, gp.x) * gp.sens; return e > 1 || (e > -1 && q.y >= gp.y - 0.5); };
+    const suit = d && !d.enRover && d.mode === 'suit' && Math.abs(ecartSol(this.astre, gp.x, d.p.x)) < 30;
+    return !this.enEscalade && enHaut(this.p) && (!suit || enHaut(d.p));
   }
   // Le grappin vise le rebord, un peu au-delà.
   lancerGrappin(sens) {
@@ -517,9 +533,9 @@ class Exploration {
     const devant = Math.atan2(this.sol(p.x + 1.5 * sens) - this.sol(p.x), 1.5) * 180 / Math.PI;
     const freinPente = devant > 15 ? Math.max(0.3, 1 - (devant - 15) / (penteMax - 15)) : 1;
     if (this.enRover && this.batterieRover <= 0 && veut && !this.alerteBatterieVide) { this.alerteBatterieVide = true; this.dire('🔋 Batterie de l’astromobile vide : elle ne roule plus. Descendez (V) et rentrez à pied.'); }
-    // Forte pente sous les pieds : à quatre pattes (on revient à la marche dès qu'elle diminue).
-    const quatre = this.type === 'spationaute' && !this.enRover && !this.enEscalade && p.auSol && Math.abs(this.penteSous(p.x)) * 180 / Math.PI > PENTE_QUATRE_PATTES;
-    if (quatre && !this.quatrePattes && !this.astuceQuatre) { this.astuceQuatre = true; this.dire(`🐾 Pente de plus de ${PENTE_QUATRE_PATTES}° : ${this.def.nom} avance à quatre pattes, plus lentement. Debout dès que la pente diminue.`); }
+    // Montée très raide : à quatre pattes (debout dès qu'elle diminue, et toujours en descente).
+    const quatre = this.type === 'spationaute' && !this.enRover && !this.enEscalade && p.auSol && this.monteeDevant(p.x, veut) > PENTE_QUATRE_PATTES;
+    if (quatre && !this.quatrePattes && !this.astuceQuatre) { this.astuceQuatre = true; this.dire(`🐾 Montée de plus de ${PENTE_QUATRE_PATTES}° : ${this.def.nom} avance à quatre pattes, plus lentement. Debout dès que la pente diminue.`); }
     this.quatrePattes = quatre;
     const vMax = this.surveillerDelorean(dt, veut, (this.enRover ? (this.batterieRover > 0 ? this.vMaxRover : 0) : this.vMax * (quatre ? VITESSE_QUATRE_PATTES : 1)) * freinPente);
     const acc = this.enRover ? (this.delorean ? 12 : this.accRover) : this.acc;
@@ -536,7 +552,7 @@ class Exploration {
       // Montée trop raide (falaise) : on s'arrête. Une descente raide ne bloque jamais.
       const pente = Math.atan2(this.sol(p.x + 0.5 * Math.sign(p.vx || 1)) - this.sol(p.x), 0.5);
       this.enEscalade = false;
-      if (this.grappin && Math.abs(ecartSol(this.astre, this.grappin.x, p.x)) > 25 && !(this.duo && this.duo.enEscalade)) this.grappin = null;   // corde récupérée
+      if (this.grappin && this.grappin.t >= DUREE_GRAPPIN && this.cordeInutile()) { this.grappin = null; this.dire('🪝 Corde récupérée : le grappin est rangé.'); }
       if (pente * 180 / Math.PI > penteMax && Math.abs(p.vx) > 0 && !this.delorean) {
         if (this.enRover && Math.abs(p.vx) > 1.5) this.chocRover(Math.abs(p.vx));
         p.vx = 0;

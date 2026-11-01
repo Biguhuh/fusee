@@ -177,7 +177,7 @@ Object.assign(Exploration.prototype, {
       const cible = p.x - (p.dir || 1) * 1.8, e = ecartSol(this.astre, cible, q.x);
       if (Math.abs(e) > 0.6) veut = Math.sign(e);
     }
-    d.quatrePattes = Math.abs(this.penteSous(q.x)) * 180 / Math.PI > PENTE_QUATRE_PATTES;   // forte pente : à quatre pattes
+    d.quatrePattes = this.monteeDevant(q.x, veut) > PENTE_QUATRE_PATTES;   // montée très raide : à quatre pattes
     const vise = veut * this.vMax * (d.quatrePattes ? VITESSE_QUATRE_PATTES : 1);
     q.vx += Math.sign(vise - q.vx) * Math.min(Math.abs(vise - q.vx), this.acc * dt);
     if (veut) q.dir = veut;
