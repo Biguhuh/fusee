@@ -73,6 +73,8 @@ const REFERENCES_EGGS = {
   'trappist-crematoria': 'Les Chroniques de Riddick (2004) : Crématoria, planète-prison où le lever du soleil brûle tout ; les évadés courent devant l’aube.',
   'barnard-yeux': 'Pitch Black (2000), premier film de la saga Riddick : ses yeux opérés voient dans le noir et brillent d’un éclat argenté.',
   'mars-casque': 'Mars Attacks! (Tim Burton, 1996) : les Martiens au cerveau énorme sous un casque de verre, vaincus par une chanson de yodel.',
+  'mars-souvenirs': 'Total Recall (Paul Verhoeven, 1990, d’après Philip K. Dick) : une agence implante des souvenirs de vacances sur Mars, et l’on ne sait plus ce qui est vrai.',
+  'trappist-insectes': 'Starship Troopers (Paul Verhoeven, 1997, d’après Robert A. Heinlein) : de jeunes recrues envoyées combattre des insectes géants sur une planète lointaine.',
   'mars-soucoupes': 'Mars Attacks! (Tim Burton, 1996) : les soucoupes martiennes, et le célèbre « Ack ack ack ! » des envahisseurs.',
   'lune-melies': 'Le Voyage dans la Lune (Georges Méliès, 1902) : l’obus des savants se plante dans l’œil de la Lune, l’une des images les plus célèbres du cinéma.',
   'delorean': 'Retour vers le futur (1985) : à 88 miles à l’heure, la DeLorean voyage dans le temps et laisse deux traînées de feu sur la route.',

@@ -138,6 +138,11 @@ const EASTER_EGGS = [
     texte: 'Des ruines vitrifiées sous un ciel jaune. Sur un mur, des ombres de silhouettes gravées dans la roche par un éclair immense. Une civilisation s’est effacée ici, de sa propre main.' },
   { id: 'proxima-b', astre: 'proxima_p2', dx: -400, dessin: 'villePluie',
     texte: 'Une pluie noire tombe sur la ville. Des silhouettes répondent à des questions étranges.' },
+  // Total Recall (Mars, en plus des autres clins d'œil martiens) et Starship Troopers (TRAPPIST-1 c, planète rocheuse chaude).
+  { id: 'mars-souvenirs', astre: 'mars', dx: -700, dessin: 'agenceSouvenirs',
+    texte: 'Une agence propose des vacances sur Mars sans y aller. Souvenirs garantis, retour sans garantie.' },
+  { id: 'trappist-insectes', astre: 'trappist1_p2', dx: 400, dessin: 'insectesGeants',
+    texte: 'Des insectes grands comme des maisons. Les recrues sont invitées à rester à distance.' },
 ];
 
 // Traces réelles : visibles de tous, nommées « Site de … », avec l'année et le matériel laissé sur place.
@@ -1088,6 +1093,41 @@ const DESSINS_EGGS = {
     ctx.fillStyle = 'rgba(236,239,241,0.85)'; ctx.beginPath(); ctx.ellipse(x, y, 1.6 * s, 0.9 * s, 0, Math.PI, 0); ctx.fill();   // bâche
     for (let k = -3; k <= 3; k++) { trait(ctx, [[x + k * 0.4 * s, y], [x + k * 0.4 * s, y - 0.35 * s]], '#2e7d32', 0.06 * s); disque(ctx, x + k * 0.4 * s, y - 0.38 * s, 0.09 * s, '#43a047'); }
     for (let k = 0; k < 3; k++) { disque(ctx, x + 2 * s, y - (0.04 + k * 0.05) * s, 0.22 * s, '#111'); disque(ctx, x + 2 * s, y - (0.04 + k * 0.05) * s, 0.05 * s, ['#e91e63', '#ffeb3b', '#00bcd4'][k]); }
+  },
+  // Agence de « souvenirs » : un kiosque rayé, une enseigne à la planète rouge, un fauteuil et son casque à électrodes.
+  agenceSouvenirs(ctx, x, y, s) {
+    rect(ctx, x - 1.6 * s, y - 2.4 * s, 3.2 * s, 2.4 * s, '#eceff1');                        // kiosque
+    for (let k = 0; k < 8; k++) rect(ctx, x - 1.75 * s + k * 0.44 * s, y - 2.75 * s, 0.44 * s, 0.4 * s, k % 2 ? '#ffffff' : '#e53935');   // auvent
+    rect(ctx, x - 0.9 * s, y - 3.7 * s, 1.8 * s, 0.85 * s, '#1a237e');                        // enseigne
+    disque(ctx, x - 0.45 * s, y - 3.27 * s, 0.28 * s, '#d84315');                            // la planète rouge
+    for (const [dx, dy] of [[0.2, -3.5], [0.5, -3.1], [0.7, -3.45]]) disque(ctx, x + dx * s, y + dy * s, 0.04 * s, '#fff59d');
+    rect(ctx, x - 1.2 * s, y - 2.2 * s, 2.4 * s, 1.4 * s, '#263238');                         // l'intérieur
+    // Fauteuil incliné, et le casque relié par des fils à une console qui clignote.
+    trait(ctx, [[x - 0.9 * s, y - 0.85 * s], [x + 0.2 * s, y - 0.85 * s], [x + 0.55 * s, y - 1.5 * s]], '#8d6e63', 0.18 * s);
+    disque(ctx, x + 0.6 * s, y - 1.68 * s, 0.2 * s, '#b0bec5');
+    trait(ctx, [[x + 0.6 * s, y - 1.85 * s], [x + 0.9 * s, y - 2.05 * s], [x + 0.95 * s, y - 1.3 * s]], '#ffca28', 0.03 * s);
+    rect(ctx, x + 0.8 * s, y - 1.3 * s, 0.3 * s, 0.45 * s, '#455a64');
+    disque(ctx, x + 0.95 * s, y - 1.15 * s, 0.05 * s, Math.floor(performance.now() / 400) % 2 ? '#76ff03' : '#1b5e20');
+  },
+  // Deux insectes géants (≈ 6 m), carapace brune, pattes en pointe ; ils bougent un peu.
+  insectesGeants(ctx, x, y, s) {
+    const t = performance.now() / 600;
+    for (const [dx, k, sens] of [[-2.5, 1, 1], [3, 0.8, -1]]) {
+      const cx = x + dx * s, h = 6 * k * s, b = Math.sin(t + dx) * 0.08 * h;
+      ctx.strokeStyle = '#3e2723'; ctx.lineWidth = Math.max(1.5, 0.1 * h / 6);
+      for (let p = 0; p < 3; p++) {   // trois paires de pattes, coudées vers le haut, pointues au sol
+        const px = cx + (p - 1) * 0.28 * h * sens;
+        for (const c of [-1, 1]) {
+          ctx.beginPath(); ctx.moveTo(px, y - 0.45 * h); ctx.lineTo(px + c * 0.25 * h, y - 0.75 * h + b); ctx.lineTo(px + c * 0.38 * h, y); ctx.stroke();
+        }
+      }
+      ctx.fillStyle = '#6d4c41'; ctx.beginPath(); ctx.ellipse(cx - 0.35 * h * sens, y - 0.5 * h, 0.32 * h, 0.2 * h, 0.15 * sens, 0, Math.PI * 2); ctx.fill();   // abdomen
+      ctx.fillStyle = '#5d4037'; ctx.beginPath(); ctx.ellipse(cx, y - 0.52 * h, 0.16 * h, 0.12 * h, 0, 0, Math.PI * 2); ctx.fill();                          // thorax
+      ctx.fillStyle = '#4e342e'; ctx.beginPath(); ctx.ellipse(cx + 0.24 * h * sens, y - 0.62 * h + b, 0.11 * h, 0.09 * h, 0, 0, Math.PI * 2); ctx.fill();     // tête
+      ctx.strokeStyle = '#212121'; ctx.lineWidth = Math.max(1.5, 0.05 * h / 6);
+      for (const c of [-1, 1]) { ctx.beginPath(); ctx.moveTo(cx + 0.32 * h * sens, y - 0.62 * h + b); ctx.quadraticCurveTo(cx + 0.45 * h * sens, y - (0.62 - c * 0.05) * h + b, cx + 0.4 * h * sens, y - (0.62 - c * 0.12) * h + b); ctx.stroke(); }   // mandibules
+      disque(ctx, cx + 0.28 * h * sens, y - 0.66 * h + b, 0.02 * h, '#ff7043');                                                                              // œil
+    }
   },
   ondulation(ctx, x, y, s) {
     const t = performance.now() / 500;
