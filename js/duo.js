@@ -171,7 +171,8 @@ Object.assign(Exploration.prototype, {
       const cible = p.x - (p.dir || 1) * 1.8, e = ecartSol(this.astre, cible, q.x);
       if (Math.abs(e) > 0.6) veut = Math.sign(e);
     }
-    const vise = veut * this.vMax;
+    d.quatrePattes = Math.abs(this.penteSous(q.x)) * 180 / Math.PI > PENTE_QUATRE_PATTES;   // forte pente : à quatre pattes
+    const vise = veut * this.vMax * (d.quatrePattes ? VITESSE_QUATRE_PATTES : 1);
     q.vx += Math.sign(vise - q.vx) * Math.min(Math.abs(vise - q.vx), this.acc * dt);
     if (veut) q.dir = veut;
     const pente = Math.atan2(this.sol(q.x + 0.5 * (veut || 1)) - this.sol(q.x), 0.5) * 180 / Math.PI;
@@ -207,7 +208,7 @@ Object.assign(Exploration.prototype, {
     if (!d || d.enRover) return;
     const [sx, sy] = versEcran(d.p.x, d.p.y);
     if (this.poseGeste('autre') === 'allonge') dessinerAllonge(ctx, sx, sy, echelle, this.geste.sens, d.eq.profil);
-    else dessinerSpationaute(ctx, sx, sy, echelle, { ...d.p, grimpe: d.enEscalade ? d.p.grimpe : undefined, pose: this.poseGeste('autre') }, false, d.eq.profil);
+    else dessinerSpationaute(ctx, sx, sy, echelle, { ...d.p, grimpe: d.enEscalade ? d.p.grimpe : undefined, pose: this.poseGeste('autre') || (d.quatrePattes && !d.enEscalade ? 'quatre-pattes' : undefined), inclinaison: this.penteSous(d.p.x) }, false, d.eq.profil);
     texteSurFond(ctx, d.eq.nom, sx, sy - 2.3 * echelle, { police: '11px system-ui, sans-serif', couleur: '#b3e5fc' });
   },
 });

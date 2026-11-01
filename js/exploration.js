@@ -16,6 +16,8 @@ function etatCombi(integrite) { return ETATS_COMBI.find((e) => integrite >= e.mi
 const RUBANS_PAR_PERSONNE = 2;
 // Escalade : une paroi de plus de 45° (pente de marche + 10°) se grimpe, grappin d'abord (1,5 s pour le lancer).
 const DUREE_GRAPPIN = 1.5;
+// Pente sous les pieds au-delà de laquelle on avance à quatre pattes (montée ou descente), plus lentement.
+const PENTE_QUATRE_PATTES = 25, VITESSE_QUATRE_PATTES = 0.6;
 const V_88MPH = 39.34;              // m/s : 88 miles à l'heure (Retour vers le futur)
 // Exploration de la surface en vue de côté, par un spationaute ou un robot.
 // La gravité locale change tout : sauts immenses sur les petites lunes, démarche lourde sur Terre.
@@ -514,7 +516,11 @@ class Exploration {
     const devant = Math.atan2(this.sol(p.x + 1.5 * sens) - this.sol(p.x), 1.5) * 180 / Math.PI;
     const freinPente = devant > 15 ? Math.max(0.3, 1 - (devant - 15) / (penteMax - 15)) : 1;
     if (this.enRover && this.batterieRover <= 0 && veut && !this.alerteBatterieVide) { this.alerteBatterieVide = true; this.dire('🔋 Batterie de l’astromobile vide : elle ne roule plus. Descendez (V) et rentrez à pied.'); }
-    const vMax = this.surveillerDelorean(dt, veut, (this.enRover ? (this.batterieRover > 0 ? this.vMaxRover : 0) : this.vMax) * freinPente);
+    // Forte pente sous les pieds : à quatre pattes (on revient à la marche dès qu'elle diminue).
+    const quatre = this.type === 'spationaute' && !this.enRover && !this.enEscalade && p.auSol && Math.abs(this.penteSous(p.x)) * 180 / Math.PI > PENTE_QUATRE_PATTES;
+    if (quatre && !this.quatrePattes && !this.astuceQuatre) { this.astuceQuatre = true; this.dire(`🐾 Pente de plus de ${PENTE_QUATRE_PATTES}° : ${this.def.nom} avance à quatre pattes, plus lentement. Debout dès que la pente diminue.`); }
+    this.quatrePattes = quatre;
+    const vMax = this.surveillerDelorean(dt, veut, (this.enRover ? (this.batterieRover > 0 ? this.vMaxRover : 0) : this.vMax * (quatre ? VITESSE_QUATRE_PATTES : 1)) * freinPente);
     const acc = this.enRover ? (this.delorean ? 12 : this.accRover) : this.acc;
     if (p.auSol) {
       // Après quelques bières, la démarche devient… approximative.
@@ -548,7 +554,7 @@ class Exploration {
         p.auSol = false; p.vy = 0; p.x = nx;
       } else { p.x = nx; p.y = ny; }
       p.pas += Math.abs(p.vx) * dt;
-      if (cmd.saut && this.saut > 0 && !this.enRover && !this.enEscalade) {
+      if (cmd.saut && this.saut > 0 && !this.enRover && !this.enEscalade && !this.quatrePattes) {
         p.vy = this.saut; p.auSol = false;
         this.sautEnCours = { y0: p.y, max: 0, duree: 0 };          // on mesure la hauteur du saut
         this.poussiere(6);
@@ -1309,7 +1315,7 @@ class Exploration {
     }
     else if (this.type === 'spationaute' && this.secours && this.secours.phase === 'decollage') { /* à bord du module de secours */ }
     else if (this.type === 'spationaute' && this.poseGeste('moi') === 'allonge') dessinerAllonge(ctx, sx, sy, echelle, this.geste.sens, this.equipier().profil);
-    else if (this.type === 'spationaute') dessinerSpationaute(ctx, sx, sy, echelle, { ...p, grimpe: this.enEscalade ? p.grimpe : undefined, pose: this.poseGeste('moi') }, this.terre, this.equipier().profil);
+    else if (this.type === 'spationaute') dessinerSpationaute(ctx, sx, sy, echelle, { ...p, grimpe: this.enEscalade ? p.grimpe : undefined, pose: this.poseGeste('moi') || (this.quatrePattes ? 'quatre-pattes' : undefined), inclinaison: this.penteSous(p.x) }, this.terre, this.equipier().profil);
     else {
       // Le bras sort pendant une analyse, ou un instant après avoir planté le drapeau.
       if (this.brasDrapeau > 0) this.brasDrapeau -= dt;
