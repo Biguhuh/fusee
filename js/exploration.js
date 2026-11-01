@@ -125,7 +125,9 @@ class Exploration {
     // Dégâts de l'astromobile (0 à 100), gardés d'une sortie à l'autre (et dans la campagne).
     const vR = etat.enVoyage && etat.voyage;
     this.degatsRover = vol.degatsRover ?? (vR ? vR.degatsRover : null) ?? 0;
-    this.appliquerDegatsRover();     // débridé : ce que le moteur peut donner
+    this.appliquerDegatsRover();
+    this.usureBatterieRover = vol.usureBatterieRover ?? (vR ? vR.usureBatterieRover : null) ?? 0;
+    this.appliquerUsureBatterie();     // débridé : ce que le moteur peut donner
     this.roverBride = true;                                     // accélérateur bridé par la gravité locale
     this.warp = 1;
     // Robot : ses analyses attendent dans sa mémoire jusqu'au retour à sa base (module robot ou fusée).
@@ -280,19 +282,43 @@ class Exploration {
     this.dire(this.roverBride ? `🔒 Accélérateur bridé à ${fmtV(this.vMaxRover)}, la vitesse sûre ${sur(this.astre)}.`
       : `🔓 Bridage levé : jusqu’à ${fmtV(this.vMoteurRover)}. Au-delà de ${fmtV(this.vMaxRover)}, la gravité ${de(this.astre)} ne colle plus les roues au sol : à vos risques.`);
   }
-  // Retombée après un bond : trop vite, l'astromobile capote (dégâts, batterie abîmée, combinaison secouée).
-  receptionRover() {
-    if (!this.vMaxRover) return;
-    const p = this.p, r = Math.abs(p.vx) / this.vMaxRover;
-    if (r < 1.3 || Math.random() > Math.min(1, (r - 1.3) / 0.5)) return;
-    p.vx = 0;
-    const choc = Math.min(40, 10 + (r - 1.3) * 40);
-    this.integrite -= choc;
+  // Retombée après un saut en astromobile. Chaque élément encaisse sa part, tirée au hasard : la batterie (elle perd
+  // de la capacité), la combinaison du conducteur, celle du passager s'il est à bord. La violence dépend de la
+  // vitesse de retombée (donc de la hauteur et de la gravité) et de la vitesse au sol. Trop vite, elle capote.
+  receptionRover(vImpact, h) {
+    const vRef = this.vMaxRoverSain || this.vMaxRover;
+    if (!vRef) return;
+    const p = this.p, r = Math.abs(p.vx) / vRef;
+    const k = Math.max(0, vImpact - 1.5) + Math.max(0, r - 1.2) * 2;
+    if (k < 0.3) return;                                        // petit bond : rien
+    const alea = () => 0.5 + Math.random();
+    const d = this.duo && this.duo.enRover ? this.duo : null;
+    const perteBat = Math.min(60, k * 6 * alea());
+    this.usureBatterieRover = Math.min(90, this.usureBatterieRover + perteBat);
+    this.appliquerUsureBatterie();
+    this.integrite -= Math.min(40, k * 4 * alea());
+    if (d) d.integrite -= Math.min(40, k * 4 * alea());
+    const capote = r >= 1.3 && Math.random() < Math.min(1, (r - 1.3) / 0.5);
+    if (capote) {
+      p.vx = 0;
+      const choc = Math.min(40, 10 + (r - 1.3) * 40);
+      this.integrite -= choc;
+      if (d) d.integrite -= choc * alea();
+      this.degatsRover = Math.min(100, this.degatsRover + 15);
+      this.appliquerDegatsRover();
+      this.poussiere(14);
+    }
     this.causeDegats = 'chute';
-    this.batterieRover = Math.max(0, this.batterieRover - 1800);
-    this.poussiere(14);
-    this.dire(`💥 L’astromobile capote en retombant ! Combinaison secouée (−${fmt(choc)} %), batterie abîmée (−30 min). Le bridage était là pour ça.`);
+    const combi = (x) => `${fmt(Math.max(0, x))} % (${etatCombi(x).nom})`;
+    this.dire(`${capote ? '💥 L’astromobile capote en retombant ! ' : '🚙 '}Saut de ${fmt(h, 1)} m, retombée à ${fmtV(vImpact)} : batterie à ${fmt(100 - this.usureBatterieRover)} % de sa capacité (−${fmt(perteBat)} %), combinaison ${combi(this.integrite)}${d ? `, celle de ${d.eq.nom} ${combi(d.integrite)}` : ''}.`);
   }
+  // Batterie abîmée par les sauts : sa capacité baisse (la charge aussi, s'il le faut).
+  appliquerUsureBatterie() {
+    if (this.autonomieRoverSain === undefined) this.autonomieRoverSain = this.autonomieRover;
+    this.autonomieRover = this.autonomieRoverSain * (1 - this.usureBatterieRover / 100);
+    this.batterieRover = Math.min(this.batterieRover, this.autonomieRover);
+  }
+
 
 
   // Monter dans le rover ou en descendre (touche V).
@@ -486,9 +512,10 @@ class Exploration {
           this.causeDegats = 'chute';
           this.dire('Réception brutale !');
         }
-        this.receptionCorps(-p.vy, (this.yHautAir ?? p.y) - p.y);
+        const hChute = (this.yHautAir ?? p.y) - p.y;
+        this.receptionCorps(-p.vy, hChute);
         this.yHautAir = undefined;
-        if (this.enRover) this.receptionRover();
+        if (this.enRover) this.receptionRover(-p.vy, hChute);
         p.vy = 0; p.auSol = true;
         this.poussiere(8);
         if (this.sautEnCours) { this.finSaut(this.sautEnCours.max, this.sautEnCours.duree); this.sautEnCours = null; }
@@ -648,8 +675,10 @@ class Exploration {
     if (this.duo && !this.fin) this.finDuo(issue);
     if (this.rover && !this.essai) {
       this.vol.degatsRover = this.degatsRover;
+      this.vol.usureBatterieRover = this.usureBatterieRover;
       const vR = etat.enVoyage && etat.voyage;
       if (vR && this.degatsRover > (vR.degatsRover || 0)) { vR.degatsRover = this.degatsRover; vR.tRepRover = vR.t; }
+      if (vR && this.usureBatterieRover > (vR.usureBatterieRover || 0)) { vR.usureBatterieRover = this.usureBatterieRover; vR.tRepRover = vR.t; }
     }
     if (this.type === 'spationaute' && !this.essai) {
       this.vol.blessure = this.blessure || null;   // la blessure reste après la sortie
@@ -1315,7 +1344,7 @@ class Exploration {
     ligne('Distance module', fmt(distSol(this.astre, this.p.x, this.xFusee)) + ' m');
     if (this.duo) ligne(`👥 ${this.duo.eq.nom}`, `O₂ ${fmtDuree(this.duo.reserve)} · combi. ${fmt(this.duo.integrite)} % · sac ${this.duo.sac.length}/${this.def.capacite}${this.duo.mode === 'attend' ? ' · attend' : this.duo.enRover ? ' · à bord' : ' · suit'}`, this.duo.reserve < 900 ? '#ef5350' : '#b3e5fc');
     if (this.type === 'spationaute' && !this.terre && this.retour && this.retour.dist > 0) ligne('Retour au module', this.retour.bloque ? `bloqué : paroi de ${fmt(this.retour.bloque.hauteur, 1)} m` : `≈ ${fmtDuree(this.retour.temps)}${this.retour.enRover ? ' (astromobile)' : ''}`, this.retour.bloque || this.reserve < this.retour.temps * 1.3 ? '#ef5350' : '#fff');
-    if (this.rover) ligne('Batterie astromobile', fmtDuree(this.batterieRover), this.batterieRover < 30 * 60 ? '#ef5350' : '#66bb6a');
+    if (this.rover) ligne('Batterie astromobile', fmtDuree(this.batterieRover) + (this.usureBatterieRover > 0 ? ` (capacité ${fmt(100 - this.usureBatterieRover)} %)` : ''), this.batterieRover < 30 * 60 ? '#ef5350' : this.usureBatterieRover > 30 ? '#ffca28' : '#66bb6a');
     if (this.rover && this.degatsRover > 0) ligne('État astromobile', this.degatsRover >= 100 ? 'hors d’usage' : `abîmée à ${fmt(this.degatsRover)} %, vitesse ×${fmt(1 - 0.5 * this.degatsRover / 100, 2)}`, this.degatsRover >= 50 ? '#ef5350' : '#ffca28');
     if (this.secours) ligne('🆘 Secours', this.texteSecours(), '#ffca28');
     }

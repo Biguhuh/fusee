@@ -190,11 +190,13 @@ function lancerMission(v, membreId, a, jours, log) {
 function mettreAJourEquipe(v, log) {
   mettreAJourRobotsAuto(v, log);
   // L'astromobile abîmée se répare à bord, 25 % par jour de mission.
-  if (v.degatsRover > 0) {
+  // Sa batterie abîmée par les sauts aussi.
+  if (v.degatsRover > 0 || v.usureBatterieRover > 0) {
     const dt = Math.max(0, v.t - (v.tRepRover ?? v.t));
-    v.degatsRover = Math.max(0, v.degatsRover - (25 * dt) / JOUR);
+    v.degatsRover = Math.max(0, (v.degatsRover || 0) - (25 * dt) / JOUR);
+    v.usureBatterieRover = Math.max(0, (v.usureBatterieRover || 0) - (25 * dt) / JOUR);
     v.tRepRover = v.t;
-    if (v.degatsRover === 0) log('🛠 Astromobile réparée à bord : de nouveau en état de rouler.');
+    if (v.degatsRover === 0 && v.usureBatterieRover === 0) log('🛠 Astromobile réparée à bord, batterie comprise : de nouveau en état de rouler.');
   }
   for (const m of v.equipe || []) {
     const b = m.blessure;
