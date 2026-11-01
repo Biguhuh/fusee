@@ -14,6 +14,8 @@ const ETATS_COMBI = [
 ];
 function etatCombi(integrite) { return ETATS_COMBI.find((e) => integrite >= e.min); }
 const RUBANS_PAR_PERSONNE = 2;
+// Escalade : une paroi de plus de 45° (pente de marche + 10°) se grimpe, grappin d'abord (1,5 s pour le lancer).
+const DUREE_GRAPPIN = 1.5;
 const V_88MPH = 39.34;              // m/s : 88 miles à l'heure (Retour vers le futur)
 // Exploration de la surface en vue de côté, par un spationaute ou un robot.
 // La gravité locale change tout : sauts immenses sur les petites lunes, démarche lourde sur Terre.
@@ -210,20 +212,74 @@ class Exploration {
     this.dire(`${proche.nom} cueilli${proche.nom === 'Marguerite' || proche.nom === 'Rose' || proche.nom === 'Lavande' ? 'e' : ''} pour égayer la station.`);
   }
 
+  // Avance un point du sol le long de la surface (paroi comprise), de ds mètres, en six petits pas.
+  glisserLeLong(q, sens, ds) {
+    for (let i = 0; i < 6; i++) {
+      const pente = Math.atan2(this.sol(q.x + 0.05 * sens) - this.sol(q.x), 0.05);
+      q.x += sens * (ds / 6) * Math.cos(pente); q.y = this.sol(q.x);
+    }
+  }
+  // Le grappin vise le rebord : le premier point où la pente redevient praticable, un peu au-delà.
+  lancerGrappin(sens) {
+    const p = this.p;
+    let x = p.x;
+    for (let i = 0; i < 400; i++) {
+      const pente = Math.atan2(this.sol(x + 0.2 * sens) - this.sol(x), 0.2) * 180 / Math.PI;
+      if (i > 3 && pente < this.def.penteMax) break;
+      x += 0.2 * sens;
+    }
+    x += 0.6 * sens;
+    this.grappin = { x, y: this.sol(x), x0: p.x, y0: p.y, t: 0, sens };
+    this.dire(`🪝 Grappin lancé vers le rebord, ${fmt(this.grappin.y - p.y, 1)} m plus haut. On grimpe le long de la corde${this.duo ? ` ; ${this.duo.eq.nom} suit, encordé${this.duo.eq.acc}` : ''}.`);
+  }
+  // Corde du grappin et cordée : dessin.
+  dessinerCorde(ctx, versEcran, echelle) {
+    const gp = this.grappin;
+    if (!gp) return;
+    const [ax, ay] = versEcran(gp.x, gp.y);
+    ctx.save();
+    ctx.strokeStyle = '#ffcc80'; ctx.lineWidth = Math.max(1, 0.05 * echelle);
+    if (gp.t < DUREE_GRAPPIN) {
+      // Le grappin vole en cloche, de la main jusqu'au rebord.
+      const u = gp.t / DUREE_GRAPPIN, [mx, my] = versEcran(this.p.x, this.p.y + 1.5);
+      const hx = mx + (ax - mx) * u, hy = my + (ay - my) * u - Math.sin(Math.PI * u) * 3 * echelle;
+      ctx.beginPath(); ctx.moveTo(mx, my); ctx.quadraticCurveTo((mx + hx) / 2, Math.max(my, hy) + echelle * 0.5, hx, hy); ctx.stroke();
+      this.dessinerCrochet(ctx, hx, hy, echelle);
+    } else {
+      // Corde tendue du rebord jusqu'à la taille du grimpeur ; puis de lui à l'autre (cordée).
+      const [px, py] = versEcran(this.p.x, this.p.y + 1);
+      this.dessinerCrochet(ctx, ax, ay, echelle);
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(px, py); ctx.stroke();
+      const d = this.duo;
+      if (d && !d.enRover && (d.enEscalade || this.enEscalade)) {
+        const [qx, qy] = versEcran(d.p.x, d.p.y + 1);
+        ctx.beginPath(); ctx.moveTo(px, py); ctx.quadraticCurveTo((px + qx) / 2, Math.max(py, qy) + echelle * 0.6, qx, qy); ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+  dessinerCrochet(ctx, x, y, s) {
+    ctx.strokeStyle = '#b0bec5'; ctx.lineWidth = Math.max(1.5, 0.08 * s);
+    ctx.beginPath();
+    for (const k of [-1, 1]) { ctx.moveTo(x, y); ctx.quadraticCurveTo(x + k * 0.25 * s, y - 0.05 * s, x + k * 0.22 * s, y - 0.25 * s); }
+    ctx.moveTo(x, y); ctx.lineTo(x, y + 0.25 * s); ctx.stroke();
+    ctx.strokeStyle = '#ffcc80';
+  }
   // Sur Terre, hors entraînement à l'escalade, pas d'escalade (promenade).
   terreSansParoi() { return this.terre && !this.vol.mur; }
   // Escalade : on monte le long de la paroi, lentement, en soufflant (oxygène ×2). Une prise peut lâcher :
   // la glissade fait tomber, et la chute se paie à la réception. L'entraînement sur Terre rend plus sûr et plus rapide.
   grimper(dt, veut) {
     const p = this.p, g = this.c.g, forme = etat.essais && etat.essais.escalade;
+    // D'abord, le grappin : lancé vers le haut de la paroi, il s'accroche au rebord. On grimpe ensuite le long de la corde.
+    if (!this.grappin || this.grappin.sens !== veut || Math.abs(ecartSol(this.astre, this.grappin.x, p.x)) > 40) this.lancerGrappin(veut);
+    this.enEscalade = true;
+    if (p.grimpe === undefined) p.grimpe = 0;
+    if (this.grappin.t < DUREE_GRAPPIN) { this.grappin.t += dt; return; }
     const kG = Math.max(0.5, Math.min(2.5, Math.sqrt(9.81 / Math.max(0.05, g))));   // plus facile en faible gravité
     const v = (forme ? 0.5 : 0.3) * kG;                                               // m/s le long de la paroi
-    const ds = (v * dt) / 6;                                                          // six petits pas le long de la paroi
-    for (let i = 0; i < 6; i++) {
-      const pente = Math.atan2(this.sol(p.x + 0.05 * veut) - this.sol(p.x), 0.05);
-      p.x += veut * ds * Math.cos(pente); p.y = this.sol(p.x);
-    }
-    this.enEscalade = true;
+    this.glisserLeLong(p, veut, v * dt);
+    p.grimpe += v * dt;
     this.reserve -= dt;                                                               // l'effort : deux fois plus d'oxygène
     this.hauteurEscalade = Math.max(this.hauteurEscalade || 0, p.y - (this.yPiedParoi ?? (this.yPiedParoi = p.y)));
     const risque = (forme ? 0.012 : 0.06) * Math.max(0.3, Math.min(1.5, Math.sqrt(g / 9.81)));
@@ -454,6 +510,7 @@ class Exploration {
       // Montée trop raide (falaise) : on s'arrête. Une descente raide ne bloque jamais.
       const pente = Math.atan2(this.sol(p.x + 0.5 * Math.sign(p.vx || 1)) - this.sol(p.x), 0.5);
       this.enEscalade = false;
+      if (this.grappin && Math.abs(ecartSol(this.astre, this.grappin.x, p.x)) > 25 && !(this.duo && this.duo.enEscalade)) this.grappin = null;   // corde récupérée
       if (pente * 180 / Math.PI > penteMax && Math.abs(p.vx) > 0 && !this.delorean) {
         if (this.enRover && Math.abs(p.vx) > 1.5) this.chocRover(Math.abs(p.vx));
         p.vx = 0;
@@ -461,7 +518,7 @@ class Exploration {
         if (this.type === 'spationaute' && !this.enRover && !this.terreSansParoi() && veut) {
           if (cmd.saut && this.blessure && this.blessure.gravite === 'grave') { if (!this.astuceBlesse) { this.astuceBlesse = true; this.dire(`🚑 Blessé${this.equipier().acc} gravement : impossible d’escalader.`); } }
           else if (cmd.saut) this.grimper(dt, veut);
-          else if (!this.astuceEscalade) { this.astuceEscalade = true; this.dire('🧗 Paroi trop raide pour marcher : maintenez ↑ (avec → ou ←) pour l’escalader.'); }
+          else if (!this.astuceEscalade) { this.astuceEscalade = true; this.dire('🧗 Paroi trop raide pour marcher (plus de 45°) : maintenez ↑ (avec → ou ←) pour lancer le grappin et l’escalader.'); }
         }
         if (this.type === 'robot' || this.enRover) this.dire(`Pente trop raide pour les roues ${this.enRover ? 'de l’astromobile' : 'du robot'}.`);
       }
@@ -1220,6 +1277,7 @@ class Exploration {
       ctx.fillRect(sx, sy, 3, 3);
     }
 
+    this.dessinerCorde(ctx, versEcran, echelle);                // grappin, corde, cordée
     if (this.duo) this.dessinerDuo(ctx, versEcran, echelle);   // l'autre spationaute
     // Explorateur
     const [sx, sy] = versEcran(p.x, p.y);
@@ -1231,7 +1289,7 @@ class Exploration {
       if (this.delorean) texteSurFond(ctx, `${fmt(Math.abs(p.vx) * 2.2369)} mph`, sx, sy - 3.2 * echelle, { police: '700 16px system-ui, sans-serif', couleur: Math.abs(p.vx) > 30 ? '#ff5252' : '#ffca28' });
     }
     else if (this.type === 'spationaute' && this.secours && this.secours.phase === 'decollage') { /* à bord du module de secours */ }
-    else if (this.type === 'spationaute') dessinerSpationaute(ctx, sx, sy, echelle, p, this.terre, this.equipier().profil);
+    else if (this.type === 'spationaute') dessinerSpationaute(ctx, sx, sy, echelle, this.enEscalade ? p : { ...p, grimpe: undefined }, this.terre, this.equipier().profil);
     else {
       // Le bras sort pendant une analyse, ou un instant après avoir planté le drapeau.
       if (this.brasDrapeau > 0) this.brasDrapeau -= dt;

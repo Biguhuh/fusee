@@ -107,6 +107,24 @@ Object.assign(Exploration.prototype, {
       if (q.y <= this.sol(q.x)) { q.y = this.sol(q.x); q.vy = 0; q.vx = 0; q.auSol = true; }
       return;
     }
+    // Cordée : le grappin est accroché à cette paroi ; l'autre grimpe derrière vous, le long de la corde.
+    const gp = this.grappin;
+    if (gp && gp.t >= DUREE_GRAPPIN && d.mode === 'suit' && Math.abs(ecartSol(this.astre, gp.x, q.x)) < 30) {
+      const sens = gp.sens;
+      const devant = Math.atan2(this.sol(q.x + 0.5 * sens) - this.sol(q.x), 0.5) * 180 / Math.PI;
+      const surParoi = devant > this.def.penteMax + 10 || (d.enEscalade && devant > this.def.penteMax);
+      const enAvance = p.y - q.y > 1.2 || ecartSol(this.astre, p.x, q.x) * sens > 2;   // le premier est plus haut, ou déjà passé
+      if (surParoi && enAvance) {
+        const kG = Math.max(0.5, Math.min(2.5, Math.sqrt(9.81 / Math.max(0.05, g))));
+        const ds = 0.4 * kG * dt;
+        this.glisserLeLong(q, sens, ds);
+        q.grimpe = (q.grimpe || 0) + ds; q.dir = sens; q.vx = 0;
+        d.enEscalade = true; d.bloque = false;
+        d.reserve -= dt;                                   // l'effort
+        return;
+      }
+    }
+    d.enEscalade = false;
     let veut = 0;
     if (d.mode === 'suit') {
       const cible = p.x - (p.dir || 1) * 1.8, e = ecartSol(this.astre, cible, q.x);
@@ -147,7 +165,7 @@ Object.assign(Exploration.prototype, {
     const d = this.duo;
     if (!d || d.enRover) return;
     const [sx, sy] = versEcran(d.p.x, d.p.y);
-    dessinerSpationaute(ctx, sx, sy, echelle, d.p, false, d.eq.profil);
+    dessinerSpationaute(ctx, sx, sy, echelle, d.enEscalade ? d.p : { ...d.p, grimpe: undefined }, false, d.eq.profil);
     texteSurFond(ctx, d.eq.nom, sx, sy - 2.3 * echelle, { police: '11px system-ui, sans-serif', couleur: '#b3e5fc' });
   },
 });

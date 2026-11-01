@@ -210,7 +210,11 @@ function dessinerSpationaute(ctx, x, y, s, p, surTerre, profil) {
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
 
   const hanche = [0, -h * 0.45];
+  // Escalade (p.grimpe : distance grimpée) : face à la paroi, une main puis l'autre plus haut, genoux pliés,
+  // un pied puis l'autre sur une prise.
+  const grimpe = p.grimpe !== undefined, pg = grimpe ? Math.sin(p.grimpe * 5) : 0;
   const jambe = (sgn) => {
+    if (grimpe) return { genou: [h * 0.14, -h * (0.3 + 0.07 * sgn * pg)], pied: [h * 0.12, -h * (0.08 + 0.09 * Math.max(0, sgn * pg))] };
     const genou = [sgn * phase * h * 0.12, -h * 0.23], pied = [sgn * phase * h * 0.16, -h * 0.03];
     return { genou, pied };
   };
@@ -253,7 +257,9 @@ function dessinerSpationaute(ctx, x, y, s, p, surTerre, profil) {
 
   // Bras : humain, bionique (à pince), ou humain soutenu par une attelle d'exosquelette.
   const epaule = [0, -h * 0.76];
-  const brasPts = (sgn) => [epaule, [sgn * -phase * h * 0.1 + h * 0.05, -h * 0.57], [h * 0.09 + sgn * -phase * h * 0.04, -h * 0.46]];
+  const brasPts = (sgn) => grimpe
+    ? [epaule, [h * 0.12, -h * (0.88 + 0.06 * sgn * pg)], [h * 0.16, -h * (1.0 + 0.1 * sgn * pg)]]
+    : [epaule, [sgn * -phase * h * 0.1 + h * 0.05, -h * 0.57], [h * 0.09 + sgn * -phase * h * 0.04, -h * 0.46]];
   const dessinerBras = (sgn, devant) => {
     const pts = brasPts(sgn);
     const touche = brasTouche(devant);
