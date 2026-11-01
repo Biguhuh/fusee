@@ -86,6 +86,6 @@ function dessinerDrone(ctx, vol, x, y, h, niv = null) {
     ctx.strokeStyle = '#37474f'; ctx.lineWidth = Math.max(1.5, 0.04 * s);
     ctx.beginPath(); ctx.moveTo(xr - lb, yr - 0.07 * s); ctx.lineTo(xr + lb, yr - 0.07 * s); ctx.stroke();
   }
-  decorerDrone(ctx, s, niv);   // niveaux d'évolution (R&D)
+  decorerDrone(ctx, s, niv || nivVehicules());   // niveaux d'évolution (R&D)
   ctx.restore();
 }

@@ -134,13 +134,16 @@ const ONGLETS_AIDE = [
       role: 'Aller plus loin et plus vite.',
       obtenir: 'Garée à côté du module, pour le spationaute. Touche V pour monter ou descendre.',
       fait: 'Elle roule jusqu’à environ 3,6 m/s sur la Lune et emporte 20 échantillons.',
+      evolue: 'R&D à l’atelier d’une station : batteries, caisse à échantillons, moteur (3 niveaux chacun). Chaque niveau se voit sur l’engin : voir la planche plus bas.',
     }) +
     ficheAide('Robots', {
       role: 'Explorer là où un équipage ne peut pas aller, ou pas revenir.',
       obtenir: 'L’orbiteur en emporte deux ; l’atelier en fabrique.',
       fait: 'Posé, touche R : le robot analyse les sites et transmet ses données au module. Larguer un robot depuis l’orbite est un aller simple. Il résiste à la pression et à la chaleur bien mieux qu’un humain.',
-      evolue: 'Le robot de prélèvement descend seul, ramasse des échantillons pendant des jours, puis lance son conteneur en orbite. Son blindage décide combien de temps il tient au rayonnement.',
+      evolue: 'Le robot de prélèvement descend seul, ramasse des échantillons pendant des jours, puis lance son conteneur en orbite. Son blindage décide combien de temps il tient au rayonnement. R&D : robot durci, batterie (voir la planche plus bas).',
     }) +
+    `<h3>Évolution des véhicules</h3><p>Chaque amélioration mise au point à l’atelier d’une station (R&D) se voit sur l’engin, et grandit à chaque niveau. Les améliorations se combinent.</p>
+    <canvas class="planche-evolution" style="width:100%;height:auto;border-radius:8px"></canvas>` +
     `<h3>Le drapeau</h3><p>Touche F : le drapeau des Nations unies et le fanion de l’AS Nancy Lorraine. Un drapeau tous les 20 m au plus.</p>
     <h3>Les dangers</h3>
     ${listeAide([
@@ -208,4 +211,5 @@ function ouvrirAide(ongletId) {
   };
   m.querySelectorAll('[data-onglet]').forEach((b) => { b.onclick = () => choisir(b.dataset.onglet); });
   choisir(actif);
+  m.querySelectorAll('canvas.planche-evolution').forEach(dessinerPlancheEvolution);   // planche des véhicules
 }

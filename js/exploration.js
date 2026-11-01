@@ -1645,7 +1645,7 @@ function dessinerRover(ctx, x, y, s, p, aBord, inclinaison = 0, degats = 0, niv 
     const t = performance.now() / 1000;
     for (let k = 0; k < 3; k++) { const ph = (t * 0.6 + k / 3) % 1; ctx.fillStyle = `rgba(120,120,120,${0.5 * (1 - ph)})`; ctx.beginPath(); ctx.arc(1 * s + ph * 0.4 * s, -1.1 * s - ph * 1.6 * s, (0.15 + ph * 0.35) * s, 0, Math.PI * 2); ctx.fill(); }
   }
-  decorerRover(ctx, s, niv);   // niveaux d'évolution (R&D)
+  decorerRover(ctx, s, niv || nivVehicules());   // niveaux d'évolution (R&D)
   ctx.restore();
 }
 
@@ -1685,6 +1685,6 @@ function dessinerRobot(ctx, x, y, s, p, analyse, inclinaison = 0, niv = null) {
     ctx.beginPath(); ctx.moveTo(0.5 * L, -0.4 * s); ctx.lineTo(0.75 * L, -0.15 * s); ctx.stroke();
     ctx.fillStyle = 'rgba(79,195,247,0.5)'; ctx.beginPath(); ctx.arc(0.78 * L, -0.08 * s, 6, 0, Math.PI * 2); ctx.fill();
   }
-  decorerRobot(ctx, s, niv);   // niveaux d'évolution (R&D)
+  decorerRobot(ctx, s, niv || nivVehicules());   // niveaux d'évolution (R&D)
   ctx.restore();
 }

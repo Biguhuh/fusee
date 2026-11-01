@@ -109,3 +109,47 @@ function decorerModule(ctx, h, niv) {
     ctx.fillStyle = '#212121'; ctx.beginPath(); ctx.arc(x, y, r * 0.14, 0, Math.PI * 2); ctx.fill();
   }
 }
+
+// Niveaux d'évolution de l'expédition en cours (tous à 0 hors campagne).
+function nivVehicules() {
+  const n = {};
+  for (const k of Object.keys(AMELIORATIONS)) n[k] = niveauAmelio(k);
+  return n;
+}
+
+// Planche « Évolution des véhicules » (onglet Aide) : une amélioration par ligne, niveaux 0 à 3 en colonnes.
+const LIGNES_PLANCHE = [
+  ['Astromobile', 'batteries', 'rover', 'batterieRover'],
+  ['Astromobile', 'caisse à échantillons', 'rover', 'caisseRover'],
+  ['Astromobile', 'moteur', 'rover', 'moteurRover'],
+  ['Robot', 'robot durci', 'robot', 'robotDurci'],
+  ['Robot', 'batterie', 'robot', 'batterieRobot'],
+  ['Drone', 'batterie', 'drone', 'batterieDrone'],
+  ['Module', 'bouclier thermique', 'module', 'coqueThermique'],
+  ['Module', 'blindage anti-rayonnement', 'module', 'blindageBord'],
+];
+function dessinerPlancheEvolution(c) {
+  const CW = 230, CH = 170, X0 = 230, Y0 = 50, W = X0 + 4 * CW, H = Y0 + LIGNES_PLANCHE.length * CH;
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#0d1420'; ctx.fillRect(0, 0, W, H);
+  ctx.textBaseline = 'middle'; ctx.fillStyle = '#ffffff'; ctx.font = '600 20px system-ui, sans-serif';
+  for (let n = 0; n <= 3; n++) ctx.fillText(n ? `Niveau ${n}` : 'Sans R&D', X0 + n * CW + 65, 25);
+  const conc = concevoirAtterrisseur(ASTRES_PAR_ID.lune), fMod = conc.ok ? conc.fusee : assemblerFusee(equipementParDefaut());
+  LIGNES_PLANCHE.forEach(([engin, quoi, type, cle], li) => {
+    const y0 = Y0 + li * CH;
+    ctx.fillStyle = li % 2 ? '#111a29' : '#0f1724'; ctx.fillRect(0, y0, W, CH);
+    ctx.font = '600 16px system-ui, sans-serif'; ctx.fillStyle = '#eceff1'; ctx.fillText(engin, 14, y0 + CH / 2 - 11);
+    ctx.font = '15px system-ui, sans-serif'; ctx.fillStyle = '#90a4ae'; ctx.fillText(quoi, 14, y0 + CH / 2 + 11);
+    for (let n = 0; n <= 3; n++) {
+      const niv = { [cle]: n }, cx = X0 + n * CW + CW / 2, sol = y0 + CH - 28;
+      ctx.fillStyle = '#5d5d5d'; ctx.fillRect(X0 + n * CW + 10, sol, CW - 20, 4);
+      ctx.save();
+      if (type === 'rover') dessinerRover(ctx, cx, sol, 42, { dir: 1, pas: 0 }, false, 0, 0, niv);
+      if (type === 'robot') dessinerRobot(ctx, cx, sol, 80, { dir: 1, pas: 0 }, false, 0, niv);
+      if (type === 'drone') dessinerDrone(ctx, { angle: 0, throttle: 0, t: 0 }, cx, sol, 160, niv);
+      if (type === 'module') dessinerModule(ctx, { f: fMod, angle: 0, throttle: 0, temp: 20, integrite: 100, pose: true, t: 0, degats: { pression: 0, chaleur: 0, impact: 0 }, taux: { pression: 0, chaleur: 0 }, enDegats: () => false, niv }, cx, sol, 130);
+      ctx.restore();
+    }
+  });
+}
