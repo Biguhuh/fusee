@@ -1,10 +1,10 @@
 # État du projet
 
-Dernière mise à jour : 1er novembre 2026
+Dernière mise à jour : 4 novembre 2026
 
 ## En une phrase
 
-Jeu web de simulation spatiale (vol, atterrissage, exploration, campagne dans le Système solaire et au-delà), jouable en ligne, en bêta test : la carte 5 est terminée (points 1 à 22), les bugs connus de la bêta sont corrigés, des retours de jeu ont été traités (rappel, tonneaux, corde…), et tout est fusionné dans `main`.
+Jeu web de simulation spatiale (vol, atterrissage, exploration, campagne dans le Système solaire et au-delà), jouable en ligne, en bêta test : les cartes 5 et 7 sont terminées et fusionnées dans `main` ; la carte 6 est commencée (points 1 et 8 faits, sur des branches pas encore fusionnées).
 
 ## Fait
 
@@ -59,15 +59,33 @@ Retours de jeu (1er novembre 2026, après la carte 5) :
 - Descente en rappel : ↓ au bord d'une falaise (plus de 45°), le grappin est planté au bord ; le compagnon descend ensuite ; corde récupérée quand tous sont en bas ; bouton ⤓ sur téléphone.
 - Astromobile qui capote : tonneaux avec l'élan conservé (70 % de la vitesse après le choc), freinés par le frottement (0,6 × g), puis retour sur les roues.
 
+Carte 7 (3 et 4 novembre 2026), corde, grappin et mise en orbite, fusionnée dans `main` (version 275) :
+- 1. Le lancer du grappin va à son terme même si l'on relâche ↑ ; grappin rangé si l'on s'éloigne du pied de la paroi (« Lancer abandonné » ou « Corde récupérée »).
+- 2. Cordée : la corde ne va qu'à qui est sur la paroi (`surParoi` : raide des deux côtés des pieds) ; lien entre les deux seulement si les deux y sont ; grappin rangé quand plus personne n'y est. Lâcher ↑ en pleine paroi : on reste accroché. Le compagnon vient au pied de la paroi et monte derrière vous. Une glissade encordée ne fait plus tomber (un seul tirage au sort).
+- 3. Tab pendant l'escalade ou le rappel : l'état suit chaque personnage ; celui qu'on quitte termine seul sa montée (même en mode « attend ») ou son rappel, puis attend. Grappin gardé au pied seulement tant que personne n'est monté (`gp.servi`).
+- Rappel : le compagnon va jusqu'au bord pour descendre à son tour (bug d'avant la carte, sur paroi presque verticale) ; « bloqué au pied » seulement si l'on est plus haut que lui.
+- 4. Mise en orbite : titre « Orbite visée », jauges « valeur, minimum » ; le minimum de vitesse suit l'altitude actuelle, comme le test de réussite. Tolérance 90 % / 97 % gardée et expliquée dans l'Aide (vitesse en repère fixe : à 97 %, l'orbite repasserait ≈ 600 km sous la surface).
+
+Carte 6 (4 novembre 2026), commencée, branches poussées mais pas fusionnées (`carte6-point1`, puis `carte6-point8` qui part du point 1) :
+- 1. Descente avec personne à bord : texte propre (tous morts, ou toute l'équipe en mission) au lieu de « une seule personne » ; bouton « Descendre » grisé ; le robot reste possible.
+- 8. Écran de fin : lieu du décès (`lieuAbord` : « en route vers Saturne », « en orbite de Titan », « sur » seulement au sol), aussi dans le registre ; morts regroupés par cause et par lieu, « mort » accordé (`groupesPertes`, `accorderCause`) ; titre « Fin de mission : équipage perdu » ; statistiques en tableau avec quatre compteurs nommés (bilan de l'expédition `v.bilan`, remis à zéro à chaque départ : échantillons rapportés, analyses effectuées, analyses transmises ; plus le total depuis le début). Une expédition commencée avant affiche « — ».
+
 ## En cours
 
-- Rien.
+- Carte 6 (fichier de l'auteur : `C:\Users\DELL\Downloads\carte-jeu-fusee-6.md`). Ordre de travail : 1, 8, 2, 3, 4, 5, 6, 7.
+  - Point 8 : fait, en attente de la validation d'Edouard (il a seulement tranché : échantillons à bord récupérés quand tout l'équipage meurt, comme aujourd'hui).
+  - Suivant : point 2 (équipage mort de faim vers Saturne). Commencer par un diagnostic (consommation dans `vivres.js` : 1,8 kg de vivres et 0,5 kg d'eau par personne et par jour, comparés aux chiffres de la carte) et une proposition avec options, effort et risques ; ne pas coder avant l'accord. Points 2, 5 et 6 : inventaire et proposition d'abord.
+  - Créer `carte6-point2` à partir de `carte6-point8`.
+- Rien n'est fusionné de la carte 6 : attendre « fusionne ».
 
 ## À faire, dans l'ordre
 
 1. Jouer une vraie campagne avec tous ces ajouts : beaucoup n'ont été testés que par appels directs (vivres, déchets, extensions, secours, capsules multiples, atterrissage progressif, easter eggs de la carte 5).
 2. Rappel et tonneaux : testés sur des terrains de test seulement. Vérifier en jouant que ↓ au bord se déclenche facilement (il faut appuyer dans les 60 derniers centimètres, sinon on tombe).
 3. Vérifier les blocs centrés (chiffres de l'accueil, cartes de l'équipage) avec le texte justifié : ils n'ont pas été vus à l'écran.
+4. Carte 6, point 8 : la date « 4 mars 2265 » de la capture d'Edouard (≈ 240 ans de jeu) n'est pas expliquée ; le calcul de la date semble juste. Demander sa sauvegarde pour comprendre (accélération du temps ?).
+5. Carte 6, point 1 : le bouton « Descendre » grisé n'a pas été vu en vraie campagne (testé par appels directs).
+6. Carte 7 : escalade, cordée, Tab et rappel testés sur la paroi d'entraînement seulement (8 m, presque verticale) ; à essayer sur d'autres astres.
 
 ## Bugs connus de la bêta
 
@@ -85,6 +103,9 @@ Retours de jeu (1er novembre 2026, après la carte 5) :
 - Easter eggs : découverts seulement par le spationaute incarné, de près (le compagnon peut les signaler) ; les traces réelles, par tous. Mars peut en avoir plusieurs (Total Recall en plus des autres).
 - Blessures : le « mode dégradé » est celui qui existe après une mort (équipage traumatisé, manœuvres risquées).
 - Cordée : encordé au grappin, une glissade ne fait pas tomber (on pend, puis on se rattrape).
+- Cordée (carte 7) : elle n'existe que si les deux sont sur la paroi ; seul celui qui est sur la paroi est attaché au grappin ; plus personne sur la paroi = grappin rangé (sauf au pied, corde en main, tant que personne n'est monté). Le grimpeur qu'on quitte (Tab) termine seul sa montée, puis attend.
+- Mise en orbite : tolérance de jeu gardée (90 % de l'altitude visée, 97 % de la vitesse circulaire), signalée dans l'Aide.
+- Personne à bord : pas de descente humaine ; le robot peut descendre. Tout l'équipage mort : les échantillons à bord sont récupérés (la capsule vide les rapporte).
 - Descente : quelqu'un reste toujours en orbite ; 2 places, 3 avec le module d'habitation.
 - Module d'urgence = module de secours (appel U) ; le module posé sur place est l'autre.
 - Vivres et eau : pénurie = rationnement puis morts ; production hors Terre limitée (eau des glaces, petite serre) ; 100 % d'autonomie seulement avec l'écosystème fermé, exigé pour quitter le Système solaire.
@@ -111,13 +132,18 @@ Retours de jeu (1er novembre 2026, après la carte 5) :
 - Scripts Python d'édition : les lancer depuis la racine du dépôt (`cd ~/code/Biguhuh/fusee && python3 …`), sinon « No such file ».
 - Émojis récents (🪢, 🪨, 🛞…) : carré vide sur beaucoup d'écrans. Préférer les anciens (🧗, 🚙…).
 - Tester un terrain précis : remplacer `x.sol` par une fonction (plateau, falaise…) et faire avancer `x.step(1/30, { droite, frein… })` avec `etat.pause = true`.
+- Commentaire en fin de ligne : ne jamais le glisser au milieu d'une ligne de code (`{ … ; // commentaire` met en commentaire la suite, le fichier ne se charge plus : « creerDuo is not defined »). Le mettre sur sa propre ligne.
+- `read_console_messages` garde les erreurs des chargements précédents : pour savoir si une erreur est actuelle, ouvrir un onglet neuf (`preview_start` avec l'URL) et relire sa console.
+- Tester l'escalade : `lancerEssai('escalade')` (avec Sam), marcher 15 s vers la droite pour atteindre le pied (paroi de 8 m à x = 32), puis `{ droite: true, saut: true }` pour grimper. Pour vérifier le dessin, appeler `x.dessiner(ctx, W, H, dt)` à chaque pas, ou `x.dessinerCorde` avec un faux contexte qui note les traits.
+- Comparer avec `main` sans changer de branche : `git worktree add /tmp/fusee-main main`, serveur sur le port 8766, puis `git worktree remove --force /tmp/fusee-main`.
+- Tester un écran de fin : remplacer `etat.voyage` par un faux voyage en mémoire (pertes, `bilan`, `echantillonsRapportes`…), appeler `afficherRetourTerre(res, equipage)`, puis recharger la page.
 - Tester l'amarrage sans campagne : `Orbiteur.amarrer.call(faux, true)`, avec un objet `faux` qui fournit `v`, `stationIci()`, `etatStation()` et `log()`.
 
 ## Carte des fichiers importants
 
 Cœur :
 - `index.html` : écrans et ordre de chargement des scripts.
-- `js/main.js` : boucle de jeu, touches, lancement des vols, descente (lieu, équipage), robot, drone, base, fin de vol, secours, sauvegarde.
+- `js/main.js` : boucle de jeu, touches, lancement des vols, descente (lieu, équipage), robot, drone, base, fin de vol, secours, sauvegarde ; écran de fin de mission (`afficherRetourTerre`, `statsFinMission`).
 - `js/vol.js` : simulation et dessin d'un vol (poussée, atmosphère, température de coque, atterrissage, ciel, terrain, base animée, tableau de bord), jour local et chaleur du Soleil au sol.
 - `js/physique.js` : conditions selon l'altitude, sol en anneau (`distSol`, `ecartSol`).
 - `js/astres.js`, `js/catalogue.js`, `js/donnees-jpl.js` : les astres.
@@ -133,7 +159,7 @@ Campagne :
 - `js/vivres.js` : vivres et eau potable (consommation, production, pénurie).
 - `js/dechets.js` : déchets de l'équipage, vidange.
 - `js/sites.js` : lieux d'atterrissage (première descente, suggestions), positions réelles des anciennes missions, cratère polaire de Mercure.
-- `js/equipe.js` : équipe, missions de fond, blessures et soins, choix de qui descend, réparation de l'astromobile.
+- `js/equipe.js` : équipe, missions de fond, blessures et soins, choix de qui descend, réparation de l'astromobile ; pertes de l'expédition (lieu, regroupement par cause) et bilan de l'expédition (`compterExpedition`).
 - `js/equipage.js` : profils et dessin des spationautes (poses : escalade, quatre pattes, courte-échelle, allongé).
 - `js/registre.js`, `js/vaisseau.js` : registre des équipages, nom du vaisseau.
 - `js/tableau.js`, `js/journal.js`, `js/progression.js` : tableau de bord d'un astre, journal, progression (références des easter eggs).

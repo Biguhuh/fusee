@@ -16,7 +16,8 @@ En ligne : https://biguhuh.github.io/fusee/ (GitHub Pages, branche `main`). Dép
 - Lancer le jeu : `python3 -m http.server 8765` à la racine (dans WSL, en arrière-plan), puis http://localhost:8765/. Ouvrir `index.html` directement marche aussi.
 - Lancer les tests : il n'y a pas de tests automatiques. On teste dans le navigateur intégré, en appelant les fonctions du jeu depuis la console (voir « Pièges » dans `ETAT.md`). Pendant un test, remplacer `window.sauver` par une fonction vide pour ne pas toucher la sauvegarde d'Edouard, puis recharger la page.
 - Typographie française : `python3 -I outils/typo.py .` (ajoute `--sec` pour voir sans écrire). À lancer avant chaque commit qui touche du texte.
-- Pas de `node` dans WSL : une erreur de syntaxe se voit au chargement de la page (console du navigateur).
+- Pas de `node` dans WSL : une erreur de syntaxe se voit au chargement de la page (console du navigateur, dans un onglet neuf : la console garde les erreurs des chargements précédents).
+- Commandes depuis PowerShell : écrire un script dans `~/code/Biguhuh/` (hors du dépôt), puis `wsl -d ubuntu -- bash ~/code/Biguhuh/script.sh`. Remplacements dans un texte qui contient des insécables : script Python qui repère la ligne par son début.
 
 ## Structure
 
@@ -36,6 +37,10 @@ En ligne : https://biguhuh.github.io/fusee/ (GitHub Pages, branche `main`). Dép
 - Une branche par demande. Commit puis push de la branche ; test dans le navigateur intégré.
 - On ne fusionne dans `main` (et donc on ne publie) que quand Edouard dit « fusionne » (ou « fusionne et push »). Ordre : commit, push de la branche, puis fusion dans `main` et push de `main`.
 - Cartes de travail (« carte jeu fusée N ») : un point à la fois, dans l'ordre ; après chaque point, résumer ce qui a changé et comment tester, puis attendre la validation. Si un point est ambigu, poser la question au lieu de deviner. Les branches d'une carte s'enchaînent (`carte5-pointN` part de la précédente).
+  - La carte en cours est un fichier d'Edouard (souvent dans `C:\Users\DELL\Downloads\`) : son chemin et le point suivant sont notés dans `ETAT.md`, section « En cours ».
+  - Les pistes d'une carte sont des hypothèses : les vérifier dans le code (et dans le jeu) avant de corriger.
+  - Un bug trouvé en route, hors du point : le signaler, vérifier s'il existait déjà sur `main`, et demander avant de le corriger (commit à part sur la branche du point).
+  - Tester chaque point dans le jeu (navigateur intégré) avant de le déclarer fait ; dire ce qui n'a pas pu être vu à l'écran.
 - Avant chaque test dans le navigateur, monte la version : `sed -i 's/?v=N/?v=N+1/g' index.html`.
 - Textes du jeu : français soigné, accords (genre du ou de la spationaute via `acc()`), articles devant les astres via `francais.js` (`le()`, `sur()`, `de()`…).
 - Commentaires de code en français, courts.
