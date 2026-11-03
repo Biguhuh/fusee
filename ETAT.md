@@ -1,10 +1,10 @@
 # État du projet
 
-Dernière mise à jour : 4 novembre 2026
+Dernière mise à jour : 5 novembre 2026 (nuit de travail sur la carte 6)
 
 ## En une phrase
 
-Jeu web de simulation spatiale (vol, atterrissage, exploration, campagne dans le Système solaire et au-delà), jouable en ligne, en bêta test : les cartes 5 et 7 sont terminées et fusionnées dans `main` ; la carte 6 est commencée (points 1 et 8 faits, sur des branches pas encore fusionnées).
+Jeu web de simulation spatiale (vol, atterrissage, exploration, campagne dans le Système solaire et au-delà), jouable en ligne, en bêta test : les cartes 5 et 7 sont terminées et fusionnées dans `main` ; la carte 6 est faite (points 1 à 8, le point 7 en première étape), sur des branches pas encore fusionnées, à relire par Edouard.
 
 ## Fait
 
@@ -66,16 +66,22 @@ Carte 7 (3 et 4 novembre 2026), corde, grappin et mise en orbite, fusionnée dan
 - Rappel : le compagnon va jusqu'au bord pour descendre à son tour (bug d'avant la carte, sur paroi presque verticale) ; « bloqué au pied » seulement si l'on est plus haut que lui.
 - 4. Mise en orbite : titre « Orbite visée », jauges « valeur, minimum » ; le minimum de vitesse suit l'altitude actuelle, comme le test de réussite. Tolérance 90 % / 97 % gardée et expliquée dans l'Aide (vitesse en repère fixe : à 97 %, l'orbite repasserait ≈ 600 km sous la surface).
 
-Carte 6 (4 novembre 2026), commencée, branches poussées mais pas fusionnées (`carte6-point1`, puis `carte6-point8` qui part du point 1) :
+Carte 6 (4 et 5 novembre 2026), branches poussées mais pas fusionnées, chacune partant de la précédente : `carte6-point1`, `carte6-point8`, `carte6-point2` … `carte6-point7` (la dernière contient tout). Compte rendu détaillé de la nuit : `docs/carte6-nuit.md`.
 - 1. Descente avec personne à bord : texte propre (tous morts, ou toute l'équipe en mission) au lieu de « une seule personne » ; bouton « Descendre » grisé ; le robot reste possible.
 - 8. Écran de fin : lieu du décès (`lieuAbord` : « en route vers Saturne », « en orbite de Titan », « sur » seulement au sol), aussi dans le registre ; morts regroupés par cause et par lieu, « mort » accordé (`groupesPertes`, `accorderCause`) ; titre « Fin de mission : équipage perdu » ; statistiques en tableau avec quatre compteurs nommés (bilan de l'expédition `v.bilan`, remis à zéro à chaque départ : échantillons rapportés, analyses effectuées, analyses transmises ; plus le total depuis le début). Une expédition commencée avant affiche « — ».
+- 2. Vivres pour les longs voyages : alerte au choix d'une cible (durée du voyage comparée à l'autonomie en route, date de la pénurie, confirmation) ; escale à une station sur le trajet, puis « Reprendre le voyage » ; R&D « Recyclage de l'eau et de l'air » et « Torpeur (science-fiction) » (consommation divisée par 4 en route).
+- 3. Équipage mort : choix entre ramener l'orbiteur et « continuer en sonde », piloté depuis le sol (seul le pilote auto ; commandes avec le délai radio réel). Bouton « ⚙ » de l'orbiteur : réglages de la campagne (délai radio, calcul simplifié).
+- 4. Calcul simplifié des objets en transit (sondes, ravitos) : trajectoire calculée une fois puis suivie ; réglage automatique au-delà de 10 objets, toujours ou jamais ; ≈ 200 fois moins de calcul.
+- 5. Aspect des trouvailles (`trouvailles.js`) : sites à grande échelle (lac sur la rive, cratère, coulée, panache, fissure, lit de rivière) et échantillons à petite échelle, à leur taille réelle. Liste : `docs/carte6-echantillons.md`.
+- 6. Zones réelles (`zones.js`) : Valles Marineris, Olympus Mons, Hellas, Gale, Jezero, à l'échelle réelle, dans « Où se poser ? » ; plan lointain dans l'exploration. Méthode et liste des autres zones : `docs/carte6-zones.md`.
+- 7. Recrues transportées (`transferts.js`), étape 1 : fenêtre « Envoyer des spationautes » (recrues ou spationautes en service, vers l'orbiteur, une station ou une base), vaisseau de transfert de 4 places sur une vraie trajectoire, en arrière-plan. Plus d'apparition instantanée.
 
 ## En cours
 
-- Carte 6 (fichier de l'auteur : `C:\Users\DELL\Downloads\carte-jeu-fusee-6.md`). Ordre de travail : 1, 8, 2, 3, 4, 5, 6, 7.
-  - Point 8 : fait, en attente de la validation d'Edouard (il a seulement tranché : échantillons à bord récupérés quand tout l'équipage meurt, comme aujourd'hui).
-  - Suivant : point 2 (équipage mort de faim vers Saturne). Commencer par un diagnostic (consommation dans `vivres.js` : 1,8 kg de vivres et 0,5 kg d'eau par personne et par jour, comparés aux chiffres de la carte) et une proposition avec options, effort et risques ; ne pas coder avant l'accord. Points 2, 5 et 6 : inventaire et proposition d'abord.
-  - Créer `carte6-point2` à partir de `carte6-point8`.
+- Carte 6 (fichier de l'auteur : `C:\Users\DELL\Downloads\carte-jeu-fusee-6.md`) : tous les points faits pendant la nuit du 4 au 5 novembre, selon les décisions prises par Edouard avant la nuit (notées en tête de `docs/carte6-nuit.md`).
+  - À faire au réveil d'Edouard : relire `docs/carte6-nuit.md` (résumé en tête), `docs/carte6-echantillons.md` et `docs/carte6-zones.md`, tester, corriger ce qui ne va pas, puis « fusionne » (fusionner `carte6-point7`, qui contient tout).
+  - Point 7 : étape 1 seulement (trajet automatique). Étapes suivantes possibles : piloter le trajet, consommation des vivres à une station ou à une base.
+  - Point 6 : Mars seulement ; autres astres un par un, après validation de la liste.
 - Rien n'est fusionné de la carte 6 : attendre « fusionne ».
 
 ## À faire, dans l'ordre
@@ -86,6 +92,7 @@ Carte 6 (4 novembre 2026), commencée, branches poussées mais pas fusionnées (
 4. Carte 6, point 8 : la date « 4 mars 2265 » de la capture d'Edouard (≈ 240 ans de jeu) n'est pas expliquée ; le calcul de la date semble juste. Demander sa sauvegarde pour comprendre (accélération du temps ?).
 5. Carte 6, point 1 : le bouton « Descendre » grisé n'a pas été vu en vraie campagne (testé par appels directs).
 6. Carte 7 : escalade, cordée, Tab et rappel testés sur la paroi d'entraînement seulement (8 m, presque verticale) ; à essayer sur d'autres astres.
+7. Carte 6 : tout a été testé par appels directs dans des campagnes neuves en mémoire ; rien n'a été joué dans une vraie partie (alerte vivres et escale, contrôle au sol, calcul simplifié, trouvailles, zones de Mars, transferts d'équipage).
 
 ## Bugs connus de la bêta
 
@@ -106,6 +113,12 @@ Carte 6 (4 novembre 2026), commencée, branches poussées mais pas fusionnées (
 - Cordée (carte 7) : elle n'existe que si les deux sont sur la paroi ; seul celui qui est sur la paroi est attaché au grappin ; plus personne sur la paroi = grappin rangé (sauf au pied, corde en main, tant que personne n'est monté). Le grimpeur qu'on quitte (Tab) termine seul sa montée, puis attend.
 - Mise en orbite : tolérance de jeu gardée (90 % de l'altitude visée, 97 % de la vitesse circulaire), signalée dans l'Aide.
 - Personne à bord : pas de descente humaine ; le robot peut descendre. Tout l'équipage mort : les échantillons à bord sont récupérés (la capsule vide les rapporte).
+- Vivres (carte 6) : règles réalistes dans le Système solaire (alerte, escale, ravito, recyclage) ; torpeur et écosystème fermé sont de la science-fiction, signalée comme telle, débloquée par la R&D d'une station.
+- Équipage mort : au choix, ramener l'orbiteur ou continuer en sonde ; délai radio réel, désactivable (⚙).
+- Calcul simplifié des objets en transit : automatique au-delà de 10 objets (réglable), manuel possible.
+- Trouvailles : sites à grande échelle (on prélève au bord), échantillons à petite échelle, à taille réelle.
+- Zones réelles : profils simplifiés à la main, à l'échelle réelle, posés est-ouest à leur vraie longitude ; Mars d'abord.
+- Recrues : un vrai transport (vaisseau de transfert de 4 places, trajectoire des cargos) ; la fenêtre sert aussi à déplacer les spationautes en service.
 - Descente : quelqu'un reste toujours en orbite ; 2 places, 3 avec le module d'habitation.
 - Module d'urgence = module de secours (appel U) ; le module posé sur place est l'autre.
 - Vivres et eau : pénurie = rationnement puis morts ; production hors Terre limitée (eau des glaces, petite serre) ; 100 % d'autonomie seulement avec l'écosystème fermé, exigé pour quitter le Système solaire.
@@ -136,6 +149,8 @@ Carte 6 (4 novembre 2026), commencée, branches poussées mais pas fusionnées (
 - `read_console_messages` garde les erreurs des chargements précédents : pour savoir si une erreur est actuelle, ouvrir un onglet neuf (`preview_start` avec l'URL) et relire sa console.
 - Tester l'escalade : `lancerEssai('escalade')` (avec Sam), marcher 15 s vers la droite pour atteindre le pied (paroi de 8 m à x = 32), puis `{ droite: true, saut: true }` pour grimper. Pour vérifier le dessin, appeler `x.dessiner(ctx, W, H, dt)` à chaque pas, ou `x.dessinerCorde` avec un faux contexte qui note les traits.
 - Comparer avec `main` sans changer de branche : `git worktree add /tmp/fusee-main main`, serveur sur le port 8766, puis `git worktree remove --force /tmp/fusee-main`.
+- Tester l'orbiteur sans abîmer la sauvegarde : `window.sauver = () => {}; noterPointReprise = () => {};` (le point de reprise écrit directement dans le stockage), `const v = Orbiteur.nouveauVoyage(); etat.voyage = v; etat.enVoyage = true; Orbiteur.v = v; Orbiteur.demarrerExpedition(); allerNavigation();` (le panneau doit exister : `choisirCible` appelle `majHud`). Avancer : `v.t += pas; Orbiteur.mettreAJourSondes(pas); Orbiteur.mettreAJourLogistique();`.
+- Identifiants d'astres : vérifier qu'ils existent avant de s'en servir (`ceres`, `encelade` n'existent pas sous ces noms ; Encelade est `l602`).
 - Tester un écran de fin : remplacer `etat.voyage` par un faux voyage en mémoire (pertes, `bilan`, `echantillonsRapportes`…), appeler `afficherRetourTerre(res, equipage)`, puis recharger la page.
 - Tester l'amarrage sans campagne : `Orbiteur.amarrer.call(faux, true)`, avec un objet `faux` qui fournit `v`, `stationIci()`, `etatStation()` et `log()`.
 
@@ -159,6 +174,7 @@ Campagne :
 - `js/vivres.js` : vivres et eau potable (consommation, production, pénurie).
 - `js/dechets.js` : déchets de l'équipage, vidange.
 - `js/sites.js` : lieux d'atterrissage (première descente, suggestions), positions réelles des anciennes missions, cratère polaire de Mercure.
+- `js/transferts.js` : transport des spationautes (recrues, déplacements entre orbiteur, stations et bases).
 - `js/equipe.js` : équipe, missions de fond, blessures et soins, choix de qui descend, réparation de l'astromobile ; pertes de l'expédition (lieu, regroupement par cause) et bilan de l'expédition (`compterExpedition`).
 - `js/equipage.js` : profils et dessin des spationautes (poses : escalade, quatre pattes, courte-échelle, allongé).
 - `js/registre.js`, `js/vaisseau.js` : registre des équipages, nom du vaisseau.
@@ -168,6 +184,8 @@ Campagne :
 - `js/rayonnement.js` : doses de rayonnement réelles.
 
 Au sol :
+- `js/trouvailles.js` : aspect des sites et des échantillons au sol (carte 6, point 5).
+- `js/zones.js` : zones réelles (relief simplifié, appelé par `creerTerrain`) et plan lointain de l'exploration.
 - `js/exploration.js` : sortie à pied, astromobile (bridage, tonneaux), robot ; chutes et blessures, combinaison, escalade, grappin et rappel, quatre pattes, jour et nuit, retour (`cheminVers`), appel d'urgence et départs séparés.
 - `js/duo.js` : sortie à deux (suivre, cordée, rappel, arrêt au bord d'une falaise, courte-échelle, main tendue, oxygène partagé).
 - `js/decouvertes.js` : easter eggs et leurs dessins, traces réelles, signalements du compagnon.

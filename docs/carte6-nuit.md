@@ -1,5 +1,22 @@
 # Carte 6 : travail de la nuit du 4 au 5 novembre 2026
 
+## Résumé pour le matin
+
+Tous les points sont faits, testés par appels directs, commités et poussés ; rien n'est fusionné dans `main`. La branche `carte6-point7` contient tout (version 292).
+
+| Point | Branche | En une ligne |
+|---|---|---|
+| 1 | `carte6-point1` | Plus de « une seule personne » quand personne n'est à bord ; bouton Descendre grisé. |
+| 8 | `carte6-point8` | Écran de fin : vrai lieu des décès, une ligne par cause, quatre compteurs nommés. |
+| 2 | `carte6-point2` | Alerte vivres au choix de la cible, escale à une station, R&D recyclage et torpeur (SF). |
+| 3 | `carte6-point3` | Équipage mort : ramener l'orbiteur ou continuer en sonde, avec le délai radio réel ; bouton ⚙. |
+| 4 | `carte6-point4` | Calcul simplifié des objets en transit (automatique au-delà de 10) : ≈ 200 fois moins de calcul. |
+| 5 | `carte6-point5` | Trouvailles à leur taille réelle : lac (on prélève sur la rive), cratère, coulée, panache… et petits échantillons. |
+| 6 | `carte6-point6` | Mars : Valles Marineris, Olympus Mons, Hellas, Gale, Jezero, à l'échelle réelle ; plan lointain. |
+| 7 | `carte6-point7` | Recrues et spationautes transportés en vaisseau de transfert, vers l'orbiteur, une station ou une base. |
+
+À relire en priorité : la liste des aspects ([carte6-echantillons.md](carte6-echantillons.md)) et celle des zones ([carte6-zones.md](carte6-zones.md)). À essayer en jouant : rien n'a été joué dans une vraie partie.
+
 Ce fichier garde les décisions d'Edouard (prises avant la nuit), les propositions et le compte rendu de chaque point.
 Les branches s'enchaînent : `carte6-point2` part de `carte6-point8`, `carte6-point3` de `carte6-point2`, etc. Rien n'est fusionné dans `main`.
 
