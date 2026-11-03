@@ -97,7 +97,7 @@ function ouvrirChoixEquipage(v, a, suite) {
   if (!bord.length) return Orbiteur.log(survivants(v).length
     ? 'Descente impossible : personne à bord de l’orbiteur, toute l’équipe est en mission. Un robot peut descendre (aller simple).'
     : 'Descente impossible : plus personne en vie à bord. Seul un robot peut encore descendre (aller simple).');
-  if (bord.length < 2) return Orbiteur.log(`Descente impossible : il ne reste qu’une personne à bord, et quelqu’un doit rester en orbite. Recrutez (station de niveau 4) ou rentrez sur Terre.`);
+  if (bord.length < 2) return Orbiteur.log(`Descente impossible : il ne reste qu’une personne à bord, et quelqu’un doit rester en orbite. Faites venir des recrues (« 🧑‍🚀 Envoyer des spationautes ») ou rentrez sur Terre.`);
   const choisis = new Set(compositionProposee(v));
   const ligne = (x) => {
     const grave = x.blessure && x.blessure.gravite === 'grave';
@@ -239,16 +239,6 @@ function initialiserEquipe(v) {
   }));
   v.equipePrevue = null;
   regDepart(v);
-}
-
-// Recrue supplémentaire (habitat d'une station de niveau 4).
-function recruter(v, log) {
-  if (v.equipe.length >= capaciteEquipe(v)) return log(`L’équipe est au complet (${capaciteEquipe(v)} places${capaciteEquipe(v) < TAILLE_EQUIPE_HABITAT ? ' ; une station de niveau 4 en accueille 8' : ''}).`);
-  const profil = profilAleatoire([...v.equipe.map((x) => x.nom), ...Object.values(registre()).map((f) => f.nom)]);
-  const m = { id: 'e' + Date.now(), nom: profil.prenom, profil, dose: 0, etat: 'bord' };
-  v.equipe.push(m);
-  regRecrue(v, m);
-  log(`${m.nom} rejoint l’équipe (${v.equipe.length}/${capaciteEquipe(v)}).`);
 }
 
 // Dose reçue pendant une mission : environ 40 % du temps dehors, le reste dans l'atterrisseur (protégé par son panneau).
@@ -421,6 +411,8 @@ function htmlEquipe(v) {
     let etat;
     if (m.etat === 'perdu' || (m.principal && v.equipagePerdu)) etat = '✝ perdu';
     else if (m.etat === 'mission') etat = `en mission ${sur(ASTRES_PAR_ID[m.mission.astre])}, retour dans ${fmtDuree(m.mission.fin - v.t)}`;
+    else if (m.etat === 'transit') etat = `🚀 en route vers ${nomLieu(v, m.transit ? m.transit.vers : 'orbiteur')}`;
+    else if (m.etat === 'station' || m.etat === 'base') etat = `${m.etat === 'base' ? '🏠' : '🛰'} ${nomLieu(v, m.lieu)}${m.attendOrbiteur ? ', attend l’orbiteur' : ''}`;
     else etat = m.principal ? 'à bord (vous)' : 'à bord';
     if (m.etat === 'rapatrie') etat = '🏥 rapatrié' + accordMembre(m) + ' sur Terre';
     if (m.blessure && m.etat === 'bord') etat += ` · ${texteBlessureMembre(m, v)}`;

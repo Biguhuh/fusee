@@ -99,3 +99,20 @@ Ce qui a changé :
 Testé : altitudes (plateau 0, fond de Valles −7,1 km, haut de la falaise d'Olympus 6,2 km, sommet 21,8 km, caldeira 19,0 km, fond d'Hellas −7,3 km, mont Sharp +0,9 km, Jezero −0,5 km comme Perseverance) ; pression au fond de Valles 7,8 mbar ; fenêtre « Où se poser ? » (5 zones) ; exploration au pied de Valles et d'Olympus : plan lointain visible. Le sol coûte ≈ 1,6 µs par point.
 
 Limites : coupes simplifiées et posées est-ouest (un canyon qui court d'est en ouest est traversé « en coupe »). Hellas est resserrée pour ne pas recouvrir Jezero. Pas encore de zones sur les autres astres (liste proposée, à valider). La couleur du ciel selon l'atmosphère existait déjà.
+
+### Point 7 : recrues et spationautes transportés (branche `carte6-point7`)
+
+Avant : « Accueillir une recrue » (station avec habitat) faisait apparaître la recrue instantanément dans l'orbiteur.
+
+Ce qui a changé (étape 1 : trajet automatique en arrière-plan) :
+- Nouveau fichier `js/transferts.js`. Fenêtre « 🧑‍🚀 Envoyer des spationautes » (bouton dans les actions de l'orbiteur, et « Envoyer des spationautes ici » sur une station avec habitat) :
+  - qui : un nombre de nouvelles recrues depuis la Terre, et/ou des spationautes en service (à bord, à une station, à une base ; pas votre spationaute, qui reste aux commandes) ;
+  - vers où : l'orbiteur (s'il est en orbite de la Terre ou d'un astre qui a une station), une station avec habitat (8 places), une base (2 places par niveau, via la station de son astre et sa navette) ; places libres affichées ;
+  - comment : vaisseau de transfert de 4 places (plusieurs si besoin), sur la même trajectoire que les cargos ; gratuit depuis la Terre, 20 t d'ergols par vaisseau depuis une station ; durée prévue affichée.
+- Le voyage se fait en arrière-plan ; message au départ et à l'arrivée. Arrivés à l'orbiteur : à bord. Si l'orbiteur est parti entre-temps : ils l'attendent à la station et montent à bord à son retour.
+- Liste de l'équipe : « en route vers… », « à la station… », « à la base… ».
+- L'apparition instantanée est supprimée.
+
+Testé (campagne neuve) : 3 recrues vers l'orbiteur en orbite terrestre (rendez-vous en 1 jour, puis à bord, « équipe 7/8 ») ; 2 recrues vers une station martienne de niveau 4 (≈ 10 mois, arrivées à la station) ; 1 recrue vers une base martienne (arrivée à la station, puis navette d'un jour vers la base).
+
+Limites et étapes suivantes : pas encore de mode « piloter le trajet » (seulement l'automatique) ; pas de fenêtre de tir à choisir (le départ suit le calcul des cargos, qui attend la fenêtre) ; le jour de navette au départ d'une base n'est compté que dans la date affichée ; les spationautes d'une station ou d'une base ne mangent pas les vivres de l'orbiteur (pas encore de consommation sur place) ; si tout l'équipage de l'orbiteur meurt alors que d'autres vivent à une station, l'orbiteur n'est pas encore déclaré « sans équipage ».

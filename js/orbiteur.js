@@ -922,6 +922,7 @@ const Orbiteur = {
 
   // Cargo arrivé : son contenu rejoint le stock de la station.
   livrerRavito(c) {
+    if (c.passagers) return arriveeTransfertEquipage(this.v, c, (t) => this.log(t));   // vaisseau de transfert (transferts.js)
     const st = this.v.stations.find((s) => s.id === c.dest);
     if (!st) return this.log(`${c.nom} : station introuvable, cargo perdu.`);
     ajouterAuStock(st, c.contenu);
@@ -995,6 +996,7 @@ const Orbiteur = {
     const v = this.v;
     this.appliquerCommandeSol();
     if (v.equipe) mettreAJourEquipe(v, (t) => this.log(t));
+    if (v.equipe) mettreAJourTransferts(v, (t) => this.log(t));   // navettes vers les bases, embarquement à une station
     mettreAJourDechets(v, (t) => this.log(t), (st) => this.estAmarre(st));
     mettreAJourVivres(v, (t) => this.log(t));
     if (v.sondesInterstellaires && v.sondesInterstellaires.length) mettreAJourSondesInterstellaires(v, (t) => this.log(t));
@@ -2472,6 +2474,8 @@ const Orbiteur = {
     d += '<h3>Actions</h3><div class="actions-nav">';
     d += actionsVoiture(this);
     d += this.boutonRetourSolaire();
+    // Recrues et déplacements de spationautes (transferts.js).
+    if (v.equipe) d += '<button id="nav-envoi-equipe">🧑‍🚀 Envoyer des spationautes (recrues, transferts)</button>';
     // Escale atteinte : reprendre le voyage vers la destination finale (les vivres sont revérifiés).
     if (v.voyageFinal && v.orb.centre === v.cible && this.orbiteFermee()) d += `<button id="nav-reprendre" class="principal">▶ Reprendre le voyage vers ${le(ASTRES_PAR_ID[v.voyageFinal])}</button>`;
     const fermee = this.orbiteFermee();
@@ -2605,6 +2609,7 @@ const Orbiteur = {
     bind('nav-rentrer', () => this.contexte.rentrer());
     bind('nav-reprendre', () => this.choisirCible(v.voyageFinal));
     bind('nav-ramener', () => this.lancerRetourAuto());
+    bind('nav-envoi-equipe', () => ouvrirEnvoiEquipage(v, (t) => this.log(t), () => this.majHud(true)));
     bind('nav-capsule-ech', () => this.contexte.renvoyerEchantillons());
     bind('nav-sonde-ech', () => this.renvoyerParSonde());
     bind('nav-depart', () => Depart.ouvrir(this.v));

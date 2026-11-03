@@ -177,7 +177,11 @@ function tableauAstre(v, a, actif) {
     else if ((k.extensionsStation || 0) > 0) suivant = `${NIVEAUX_STATION[n + 1].apport} ${bouton(`agrandir:${st.id}`, `⬆ Agrandir (niveau ${n + 1})`)}`;
     else suivant = `${NIVEAUX_STATION[n + 1].apport} — il faut 1 extension de station (atelier : ${fmtStock('materiaux', RECETTES.extensionsStation.materiaux)} de matériaux, ou ravito « Extension de station »)`;
     if (n < 5 || st.agrandissement) orb += `<dt>Niveau ${Math.min(5, n + 1)}</dt><dd>${suivant}</dd>`;
-    if (niveauStation(st).habitat && v.equipe) orb += `<dt>Habitat</dt><dd>équipe ${survivants(v).length}/${capaciteEquipe(v)} ${v.equipe.length < capaciteEquipe(v) ? bouton('recruter', '🧑‍🚀 Accueillir une recrue') : ''}</dd>`;
+    // Habitat : les spationautes y viennent en vaisseau de transfert (transferts.js), plus d'apparition instantanée.
+    if (niveauStation(st).habitat && v.equipe) {
+      const ici = v.equipe.filter((m) => lieuMembre(m) === 'st:' + st.id).length;
+      orb += `<dt>Habitat</dt><dd>${ici} spationaute${ici > 1 ? 's' : ''} ici, ${capaciteStationEquipe(st)} places ${bouton(`envoi:${st.id}`, '🧑‍🚀 Envoyer des spationautes ici')}</dd>`;
+    }
     for (const ch of st.chantiers || []) orb += ligne('🔧 Chantier', `${nomChantier(ch.cle)}, prêt dans ${fmtDuree(ch.fin - v.t)}`);
     if (actif) {
       const fab = Object.entries(RECETTES).filter(([cle]) => recetteVisible(cle, st))
@@ -202,7 +206,7 @@ function tableauAstre(v, a, actif) {
         if (type === 'fab') Orbiteur.fabriquer(p1, p2);
         if (type === 'agrandir') Orbiteur.agrandirStation(p1);
         if (type === 'deployer') Orbiteur.deployerBase(p1);
-        if (type === 'recruter') recruter(v, (t) => Orbiteur.log(t));
+        if (type === 'envoi') return ouvrirEnvoiEquipage(v, (t) => Orbiteur.log(t), () => Orbiteur.majHud(true), 'st:' + p1);
         if (type === 'ravito') return Orbiteur.ouvrirRavito(p1);
         Orbiteur.majHud(true);
         rafraichir();
