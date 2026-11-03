@@ -80,7 +80,9 @@ function creerTerrain(astre) {
   };
   const nCases = Math.max(1, Math.round(P / (r.longueur * 0.8)));
   const tailleCase = P / nCases;
-  return function hauteur(x) {
+  // Zones réelles (zones.js) : leur relief simplifié s'ajoute au relief ordinaire.
+  const zones = (h) => (typeof terrainZones === 'function' ? terrainZones(astre, h) : h);
+  return zones(function hauteur(x) {
     // Collines : plusieurs couches de bruit de plus en plus fines.
     let h = 0, amp = r.amplitude, L = r.longueur;
     for (let o = 0; o < 4; o++) {
@@ -106,5 +108,5 @@ function creerTerrain(astre) {
       }
     }
     return h;
-  };
+  });
 }

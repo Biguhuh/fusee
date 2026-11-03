@@ -85,3 +85,17 @@ Ce qui a changé :
 Testé : planche de toutes les formes (29 échantillons, 9 sites) ; Titan, de nuit : le lac se voit, repère sur la rive (« Lac de méthane à 1 m »). Aucune erreur.
 
 Limites : les panaches sont à l'échelle du terrain (30 m), pas à leur vraie hauteur (8 km sur Triton, des centaines de km sur Io). Le terrain lui-même n'est pas creusé (cratère, lac) : ce sont des dessins par-dessus le sol ; le point 6 (relief) pourra aller plus loin.
+
+### Point 6 : zones réelles, Mars d'abord (branche `carte6-point6`)
+
+Méthode, zones faites et zones proposées : [carte6-zones.md](carte6-zones.md).
+
+Ce qui a changé :
+- Nouveau fichier `js/zones.js` : relief simplifié de lieux réels, à l'échelle réelle, ajouté au relief ordinaire à leur vraie longitude (le même relief pour la descente, l'exploration et la sonde).
+- Mars : Valles Marineris, Olympus Mons, Hellas Planitia, cratère Gale et mont Sharp, cratère Jezero.
+- « Où se poser ? » : section « 🏔 Zones remarquables » (après une première descente, comme les anciennes missions), avec position et description ; on se pose au bon endroit (au pied de la paroi, de l'escarpement, près de Curiosity ou de Perseverance).
+- Exploration : un plan lointain montre le relief des 200 km alentour (paroi du canyon, escarpement d'Olympus Mons), derrière le terrain proche ; il apparaît partout où le relief lointain est marqué.
+
+Testé : altitudes (plateau 0, fond de Valles −7,1 km, haut de la falaise d'Olympus 6,2 km, sommet 21,8 km, caldeira 19,0 km, fond d'Hellas −7,3 km, mont Sharp +0,9 km, Jezero −0,5 km comme Perseverance) ; pression au fond de Valles 7,8 mbar ; fenêtre « Où se poser ? » (5 zones) ; exploration au pied de Valles et d'Olympus : plan lointain visible. Le sol coûte ≈ 1,6 µs par point.
+
+Limites : coupes simplifiées et posées est-ouest (un canyon qui court d'est en ouest est traversé « en coupe »). Hellas est resserrée pour ne pas recouvrir Jezero. Pas encore de zones sur les autres astres (liste proposée, à valider). La couleur du ciel selon l'atmosphère existait déjà.

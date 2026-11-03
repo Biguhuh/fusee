@@ -90,6 +90,11 @@ function lieuxDescente(a, v) {
   }
   l.push({ cle: 'defaut', nom: '⬇ À l’équateur (longitude 0°)', detail: 'C’est là que la rotation de l’astre est la plus rapide : elle donne de l’élan pour repartir en orbite.', x: 0, xDescente: 0, nuit, conseille: !l.some((u) => u.conseille) });
   if (premiereDescente(a, v)) return l;   // les anciennes missions viendront après une première descente
+  // Zones réelles remarquables (zones.js), avec leur relief propre.
+  for (const z of zonesSur(a.id)) {
+    const x = xZone(a, z) + z.poser * 1000;
+    l.push({ cle: 'zone:' + z.id, zone: z.id, nom: `🏔 ${z.nom}`, detail: `${fmtCoord(z.lat, z.lon)}. ${z.detail}`, x, xDescente: x, nuit });
+  }
   for (const t of tracesSur(a.id)) {
     const p = POSITIONS_TRACES[t.id], x = xTrace(a, t) + DISTANCE_TRACE;
     l.push({ cle: 'trace:' + t.id, trace: t.id, nom: `${t.nom} (${t.annee})`, detail: p ? fmtCoord(p[0], p[1]) : '', x, xDescente: x, nuit });
@@ -116,8 +121,9 @@ function ouvrirChoixLieu(a, v, suite, titre = 'Descendre') {
   m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>📍 Où se poser ${sur(a)} ?</h2>
     <p>On pose la base là où l’on veut exploiter les ressources, mais on peut explorer ailleurs : les anciennes missions sont à leur vraie place.</p>${note ? `<p class="encart-refus">${note}</p>` : ''}</div><button class="fermer">✕</button></header>
     ${premiere ? `<p class="encart">Première descente ${sur(a)} : on se pose d’abord sur la zone repérée par la sonde, ou à défaut à l’équateur. Ensuite, d’autres sites seront proposés${nAutres ? ` (${nAutres} ancienne${nAutres > 1 ? 's' : ''} mission${nAutres > 1 ? 's' : ''} à aller voir)` : ''}.</p>` : ''}
-    <section>${lieux.filter((u) => !u.trace).map(option).join('')}
+    <section>${lieux.filter((u) => !u.trace && !u.zone).map(option).join('')}
     ${premiere ? '' : `<label class="choix-ravito"><input type="radio" name="lieu" value="libre"> <b>🧭 Ailleurs</b>, longitude <input type="number" id="lieu-lon" min="-180" max="180" step="1" value="90" style="width:5em">° <span class="doux">(est positif)</span><br><span class="doux">Explorer un coin que personne n’a vu.</span></label>`}</section>
+    ${lieux.some((u) => u.zone) ? `<section><h3>🏔 Zones remarquables</h3><p class="doux">De vrais lieux, avec leur relief (simplifié) : on se pose au bon endroit pour aller voir.</p>${lieux.filter((u) => u.zone).map(option).join('')}</section>` : ''}
     ${traces.length ? `<section><h3>🧭 Suggestions : les anciennes missions, à leur vraie place</h3><p class="doux">Rien d’obligatoire : des sites à visiter si le cœur vous en dit. On se pose à ${DISTANCE_TRACE} m, pour aller voir à pied, en astromobile ou avec le robot.</p><div class="grille-lieux">${traces.map((u) => `<label><input type="radio" name="lieu" value="${u.cle}"> <b>${u.nom}</b> <span class="doux">${u.detail}</span></label>`).join('')}</div></section>` : ''}
     <div class="actions"><span></span><button id="lieu-ok" class="principal">⬇ ${titre} ici</button></div></div>`;
   m.classList.remove('cache');

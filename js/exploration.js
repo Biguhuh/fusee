@@ -1366,6 +1366,8 @@ class Exploration {
     const versEcran = (x, y) => [W / 2 + ecartSol(a, x, p.x) * echelle, camY + (yCam - y) * echelle];
     dessinerFond(ctx, a, this.c, W, H, false, tempsCiel(this.vol), this.vol);
     if (this.terre) dessinerNuages(ctx, W, H, p.x * echelle);
+    // Plan lointain : le relief des kilomètres alentour (paroi d'un canyon, flanc d'un volcan), derrière le terrain.
+    if (!this.terre) dessinerPanorama(ctx, a, p.x, (x) => this.sol(x), W, camY + (yCam - this.sol(p.x)) * echelle, LUMIERE_SOL);
 
     // Terrain (réutilise le rendu de l'atterrissage)
     dessinerTerrain(ctx, { x: p.x, y: yCam, sol: (x) => this.sol(x), astre: a, autopilote: false }, W, H, echelle, camY);
