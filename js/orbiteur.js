@@ -134,6 +134,7 @@ const Orbiteur = {
       v.echantillonsRapportes[id] = (v.echantillonsRapportes[id] || 0) + v.echantillonsABord[id];
       n += v.echantillonsABord[id];
     }
+    compterExpedition('echantillons', n);
     const liste = Object.entries(v.echantillonsABord).map(([id, k]) => `${k} ${de(ASTRES_PAR_ID[id])}`).join(', ');
     this.log(`Retour sur Terre de l’expédition n° ${v.expeditions}${n ? ` avec ${n} échantillon${n > 1 ? 's' : ''} (${liste})` : ''}.`);
     // L'orbiteur reste garé à la station terrestre (s'il y en a une) : la prochaine équipe le reprendra
@@ -755,6 +756,7 @@ const Orbiteur = {
     for (const r of v.retoursEchantillons.filter((x) => v.t >= x.tArrivee)) {
       let n = 0;
       for (const [id, k] of Object.entries(r.contenu)) { v.echantillonsRapportes[id] = (v.echantillonsRapportes[id] || 0) + k; n += k; }
+      compterExpedition('echantillons', n);
       const liste = Object.entries(r.contenu).map(([id, k]) => `${k} ${de(ASTRES_PAR_ID[id])}`).join(', ');
       this.log(`📦 La capsule de la sonde de retour a amerri sur ${SYSTEME.origineSans} : ${n} échantillon${n > 1 ? 's' : ''} rapporté${n > 1 ? 's' : ''} (${liste}).`);
     }

@@ -82,12 +82,12 @@ function regRetour(v) {
     ficheDe(m).statut = 'vivant';
   }
 }
-function regMort(v, m, cause, astreId) {
+function regMort(v, m, cause, astreId, lieu) {
   const f = ficheDe(m);
   if (f.statut === 'mort') return;
   compterTemps(v, m, v.t);
   f.statut = 'mort';
-  f.mort = { cause, astre: astreId, t: v.t, systeme: SYSTEME.id, campagne: idCampagne() };
+  f.mort = { cause, astre: astreId, lieu: lieu || null, t: v.t, systeme: SYSTEME.id, campagne: idCampagne() };
 }
 // Orbiteur écrasé : toute personne encore à bord ou en mission meurt avec l'expédition.
 function regExpeditionPerdue(v, cause, astreId) {
@@ -332,7 +332,8 @@ function ouvrirRegistre(onglet = ongletRegistre) {
       const e = tousLesEggs().find((x) => x.id === id);
       return e ? nomAstrePartout(e.astre) : id;
     });
-    const mort = f.mort && f.statut === 'mort' ?`${f.mort.cause}${f.mort.astre ? `, ${sur(astrePartout(f.mort.astre))}` : ''}, le ${fmtDate(f.mort.t, false)}` : '';
+    const lieuMort = f.mort && (f.mort.lieu || (f.mort.astre ? sur(astrePartout(f.mort.astre)) : ''));   // en route, en orbite, ou sur l'astre
+    const mort = f.mort && f.statut === 'mort' ? `${f.mort.cause}${lieuMort ? `, ${lieuMort}` : ''}, le ${fmtDate(f.mort.t, false)}` : '';
     return `<article class="fiche-registre ${f.statut === 'mort' ? 'mort' : ''}">
       <canvas width="70" height="86" data-portrait="${i}"></canvas>
       <div class="corps-registre">

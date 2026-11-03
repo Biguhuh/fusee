@@ -721,6 +721,7 @@ function renvoyerEchantillons() {
     n += v.echantillonsABord[id];
   }
   if (!n) return;
+  compterExpedition('echantillons', n);
   const liste = Object.entries(v.echantillonsABord).map(([id, k]) => `${k} ${de(ASTRES_PAR_ID[id])}`).join(', ');
   v.echantillonsABord = {};
   Orbiteur.log(`Capsule sans équipage envoyée vers la Terre avec ${n} échantillon${n > 1 ? 's' : ''} (${liste}).`);
@@ -730,7 +731,7 @@ function renvoyerEchantillons() {
     h.textContent = 'Échantillons rapportés sur Terre';
     h.className = 'succes';
     $('res-message').textContent = `Capsule vide : retour sans équipage, comme prévu. Un navire a hissé la capsule à bord avec sa grue. ${n} échantillon${n > 1 ? 's' : ''} rapporté${n > 1 ? 's' : ''} : ${liste}.`;
-    $('res-stats').innerHTML = resumeCampagne(v).split(' · ').map((x) => `<dt>•</dt><dd style="text-align:left">${x}</dd>`).join('');
+    $('res-stats').innerHTML = statsFinMission(v);
     etat.suiteResultat = 'nav';
     $('vers-hangar').textContent = 'Aller à l’orbiteur';
     $('rejouer').classList.add('cache');
@@ -738,24 +739,48 @@ function renvoyerEchantillons() {
   });
 }
 
+// Bilan de fin de mission : un libellé par ligne. « Cette mission » : l'expédition en cours, depuis son départ.
+function statsFinMission(v) {
+  const b = v.bilan, nb = (k) => (b ? fmt(b[k] || 0) : '—');   // expédition commencée avant ce bilan : « — »
+  const total = Object.values(v.echantillonsRapportes).reduce((s, x) => s + x, 0);
+  const l = [
+    ['Date', fmtDate(v.t, false)],
+    ['Échantillons rapportés cette mission', nb('echantillons')],
+    ['Échantillons rapportés depuis le début', fmt(total)],
+    ['Analyses effectuées cette mission', nb('analysesFaites')],
+    ['Analyses transmises cette mission', nb('analysesTransmises')],
+    ['Stations', fmt(v.stations.length)],
+    ['Bases', fmt(v.bases.length)],
+  ];
+  if (v.provisions.fleurs + v.provisions.fruits) l.push(['À emporter', `${v.provisions.fleurs} fleurs, ${v.provisions.fruits} fruits`]);
+  return l.map(([k, x]) => `<dt>${k}</dt><dd>${x}</dd>`).join('');
+}
 function afficherRetourTerre(res, equipage, nom = nomSpatio()) {
-  const h = $('res-titre');
-  h.textContent = equipage ? 'Retour sur Terre' : 'Retour sur Terre : capsule vide';
+  const h = $('res-titre'), msg = $('res-message');
+  // Plus personne en vie : ce n'est pas un retour, c'est la fin de la mission (l'orbiteur vide est revenu seul).
+  h.textContent = equipage ? 'Retour sur Terre' : 'Fin de mission : équipage perdu';
   h.className = equipage ? 'succes' : 'partiel';
-  const ech = res.n ? `${res.n} échantillon${res.n > 1 ? 's' : ''} rapporté${res.n > 1 ? 's' : ''} : ${res.liste}.` : 'Pas d’échantillon cette fois.';
-  // Qui n'est pas revenu, où et pourquoi (pertes notées pendant l'expédition).
-  const pertes = textePertes(etat.voyage);
-  $('res-message').textContent = equipage
-    ? `La capsule a amerri sous ses parachutes et l’hélicoptère a hélitreuillé ${nom}.${pertes ? ` Manquent à l’appel : ${pertes}.` : ''} ${ech}`
-    : `Capsule vide : ${pertes ? `${pertes}.` : 'l’équipage n’est pas revenu.'} Un navire a hissé la capsule à bord avec sa grue. ${ech}`;
+  const ech = res.n ? `${res.n} échantillon${res.n > 1 ? 's' : ''} dans la capsule : ${res.liste}.` : 'Aucun échantillon dans la capsule.';
+  // Qui n'est pas revenu : une ligne par cause et par lieu.
+  const groupes = groupesPertes(etat.voyage);
+  msg.textContent = equipage
+    ? `La capsule a amerri sous ses parachutes et l’hélicoptère a hélitreuillé ${nom}.${groupes.length ? ' Manquent à l’appel :' : ''}`
+    : (groupes.length ? 'Tout l’équipage est mort :' : 'Personne n’est revenu dans la capsule.');
+  if (groupes.length) {
+    const ul = document.createElement('ul'); ul.className = 'pertes';
+    for (const g of groupes) { const li = document.createElement('li'); li.textContent = `${g}.`; ul.appendChild(li); }
+    msg.appendChild(ul);
+  }
+  msg.append(equipage ? ` ${ech}`
+    : ` Le contrôle au sol a ramené l’orbiteur vide en orbite ${de(planeteOrigine())}, et la capsule est redescendue sans personne : un navire l’a hissée à bord avec sa grue. ${ech}`);
   // Orbiteur vide envoyé vers le Soleil : il y fond, sans personne à bord (environ deux mois et demi de chute).
   if (etat.voyage.orbiteurVersSoleil) {
     etat.voyage.orbiteurVersSoleil = false;
     const texte = '☀️ Pendant ce temps, l’orbiteur vide file vers le Soleil. Dans environ deux mois et demi, il fondra en passant à moins de 15 millions de km du Soleil, sans personne à bord.';
-    $('res-message').textContent += ' ' + texte;
+    msg.append(' ' + texte);
     etat.voyage.journal.push({ t: etat.voyage.t, texte });
   }
-  $('res-stats').innerHTML = resumeCampagne(etat.voyage).split(' · ').map((x) => `<dt>•</dt><dd style="text-align:left">${x}</dd>`).join('');
+  $('res-stats').innerHTML = statsFinMission(etat.voyage);
   etat.suiteResultat = 'accueil';
   $('vers-hangar').textContent = '← Accueil';
   $('rejouer').classList.add('cache');

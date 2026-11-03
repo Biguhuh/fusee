@@ -42,7 +42,7 @@ function mourirDePenurie(v, cause, log) {
   const m = l[Math.floor(Math.random() * l.length)];
   const nom = m.principal ? nomSpatio() : m.nom;
   if (m.principal) v.equipagePerdu = true; else m.etat = 'perdu';
-  noterPerte(v, nom, v.orb ? v.orb.centre : SYSTEME.origine, cause);
+  noterPerte(v, nom, v.orb ? v.orb.centre : SYSTEME.origine, cause, lieuAbord(v));   // à bord : en orbite, ou en route
   v.proposerRappel = { nom, acc: accordMembre(m) };
   verifierEquipageEntierPerdu(v);
   log(`💀 ${majuscule(nom)} est mort${accordMembre(m)} : ${cause}.`);

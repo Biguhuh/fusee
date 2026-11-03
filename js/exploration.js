@@ -583,6 +583,7 @@ class Exploration {
         const s = this.analyse.site;
         this.marquer(s);
         this.donneesEnAttente++;
+        compterExpedition('analysesFaites', 1);
         this.dire(`Analyse terminée : ${s.nom}. ${s.texte} (données à transmettre depuis ${this.moduleRobot ? 'le module robot' : 'le module'})`);
         this.analyse = null;
       }
@@ -978,6 +979,7 @@ class Exploration {
     if (n) {
       const s = (this.science[this.astre.id] = this.science[this.astre.id] || { sites: {}, echantillons: 0, analyses: 0 });
       s.analyses += n;
+      compterExpedition('analysesTransmises', n);
       this.donneesEnAttente = 0;
     }
     return n;

@@ -97,6 +97,7 @@ dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .resultat h1.partiel { color: var(--alerte); }
 .resultat h1.echec { color: var(--danger); }
 .resultat .message { font-size: 17px; margin: 0 0 18px; }
+.resultat .message ul.pertes { margin: 6px 0 8px; padding-left: 22px; text-align: left; }   /* une ligne par cause */
 
 .doux { color: var(--doux); }
 

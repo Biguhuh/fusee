@@ -14,11 +14,18 @@ const ECHANTILLONS_MAX_MISSION = 8;
 function capaciteEquipe(v) { return (v.stations.some((s) => niveauStation(s).habitat) ? TAILLE_EQUIPE_HABITAT : TAILLE_EQUIPE) + 2 * niveauAmelio('habitat', v); }
 
 // ---------- Pertes de l'expédition (pour le message du retour sur Terre) ----------
-// Chaque perte : { nom, astre, cause, t }. Remises à zéro à chaque nouvelle expédition.
-function noterPerte(v, nom, astreId, cause) {
-  (v.pertesEquipage = v.pertesEquipage || []).push({ nom, astre: astreId, cause, t: v.t });
+// Chaque perte : { nom, astre, cause, lieu, acc, t }. Remises à zéro à chaque nouvelle expédition.
+// lieu : texte du lieu quand « sur l'astre » serait faux (à bord, en orbite ou en route) ; acc : accord du nom.
+function noterPerte(v, nom, astreId, cause, lieu) {
   const m = (v.equipe || []).find((x) => x.nom === nom) || (nom === nomSpatio() ? (v.equipe || []).find((x) => x.principal) : null);
-  if (m) regMort(v, m, cause, astreId);
+  (v.pertesEquipage = v.pertesEquipage || []).push({ nom, astre: astreId, cause, lieu: lieu || null, acc: m ? accordMembre(m) : acc(), t: v.t });
+  if (m) regMort(v, m, accorderCause(cause, [accordMembre(m)]), astreId, lieu);
+}
+// Bilan de l'expédition en cours (écran de fin) : échantillons rapportés sur Terre, analyses faites et transmises.
+// Une expédition commencée avant ce bilan n'en a pas : rien n'est compté, l'écran affiche « — ».
+function compterExpedition(cle, n) {
+  const v = typeof etat !== 'undefined' && etat.enVoyage && etat.voyage;
+  if (v && v.bilan && n) v.bilan[cle] = (v.bilan[cle] || 0) + n;
 }
 // ---------- Pilote : qui descend avec l'atterrisseur ----------
 // Votre spationaute s'il est en vie ; sinon le premier membre d'équipage à bord de l'orbiteur.
@@ -188,9 +195,33 @@ function causeSortie(texte) {
 function causeVol(c) {
   return { ecrasee: 'atterrisseur écrasé', brulee: 'atterrisseur brûlé', pressurisee: 'atterrisseur écrasé par la pression', irradiee: 'dose mortelle de rayonnement', carburant: 'atterrisseur à court de carburant', pose: 'laissé au sol avec l’atterrisseur' }[c] || 'atterrisseur perdu';
 }
-// « Inès — dose mortelle de rayonnement, sur Callisto ; Notre spationaute — combinaison écrasée par la pression, sur Vénus »
-function textePertes(v) {
-  return (v.pertesEquipage || []).map((p) => `${majuscule(p.nom)} — ${p.cause}, ${sur(ASTRES_PAR_ID[p.astre] || { nom: p.astre })}`).join(' ; ');
+// Pertes de l'expédition en une phrase (fenêtres), groupes séparés par « ; ».
+function textePertes(v) { return groupesPertes(v).join(' ; '); }
+// Une ligne par cause et par lieu : « Oscar, Chloé et Bastien : morts de faim, à court de vivres, en route vers Saturne ».
+function groupesPertes(v) {
+  const groupes = new Map();
+  for (const p of v.pertesEquipage || []) {
+    const lieu = p.lieu || sur(ASTRES_PAR_ID[p.astre] || { nom: p.astre });
+    const cle = `${p.cause}|${lieu}`;
+    if (!groupes.has(cle)) groupes.set(cle, { cause: p.cause, lieu, noms: [], accs: [] });
+    const g = groupes.get(cle); g.noms.push(majuscule(p.nom)); g.accs.push(p.acc ?? '');
+  }
+  return [...groupes.values()].map((g) => `${listeEt(g.noms)} : ${accorderCause(g.cause, g.accs)}, ${g.lieu}`);
+}
+function listeEt(l) { return l.length > 1 ? `${l.slice(0, -1).join(', ')} et ${l[l.length - 1]}` : l[0] || ''; }
+// « mort de faim » s'accorde : « morte », « morts », « mortes ». Les autres causes sont des noms (« atterrisseur écrasé »).
+function accorderCause(cause, accs) {
+  if (!/^mort\b/.test(cause)) return cause;
+  const fin = accs.length > 1 ? (accs.every((a) => a === 'e') ? 'es' : 's') : accs[0] || '';
+  return cause.replace(/^mort/, 'mort' + fin);
+}
+// Lieu d'une mort à bord de l'orbiteur : en orbite d'un astre, ou en route (transfert autour de l'étoile).
+function lieuAbord(v) {
+  const c = v.orb && ASTRES_PAR_ID[v.orb.centre];
+  if (!c) return null;
+  if (c.type !== 'etoile') return `en orbite ${de(c)}`;
+  const cible = v.cible && ASTRES_PAR_ID[v.cible];
+  return cible && cible.type !== 'etoile' ? `en route vers ${le(cible)}` : 'en route, entre les planètes';
 }
 
 // Nouvelle équipe au départ d'une expédition.
@@ -198,6 +229,7 @@ function initialiserEquipe(v) {
   v.equipagePerdu = false;       // nouvelle équipe, nouveau départ (voir le point 10 de la carte 4)
   v.traumatise = false; v.proposerRappel = null; v.retourAuto = null;
   v.pertesEquipage = [];
+  v.bilan = { echantillons: 0, analysesFaites: 0, analysesTransmises: 0 };   // compteurs de l'écran de fin
   // L'équipe composée au centre de lancement (vétérans ou recrues, apparence choisie), sinon une proposition.
   const prevue = v.equipePrevue && v.equipePrevue.length ? v.equipePrevue : equipeProposee(v);
   v.equipe = prevue.map((p, i) => ({
