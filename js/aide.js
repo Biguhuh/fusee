@@ -82,7 +82,7 @@ const ONGLETS_AIDE = [
       role: 'Le vaisseau de l’expédition : il voyage d’astre en astre et emporte tout le reste.',
       obtenir: 'Mis en orbite par la méga-fusée. Une nouvelle expédition en lance un nouveau.',
       fait: `60 t de carburant, propulsion nucléaire-électrique. Il emporte 6 sondes, 2 kits de station, 1 kit de base, 2 robots et 2 atterrisseurs. Trois pilotages : <b>libre</b> (vous poussez vous-même), <b>assistant</b> (il calcule la prochaine manœuvre, vous l’exécutez), <b>${NOM_PILOTE_VOYAGE}</b> (il fait tout le voyage).`,
-      evolue: 'Le plein se fait en s’amarrant à une station, ou gratuitement en orbite de la Terre.',
+      evolue: 'Le plein se fait en s’amarrant à une station, ou gratuitement en orbite de la Terre. Vivres et eau : environ un an pour quatre personnes (2,5 t de vivres, 0,8 t d’eau). Au choix d’une cible lointaine, le jeu compare la durée du voyage à cette autonomie : si elle ne suffit pas, faites escale à une station sur le trajet (envoyez-lui d’abord un ravito « Vivres et eau »), ou mettez au point les soutes agrandies, la serre, le recyclage de l’eau et de l’air, puis la torpeur (science-fiction : l’équipage dort pendant les trajets entre les planètes).',
     }) +
     ficheAide('Sondes', {
       role: 'Repérer un astre avant d’y aller.',

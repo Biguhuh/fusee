@@ -15,6 +15,12 @@ const AMELIORATIONS = {
   // pour quitter le Système solaire : plus aucun ravitaillement possible.
   ecosysteme: { groupe: '🌱 Vivres', nom: 'Écosystème fermé', max: 1, requis: { serre: 3 }, couts: [null, { materiaux: 60000, jours: 60 }],
     effet: () => '100 % des vivres et de l’eau produits et recyclés à bord : l’équipage est autonome, condition pour quitter le Système solaire' },
+  // Recyclage de l'eau et de l'air : l'ISS récupère déjà 98 % de l'eau ; le réacteur de Sabatier refait de l'eau avec le
+  // CO₂ expiré, et l'électrolyse en tire l'oxygène. Moins d'eau à apporter (les vivres, eux, viennent toujours d'ailleurs).
+  recyclage: { groupe: '🌱 Vivres', nom: 'Recyclage de l’eau et de l’air', effet: (n) => `${25 * n} % d’eau en moins à apporter (eau et oxygène recyclés à bord)` },
+  // Torpeur : un état proche de l'hibernation, étudié chez l'animal ; aucun humain ne l'a encore vécu. Science-fiction.
+  torpeur: { groupe: '🌱 Vivres', nom: 'Torpeur (science-fiction)', max: 1, requis: { recyclage: 2 }, couts: [null, { materiaux: 80000, jours: 90 }],
+    effet: () => `science-fiction : pendant les trajets entre les planètes, l’équipage dort et consomme ${FACTEUR_TORPEUR_TEXTE} moins de vivres et d’eau` },
   batterieRover: { groupe: '🚙 Astromobile', nom: 'Batteries de l’astromobile', effet: (n) => `+${50 * n} % d’autonomie` },
   caisseRover: { groupe: '🚙 Astromobile', nom: 'Caisse à échantillons', effet: (n) => `+${10 * n} échantillons` },
   moteurRover: { groupe: '🚙 Astromobile', nom: 'Moteur de l’astromobile', effet: (n) => `+${25 * n} % d’accélération et de vitesse débridée` },

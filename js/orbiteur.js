@@ -1342,11 +1342,13 @@ const Orbiteur = {
 
   // Nouvelle cible. Point de reprise si l'on part d'une orbite (pour pouvoir recommencer après un crash).
   // Lune d'une autre planète : conseil de s'établir d'abord autour de la planète, et d'y envoyer une grappe de sondes.
-  choisirCible(id, detail) {
+  // escale : cible choisie comme escale (v.voyageFinal garde la destination finale).
+  choisirCible(id, detail, escale = false) {
     const v = this.v, a = ASTRES_PAR_ID[id];
     if (!a || !v.orb) return;
     if (v.retourAuto) return this.log('Impossible de changer de cible : plus personne à bord, le contrôle au sol ramène l’orbiteur vers la Terre.');
     if (this.orbiteFermee()) noterPointReprise(v);
+    if (!escale) v.voyageFinal = null;
     v.cible = id; this.etape = null; this.auto = false;
     this.log(`Nouvelle cible : ${a.nom}${detail ? ` (${detail})` : ''}.`);
     this.majHud(true);
@@ -1354,6 +1356,7 @@ const Orbiteur = {
     if (a.type === 'etoile') return this.avertirSoleil(a);
     if (a.id === 'roadster') return this.conseilVoiture(a);
     if (a.artificiel) return;
+    if (this.verifierVivres(a)) return;   // pas assez de vivres pour le voyage : on prévient d'abord
     const p = a.orbite && ASTRES_PAR_ID[a.orbite.centre];
     if (!p || p.type === 'etoile') return;
     // Déjà dans le système de cette planète (autour d'elle ou d'une de ses lunes) : rien à conseiller.
@@ -1373,6 +1376,71 @@ const Orbiteur = {
     $('obs-annuler').onclick = renoncer;
     $('obs-garder').onclick = () => Infos.fermer();
   },
+  // ---------- Vivres pour le voyage ----------
+  // Avant de partir : durée du voyage comparée à l'autonomie en route. Si elle ne suffit pas, on prévient, on propose
+  // une escale à une station sur le trajet, et l'on demande confirmation.
+  // Durée du voyage (s) : même calcul que la trajectoire affichée ; null si le calcul échoue.
+  dureeVoyage(cibleId) {
+    const o = this.v.orb;
+    try {
+      const p = this.planTrajet({ centre: o.centre, r: o.r.slice(), v: o.v.slice(), transfert: o.transfert || null, cible: cibleId });
+      if (p.fin === 'arrivee') return p.tFin - p.t0;
+    } catch (e) { /* pas de prévision */ }
+    return null;
+  },
+  // La planète (autour de l'étoile) d'un astre : elle-même, ou celle de sa lune.
+  planeteDe(id) {
+    let a = ASTRES_PAR_ID[id];
+    while (a && a.orbite && ASTRES_PAR_ID[a.orbite.centre] && ASTRES_PAR_ID[a.orbite.centre].type !== 'etoile') a = ASTRES_PAR_ID[a.orbite.centre];
+    return a;
+  },
+  // Stations sur le trajet (entre ici et la cible, autour de l'étoile), les plus proches d'abord.
+  escalesPossibles(a) {
+    const v = this.v, ici = V.norm(this.absolu(v.orb)), pc = this.planeteDe(a.id), pIci = this.planeteDe(v.orb.centre);
+    if (!pc || !pc.orbite) return [];
+    const r2 = pc.orbite.a, lo = Math.min(ici, r2) * 0.98, hi = Math.max(ici, r2) * 1.02;
+    return v.stations.filter((st) => {
+      const p = this.planeteDe(st.centre);
+      return p && p.orbite && p !== pc && p !== pIci && p.orbite.a >= lo && p.orbite.a <= hi;
+    }).sort((x, y) => Math.abs(this.planeteDe(x.centre).orbite.a - ici) - Math.abs(this.planeteDe(y.centre).orbite.a - ici));
+  },
+  // Renvoie true si une fenêtre s'est ouverte (pas assez de vivres pour ce voyage).
+  verifierVivres(a) {
+    const v = this.v;
+    v.prevision = null;
+    if (!v.equipe || !bouchesABord(v) || a.type === 'etoile' || a.id === v.orb.centre) return false;
+    const duree = this.dureeVoyage(a.id);
+    if (!duree) return false;
+    v.prevision = { cible: a.id, duree };
+    const c = consommation(v, true), jV = c.vivres > 0 ? v.vivres / c.vivres : Infinity, jE = c.eau > 0 ? v.eau / c.eau : Infinity;
+    const jours = duree / JOUR, auto = Math.min(jV, jE);
+    if (auto >= jours) return false;
+    const n = bouchesABord(v), escales = this.escalesPossibles(a), torpeur = niveauAmelio('torpeur', v) >= 1;
+    const m = $('modale');
+    m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>⚠ Pas assez de vivres pour ce voyage</h2>
+      <p>Voyage vers ${le(a)} : environ ${fmtDuree(duree)}. À bord, pour ${n} personne${n > 1 ? 's' : ''}${torpeur ? ' en torpeur' : ''} : ${texteJours(jV)} de vivres et ${texteJours(jE)} d’eau potable. <b>L’équipage mourrait ${jE < jV ? 'de soif' : 'de faim'} en route</b>, vers le ${fmtDate(v.t + auto * JOUR, false)}.</p>
+      <p>Pour y arriver :</p><ul>
+        <li>Faire escale à une station sur le trajet pour refaire le plein${escales.length ? ' (ci-dessous), après lui avoir envoyé un ravito « Vivres et eau »' : ' : il n’y en a aucune sur ce trajet. Construisez-en une, par exemple autour de Mars ou de Jupiter, et ravitaillez-la'}.</li>
+        <li>R&D d’une station : soutes agrandies (+25 % de vivres par niveau), serre de bord, recyclage de l’eau et de l’air, torpeur (science-fiction).</li>
+        <li>Partir avec moins de monde.</li></ul></div><button class="fermer">✕</button></header>
+      <div class="actions">${escales.map((st) => `<button data-escale="${st.id}">🛰 Escale ${au(st)} <small class="doux">(${fmtKg(st.stock.vivres || 0)} de vivres, ${fmtKg(st.stock.eau || 0)} d’eau)</small></button>`).join('')}
+        <button id="vivres-renoncer" class="principal">Renoncer à cette cible</button><button id="vivres-partir">Partir quand même</button></div></div>`;
+    m.classList.remove('cache');
+    m.querySelector('.fermer').onclick = () => Infos.fermer();
+    $('vivres-renoncer').onclick = () => { Infos.fermer(); v.cible = null; v.voyageFinal = null; this.etape = null; this.log(`Cible abandonnée : pas assez de vivres pour aller ${au(a)}.`); this.majHud(true); };
+    $('vivres-partir').onclick = () => { Infos.fermer(); this.log(`⚠ Départ confirmé vers ${le(a)} malgré des vivres insuffisants (${texteJours(auto)} d’autonomie pour ${fmtDuree(duree)} de voyage).`); };
+    m.querySelectorAll('[data-escale]').forEach((b) => {
+      b.onclick = () => {
+        const st = v.stations.find((s) => s.id === b.dataset.escale);
+        Infos.fermer();
+        v.voyageFinal = a.id;
+        this.log(`🛰 Escale prévue ${au(st)} avant ${le(a)} : faites-y le plein, puis « Reprendre le voyage ».`);
+        this.choisirCible(st.centre, `escale avant ${le(a)}`, true);
+      };
+    });
+    return true;
+  },
+
   // ---------- Retour au propulseur solaire ----------
   // Perdu autour du Soleil sans assez d'ergols : un propulseur solaire (ionique) de plus ramène l'orbiteur vers la
   // planète la plus proche. Le pilote auto calcule le trajet ; les poussées viennent du propulseur (Δv limité).
@@ -2244,6 +2312,13 @@ const Orbiteur = {
     if (v.cible) {
       const cb = ASTRES_PAR_ID[v.cible];
       d += `<h3>Cible : ${cb.nom}</h3>`;
+      const fin = v.voyageFinal && ASTRES_PAR_ID[v.voyageFinal];
+      if (fin) d += `<p class="doux">🛰 Escale, puis ${le(fin)}.</p>`;
+      // Avant le départ : durée prévue du voyage et autonomie en route (calculées au choix de la cible).
+      if (v.prevision && v.prevision.cible === v.cible && v.equipe && !enRoute(v)) {
+        const auto = autonomieVoyage(v), court = auto * JOUR < v.prevision.duree;
+        d += `<p class="${court ? 'encart-refus' : 'doux'}">${court ? '⚠ ' : ''}Voyage ≈ ${fmtDuree(v.prevision.duree)} · autonomie en route : ${texteJours(auto)}</p>`;
+      }
       if (v.mode !== 'libre') {
         const e = this.etape || (this.etape = prochaineEtape(o, v.t, v.cible));
         d += `<ol class="plan"><li class="actuelle">${e.texte}${e.tExec > v.t + 1 ? ` <span class="doux">(dans ${fmtDuree(e.tExec - v.t)})</span>` : ''}</li>${(e.reste || []).map((x) => `<li>${x}</li>`).join('')}</ol>`;
@@ -2267,6 +2342,8 @@ const Orbiteur = {
     d += '<h3>Actions</h3><div class="actions-nav">';
     d += actionsVoiture(this);
     d += this.boutonRetourSolaire();
+    // Escale atteinte : reprendre le voyage vers la destination finale (les vivres sont revérifiés).
+    if (v.voyageFinal && v.orb.centre === v.cible && this.orbiteFermee()) d += `<button id="nav-reprendre" class="principal">▶ Reprendre le voyage vers ${le(ASTRES_PAR_ID[v.voyageFinal])}</button>`;
     const fermee = this.orbiteFermee();
     if (estOrigine(c.id) && fermee) d += `<button id="nav-rentrer" class="principal">🏠 Rentrer sur ${SYSTEME.origineSans} (capsule)</button>`;
     if (estOrigine(c.id) && fermee && Object.values(v.echantillonsABord || {}).some((n) => n > 0)) d += '<button id="nav-capsule-ech">📦 Renvoyer les échantillons seuls (capsule sans équipage)</button>';
@@ -2396,6 +2473,7 @@ const Orbiteur = {
       : this.contexte.descendre(o.centre, site))));
     bind('nav-robot', () => ouvrirChoixLieu(ASTRES_PAR_ID[o.centre], v, (site) => this.ouvrirLargageRobot(o.centre, site), 'Larguer le robot'));
     bind('nav-rentrer', () => this.contexte.rentrer());
+    bind('nav-reprendre', () => this.choisirCible(v.voyageFinal));
     bind('nav-capsule-ech', () => this.contexte.renvoyerEchantillons());
     bind('nav-sonde-ech', () => this.renvoyerParSonde());
     bind('nav-depart', () => Depart.ouvrir(this.v));

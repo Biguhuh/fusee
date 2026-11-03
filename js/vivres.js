@@ -21,11 +21,23 @@ function bouchesABord(v) {
   if (!v.equipe) return v.equipagePerdu ? 0 : 1;
   return v.equipe.filter((m) => (m.etat === 'bord' || m.etat === 'mission') && !(m.principal && v.equipagePerdu)).length;
 }
-// Consommation par jour de tout l'équipage (la serre produit une part des vivres, mais boit un peu d'eau).
-function consommation(v) {
+// Torpeur (R&D, science-fiction) : en route entre les planètes, l'équipage dort et consomme 4 fois moins.
+const FACTEUR_TORPEUR = 0.25, FACTEUR_TORPEUR_TEXTE = '4 fois';
+// En route : en orbite autour de l'étoile, entre deux planètes (c'est là que l'équipage peut dormir).
+function enRoute(v) { const c = v && v.orb && ASTRES_PAR_ID[v.orb.centre]; return !!c && c.type === 'etoile'; }
+// Consommation par jour de tout l'équipage (la serre produit une part des vivres, mais boit un peu d'eau ; le
+// recyclage réduit l'eau à apporter). route : forcer le calcul « en route » (prévision d'un voyage).
+function consommation(v, route = enRoute(v)) {
   if (niveauAmelio('ecosysteme', v) >= 1) return { vivres: 0, eau: 0 };   // écosystème fermé : autonomie complète
-  const n = bouchesABord(v), serre = niveauAmelio('serre', v);
-  return { vivres: n * VIVRES_PAR_JOUR * (1 - 0.1 * serre), eau: n * (EAU_PAR_JOUR + 0.1 * serre) };
+  const n = bouchesABord(v), serre = niveauAmelio('serre', v), recyc = niveauAmelio('recyclage', v);
+  const dort = route && niveauAmelio('torpeur', v) >= 1 ? FACTEUR_TORPEUR : 1;
+  return { vivres: n * VIVRES_PAR_JOUR * (1 - 0.1 * serre) * dort, eau: n * (EAU_PAR_JOUR * (1 - 0.25 * recyc) + 0.1 * serre) * dort };
+}
+// Jours d'autonomie pendant un voyage (consommation « en route »), le plus court des deux : vivres ou eau.
+function autonomieVoyage(v) {
+  const c = consommation(v, true);
+  const j = (cle) => (c[cle] > 0 ? (v[cle] || 0) / c[cle] : Infinity);
+  return Math.min(j('vivres'), j('eau'));
 }
 function joursRestants(v, cle) { const c = consommation(v)[cle]; return c > 0 ? (v[cle] || 0) / c : Infinity; }
 function risqueVivres(v) { return v && v.equipe && ((v.eau ?? 1) <= 0 || (v.vivres ?? 1) <= 0) ? RISQUE_RATIONNEMENT : 0; }
