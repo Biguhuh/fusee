@@ -922,6 +922,7 @@ const Orbiteur = {
   },
   construireStation() {
     const v = this.v, c = ASTRES_PAR_ID[v.orb.centre];
+    if (v.sansEquipage) return this.log('📡 Plus personne à bord pour assembler une station.');
     if (stationSur(v, c.id)) return this.log(`Station déjà installée ${enOrbite(c)} : une seule station par astre.`);
     if (v.kits <= 0) return this.log('Plus de kit de station à bord (la station terrestre en reçoit de la Terre).');
     if (!this.orbiteFermee()) return this.log('Il faut être en orbite fermée pour construire une station.');
@@ -941,6 +942,7 @@ const Orbiteur = {
   // Cargos venus de la Terre et production des bases au sol.
   mettreAJourLogistique() {
     const v = this.v;
+    this.appliquerCommandeSol();
     if (v.equipe) mettreAJourEquipe(v, (t) => this.log(t));
     mettreAJourDechets(v, (t) => this.log(t), (st) => this.estAmarre(st));
     mettreAJourVivres(v, (t) => this.log(t));
@@ -1343,13 +1345,22 @@ const Orbiteur = {
   // Nouvelle cible. Point de reprise si l'on part d'une orbite (pour pouvoir recommencer après un crash).
   // Lune d'une autre planète : conseil de s'établir d'abord autour de la planète, et d'y envoyer une grappe de sondes.
   // escale : cible choisie comme escale (v.voyageFinal garde la destination finale).
-  choisirCible(id, detail, escale = false) {
+  // recue : commande du sol arrivée à bord (vaisseau sans équipage, après le délai radio).
+  choisirCible(id, detail, escale = false, recue = false) {
     const v = this.v, a = ASTRES_PAR_ID[id];
     if (!a || !v.orb) return;
     if (v.retourAuto) return this.log('Impossible de changer de cible : plus personne à bord, le contrôle au sol ramène l’orbiteur vers la Terre.');
+    // Sans équipage : la commande part du sol et n'arrive à bord qu'après le délai radio.
+    if (v.sansEquipage && !recue && this.delaiRadioActif()) {
+      const d = this.delaiRadio();
+      v.commandeSol = { cible: id, tEffet: v.t + d };
+      this.log(`📡 Commande envoyée depuis ${le(planeteOrigine())} : cap sur ${le(a)}. Elle arrivera à bord dans ${fmtDuree(d)} (délai radio).`);
+      return this.majHud(true);
+    }
     if (this.orbiteFermee()) noterPointReprise(v);
     if (!escale) v.voyageFinal = null;
     v.cible = id; this.etape = null; this.auto = false;
+    if (v.sansEquipage) { v.mode = 'pilote'; this.auto = true; v.commandeSol = null; }   // le calculateur de bord exécute le programme
     this.log(`Nouvelle cible : ${a.nom}${detail ? ` (${detail})` : ''}.`);
     this.majHud(true);
     if (a.observatoire) return this.avertirObservatoire(a);
@@ -1488,10 +1499,48 @@ const Orbiteur = {
     const m = $('modale');
     m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>🕯 Plus personne à bord</h2>
       <p>Tout l’équipage est mort${pertes ? ` : ${pertes}` : ''}.</p>
-      <p>L’orbiteur est intact. Le contrôle au sol le ramène seul en orbite ${de(planeteOrigine())} : la capsule vide rapportera les échantillons, et l’orbiteur restera garé à la station. Ensuite : composer un nouvel équipage, puis le pas de tir.</p></div></header>
-      <div class="actions"><span></span><button id="retour-auto-ok" class="principal">🛰 Ramener l’orbiteur</button></div></div>`;
+      <p>L’orbiteur est intact : il est désormais piloté depuis le sol, comme une sonde. Deux choix :</p>
+      <ul><li><b>Le ramener</b> : le contrôle au sol le ramène seul en orbite ${de(planeteOrigine())} ; la capsule vide rapportera les échantillons, et l’orbiteur restera garé à la station. Ensuite : composer un nouvel équipage, puis le pas de tir.</li>
+        <li><b>Continuer en sonde</b> : vous choisissez les cibles, le pilote auto exécute les manœuvres${this.delaiRadioActif() ? `, après le délai radio (${fmtDuree(this.delaiRadio())} en ce moment)` : ''}. Plus rien d’humain (ni descente ni sortie), mais les robots et les sondes restent utilisables.</li></ul></div></header>
+      <div class="actions"><button id="retour-auto-sonde">📡 Continuer en sonde</button><button id="retour-auto-ok" class="principal">🛰 Ramener l’orbiteur</button></div></div>`;
     m.classList.remove('cache');
     $('retour-auto-ok').onclick = () => { Infos.fermer(); this.lancerRetourAuto(); };
+    $('retour-auto-sonde').onclick = () => { Infos.fermer(); this.continuerEnSonde(); };
+  },
+  // Continuer en sonde : le vaisseau vide reste en mission, piloté depuis le sol (robots seulement).
+  continuerEnSonde() {
+    const v = this.v;
+    v.retourAuto = null; v.sansEquipage = true; v.mode = 'pilote'; this.auto = false; this.avance = false;
+    this.log(`📡 Le vaisseau continue en sonde, piloté depuis ${le(planeteOrigine())} : choisissez une cible, le pilote auto exécutera les manœuvres${this.delaiRadioActif() ? ` (délai radio actuel : ${fmtDuree(this.delaiRadio())})` : ''}. Plus de descente ni de sortie ; les robots et les sondes restent utilisables.`);
+    this.majHud(true);
+  },
+  // Délai radio (s) entre la planète d'origine et l'orbiteur : la lumière parcourt 299 792 km par seconde.
+  delaiRadio() {
+    const v = this.v, d = V.norm(V.sub(this.absolu(v.orb), etatAbsolu(SYSTEME.origine, v.t).r));
+    return Math.max(1, d / 299792.458);
+  },
+  delaiRadioActif() { const r = this.v.reglages; return !r || r.delaiRadio !== false; },   // réel par défaut
+  // Commande du sol arrivée à bord : la nouvelle cible s'applique.
+  appliquerCommandeSol() {
+    const v = this.v, c = v.commandeSol;
+    // Un équipage est revenu à bord (recrue) : fin du pilotage depuis le sol.
+    if (v.sansEquipage && v.equipe && survivants(v).some((m) => m.etat === 'bord')) { v.sansEquipage = false; v.commandeSol = null; this.log('🧑‍🚀 Un équipage est de nouveau à bord : fin du pilotage depuis le sol.'); return; }
+    if (!c || v.t < c.tEffet) return;
+    v.commandeSol = null;
+    this.log(`📡 Commande reçue à bord : cap sur ${le(ASTRES_PAR_ID[c.cible])}.`);
+    this.choisirCible(c.cible, null, false, true);
+  },
+  // ⚙ Réglages de la campagne (gardés dans la partie).
+  ouvrirReglages() {
+    const v = this.v, r = (v.reglages = v.reglages || {}), m = $('modale');
+    m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>⚙ Réglages de la campagne</h2></div><button class="fermer">✕</button></header>
+      <section>
+        <label class="choix-ravito"><input type="checkbox" id="reg-delai" ${this.delaiRadioActif() ? 'checked' : ''}> <b>Délai radio réel</b> — vaisseau sans équipage : une commande du sol met le temps de la lumière pour arriver à bord (≈ 1 h 20 vers Saturne).</label>
+      </section>
+      <div class="actions"><span></span><button id="reg-ok" class="principal">OK</button></div></div>`;
+    m.classList.remove('cache');
+    m.querySelector('.fermer').onclick = () => Infos.fermer();
+    $('reg-ok').onclick = () => { r.delaiRadio = $('reg-delai').checked; Infos.fermer(); this.majHud(true); };
   },
   lancerRetourAuto() {
     const v = this.v;
@@ -2161,6 +2210,7 @@ const Orbiteur = {
         <label class="groupe"><input type="checkbox" id="nav-masque"> Grosses lunes seulement</label>
         <span class="groupe petit-seul"><button id="nav-voir-etat">📊 État</button><button id="nav-voir-actions" class="principal">🎛 Actions</button></span>
         <button id="nav-tr" title="Mission en temps réel : le temps suit l’horloge, même navigateur fermé">⏱ Temps réel</button>
+        <button id="nav-reglages" title="Réglages de la campagne">⚙</button>
         <button id="nav-encyclo">📖 Astres</button>
         <button id="nav-pause">⏸</button>
         <button id="nav-hangar">← Accueil</button>
@@ -2170,13 +2220,20 @@ const Orbiteur = {
       <div class="aide-nav">${ECRAN_TACTILE ? 'Un doigt : déplacer · deux doigts : zoomer · toucher un astre : sa fiche' : 'Molette : zoom · glisser : déplacer · clic : fiche d’un astre · double-clic : centrer · F : revenir à l’orbiteur · +/− : temps'}</div>`;
     $('nav-moins').onclick = () => this.changerWarp(-1);
     $('nav-plus').onclick = () => this.changerWarp(1);
-    h.querySelectorAll('[data-mode]').forEach((b) => { b.onclick = () => { this.v.mode = b.dataset.mode; this.auto = false; this.avance = false; this.v.manette = 0; this.majHud(true); }; });
+    h.querySelectorAll('[data-mode]').forEach((b) => {
+      b.onclick = () => {
+        // Sans équipage : personne pour piloter à la main, seul le pilote auto exécute ce que le sol programme.
+        if (this.v.sansEquipage && b.dataset.mode !== 'pilote') return this.log('📡 Plus personne à bord : seul le pilote auto, programmé depuis le sol, peut manœuvrer.');
+        this.v.mode = b.dataset.mode; this.auto = false; this.avance = false; this.v.manette = 0; this.majHud(true);
+      };
+    });
     $('nav-masque').onchange = () => this.contexte.basculerMasque();
     $('nav-c-orb').onclick = () => { this.trajet = null; this.centrerSur('orbiteur'); };
     $('nav-c-astre').onclick = () => { this.trajet = null; this.centrerSur(this.v.orb ? this.v.orb.centre : astreAncrage()); };
     $('nav-c-cible').onclick = () => { if (this.v.cible) { this.trajet = null; this.centrerSur(this.v.cible); } };
     $('nav-vues').onclick = () => this.ouvrirVues();
     $('nav-tr').onclick = () => this.ouvrirTempsReel();
+    $('nav-reglages').onclick = () => this.ouvrirReglages();
     // Petit écran : les panneaux sont repliés, ces boutons les ouvrent (un seul à la fois).
     const basculer = (id, autre) => { $(autre).classList.remove('ouvert'); $(id).classList.toggle('ouvert'); };
     $('nav-voir-etat').onclick = () => basculer('nav-etat', 'nav-actions');
@@ -2308,7 +2365,13 @@ const Orbiteur = {
     // Panneau de droite : objectif, cible, plan, actions
     let d = '';
     const objectif = this.objectif();
-    if (objectif) d += `<div class="objectif">🎯 ${objectif}</div>`;
+    if (objectif && !v.sansEquipage) d += `<div class="objectif">🎯 ${objectif}</div>`;   // sans équipage : pas d'objectif humain
+    // Plus personne à bord : bandeau du contrôle au sol (délai radio, commande en route).
+    if (v.sansEquipage || v.retourAuto === 'en_cours') {
+      const c = v.commandeSol;
+      d += `<div class="objectif">📡 Équipage perdu, vaisseau piloté depuis le sol${this.delaiRadioActif() ? ` · délai radio ${fmtDuree(this.delaiRadio())}` : ''}${c ? `<br>Commande en route : cap sur ${le(ASTRES_PAR_ID[c.cible])}, à bord dans ${fmtDuree(Math.max(0, c.tEffet - v.t))}` : ''}</div>`;
+      if (v.sansEquipage && !v.retourAuto) d += '<button id="nav-ramener">🛰 Ramener l’orbiteur vers la Terre (capsule vide)</button>';
+    }
     if (v.cible) {
       const cb = ASTRES_PAR_ID[v.cible];
       d += `<h3>Cible : ${cb.nom}</h3>`;
@@ -2474,6 +2537,7 @@ const Orbiteur = {
     bind('nav-robot', () => ouvrirChoixLieu(ASTRES_PAR_ID[o.centre], v, (site) => this.ouvrirLargageRobot(o.centre, site), 'Larguer le robot'));
     bind('nav-rentrer', () => this.contexte.rentrer());
     bind('nav-reprendre', () => this.choisirCible(v.voyageFinal));
+    bind('nav-ramener', () => this.lancerRetourAuto());
     bind('nav-capsule-ech', () => this.contexte.renvoyerEchantillons());
     bind('nav-sonde-ech', () => this.renvoyerParSonde());
     bind('nav-depart', () => Depart.ouvrir(this.v));

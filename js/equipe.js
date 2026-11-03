@@ -60,7 +60,7 @@ function perdrePilote(v, astreId, cause, equipier) {
 }
 // Plus personne en vie : l'orbiteur (s'il est intact) rentre seul en orbite terrestre, guidé depuis le sol.
 function verifierEquipageEntierPerdu(v) {
-  if (!v.equipe || survivants(v).length > 0 || !v.orb) return;
+  if (!v.equipe || survivants(v).length > 0 || !v.orb || v.sansEquipage) return;   // déjà piloté depuis le sol
   v.proposerRappel = null;
   v.traumatise = false;
   if (!v.retourAuto) v.retourAuto = 'a_annoncer';
@@ -228,6 +228,7 @@ function lieuAbord(v) {
 function initialiserEquipe(v) {
   v.equipagePerdu = false;       // nouvelle équipe, nouveau départ (voir le point 10 de la carte 4)
   v.traumatise = false; v.proposerRappel = null; v.retourAuto = null;
+  v.sansEquipage = false; v.commandeSol = null;   // nouvel équipage : fin du pilotage depuis le sol
   v.pertesEquipage = [];
   v.bilan = { echantillons: 0, analysesFaites: 0, analysesTransmises: 0 };   // compteurs de l'écran de fin
   // L'équipe composée au centre de lancement (vétérans ou recrues, apparence choisie), sinon une proposition.

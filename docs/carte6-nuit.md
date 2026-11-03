@@ -37,4 +37,21 @@ Ce qui a changé :
 
 Testé (campagne neuve en mémoire, 4 personnes) : Saturne → fenêtre (5 ans 3 mois de voyage, 347 jours de vivres, faim vers octobre 2027) ; escales Mars et Jupiter proposées ; escale à Jupiter → cible Jupiter, finale Saturne, panneau « Escale, puis Saturne » ; avec la torpeur, recyclage 2 et soutes 3 : 2 431 jours d'autonomie, plus de fenêtre ; Lune : pas de fenêtre. Panneau de R&D vérifié.
 
-Limites : le calcul de la durée prend ≈ 1 s au choix de la cible. La consommation est comptée « en route » pour tout le voyage (approximation). Pas de ravitaillement en plein vol : il faudrait un rendez-vous entre un cargo et l'orbiteur en transfert, trop lourd pour cette nuit.
+Limites (point 2) : le calcul de la durée prend ≈ 1 s au choix de la cible. La consommation est comptée « en route » pour tout le voyage (approximation). Pas de ravitaillement en plein vol : il faudrait un rendez-vous entre un cargo et l'orbiteur en transfert, trop lourd pour cette nuit.
+
+### Point 3 : équipage mort, contrôle au sol (branche `carte6-point3`)
+
+Avant : quand tout l'équipage mourait, une fenêtre annonçait que le contrôle au sol ramenait l'orbiteur vers la Terre, sans autre choix.
+
+Ce qui a changé :
+- La fenêtre « 🕯 Plus personne à bord » propose deux choix : « 🛰 Ramener l'orbiteur » (comme avant) ou « 📡 Continuer en sonde ».
+- En sonde : bandeau « 📡 Équipage perdu, vaisseau piloté depuis le sol · délai radio … » dans le panneau de droite, avec la commande en route ; bouton « Ramener l'orbiteur vers la Terre » à tout moment.
+- Choisir une cible envoie une commande depuis la Terre : elle arrive à bord après le délai radio réel (distance / vitesse de la lumière : ≈ 1 h 10 vers Saturne), puis le pilote auto exécute le voyage.
+- Seul le pilote auto : le pilotage libre et l'assistant sont refusés, avec un message. Pas de descente (point 1), pas de construction de station ; les robots et les sondes restent possibles.
+- Nouveau bouton « ⚙ » dans la barre de l'orbiteur : réglages de la campagne. Premier réglage : « Délai radio réel » (coché par défaut) ; décoché, les commandes arrivent tout de suite.
+- Un nouvel équipage à bord (recrue) met fin au pilotage depuis le sol.
+- Carburant insuffisant : le plan du pilote auto le dit déjà (« aucune trajectoire possible »).
+
+Testé (orbiteur placé autour de Saturne, équipage mort) : fenêtre et ses deux choix ; « Continuer en sonde » ; commande vers Titan, délai 1 h 11, appliquée après 6 000 s de jeu, pilote auto en marche ; clic sur « Pilotage libre » refusé ; réglage décoché : commande immédiate ; construction de station refusée.
+
+Limites : le démarrage et l'arrêt du pilote auto ne passent pas par le délai radio, seulement le choix de la cible. Pas de « corrections automatiques » à part : le pilote auto fait déjà toutes les manœuvres du voyage.
