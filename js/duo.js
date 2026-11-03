@@ -194,7 +194,10 @@ Object.assign(Exploration.prototype, {
     const cordee = gp && gp.t >= DUREE_GRAPPIN && !gp.rappel && this.enEscalade && d.mode === 'suit';
     let veut = 0;
     if (d.mode === 'suit') {
-      const cible = cordee ? gp.x0 + gp.sens * 0.5 : p.x - (p.dir || 1) * 1.8, e = ecartSol(this.astre, cible, q.x);
+      // Votre corde de rappel est plantée au bord, vous êtes en bas : il va jusqu'au bord pour descendre à son tour
+      // (sinon, sur une paroi presque verticale, la place derrière vous est juste sous ses pieds et il ne bouge pas).
+      const versRappel = gp && gp.rappel && !this.rappel && p.y < gp.y - 1 && q.y > gp.y - 1 && Math.abs(ecartSol(this.astre, gp.x, q.x)) < 4;
+      const cible = cordee ? gp.x0 + gp.sens * 0.5 : versRappel ? gp.x - gp.sens * 3 : p.x - (p.dir || 1) * 1.8, e = ecartSol(this.astre, cible, q.x);
       if (Math.abs(e) > 0.6) veut = Math.sign(e);
     }
     d.quatrePattes = this.monteeDevant(q.x, veut) > PENTE_QUATRE_PATTES;   // montée très raide : à quatre pattes
@@ -204,7 +207,8 @@ Object.assign(Exploration.prototype, {
     const pente = Math.atan2(this.sol(q.x + 0.5 * (veut || 1)) - this.sol(q.x), 0.5) * 180 / Math.PI;
     if (pente > this.def.penteMax + 10 && veut > 0 === q.vx > 0 && q.vx) {
       q.vx = 0;
-      if (!d.bloque && d.mode === 'suit' && !cordee) { d.bloque = true; this.dire(`🧗 ${d.eq.nom} est bloqué${d.eq.acc} au pied de la paroi : tendez-lui la main d’en haut (C), ou faites-lui la courte-échelle.`); }
+      // « Bloqué » seulement si vous êtes plus haut que lui (sinon, il s'arrête sans rien dire).
+      if (!d.bloque && d.mode === 'suit' && !cordee && p.y > q.y + 1) { d.bloque = true; this.dire(`🧗 ${d.eq.nom} est bloqué${d.eq.acc} au pied de la paroi : tendez-lui la main d’en haut (C), ou faites-lui la courte-échelle.`); }
     } else if (pente < -(this.def.penteMax + 10) && veut && veut > 0 === q.vx > 0) {
       // Bord d'une falaise (on vient d'y tomber, par exemple) : l'autre ne saute pas derrière, il attend en haut.
       // Si votre corde de rappel est plantée là et que vous êtes en bas, il descend à son tour.
