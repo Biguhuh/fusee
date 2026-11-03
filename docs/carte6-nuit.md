@@ -69,3 +69,19 @@ Ce qui a changé :
 Testé : 14 sondes, 0,02 ms par pas d'un jour au lieu de 3,9 ms (≈ 200 fois moins) ; seuil automatique (10 : actif, 20 : inactif) ; cargo vers une station de Mars : arrivée précalculée identique à la date prévue affichée, livraison faite ; sonde vers Jupiter : en orbite, repérage fait.
 
 Limites : comparé au calcul complet, l'arrivée peut différer de quelques heures à un jour sur un voyage de plusieurs années (Mars : 23 h sur 2 ans ; Vénus : 5 h). L'écart vient du calcul de trajectoire existant, qui avance par pas d'au moins un jour près de l'arrivée ; c'est déjà lui qui donne les dates prévues affichées. Le passage en simplifié en plein vol coûte jusqu'à ≈ 1 s pour un objet lointain (une fois par objet).
+
+### Point 5 : aspect des trouvailles (branche `carte6-point5`)
+
+Avant : toutes les trouvailles (42 types) étaient dessinées pareil, un losange jaune et un caillou de 7 × 4 pixels, quelle que soit l'échelle.
+
+Liste complète, catégorie, aspect, taille et référence réelle : [carte6-echantillons.md](carte6-echantillons.md). À relire et corriger.
+
+Ce qui a changé :
+- Nouveau fichier `js/trouvailles.js` : table des aspects et dessin, à la taille réelle en mètres (à l'échelle du personnage).
+- Sites (grande échelle) : lac (40 m, on prélève sur la rive, le repère est au bord), cratère avec rempart (16 m), coulée de lave (20 m, rougeoyante sur Io), panache (Io, Triton), fissure (Europe ; rayure de tigre fumante sur Encelade), ancien lit de rivière tapissé de galets (Mars).
+- Échantillons (10 à 50 cm) : roches (mouchetée, sombre, claire, noire), galet, tas de poussière ou de sable, cristaux, plante, fossile, blocs de glace, croûtes (soufre, tholins, givre), tranchée de Phoenix (glace au fond), fragments métalliques.
+- Une trouvaille déjà prélevée reste dessinée, plus pâle ; le repère et le nom restent au-dessus.
+
+Testé : planche de toutes les formes (29 échantillons, 9 sites) ; Titan, de nuit : le lac se voit, repère sur la rive (« Lac de méthane à 1 m »). Aucune erreur.
+
+Limites : les panaches sont à l'échelle du terrain (30 m), pas à leur vraie hauteur (8 km sur Triton, des centaines de km sur Io). Le terrain lui-même n'est pas creusé (cratère, lac) : ce sont des dessins par-dessus le sol ; le point 6 (relief) pourra aller plus loin.

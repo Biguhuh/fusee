@@ -1420,14 +1420,15 @@ class Exploration {
     // Sites d'intérêt
     for (const s of this.terre ? [] : this.sites) {
       const [sx, sy] = versEcran(s.x, this.sol(s.x));
-      if (sx < -40 || sx > W + 40) continue;
+      const ap = s.ap || (s.ap = apparenceTrouvaille(this.astre.id, s.nom));   // site ou échantillon (trouvailles.js)
+      const marge = 40 + (ap.site ? ap.taille * echelle : 0);
+      if (sx < -marge || sx > W + marge) continue;
       const fait = this.dejaFait(s);
+      // La trouvaille elle-même, à sa taille réelle ; puis le repère et son nom par-dessus.
+      dessinerTrouvaille(ctx, ap, s.k, (dx) => versEcran(s.x + dx, this.sol(s.x + dx)), echelle, fait, this.vol.t);
       ctx.fillStyle = fait ? 'rgba(180,180,180,0.6)' : '#ffd54f';
       ctx.beginPath(); ctx.moveTo(sx, sy - 34); ctx.lineTo(sx + 6, sy - 26); ctx.lineTo(sx, sy - 18); ctx.lineTo(sx - 6, sy - 26); ctx.fill();
       texteSurFond(ctx, s.nom + (fait ? ' ✓' : ''), sx, sy - 40, { police: '12px system-ui, sans-serif', couleur: fait ? '#cfd8dc' : '#ffffff' });
-      // Petit caillou au sol
-      ctx.fillStyle = fait ? '#777' : '#bcaaa4';
-      ctx.beginPath(); ctx.ellipse(sx, sy - 3, 7, 4, 0, Math.PI, 0); ctx.fill();
     }
 
     // Fusée posée, à l'échelle (sur Terre : la maison d'où part la promenade)
