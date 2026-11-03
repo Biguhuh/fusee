@@ -250,6 +250,8 @@ class Exploration {
     const gp = this.grappin, d = this.duo;
     if (this.rappel || (d && (d.enEscalade || d.enRappel))) return false;
     if (Math.abs(ecartSol(this.astre, gp.x, this.p.x)) > 25) return true;
+    // Pas encore monté, et on s'éloigne du pied de la paroi : on ramène le grappin (même en plein lancer).
+    if (!gp.rappel && ecartSol(this.astre, this.p.x, gp.x0) * gp.sens < -1.5) return true;
     const suit = d && !d.enRover && d.mode === 'suit' && Math.abs(ecartSol(this.astre, gp.x, d.p.x)) < 30;
     // Après un rappel : tout le monde en bas, on tire la corde à soi.
     if (gp.rappel) { const enBas = (q) => q.y < gp.y - 1; return enBas(this.p) && (!suit || enBas(d.p)); }
@@ -342,7 +344,7 @@ class Exploration {
     if (!this.grappin || this.grappin.sens !== veut || Math.abs(ecartSol(this.astre, this.grappin.x, p.x)) > 40) this.lancerGrappin(veut);
     this.enEscalade = true;
     if (p.grimpe === undefined) p.grimpe = 0;
-    if (this.grappin.t < DUREE_GRAPPIN) { this.grappin.t += dt; return; }
+    if (this.grappin.t < DUREE_GRAPPIN) return;                     // le grappin vole encore (le lancer avance dans step)
     if (this.suspendu > 0) { this.suspendu -= dt; return; }        // retenu par la corde : on se rattrape
     const kG = Math.max(0.5, Math.min(2.5, Math.sqrt(9.81 / Math.max(0.05, g))));   // plus facile en faible gravité
     const v = (forme ? 0.5 : 0.3) * kG;                                               // m/s le long de la paroi
@@ -579,6 +581,8 @@ class Exploration {
     // Déplacements (à pied, en rover ou en robot)
     const veut = (cmd.droite ? 1 : 0) - (cmd.gauche ? 1 : 0);
     if (veut) p.dir = veut;
+    // Le lancer du grappin va à son terme, touche maintenue ou non.
+    if (this.grappin && this.grappin.t < DUREE_GRAPPIN) this.grappin.t += dt;
     // Les pentes raides ralentissent ; seules les vraies falaises arrêtent (on ne peut pas les contourner en vue de côté).
     const penteMax = this.enRover ? 40 : this.def.penteMax + 10;
     // Pente dans le sens de la marche : positive en montée, négative en descente (la descente ne freine pas).
@@ -608,7 +612,7 @@ class Exploration {
       // Montée trop raide (falaise) : on s'arrête. Une descente raide ne bloque jamais.
       const pente = Math.atan2(this.sol(p.x + 0.5 * Math.sign(p.vx || 1)) - this.sol(p.x), 0.5);
       this.enEscalade = false;
-      if (this.grappin && this.grappin.t >= DUREE_GRAPPIN && this.cordeInutile()) { this.grappin = null; this.dire('🪝 Corde récupérée : le grappin est rangé.'); }
+      if (this.grappin && this.cordeInutile()) { const enVol = this.grappin.t < DUREE_GRAPPIN; this.grappin = null; this.dire(enVol ? '🪝 Lancer abandonné : le grappin est ramené et rangé.' : '🪝 Corde récupérée : le grappin est rangé.'); }
       // Bord d'une falaise : ↓ pour descendre en rappel.
       this.auBordFalaise = this.type === 'spationaute' && !this.enRover && this.bordFalaise(p.x, p.dir || 1);
       if (this.auBordFalaise && !this.astuceRappel) { this.astuceRappel = true; this.dire('🧗 Bord d’une falaise : maintenez ↓ (S) pour descendre en rappel.'); }
