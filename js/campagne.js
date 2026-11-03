@@ -388,6 +388,7 @@ function noteExtensionSansBase(v, st, contenu) {
 
 // Cargo vers une station du même astre (Terre → station terrestre) : lancement et rendez-vous en orbite.
 const DUREE_RDV_LOCAL = JOUR;
+const SEUIL_TRANSIT = 10;   // objets en transit au-delà desquels le calcul simplifié s'active (réglage « automatique »)
 
 // ---------- Ravitaillement courant depuis la planète d'origine ----------
 // Petit cargo automatique et régulier ; plus la station est loin, plus le trajet est long.

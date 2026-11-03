@@ -798,6 +798,7 @@ const Orbiteur = {
   mettreAJourSondes(dt) {
     const v = this.v;
     v.cargos = v.cargos || [];
+    this.plansCetteImage = 0;
     for (const s of [...v.sondesEnVol, ...v.cargos]) {
       try { this.avancerSonde(s, dt); } catch (e) {
         // Un vaisseau dont le calcul échoue ne doit pas bloquer tout le jeu.
@@ -817,6 +818,8 @@ const Orbiteur = {
       if (v.t >= s.tArrivee) { s.etat = 'arrivee'; this.livrerRavito(s); }
       return;
     }
+    // Calcul simplifié : un objet en transit suit sa trajectoire précalculée (une fois lancé ainsi, jusqu'à l'arrivée).
+    if (s.etat === 'vol' && (s.simple || this.calculSimplifie()) && this.avancerSimplifie(s)) return;
     {
       if (s.etat !== 'vol') {
         // Sonde arrivée : elle reste en orbite autour de sa cible (orbite fermée, propagation directe).
@@ -859,6 +862,54 @@ const Orbiteur = {
         if (e.attenteEvenement && s.tSonde > e.tExec + 1) s.etape = null;
       }
     }
+  },
+
+  // ---------- Calcul simplifié des objets en transit (sondes, cargos) ----------
+  // Au lieu de simuler la physique à chaque instant, la trajectoire est calculée une fois (même calcul que la
+  // trajectoire affichée) ; en route, la position est interpolée ; à l'arrivée, l'objet prend l'état final calculé :
+  // même date d'arrivée, même orbite. Réglage ⚙ : non, oui, ou automatique au-delà d'un nombre d'objets en transit.
+  calculSimplifie() {
+    const r = this.v.reglages || {}, mode = r.transit || 'auto';
+    if (mode === 'oui') return true;
+    if (mode === 'non') return false;
+    const n = [...this.v.sondesEnVol, ...(this.v.cargos || [])].filter((o) => o.etat === 'vol' && !o.local).length;
+    return n >= (r.seuilTransit || SEUIL_TRANSIT);
+  },
+  // Garde une trajectoire calculée sur l'objet (au plus 200 points : la partie est sauvegardée avec).
+  garderPlan(s, p) {
+    if (!p || p.fin !== 'arrivee' || !p.ts || p.ts.length < 2 || !p.etatFin) return false;
+    const pas = Math.max(1, Math.ceil(p.pts.length / 200)), garde = (_, i, a) => i % pas === 0 || i === a.length - 1;
+    s.simple = { tArr: p.tFin, ts: p.ts.filter(garde), pts: p.pts.filter(garde), marques: p.marques, fin: p.etatFin, etoile: this.planeteDe(s.cible).orbite.centre };
+    return true;
+  },
+  // Renvoie false si la trajectoire n'aboutit pas (le calcul complet s'en charge alors, et le dira).
+  avancerSimplifie(s) {
+    const v = this.v;
+    if (!s.simple) {
+      // Une trajectoire précalculée par image au plus (le calcul coûte) : les autres suivent la physique en attendant.
+      if (this.plansCetteImage >= 1) return false;
+      this.plansCetteImage = (this.plansCetteImage || 0) + 1;
+      let p;
+      try { p = this.planTrajet(s); } catch (e) { return false; }
+      if (!this.garderPlan(s, p)) return false;
+    }
+    const S = s.simple, t = v.t;
+    if (t >= S.tArr) {
+      // Arrivée : l'état final calculé, comme si la physique avait tourné.
+      Object.assign(s, { centre: S.fin.centre, r: S.fin.r.slice(), v: S.fin.v.slice(), tSonde: S.tArr, transfert: null, etape: null, simple: null, etat: 'arrivee' });
+      if (s.type === 'cargo') this.livrerRavito(s);
+      else { v.visites[s.cible] = { ...(v.visites[s.cible] || {}), sonde: s.tSonde }; this.reperer(s); }
+      return true;
+    }
+    // En route : position interpolée sur la trajectoire précalculée (autour de l'étoile).
+    let k = 0;
+    while (k < S.ts.length - 2 && S.ts[k + 1] <= t) k++;
+    const t1 = S.ts[k], t2 = S.ts[k + 1], u = t2 > t1 ? Math.max(0, Math.min(1, (t - t1) / (t2 - t1))) : 1;
+    const p1 = S.pts[k], p2 = S.pts[k + 1];
+    s.centre = S.etoile; s.r = [p1[0] + (p2[0] - p1[0]) * u, p1[1] + (p2[1] - p1[1]) * u];
+    s.v = t2 > t1 ? [(p2[0] - p1[0]) / (t2 - t1), (p2[1] - p1[1]) / (t2 - t1)] : s.v;
+    s.tSonde = t;
+    return true;
   },
 
   // Date d'arrivée prévue d'un cargo (même calcul que la trajectoire affichée), gardée sur le cargo.
@@ -1536,11 +1587,19 @@ const Orbiteur = {
     m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>⚙ Réglages de la campagne</h2></div><button class="fermer">✕</button></header>
       <section>
         <label class="choix-ravito"><input type="checkbox" id="reg-delai" ${this.delaiRadioActif() ? 'checked' : ''}> <b>Délai radio réel</b> — vaisseau sans équipage : une commande du sol met le temps de la lumière pour arriver à bord (≈ 1 h 20 vers Saturne).</label>
+        <p><b>Calcul simplifié des objets en transit</b> (sondes, ravitos) : leur trajectoire est calculée une fois au départ, puis suivie, au lieu d’être simulée à chaque instant. Même date d’arrivée ; le jeu reste fluide quand beaucoup d’objets voyagent.</p>
+        ${[['auto', `Automatique, au-delà de <input type="number" id="reg-seuil" min="1" max="99" value="${r.seuilTransit || SEUIL_TRANSIT}" style="width:4em"> objets en transit`], ['oui', 'Toujours'], ['non', 'Jamais (calcul complet)']]
+          .map(([k, t]) => `<label class="choix-ravito"><input type="radio" name="reg-transit" value="${k}" ${(r.transit || 'auto') === k ? 'checked' : ''}> ${t}</label>`).join('')}
       </section>
       <div class="actions"><span></span><button id="reg-ok" class="principal">OK</button></div></div>`;
     m.classList.remove('cache');
     m.querySelector('.fermer').onclick = () => Infos.fermer();
-    $('reg-ok').onclick = () => { r.delaiRadio = $('reg-delai').checked; Infos.fermer(); this.majHud(true); };
+    $('reg-ok').onclick = () => {
+      r.delaiRadio = $('reg-delai').checked;
+      r.transit = m.querySelector('input[name=reg-transit]:checked').value;
+      r.seuilTransit = Math.max(1, Math.round(Number($('reg-seuil').value) || SEUIL_TRANSIT));
+      Infos.fermer(); this.majHud(true);
+    };
   },
   lancerRetourAuto() {
     const v = this.v;
@@ -1710,9 +1769,11 @@ const Orbiteur = {
     const cible = vs.cible;
     let t = vs.tSonde !== undefined ? vs.tSonde : this.v.t;
     const t0 = t, tMax = t + 40 * 365.25 * JOUR;
-    const pts = [], marques = [];
+    const pts = [], marques = [], ts = [];   // ts : l'instant de chaque point (calcul simplifié des objets en transit)
     const abs = () => V.add(etatAbsolu(s.centre, t).r, s.r);
     const marquer = (type, texte, extra = {}) => marques.push({ type, texte, t, p: abs(), ...extra });
+    const pts0 = pts.push.bind(pts);
+    pts.push = (p) => { ts.push(t); return pts0(p); };
     pts.push(abs());
     marquer('depart', `Départ de l’orbite ${de(ASTRES_PAR_ID[s.centre])}`);
     let fin = null;
@@ -1756,14 +1817,20 @@ const Orbiteur = {
       if (e && e.attenteEvenement) e = null;   // événement en retard : on recalcule, comme le vol réel
       if (t >= tMax) { fin = 'trop-long'; break; }
     }
-    return { pts, marques, t0, tFin: t, fin, cible, nom: vs.nom, id: vs.id };
+    delete pts.push;
+    return { pts, marques, t0, tFin: t, fin, cible, nom: vs.nom, id: vs.id, ts, etatFin: { centre: s.centre, r: s.r.slice(), v: s.v.slice() } };
   },
 
   // Ouvre la vue « trajectoire » : départ, arrivée et le trajet entre les deux, avec ses manœuvres.
   ouvrirTrajet(id) {
     const o = this.objetSuivi(id);
     if (!o || !o.vaisseau || o.vaisseau.local) return;   // cargo local : pas de trajet interplanétaire à montrer
-    const plan = this.planTrajet(o.vaisseau);
+    // Objet en calcul simplifié : sa trajectoire précalculée (l'état interpolé ne se prête pas à un nouveau calcul).
+    const S = o.vaisseau.simple;
+    const plan = S ? { pts: S.pts, marques: S.marques, t0: S.ts[0], tFin: S.tArr, fin: 'arrivee', cible: o.vaisseau.cible, nom: o.vaisseau.nom, id: o.vaisseau.id }
+      : this.planTrajet(o.vaisseau);
+    // Calcul simplifié : la trajectoire qu'on vient de calculer pour l'afficher sert aussi au voyage (pas de second calcul).
+    if (!S && o.vaisseau.etat === 'vol' && !o.vaisseau.local && this.calculSimplifie()) this.garderPlan(o.vaisseau, plan);
     // Cadre : tous les points du trajet, l'astre de départ maintenant et la cible à l'arrivée.
     const boite = [...plan.pts, etatAbsolu(o.vaisseau.centre, this.v.t).r, etatAbsolu(plan.cible, plan.tFin).r];
     const xs = boite.map((p) => p[0]), ys = boite.map((p) => p[1]);

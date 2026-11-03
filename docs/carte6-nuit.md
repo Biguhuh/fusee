@@ -54,4 +54,18 @@ Ce qui a changé :
 
 Testé (orbiteur placé autour de Saturne, équipage mort) : fenêtre et ses deux choix ; « Continuer en sonde » ; commande vers Titan, délai 1 h 11, appliquée après 6 000 s de jeu, pilote auto en marche ; clic sur « Pilotage libre » refusé ; réglage décoché : commande immédiate ; construction de station refusée.
 
-Limites : le démarrage et l'arrêt du pilote auto ne passent pas par le délai radio, seulement le choix de la cible. Pas de « corrections automatiques » à part : le pilote auto fait déjà toutes les manœuvres du voyage.
+Limites (point 3) : le démarrage et l'arrêt du pilote auto ne passent pas par le délai radio, seulement le choix de la cible. Pas de « corrections automatiques » à part : le pilote auto fait déjà toutes les manœuvres du voyage.
+
+### Point 4 : calcul simplifié des objets en transit (branche `carte6-point4`)
+
+Mesure d'abord (14 sondes en route, campagne neuve) : chaque mise à jour des objets en transit coûtait ≈ 2 ms par pas d'une heure et ≈ 28 ms par pas d'un jour (forte accélération du temps), soit plus que le budget d'une image (16 ms). En régime établi, ≈ 4 ms par pas d'un jour. C'est bien là que le processeur part quand beaucoup d'objets voyagent.
+
+Ce qui a changé :
+- Réglage « ⚙ » de l'orbiteur, « Calcul simplifié des objets en transit » : « Automatique, au-delà de N objets en transit » (par défaut, N = 10), « Toujours », ou « Jamais (calcul complet) ».
+- Simplifié : la trajectoire d'une sonde ou d'un ravito est calculée une fois (la même que celle affichée au lancement, donc sans calcul en plus), puis suivie par interpolation ; à l'arrivée, l'objet prend l'état final calculé (même orbite). Les véhicules pilotés (l'orbiteur) ne sont pas concernés.
+- Un objet passé en simplifié le reste jusqu'à son arrivée ; quand le mode s'active en plein vol, une seule trajectoire est précalculée par image (pas d'à-coup général).
+- La vue « trajectoire » d'un objet simplifié montre sa trajectoire précalculée.
+
+Testé : 14 sondes, 0,02 ms par pas d'un jour au lieu de 3,9 ms (≈ 200 fois moins) ; seuil automatique (10 : actif, 20 : inactif) ; cargo vers une station de Mars : arrivée précalculée identique à la date prévue affichée, livraison faite ; sonde vers Jupiter : en orbite, repérage fait.
+
+Limites : comparé au calcul complet, l'arrivée peut différer de quelques heures à un jour sur un voyage de plusieurs années (Mars : 23 h sur 2 ans ; Vénus : 5 h). L'écart vient du calcul de trajectoire existant, qui avance par pas d'au moins un jour près de l'arrivée ; c'est déjà lui qui donne les dates prévues affichées. Le passage en simplifié en plein vol coûte jusqu'à ≈ 1 s pour un objet lointain (une fois par objet).
