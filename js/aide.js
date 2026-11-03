@@ -165,7 +165,7 @@ const ONGLETS_AIDE = [
       ['+ / −', 'Accélérer / ralentir le temps (limité juste avant le contact)'],
       ['P / Échap', 'Pause / abandonner'],
     ])}
-    <p class="doux">Pour se poser : rester sous la vitesse maximale de l’astre, fusée droite, sol pas trop pentu. Pour repartir : atteindre l’altitude d’orbite et la vitesse orbitale à l’horizontale (jauges en haut de l’écran).</p>
+    <p class="doux">Pour se poser : rester sous la vitesse maximale de l’astre, fusée droite, sol pas trop pentu. Pour repartir : atteindre au moins 90 % de l’altitude d’orbite visée et 97 % de la vitesse orbitale à l’horizontale (jauges en haut de l’écran, avec leurs minimums). C’est une tolérance de jeu, pour faciliter la mise en orbite : une vraie orbite demande presque exactement la vitesse orbitale, et à 97 % la trajectoire finirait par retomber.</p>
     <h3>Exploration au sol</h3>
     ${tableAide([
       ['← → / Q D', 'Marcher, rouler'],
