@@ -56,6 +56,11 @@ Object.assign(Exploration.prototype, {
     this.p = d.p; this.reserve = d.reserve; this.integrite = d.integrite; this.sac = d.sac; this.doseSv = d.doseSv; this.dose = d.dose; this.enRover = d.enRover; this.blessure = d.blessure || null; this.appliquerBlessure();
     this.vol.equipier = d.eq; this.def.nom = d.eq.nom;
     Object.assign(d, { p: moi.p, reserve: moi.reserve, integrite: moi.integrite, sac: moi.sac, doseSv: moi.doseSv, dose: moi.dose, enRover: moi.enRover, blessure: moi.blessure, eq: moi.eq });
+    // Escalade et rappel suivent chacun : celui qu'on quitte termine seul sa montée ou sa descente.
+    const rappelMoi = !!this.rappel, rappelAutre = !!d.enRappel, escMoi = this.enEscalade, gp = this.grappin;
+    this.rappel = rappelAutre && gp ? { sens: -gp.sens, y0: gp.y } : null;
+    d.enRappel = rappelMoi; this.enEscalade = !!d.enEscalade; d.enEscalade = escMoi;
+    this.suspendu = 0; this.yPiedParoi = null;
     this.permute = !this.permute;
     this.dire(`🔁 Vous pilotez ${this.def.nom}. ${d.eq.nom} ${d.mode === 'suit' ? 'vous suit' : 'attend'}.`);
   },
@@ -162,17 +167,19 @@ Object.assign(Exploration.prototype, {
       this.glisserLeLong(q, sens, ds);
       q.grimpe = (q.grimpe || 0) + ds; q.dir = -sens; q.vx = 0;
       d.enEscalade = true;
-      if (!this.bordFalaise(q.x, sens)) { this.poserAuPied(q, sens); d.enRappel = false; d.enEscalade = false; q.dir = sens; this.dire(`🧗 ${d.eq.nom} vous a rejoint en bas.`); }
+      if (!this.bordFalaise(q.x, sens)) { this.poserAuPied(q, sens); d.enRappel = false; d.enEscalade = false; q.dir = sens; this.dire(`🧗 ${d.eq.nom} ${p.y < q.y + 1 ? 'vous a rejoint en bas' : 'est arrivé' + d.eq.acc + ' en bas'}.`); }
       return;
     }
     // Cordée : le grappin est accroché à cette paroi ; l'autre grimpe derrière vous, le long de la corde.
     const gp = this.grappin;
-    if (gp && gp.t >= DUREE_GRAPPIN && d.mode === 'suit' && Math.abs(ecartSol(this.astre, gp.x, q.x)) < 30) {
+    if (gp && gp.t >= DUREE_GRAPPIN && (d.mode === 'suit' || d.enEscalade) && Math.abs(ecartSol(this.astre, gp.x, q.x)) < 30) {
       const sens = gp.sens;
       const devant = Math.atan2(this.sol(q.x + 0.5 * sens) - this.sol(q.x), 0.5) * 180 / Math.PI;
       const surParoi = devant > this.def.penteMax + 10 || (d.enEscalade && devant > this.def.penteMax);
       const enAvance = p.y - q.y > 1.2 || ecartSol(this.astre, p.x, q.x) * sens > 2;   // le premier est plus haut, ou déjà passé
-      if (surParoi && enAvance) {
+      // Il part si vous êtes sur la paroi devant lui (cordée) ; déjà sur la paroi, il termine seul sa montée.
+      if (surParoi && ((enAvance && this.enEscalade && !this.rappel) || d.enEscalade)) {
+        if (q.y > gp.y0 + 1) gp.servi = true;           // quelqu'un est vraiment monté
         const kG = Math.max(0.5, Math.min(2.5, Math.sqrt(9.81 / Math.max(0.05, g))));
         const ds = 0.4 * kG * dt;
         this.glisserLeLong(q, sens, ds);

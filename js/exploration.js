@@ -245,8 +245,11 @@ class Exploration {
     if (!sens) return 0;
     return Math.atan2(this.sol(x + 0.5 * sens) - this.sol(x - 0.5 * sens), 1) * 180 / Math.PI;
   }
-  // Sur la paroi : la pente sous les pieds est trop raide pour marcher (accroché, même sans grimper).
-  surParoi(q) { return Math.abs(Math.atan2(this.sol(q.x + 0.05) - this.sol(q.x - 0.05), 0.1) * 180 / Math.PI) > this.def.penteMax + 10; }
+  // Sur la paroi : trop raide pour marcher des deux côtés des pieds (accroché, même sans grimper ; pas au pied ni au rebord).
+  surParoi(q) {
+    const raide = (a, b) => Math.abs(Math.atan2(this.sol(b) - this.sol(a), b - a) * 180 / Math.PI) > this.def.penteMax + 10;
+    return raide(q.x - 0.05, q.x) && raide(q.x, q.x + 0.05);
+  }
   // La corde ne sert plus : plus personne sur la paroi (on n'est encordé que sur la paroi).
   cordeInutile() {
     const gp = this.grappin, d = this.duo, p = this.p;
@@ -255,8 +258,8 @@ class Exploration {
     const suit = d && !d.enRover && d.mode === 'suit' && Math.abs(ecartSol(this.astre, gp.x, d.p.x)) < 30;
     // Après un rappel : tout le monde en bas, on tire la corde à soi.
     if (gp.rappel) { const enBas = (q) => q.y < gp.y - 1; return enBas(p) && (!suit || enBas(d.p)); }
-    // Seule exception : au pied de la paroi, corde en main, prêt à monter (même en plein lancer).
-    const auPied = Math.abs(ecartSol(this.astre, p.x, gp.x0)) <= 1.5 && p.y < gp.y0 + 0.5;
+    // Seule exception : au pied de la paroi, corde en main, prêt à monter (même en plein lancer), personne n'ayant encore grimpé.
+    const auPied = !gp.servi && Math.abs(ecartSol(this.astre, p.x, gp.x0)) <= 1.5 && p.y < gp.y0 + 0.5;
     return !auPied;
   }
   // Bord d'une falaise devant soi (plus raide que ce qu'on peut descendre à pied).
@@ -355,6 +358,7 @@ class Exploration {
     const v = (forme ? 0.5 : 0.3) * kG;                                               // m/s le long de la paroi
     this.glisserLeLong(p, veut, v * dt);
     p.grimpe += v * dt;
+    if (p.y > this.grappin.y0 + 1) this.grappin.servi = true;                        // quelqu'un est vraiment monté
     this.reserve -= dt;                                                               // l'effort : deux fois plus d'oxygène
     this.hauteurEscalade = Math.max(this.hauteurEscalade || 0, p.y - (this.yPiedParoi ?? (this.yPiedParoi = p.y)));
     const risque = (forme ? 0.012 : 0.06) * Math.max(0.3, Math.min(1.5, Math.sqrt(g / 9.81)));
