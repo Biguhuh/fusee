@@ -708,7 +708,7 @@ class Vol {
           : 'Posé ! Entrée : terminer · E : spationaute · R : robot · T : décoller vers l’orbite';
       case 'remontee': return a.type === 'gazeuse'
         ? `${fmt(a.cible, 1)} bar atteints ! Remontez jusqu’au niveau 1 bar`
-        : `Mise en orbite : ${fmtAlt(this.altOrbite)} d’altitude et ${fmtV(vitesseOrbitale(a, this.altOrbite))} à l’horizontale`;
+        : `Orbite visée : ${fmtAlt(this.altOrbite)} d’altitude, ${fmtV(vitesseOrbitale(a, this.altOrbite))} à l’horizontale`;
       case 'plongee': return `Pas de sol : plongez jusqu’à ${fmt(a.cible, 1)} bar (prélèvements automatiques), puis remontez`;
       case 'approche': return 'Approchez-vous du Soleil… si vous le pouvez';
       case 'ballon': return `Montée en ballon vers ${fmtAlt(this.f.aerostat ? this.f.aerostat.alt : 54000)} : le lanceur s’allumera dans les nuages (accélérez avec +)`;
@@ -2491,16 +2491,18 @@ function dessinerHudSuite(ctx, vol, W, H, warp, compact, twr) {
 
   // Remontée vers l'orbite : deux jauges pour savoir où l'on en est.
   if (vol.phase === 'remontee' && a.type === 'solide' && !vol.fin) {
-    const vO = vitesseOrbitale(a, vol.altOrbite);
-    const fa = Math.max(0, vol.y) / (vol.altOrbite * 0.9), fv = Math.abs(vol.vx) / (vO * 0.97);
+    // Les minimums de la mise en orbite (même test que dans step) : 90 % de l'altitude visée,
+    // 97 % de la vitesse circulaire à l'altitude où l'on est.
+    const altMin = vol.altOrbite * 0.9, vMin = vol.vOrbitale() * 0.97;
+    const fa = Math.max(0, vol.y) / altMin, fv = Math.abs(vol.vx) / vMin;
     const lj = compact ? Math.min(320, W - 90) : 320;
     const x0 = compact ? 14 : W / 2 - 160, y0 = compact ? (ZONE_HUD ? ZONE_HUD.y + ZONE_HUD.h + 18 : 190) : 48;
     ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(x0 - 8, y0 - 6, lj + 16, 52);
     ctx.font = compact ? '11px system-ui, sans-serif' : '12px system-ui, sans-serif'; ctx.fillStyle = '#fff';
-    ctx.fillText(`${compact ? 'Alt. d’orbite' : 'Altitude d’orbite'} : ${fmtAlt(Math.max(0, vol.y))} / ${fmtAlt(vol.altOrbite * 0.9)}`, x0, y0 + 8);
+    ctx.fillText(`${compact ? 'Alt.' : 'Altitude'} : ${fmtAlt(Math.max(0, vol.y))}, ${compact ? 'min.' : 'minimum'} ${fmtAlt(altMin)}`, x0, y0 + 8);
     jauge(ctx, x0, y0 + 12, lj, fa, fa >= 1 ? '#66bb6a' : '#42a5f5');
     ctx.fillStyle = '#fff';
-    ctx.fillText(`${compact ? 'V horiz.' : 'Vitesse horizontale'} : ${fmtV(Math.abs(vol.vx))} / ${fmtV(vO * 0.97)}`, x0, y0 + 32);
+    ctx.fillText(`${compact ? 'V horiz.' : 'Vitesse horizontale'} : ${fmtV(Math.abs(vol.vx))}, ${compact ? 'min.' : 'minimum'} ${fmtV(vMin)}`, x0, y0 + 32);
     jauge(ctx, x0, y0 + 36, lj, fv, fv >= 1 ? '#66bb6a' : '#ffca28');
   }
   if (vol.f.mega && !vol.fin) {
