@@ -245,19 +245,19 @@ class Exploration {
     if (!sens) return 0;
     return Math.atan2(this.sol(x + 0.5 * sens) - this.sol(x - 0.5 * sens), 1) * 180 / Math.PI;
   }
-  // La corde ne sert plus : on est arrivé en haut (et l'autre aussi, s'il suit encordé), ou on s'est éloigné du grappin.
+  // Sur la paroi : la pente sous les pieds est trop raide pour marcher (accroché, même sans grimper).
+  surParoi(q) { return Math.abs(Math.atan2(this.sol(q.x + 0.05) - this.sol(q.x - 0.05), 0.1) * 180 / Math.PI) > this.def.penteMax + 10; }
+  // La corde ne sert plus : plus personne sur la paroi (on n'est encordé que sur la paroi).
   cordeInutile() {
-    const gp = this.grappin, d = this.duo;
-    if (this.rappel || (d && (d.enEscalade || d.enRappel))) return false;
-    if (Math.abs(ecartSol(this.astre, gp.x, this.p.x)) > 25) return true;
-    // Pas encore monté, et on s'éloigne du pied de la paroi : on ramène le grappin (même en plein lancer).
-    if (!gp.rappel && ecartSol(this.astre, this.p.x, gp.x0) * gp.sens < -1.5) return true;
+    const gp = this.grappin, d = this.duo, p = this.p;
+    if (this.rappel || this.enEscalade || (d && !d.enRover && (d.enEscalade || d.enRappel))) return false;
+    if (Math.abs(ecartSol(this.astre, gp.x, p.x)) > 25) return true;
     const suit = d && !d.enRover && d.mode === 'suit' && Math.abs(ecartSol(this.astre, gp.x, d.p.x)) < 30;
     // Après un rappel : tout le monde en bas, on tire la corde à soi.
-    if (gp.rappel) { const enBas = (q) => q.y < gp.y - 1; return enBas(this.p) && (!suit || enBas(d.p)); }
-    // En haut : au sommet, près du grappin, ou déjà passé de l'autre côté du rebord.
-    const enHaut = (q) => { const e = ecartSol(this.astre, q.x, gp.x) * gp.sens; return e > 1 || (e > -1 && q.y >= gp.y - 0.5); };
-    return !this.enEscalade && enHaut(this.p) && (!suit || enHaut(d.p));
+    if (gp.rappel) { const enBas = (q) => q.y < gp.y - 1; return enBas(p) && (!suit || enBas(d.p)); }
+    // Seule exception : au pied de la paroi, corde en main, prêt à monter (même en plein lancer).
+    const auPied = Math.abs(ecartSol(this.astre, p.x, gp.x0)) <= 1.5 && p.y < gp.y0 + 0.5;
+    return !auPied;
   }
   // Bord d'une falaise devant soi (plus raide que ce qu'on peut descendre à pied).
   bordFalaise(x, sens) {
@@ -299,7 +299,7 @@ class Exploration {
     let x = this.rebordDevant(p.x, sens).x;
     x += 0.6 * sens;
     this.grappin = { x, y: this.sol(x), x0: p.x, y0: p.y, t: 0, sens };
-    this.dire(`🪝 Grappin lancé vers le rebord, ${fmt(this.grappin.y - p.y, 1)} m plus haut. On grimpe le long de la corde${this.duo ? ` ; ${this.duo.eq.nom} suit, encordé${this.duo.eq.acc}` : ''}.`);
+    this.dire(`🪝 Grappin lancé vers le rebord, ${fmt(this.grappin.y - p.y, 1)} m plus haut. On grimpe le long de la corde${this.duo && this.duo.mode === 'suit' ? ` ; ${this.duo.eq.nom} suit, encordé${this.duo.eq.acc}` : ''}.`);
   }
   // Corde du grappin et cordée : dessin.
   dessinerCorde(ctx, versEcran, echelle) {
@@ -315,13 +315,18 @@ class Exploration {
       ctx.beginPath(); ctx.moveTo(mx, my); ctx.quadraticCurveTo((mx + hx) / 2, Math.max(my, hy) + echelle * 0.5, hx, hy); ctx.stroke();
       this.dessinerCrochet(ctx, hx, hy, echelle);
     } else {
-      // Corde tendue du rebord jusqu'à la taille du grimpeur ; puis de lui à l'autre (cordée).
-      const [px, py] = versEcran(this.p.x, this.p.y + 1);
+      // Corde tendue du rebord jusqu'à la taille de qui est sur la paroi. Les deux y sont : cordée,
+      // du grappin au plus proche, puis de lui à l'autre.
+      const d = this.duo, autre = d && !d.enRover && d.enEscalade;
+      const moi = this.enEscalade || this.rappel || (!autre && !this.cordeInutile());   // sur la paroi, ou au pied, corde en main
+      if (!moi && !autre) { ctx.restore(); return; }            // personne sur la paroi : corde bientôt rangée
+      const pe = versEcran(this.p.x, this.p.y + 1), qe = autre && versEcran(d.p.x, d.p.y + 1);
       this.dessinerCrochet(ctx, ax, ay, echelle);
+      let [px, py] = moi ? pe : qe, lien = moi && autre ? qe : null;
+      if (lien && Math.hypot(qe[0] - ax, qe[1] - ay) < Math.hypot(pe[0] - ax, pe[1] - ay)) { [px, py] = qe; lien = pe; }
       ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(px, py); ctx.stroke();
-      const d = this.duo;
-      if (d && !d.enRover && (d.enEscalade || this.enEscalade)) {
-        const [qx, qy] = versEcran(d.p.x, d.p.y + 1);
+      if (lien) {
+        const [qx, qy] = lien;
         ctx.beginPath(); ctx.moveTo(px, py); ctx.quadraticCurveTo((px + qx) / 2, Math.max(py, qy) + echelle * 0.6, qx, qy); ctx.stroke();
       }
     }
@@ -353,11 +358,12 @@ class Exploration {
     this.reserve -= dt;                                                               // l'effort : deux fois plus d'oxygène
     this.hauteurEscalade = Math.max(this.hauteurEscalade || 0, p.y - (this.yPiedParoi ?? (this.yPiedParoi = p.y)));
     const risque = (forme ? 0.012 : 0.06) * Math.max(0.3, Math.min(1.5, Math.sqrt(g / 9.81)));
-    if (Math.random() < risque * dt && this.grappin) {
+    const glisse = Math.random() < risque * dt;                                     // un seul tirage : retenu si encordé
+    if (glisse && this.grappin) {
       // Encordé : la corde retient la glissade. On pend quelques secondes, puis on repart.
       this.suspendu = 2;
       this.dire(`🪢 Une prise lâche, mais la corde retient ${this.def.nom} : quelques secondes pour se rattraper.${forme ? '' : ' Entraîné à l’escalade (sur Terre), on glisse bien moins souvent.'}`);
-    } else if (Math.random() < risque * dt) {
+    } else if (glisse) {
       p.auSol = false; p.vy = 0; p.vx = -veut * 0.8; this.enEscalade = false; this.yPiedParoi = null;
       this.dire(forme ? '😱 Une prise lâche : glissade !' : '😱 Glissade ! Sans entraînement à l’escalade (sur Terre), les prises lâchent souvent.');
     }
@@ -611,7 +617,7 @@ class Exploration {
       // Pente trop raide pour des roues
       // Montée trop raide (falaise) : on s'arrête. Une descente raide ne bloque jamais.
       const pente = Math.atan2(this.sol(p.x + 0.5 * Math.sign(p.vx || 1)) - this.sol(p.x), 0.5);
-      this.enEscalade = false;
+      this.enEscalade = this.type === 'spationaute' && !this.enRover && this.surParoi(p);   // ↑ relâché : on reste accroché
       if (this.grappin && this.cordeInutile()) { const enVol = this.grappin.t < DUREE_GRAPPIN; this.grappin = null; this.dire(enVol ? '🪝 Lancer abandonné : le grappin est ramené et rangé.' : '🪝 Corde récupérée : le grappin est rangé.'); }
       // Bord d'une falaise : ↓ pour descendre en rappel.
       this.auBordFalaise = this.type === 'spationaute' && !this.enRover && this.bordFalaise(p.x, p.dir || 1);
