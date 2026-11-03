@@ -5,6 +5,18 @@
 // ajoutée au relief ordinaire. Profil : [distance au centre (km), altitude (km)], raccordé en douceur.
 // Liste des zones et sources : docs/carte6-zones.md.
 const ZONES_REELLES = {
+  // Lune (dimensions : USGS / IAU, Wikipédia, LRO). ombre : fond dans la nuit permanente (comme le cratère polaire de Mercure).
+  lune: [
+    { id: 'tycho', nom: 'Cratère Tycho', lat: -43.31, lon: -11.36, poser: -15,
+      profil: [[-60, 0], [-48, 0.3], [-42.5, 1], [-36, -2.5], [-30, -3.7], [-10, -3.7], [-4, -2], [0, -1.4], [4, -2], [10, -3.7], [30, -3.7], [36, -2.5], [42.5, 1], [48, 0.3], [60, 0]],
+      detail: 'Cratère jeune (≈ 110 millions d’années), 85 km de diamètre, 4,7 km de profondeur ; un pic central d’≈ 2 km. Ses rayons clairs se voient de la Terre à l’œil nu. On se pose au fond, près du pic.' },
+    { id: 'copernic', nom: 'Cratère Copernic', lat: 9.62, lon: -20.08, poser: -10,
+      profil: [[-65, 0], [-52, 0.3], [-46.5, 0.9], [-40, -1.8], [-33, -2.9], [-12, -2.9], [-5, -2.1], [-2, -1.7], [0, -2.4], [2, -1.7], [5, -2.1], [12, -2.9], [33, -2.9], [40, -1.8], [46.5, 0.9], [52, 0.3], [65, 0]],
+      detail: '93 km de diamètre, 3,8 km de profondeur, des parois en terrasses et des pics centraux d’≈ 1 km. On se pose au fond, près des pics.' },
+    { id: 'shackleton', nom: 'Cratère Shackleton (pôle Sud)', lat: -89.67, lon: 129.78, poser: 0, ombre: true,
+      profil: [[-16, 0], [-12, 0.2], [-10.5, 0.5], [-6, -2.4], [-3.3, -3.7], [3.3, -3.7], [6, -2.4], [10.5, 0.5], [12, 0.2], [16, 0]],
+      detail: '21 km de diamètre, 4,2 km de profondeur, presque au pôle Sud. Le Soleil n’éclaire jamais le fond : nuit permanente, un des endroits les plus froids du Système solaire, où la glace d’eau peut se garder. On se pose au fond.' },
+  ],
   mars: [
     { id: 'valles', nom: 'Valles Marineris', lat: -13.8, lon: -59.2, poser: -83.5,
       profil: [[-115, 0], [-100, -0.3], [-85, -6.5], [-60, -7], [-20, -6.2], [0, -5.5], [20, -6.5], [70, -7], [85, -6.6], [100, -0.3], [115, 0]],

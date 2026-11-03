@@ -20,13 +20,22 @@ On les choisit dans « Où se poser ? », section « 🏔 Zones remarquables » 
 | Cratère Gale et mont Sharp | 5,4° S, 137,8° E | rempart, fond à −4,5 km, mont Sharp à +1 km (5,5 km au-dessus du fond) | près de Curiosity, au pied du mont | 154 km de diamètre ; mont Sharp ≈ 5,5 km au-dessus du fond |
 | Cratère Jezero | 18,4° N, 77,6° E | rempart, fond à −0,5 km, front du delta à l'ouest | près de Perseverance | ≈ 45 km de diamètre, ancien lac et son delta |
 
+## Zones faites (Lune, étape 4)
+
+Dimensions vérifiées (USGS, Gazetteer of Planetary Nomenclature ; Wikipédia ; LRO), le 5 novembre 2026.
+
+| Zone | Position | Profil retenu | On se pose | Dimensions de référence |
+|---|---|---|---|---|
+| Cratère Tycho | 43,31° S, 11,36° O | rempart +1 km, fond −3,7 km, parois de 25 à 30°, pic central à 2,3 km du fond | au fond, près du pic | ≈ 85 km de diamètre, 4,7 km de profondeur, pic de 2 à 2,4 km |
+| Cratère Copernic | 9,62° N, 20,08° O | rempart +0,9 km, fond −2,9 km, pics à 1,2 km du fond | au fond, près des pics | 93 km de diamètre, 3,8 km de profondeur, pics ≈ 1 à 1,2 km |
+| Cratère Shackleton | 89,67° S, 129,78° E | rempart +0,5 km, fond −3,7 km, parois ≈ 30° | au fond, dans la nuit permanente | 21 km de diamètre, 4,2 km de profondeur |
+
+Limites : au fond de Shackleton, la température est celle de la nuit lunaire du jeu (−170 °C) ; en réalité, ≈ −230 °C. La mer de la Tranquillité n'a pas de profil (elle est plate) : le site d'Apollo 11 y est déjà proposé. Les sites Apollo voisins ne sont pas touchés par les profils.
+
 ## Zones proposées (étape 4, à valider et vérifier une par une)
 
 | Astre | Zone | Ce qu'on y verrait | À vérifier avant d'écrire |
 |---|---|---|---|
-| Lune | Cratère Tycho | cratère jeune, pic central, rayons clairs | diamètre ≈ 85 km, profondeur ≈ 4,8 km |
-| Lune | Mer de la Tranquillité | plaine basaltique (Apollo 11) | relief plat : surtout le décor |
-| Lune | Pôle sud, cratère Shackleton | cratère dans l'ombre permanente | ≈ 21 km de diamètre, ≈ 4 km de profondeur ; latitude −89,9° (le sol du jeu n'a pas de latitude : comme le cratère polaire de Mercure) |
 | Mercure | Bassin Caloris | grand bassin d'impact | ≈ 1 550 km de diamètre : coupe resserrée |
 | Vénus | Maxwell Montes | le plus haut massif | ≈ 11 km au-dessus du niveau moyen |
 | Io | Loki Patera | lac de lave | ≈ 200 km de diamètre |
