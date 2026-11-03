@@ -2278,7 +2278,10 @@ const Orbiteur = {
       if (!conc) d += `<p class="doux">⏳ Conception de l’atterrisseur pour ${le(c)} (vols d’essai)…</p>`;
       else if (conc.ok) {
         const manque = v.ergolsAtt < conc.fusee.carburant;
-        d += `<button id="nav-descendre">⬇ Descendre ${sur(c)}${manque ? ' (⚠ sans retour)' : ''}</button>`;
+        // Personne à bord : le bouton reste visible mais grisé (un robot peut encore descendre, voir plus bas).
+        const personne = v.equipe && !aBordOrbiteur(v).length;
+        d += personne ? `<button disabled title="${survivants(v).length ? 'Toute l’équipe est en mission' : 'Plus personne en vie à bord'}">⬇ Descendre ${sur(c)} (personne à bord)</button>`
+          : `<button id="nav-descendre">⬇ Descendre ${sur(c)}${manque ? ' (⚠ sans retour)' : ''}</button>`;
         d += `<p class="doux">Atterrisseur conçu pour ${le(c)} : ${descriptionConception(conc)}. Ergols : ${fmt(conc.fusee.carburant / 1000, 1)} t${manque ? ' — <b style="color:var(--alerte)">réserve insuffisante, ravitaillez à une station</b>' : ''}.</p>`;
       } else d += `<p class="encart-refus">⚠ ${conc.raison}</p>`;   // bien visible : pas de descente possible ici
       if (c.type === 'solide' && v.robots > 0) d += `<button id="nav-robot">${droneVolePossible(c) && v.drones > 0 ? '🤖🚁 Larguer le robot et son drone (aller simple)' : '🤖 Larguer un robot (aller simple)'}</button>`;

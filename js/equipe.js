@@ -86,6 +86,10 @@ function erreurComposition(v, ids) {
 }
 function ouvrirChoixEquipage(v, a, suite) {
   const bord = aBordOrbiteur(v), m = $('modale'), places = placesModule(v);
+  // Personne à bord (tous morts, ou toute l'équipe en mission) : pas de descente humaine, un robot peut descendre.
+  if (!bord.length) return Orbiteur.log(survivants(v).length
+    ? 'Descente impossible : personne à bord de l’orbiteur, toute l’équipe est en mission. Un robot peut descendre (aller simple).'
+    : 'Descente impossible : plus personne en vie à bord. Seul un robot peut encore descendre (aller simple).');
   if (bord.length < 2) return Orbiteur.log(`Descente impossible : il ne reste qu’une personne à bord, et quelqu’un doit rester en orbite. Recrutez (station de niveau 4) ou rentrez sur Terre.`);
   const choisis = new Set(compositionProposee(v));
   const ligne = (x) => {
