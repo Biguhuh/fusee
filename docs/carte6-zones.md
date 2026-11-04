@@ -30,24 +30,33 @@ Dimensions vérifiées (USGS, Gazetteer of Planetary Nomenclature ; Wikipédia ;
 | Cratère Copernic | 9,62° N, 20,08° O | rempart +0,9 km, fond −2,9 km, pics à 1,2 km du fond | au fond, près des pics | 93 km de diamètre, 3,8 km de profondeur, pics ≈ 1 à 1,2 km |
 | Cratère Shackleton | 89,67° S, 129,78° E | rempart +0,5 km, fond −3,7 km, parois ≈ 30° | au fond, dans la nuit permanente | 21 km de diamètre, 4,2 km de profondeur |
 
-Limites : au fond de Shackleton, la température est celle de la nuit lunaire du jeu (−170 °C) ; en réalité, ≈ −230 °C. La mer de la Tranquillité n'a pas de profil (elle est plate) : le site d'Apollo 11 y est déjà proposé. Les sites Apollo voisins ne sont pas touchés par les profils.
+Limites : au fond de Shackleton, la température est celle de la nuit lunaire du jeu (−170 °C) ; en réalité, ≈ −230 °C. La mer de la Tranquillité n'a pas de profil (elle est plate) : le site d'Apollo 11 y est déjà proposé. Les sites Apollo voisins ne sont pas touchés par les profils. Chang'e 3 (44° N) tombe au fond de Copernic dans le jeu : même longitude, 34° plus au nord en vrai (le sol du jeu n'a pas de latitude).
 
-## Zones proposées (étape 4, à valider et vérifier une par une)
+## Zones faites (autres astres, étape 4)
 
-| Astre | Zone | Ce qu'on y verrait | À vérifier avant d'écrire |
-|---|---|---|---|
-| Mercure | Bassin Caloris | grand bassin d'impact | ≈ 1 550 km de diamètre : coupe resserrée |
-| Vénus | Maxwell Montes | le plus haut massif | ≈ 11 km au-dessus du niveau moyen |
-| Io | Loki Patera | lac de lave | ≈ 200 km de diamètre |
-| Europe | Terrains chaotiques | blocs de glace basculés | relief de quelques centaines de mètres |
-| Ganymède | Galileo Regio | grande région sombre ancienne | relief faible : surtout la couleur |
-| Callisto | Bassin Valhalla | anneaux concentriques | ≈ 3 800 km avec les anneaux |
-| Titan | Kraken Mare, Ligeia Mare, site de Huygens | mers de méthane | lien avec le point 5 (lac à la rive) |
-| Encelade | Fractures du pôle sud | rayures de tigre et panaches | ≈ 130 km de long, ≈ 500 m de profondeur |
-| Mimas | Cratère Herschel | énorme cratère pour un si petit astre | ≈ 130 km de diamètre, murs ≈ 5 km, pic central ≈ 6 km |
-| Miranda | Verona Rupes | une des plus hautes falaises connues | ≈ 20 km de haut (estimations de 5 à 20 km) |
-| Triton | Geysers, terrain en peau de melon | panaches, relief alvéolé | panaches ≈ 8 km |
-| Pluton | Plaine Spoutnik | plaine de glace d'azote, cellules | ≈ 1 000 km de large, ≈ 3 km sous les terrains voisins |
-| Cérès | Cratère Occator | taches brillantes (sels) | ≈ 92 km de diamètre, ≈ 4 km de profondeur |
-| Vesta | Bassin Rheasilvia | énorme bassin avec pic central | ≈ 500 km de diamètre, pic ≈ 20 km |
-| Phobos | Cratère Stickney | déjà dans la silhouette de Phobos (carte 5, point 20) | ≈ 9 km de diamètre |
+Dimensions vérifiées le 5 novembre 2026 (USGS, Gazetteer of Planetary Nomenclature ; Wikipédia ; NASA et JPL). « Schématique » : valeur non vérifiée, choisie raisonnable et signalée dans le code.
+
+| Astre | Zone | Position | Profil retenu | On se pose | Dimensions de référence |
+|---|---|---|---|---|---|
+| Mercure | Bassin Caloris | 30,5° N, 170,2° E | monts Caloris de 2 km ; fond au niveau moyen (profondeur schématique) | dans la plaine, au pied des monts | ≈ 1 550 km de diamètre ; monts ≈ 2 km |
+| Vénus | Maxwell Montes et cratère Cléopâtre | 65,2° N, 3,3° E | sommet à 11 km ; Cléopâtre (100 km, 2,5 km de profondeur) sur le flanc est ; coupe resserrée à ±300 km | près du sommet (34,5 bar au lieu de 92) | ≈ 11 km, ≈ 800 km de large ; Cléopâtre ≈ 100 km, 2,5 km |
+| Io | Loki Patera | 13° N, 51,2° E | dépression de 200 km (profondeur schématique : 200 m) | sur le bord | ≈ 200 km de diamètre, lac de lave |
+| Europe | Conamara Chaos | 9,7° N, 87,3° E | blocs et falaises de 100 à 250 m (largeur de la coupe schématique : 50 km) | entre les blocs | falaises de 100 à 250 m |
+| Encelade | Rayures de tigre | 86,9° S, 129,5° E (Baghdad Sulcus) | 4 fractures espacées de 35 km : vallée de 220 m entre deux crêtes de 90 m | près d'une fracture | 130 à 175 km de long ; vallée 200 à 250 m ; crêtes 80 à 100 m |
+| Mimas | Cratère Herschel | 1,38° S, 111,77° O | parois de 5,5 km, pic central à 6 km du fond | au fond, près du pic | ≈ 139 km ; parois ≈ 5 km ; pic 6 à 8 km |
+| Miranda | Verona Rupes | 18,3° S, 12,2° O | falaise de 10 km ; coupe resserrée pour épargner la longitude 0° | au pied | 5 à 20 km selon les études |
+| Pluton | Plaine Spoutnik | 20° N, 180° E | 3 km sous les terrains voisins ; cellules de 33 km, 100 m plus hautes en leur centre | au centre | ≈ 1 200 à 1 400 km ; cellules 16 à 48 km, relief ≈ 100 m |
+| Cérès | Cratère Occator | 19,86° N, 121,15° O | rempart +0,5 km, fond −3 km, fosse centrale et dôme de 400 m | près du dôme | 92 km ; 3 à 4 km de profondeur ; dôme ≈ 3 km de large, 340 à 400 m |
+| Vesta | Bassin Rheasilvia | 75° S, 59° O | fond à −17 km (19 km sous le rempart), pic central à 20 km du fond | au fond | ≈ 505 km ; ≈ 19 km de profondeur ; pic 19 à 22 km |
+| Phobos | Cratère Stickney | 1° N, 49° O | 9 km de large, fond à −1,6 km (profondeur schématique : ≈ 1/5 du diamètre) | au fond | ≈ 9 km de diamètre |
+
+## Zones non faites, et pourquoi
+
+| Astre | Zone | Raison |
+|---|---|---|
+| Titan | Kraken Mare, Ligeia Mare | ce sont des mers liquides : le sol du jeu ne sait pas représenter une étendue de liquide (il faudrait marcher au fond). Les lacs de méthane existent comme trouvailles (point 5), et le site de Huygens est déjà proposé. |
+| Ganymède | Galileo Regio | relief des sillons non trouvé (seulement leur tracé) ; région surtout remarquable par sa couleur sombre. |
+| Callisto | Bassin Valhalla | hauteurs des anneaux non trouvées (seulement leurs diamètres, 3 000 à 4 000 km). |
+| Triton | Geysers, terrain en peau de melon | position des geysers non trouvée (seulement leur latitude, 50 à 57° S) ; profondeur des alvéoles non trouvée. |
+
+Ces quatre zones peuvent être ajoutées en version schématique si Edouard l'accepte (relief choisi, signalé comme tel).

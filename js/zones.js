@@ -4,7 +4,91 @@
 // chaque profil est une coupe à travers la structure, posée dans le sens est-ouest à sa vraie longitude, et
 // ajoutée au relief ordinaire. Profil : [distance au centre (km), altitude (km)], raccordé en douceur.
 // Liste des zones et sources : docs/carte6-zones.md.
+// Rayures de tigre d'Encelade : quatre fractures espacées d'≈ 35 km, chacune une vallée en V (200 à 250 m)
+// entre deux crêtes de 80 à 100 m, ≈ 2 km de large (Cassini).
+function profilRayuresTigre() {
+  const p = [[-60, 0]];
+  for (const c of [-52.5, -17.5, 17.5, 52.5]) p.push([c - 1.5, 0], [c - 1, 0.09], [c - 0.3, -0.05], [c, -0.22], [c + 0.3, -0.05], [c + 1, 0.09], [c + 1.5, 0]);
+  p.push([60, 0]);
+  return p;
+}
+// Plaine Spoutnik (Pluton) : ≈ 3 km sous les terrains voisins, pavée de cellules de convection d'≈ 33 km,
+// plus hautes de ≈ 100 m en leur centre (New Horizons).
+function profilSpoutnik() {
+  const p = [[-620, 0], [-560, -3]];
+  for (let d = -545, i = 0; d <= 545; d += 16.5, i++) p.push([d, i % 2 ? -2.9 : -3]);
+  p.push([560, -3], [620, 0]);
+  return p;
+}
+
 const ZONES_REELLES = {
+  // Mercure : bassin Caloris (MESSENGER). Profondeur du fond non vérifiée : le fond est laissé au niveau moyen.
+  mercure: [
+    { id: 'caloris', nom: 'Bassin Caloris', lat: 30.5, lon: 170.2, poser: -700,
+      profil: [[-800, 0], [-775, 2], [-740, 0.3], [-650, 0], [650, 0], [740, 0.3], [775, 2], [800, 0]],
+      detail: 'Le plus grand bassin d’impact de Mercure : ≈ 1 550 km de diamètre, cerné par les monts Caloris, ≈ 2 km de haut. On se pose dans la plaine, au pied des monts.' },
+  ],
+  // Vénus : Maxwell Montes et le cratère Cléopâtre (Magellan). Coupe resserrée (±300 km au lieu de ±400) : le
+  // sol du jeu n'a pas de latitude, et le vrai massif (65° N) recouvrirait l'équateur à la longitude 0°.
+  venus: [
+    { id: 'maxwell', nom: 'Maxwell Montes et cratère Cléopâtre', lat: 65.2, lon: 3.3, poser: -20,
+      profil: [[-300, 0], [-240, 2.5], [-150, 7], [-60, 10.5], [0, 11], [60, 10.5], [140, 8], [150, 8.3], [165, 6], [190, 5.8], [210, 5.8], [235, 6], [250, 6.3], [265, 4], [300, 0]],
+      detail: 'Le plus haut massif de Vénus : ≈ 11 km au-dessus du niveau moyen ; l’air y est deux fois moins dense qu’en plaine. Sur son flanc est, le cratère Cléopâtre (≈ 100 km, 2,5 km de profondeur). On se pose près du sommet.' },
+  ],
+  // Io : Loki Patera, la plus grande dépression volcanique d'Io (Voyager, Galileo). Profondeur non vérifiée (schématique).
+  io: [
+    { id: 'loki', nom: 'Loki Patera', lat: 13, lon: 51.2, poser: -90,
+      profil: [[-115, 0], [-101, 0.1], [-95, -0.2], [95, -0.2], [101, 0.1], [115, 0]],
+      detail: '≈ 200 km de diamètre : un immense lac de lave, dont la croûte se renouvelle tous les 400 à 600 jours. On se pose sur le bord.' },
+  ],
+  // Europe : Conamara Chaos, blocs de banquise basculés (Galileo). Largeur de la coupe schématique (50 km).
+  europe: [
+    { id: 'conamara', nom: 'Conamara Chaos', lat: 9.7, lon: 87.3, poser: -16,
+      profil: [[-25, 0], [-20, 0.15], [-18, 0], [-14, 0.25], [-12, 0.05], [-9, 0.12], [-7, 0], [-3, 0.2], [-1, 0.02], [2, 0.1], [4, 0], [8, 0.25], [10, 0.03], [13, 0.15], [16, 0], [20, 0.2], [22, 0], [25, 0]],
+      detail: 'Terrain chaotique : des blocs de banquise brisés, basculés puis regelés, avec des falaises de glace de 100 à 250 m. Sous la glace, l’océan d’Europe. On se pose entre les blocs.' },
+  ],
+  // Encelade : rayures de tigre du pôle Sud (Cassini).
+  l602: [
+    { id: 'tigre', nom: 'Rayures de tigre (pôle Sud)', lat: -86.9, lon: 129.5, poser: -20,
+      profil: profilRayuresTigre(),
+      detail: 'Quatre fractures de ≈ 130 à 175 km de long, d’où jaillissent les geysers d’Encelade : une vallée de 200 à 250 m entre deux crêtes de 80 à 100 m. On se pose près de l’une d’elles.' },
+  ],
+  // Mimas : cratère Herschel (Cassini).
+  l601: [
+    { id: 'herschel', nom: 'Cratère Herschel', lat: -1.38, lon: -111.77, poser: -15,
+      profil: [[-85, 0], [-70, 1], [-60, -2], [-55, -4.5], [-20, -4.5], [-8, -2], [0, 1.5], [8, -2], [20, -4.5], [55, -4.5], [60, -2], [70, 1], [85, 0]],
+      detail: '≈ 139 km de diamètre, un tiers de Mimas ; des parois d’≈ 5 km et un pic central de ≈ 6 km au-dessus du fond. On se pose au fond, près du pic.' },
+  ],
+  // Miranda : Verona Rupes (Voyager 2). Hauteur incertaine (5 à 20 km selon les études) : 10 km retenus.
+  l705: [
+    { id: 'verona', nom: 'Verona Rupes', lat: -18.3, lon: -12.2, poser: 14,
+      profil: [[-40, 0], [-8, 0.2], [-3, -4], [0, -7], [4, -9.5], [10, -10], [22, -9.5], [36, -5], [45, 0]],
+      detail: 'Une des plus hautes falaises connues : 5 à 20 km selon les études (10 km ici). Dans une gravité si faible, une chute du haut durerait plusieurs minutes. On se pose au pied.' },
+  ],
+  // Pluton : plaine Spoutnik (New Horizons).
+  pluton: [
+    { id: 'spoutnik', nom: 'Plaine Spoutnik', lat: 20, lon: 180, poser: 0,
+      profil: profilSpoutnik(),
+      detail: 'Le « cœur » de Pluton : une plaine de glace d’azote d’≈ 1 200 km, ≈ 3 km plus bas que les terrains voisins, pavée de cellules de convection d’≈ 33 km qui se renouvellent en moins d’un million d’années.' },
+  ],
+  // Cérès : cratère Occator et Cerealia Facula (Dawn).
+  a1: [
+    { id: 'occator', nom: 'Cratère Occator', lat: 19.86, lon: -121.15, poser: -6,
+      profil: [[-60, 0], [-46, 0.5], [-40, -2], [-30, -3], [-8, -3], [-5, -3.5], [-1.5, -3.5], [0, -3.1], [1.5, -3.5], [5, -3.5], [8, -3], [30, -3], [40, -2], [46, 0.5], [60, 0]],
+      detail: '92 km de diamètre, 3 à 4 km de profondeur. En son centre, Cerealia Facula : un dôme de sels brillants, ≈ 3 km de large et ≈ 400 m de haut, venu d’une saumure profonde. On se pose près du dôme.' },
+  ],
+  // Vesta : bassin Rheasilvia (Dawn).
+  a4: [
+    { id: 'rheasilvia', nom: 'Bassin Rheasilvia', lat: -75, lon: -59, poser: -120,
+      profil: [[-262, 0], [-252, 2], [-200, -10], [-140, -17], [-100, -17], [-50, -5], [0, 3], [50, -5], [100, -17], [140, -17], [200, -10], [252, 2], [262, 0]],
+      detail: '≈ 505 km de diamètre, presque la taille de Vesta : ≈ 19 km de profondeur, et un pic central de ≈ 20 km, une des plus hautes montagnes du Système solaire. On se pose au fond.' },
+  ],
+  // Phobos : cratère Stickney (USGS). Profondeur non vérifiée : ≈ 1/5 du diamètre, valeur typique d'un cratère.
+  l401: [
+    { id: 'stickney', nom: 'Cratère Stickney', lat: 1, lon: -49, poser: -1,
+      profil: [[-6, 0], [-4.5, 0.2], [-3, -1], [-1, -1.6], [1, -1.6], [3, -1], [4.5, 0.2], [6, 0]],
+      detail: '≈ 9 km de diamètre, sur une lune de 22 km : le choc a failli briser Phobos. On se pose au fond.' },
+  ],
   // Lune (dimensions : USGS / IAU, Wikipédia, LRO). ombre : fond dans la nuit permanente (comme le cratère polaire de Mercure).
   lune: [
     { id: 'tycho', nom: 'Cratère Tycho', lat: -43.31, lon: -11.36, poser: -15,

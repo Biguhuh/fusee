@@ -81,7 +81,7 @@ Carte 6 (4 et 5 novembre 2026), branches poussées mais pas fusionnées, chacune
 - Carte 6 (fichier de l'auteur : `C:\Users\DELL\Downloads\carte-jeu-fusee-6.md`) : tous les points faits pendant la nuit du 4 au 5 novembre, selon les décisions prises par Edouard avant la nuit (notées en tête de `docs/carte6-nuit.md`).
   - À faire au réveil d'Edouard : relire `docs/carte6-nuit.md` (résumé en tête), `docs/carte6-echantillons.md` et `docs/carte6-zones.md`, tester, corriger ce qui ne va pas, puis « fusionne » (fusionner `carte6-point7`, qui contient tout).
   - Point 7 : étape 1 seulement (trajet automatique). Étapes suivantes possibles : piloter le trajet, consommation des vivres à une station ou à une base.
-  - Point 6 : Mars, puis la Lune (Tycho, Copernic, Shackleton dans la nuit permanente ; branche `carte6-zones-lune`, qui part de `carte6-point7`). Autres astres un par un, chacun validé par Edouard : liste dans `docs/carte6-zones.md`.
+  - Point 6 : zones réelles sur Mars, la Lune (`carte6-zones-lune`) et 11 autres astres (`carte6-zones-tous`, qui contient tout) ; 4 zones non faites (mers de Titan, Galileo Regio, Valhalla, Triton), raisons dans `docs/carte6-zones.md`.
 - Rien n'est fusionné de la carte 6 : attendre « fusionne ».
 
 ## À faire, dans l'ordre
