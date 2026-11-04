@@ -82,6 +82,7 @@ Carte 6 (4 et 5 novembre 2026), branches poussées mais pas fusionnées, chacune
   - À faire au réveil d'Edouard : relire `docs/carte6-nuit.md` (résumé en tête), `docs/carte6-echantillons.md` et `docs/carte6-zones.md`, tester, corriger ce qui ne va pas, puis « fusionne » (fusionner `carte6-point7`, qui contient tout).
   - Point 7 : étape 1 seulement (trajet automatique). Étapes suivantes possibles : piloter le trajet, consommation des vivres à une station ou à une base.
   - Point 6 : zones réelles sur Mars, la Lune (`carte6-zones-lune`) et 11 autres astres (`carte6-zones-tous`, qui contient tout) ; plus 4 zones schématiques (rive de Ligeia Mare sur Titan, avec une mer où l'on s'arrête sur la rive ; Galileo Regio ; Valhalla ; Triton). Détail dans `docs/carte6-zones.md`.
+- Scaphandre lourd pour Titan (branche `scaphandre-titan`, qui part de `carte6-zones-tous` et contient donc toute la carte 6) : chauffé, à pression ambiante, recycleur d'oxygène, jusqu'à 5 bar ; 20 % plus lent, 25 % d'autonomie en moins ; R&D en campagne, fourni en visite rapide ; enfilé automatiquement quand l'air dépasse 1,2 bar. Aucun autre astre du jeu n'est entre 1,2 et 5 bar (Terre 1, Titan 1,5, Vénus 92 ; exoplanètes sans atmosphère connue).
 - Rien n'est fusionné de la carte 6 : attendre « fusionne ».
 
 ## À faire, dans l'ordre
@@ -132,7 +133,7 @@ Carte 6 (4 et 5 novembre 2026), branches poussées mais pas fusionnées, chacune
 
 - Les chaînes du jeu contiennent des espaces insécables : une ancre d'`Edit` qui en contient échoue, et la lecture ne les montre pas. Passer par un script Python avec une recherche tolérante (chaque espace accepte aussi U+00A0 et U+202F) ou repérer la ligne par son début.
 - Commandes PowerShell vers WSL : les guillemets et `$` imbriqués font planter zsh ou PowerShell. Écrire le script dans un fichier, puis `wsl -d ubuntu -- bash fichier.sh` (ou `python3 fichier.py`).
-- Le navigateur garde l'ancien JS en cache : toujours monter `?v=` avant de recharger.
+- Le navigateur garde l'ancien JS en cache : toujours monter `?v=` avant de recharger. Il peut aussi garder `index.html` lui-même (donc les anciens `?v=`) : recharger avec `http://localhost:8765/?r=N`, et vérifier la version chargée (`document.scripts`).
 - Volet du navigateur caché : `requestAnimationFrame` tourne au ralenti, le jeu semble figé. Faire avancer la simulation à la main (`x.step(1/30, commandes)`).
 - Tester sans abîmer la sauvegarde d'Edouard : remplacer `window.sauver` par une fonction vide pendant le test, restaurer ce qu'on touche (`etat.decouvertes`…), puis recharger la page.
 - Un saut de temps (traversée vers une autre étoile, retour d'absence) fait tout consommer d'un coup : remettre à jour les horodatages (`tVivres`, `tDechets`) quand le temps saute sans que l'équipage vive.

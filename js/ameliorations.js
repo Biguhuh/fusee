@@ -21,6 +21,9 @@ const AMELIORATIONS = {
   // Torpeur : un état proche de l'hibernation, étudié chez l'animal ; aucun humain ne l'a encore vécu. Science-fiction.
   torpeur: { groupe: '🌱 Vivres', nom: 'Torpeur (science-fiction)', max: 1, requis: { recyclage: 2 }, couts: [null, { materiaux: 80000, jours: 90 }],
     effet: () => `science-fiction : pendant les trajets entre les planètes, l’équipage dort et consomme ${FACTEUR_TORPEUR_TEXTE} moins de vivres et d’eau` },
+  // Scaphandre lourd (Titan) : voir SCAPHANDRE_LOURD dans exploration.js.
+  scaphandre: { groupe: '🧑‍🚀 Spationaute', nom: 'Scaphandre lourd (Titan)', max: 1, couts: [null, { materiaux: 15000, jours: 20 }],
+    effet: () => 'scaphandre chauffé, à la pression ambiante, avec recycleur d’oxygène : sortir jusqu’à 5 bar (Titan), mais 20 % plus lent et 25 % d’autonomie en moins' },
   batterieRover: { groupe: '🚙 Astromobile', nom: 'Batteries de l’astromobile', effet: (n) => `+${50 * n} % d’autonomie` },
   caisseRover: { groupe: '🚙 Astromobile', nom: 'Caisse à échantillons', effet: (n) => `+${10 * n} échantillons` },
   moteurRover: { groupe: '🚙 Astromobile', nom: 'Moteur de l’astromobile', effet: (n) => `+${25 * n} % d’accélération et de vitesse débridée` },

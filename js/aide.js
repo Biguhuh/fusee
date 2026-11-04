@@ -123,6 +123,7 @@ const ONGLETS_AIDE = [
       role: 'Explorer à pied et ramasser des échantillons.',
       obtenir: 'Posé sur un astre solide, touche E.',
       fait: '4 heures d’oxygène, un sac de 6 échantillons. Les sauts dépendent de la gravité. Sur les tout petits astres, un câble le retient près du module.',
+      evolue: 'La combinaison tient 1,2 bar. Sur Titan (1,5 bar, −180 °C), il faut le scaphandre lourd : chauffé, à la pression ambiante, avec un recycleur d’oxygène, jusqu’à 5 bar ; plus lent, et 25 % d’autonomie en moins. En campagne, R&D d’une station ; en visite rapide, il est fourni. Vénus (92 bar) reste réservée au robot.',
     }) +
     ficheAide('Équipe', {
       role: 'Explorer plusieurs astres en même temps.',

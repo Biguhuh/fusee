@@ -34,6 +34,16 @@ const EXPLORATEURS = {
   },
 };
 
+// Scaphandre lourd (Titan) : sur Titan, la pression (1,5 bar, comme à 5 m sous l'eau) n'est pas un danger ; le froid
+// (−180 °C) et l'absence d'oxygène, si. D'où un scaphandre étanche à la pression ambiante, très isolé et chauffé, avec
+// un recycleur d'oxygène, comme en plongée : il tient jusqu'à 5 bar. Plus lourd (on marche moins vite), et le
+// chauffage prend sa part de l'énergie (moins d'autonomie). Campagne : R&D d'une station ; visite rapide : fourni.
+const SCAPHANDRE_LOURD = { pressionMax: 5, autonomie: 0.75, vitesse: 0.8 };
+function scaphandreDisponible() {
+  const enCampagne = typeof etat !== 'undefined' && etat.enVoyage;
+  return !enCampagne || niveauAmelio('scaphandre') >= 1;
+}
+
 // Ce qu'on peut trouver, selon l'astre.
 const SITES_PAR_ASTRE = {
   terre: [['Roche granitique', 'Roche continentale riche en quartz.'], ['Plante', 'De la vie ! Photosynthèse à base de chlorophylle.'], ['Fossile', 'Coquillage pétrifié vieux de 200 millions d’années.'], ['Minéral', 'Cristal de feldspath.']],
@@ -87,6 +97,13 @@ class Exploration {
       this.def.autonomie *= 1 + 0.5 * niveauAmelio('batterieRobot');
     }
     if (type === 'spationaute') this.def.nom = this.equipier().nom;
+    // Air trop dense pour la combinaison ordinaire (Titan) : on enfile le scaphandre lourd, s'il est au point.
+    if (type === 'spationaute' && !options.terre && !options.essai && scaphandreDisponible()
+      && conditions(vol.astre, vol.sol(vol.x + 2)).p > this.def.pressionMax && conditions(vol.astre, vol.sol(vol.x + 2)).p <= SCAPHANDRE_LOURD.pressionMax) {
+      this.scaphandre = true;
+      this.def.pressionMax = SCAPHANDRE_LOURD.pressionMax;
+      this.def.autonomie *= SCAPHANDRE_LOURD.autonomie;
+    }
     this.science = science;         // { [astreId]: { sites: {k: true}, echantillons } }
     this.xFusee = vol.x;
     const x = vol.x + 2;
@@ -106,6 +123,14 @@ class Exploration {
     this.vLib = vitesseLiberation(this.astre, 0);
     // Marcher vite est impossible en faible gravité : on rebondit (vitesse ~ √(g·L)).
     this.vMax = type === 'robot' ? Math.min(1.5, 0.9 * Math.sqrt(g * 2)) : Math.max(0.05, Math.min(3, 0.75 * Math.sqrt(g * 1)));
+    // Campagne, scaphandre pas encore au point : on prévient dès la sortie.
+    if (type === 'spationaute' && !this.scaphandre && !this.terre && this.c.p > this.def.pressionMax && this.c.p <= SCAPHANDRE_LOURD.pressionMax) {
+      this.dire(`⚠ ${fmtP(this.c.p)} : la combinaison ordinaire (${fmt(this.def.pressionMax, 1)} bar) ne tiendra pas longtemps. Il faut le scaphandre lourd (R&D d’une station, groupe 🧑‍🚀 Spationaute), ou le robot.`);
+    }
+    if (this.scaphandre) {
+      this.vMax *= SCAPHANDRE_LOURD.vitesse;   // plus lourd
+      this.dire(`🧑‍🚀 Air trop dense pour la combinaison ordinaire (${fmtP(this.c.p)}) : ${this.def.nom} sort en scaphandre lourd, chauffé, à la pression ambiante, avec un recycleur d’oxygène. Il tient jusqu’à ${fmt(SCAPHANDRE_LOURD.pressionMax)} bar ; plus lent, et le chauffage réduit l’autonomie.`);
+    }
     this.acc = Math.min(type === 'robot' ? 1 : 4, 0.6 * g + 0.001);
     this.saut = type === 'robot' ? 0 : Math.min(2.2, 0.5 * this.vLib);
     this.cable = type === 'spationaute' && this.vLib < 4.4;
@@ -1584,7 +1609,7 @@ class Exploration {
     const lignes = [], titre = majuscule(`${d.nom} ${sur(a)}`);
     const ligne = (k, v, coul = '#fff') => lignes.push([k, v, coul]);
     ligne(d.ressource, fmtDuree(this.reserve), fr < 0.2 ? '#ef5350' : '#66bb6a');
-    ligne(this.type === 'robot' ? 'État du robot' : 'Combinaison', fmt(this.integrite) + ' %' + (this.type === 'spationaute' ? ` · ${etatCombi(this.integrite).nom}${etatCombi(this.integrite).fuite > 1 ? `, O₂ ×${fmt(etatCombi(this.integrite).fuite, 1)}` : ''} · ruban ${this.rubans + (this.duo ? this.duo.rubans : 0)}` : ''), this.integrite > 60 ? '#66bb6a' : this.integrite > 30 ? '#ffca28' : '#ef5350');
+    ligne(this.type === 'robot' ? 'État du robot' : this.scaphandre ? 'Scaphandre lourd' : 'Combinaison', fmt(this.integrite) + ' %' + (this.type === 'spationaute' ? ` · ${etatCombi(this.integrite).nom}${etatCombi(this.integrite).fuite > 1 ? `, O₂ ×${fmt(etatCombi(this.integrite).fuite, 1)}` : ''} · ruban ${this.rubans + (this.duo ? this.duo.rubans : 0)}` : ''), this.integrite > 60 ? '#66bb6a' : this.integrite > 30 ? '#ffca28' : '#ef5350');
     if (this.type === 'spationaute') ligne('Santé', this.texteBlessure(), !this.blessure ? '#66bb6a' : this.blessure.gravite === 'grave' ? '#ef5350' : '#ffca28');
     ligne('Pression', fmtP(c.p) + ' / ' + fmt(d.pressionMax, 1), couleurRisque(c.p / d.pressionMax));
     ligne('Température', fmt(c.t) + ' / ' + fmt(d.tempMax) + ' °C', couleurRisque((c.t + KELVIN) / (d.tempMax + KELVIN)));
