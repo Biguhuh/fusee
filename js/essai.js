@@ -71,8 +71,8 @@ function ouvrirCentreEssai(message) {
       <p class="doux">${e.resume}</p>
       <ol>${e.objectifs.map(([t]) => `<li>${t}</li>`).join('')}</ol>
       <button data-essai="${cle}" class="${faits[cle] ? '' : 'principal'}">${faits[cle] ? '↺ Refaire' : '▶ Commencer'}</button></article>`;
-  m.innerHTML = `<div class="fenetre large"><header class="entete"><div><h2>🎓 Entraînement</h2>
-    <p>Sur Terre : apprenez à conduire l’astromobile, à escalader, à piloter le robot et le drone avant de partir. Comme en mission, l’oxygène et les batteries s’épuisent, et l’appel d’urgence (U) fonctionne ; mais ici, on ne meurt pas. Rien n’est pris à la campagne.</p>
+  m.innerHTML = `<div class="fenetre large"><header class="entete"><div><h2>🎓 Entraînement, à Cologne</h2>
+    <p>Au Centre des astronautes européens de l’ESA (EAC), à Cologne, en Allemagne, où s’entraînent les astronautes européens. Ici : apprenez à conduire l’astromobile, à escalader, à piloter le robot et le drone avant de partir. Comme en mission, l’oxygène et les batteries s’épuisent, et l’appel d’urgence (U) fonctionne ; mais ici, on ne meurt pas. Rien n’est pris à la campagne.</p>
     ${message ? `<p class="encart">${message}</p>` : ''}</div><button class="fermer">✕</button></header>
     <div class="cartes-essai">${Object.entries(ESSAIS).map(carte).join('')}</div></div>`;
   m.classList.remove('cache');
@@ -91,7 +91,7 @@ function lancerEssai(cle) {
     const v = new Vol(terre, fuseeDrone(terre), { depuisSol: true });
     v.droneSeul = true; v.equipier = null; v.essai = essai;
     essai.x0 = v.x;
-    v.messageExplo = { texte: '🎓 Entraînement : le drone. Suivez les objectifs en haut de l’écran.', vie: 6 };
+    v.messageExplo = { texte: '🎓 Entraînement à Cologne : le drone. Suivez les objectifs en haut de l’écran.', vie: 6 };
     etat.vol = v; etat.explo = null;
     touches.clear(); redim(); montrer('vol');
     return;
@@ -105,7 +105,7 @@ function lancerEssai(cle) {
   essai.refSaut = x.dernierSaut;
   essai.refAnalyses = ((x.science.terre || {}).analyses) || 0;
   x.message = ''; x.fileMessages = [];
-  x.dire(`🎓 Entraînement : ${ESSAIS[cle].titre}. Suivez les objectifs en haut de l’écran.`);
+  x.dire(`🎓 Entraînement à Cologne : ${ESSAIS[cle].titre}. Suivez les objectifs en haut de l’écran.`);
   etat.explo = x;
   touches.clear(); redim(); montrer('explo');
 }

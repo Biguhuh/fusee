@@ -1395,6 +1395,7 @@ class Exploration {
     // Écart « autour de l'astre » : drapeaux, bases et module réapparaissent après un tour complet.
     const versEcran = (x, y) => [W / 2 + ecartSol(a, x, p.x) * echelle, camY + (yCam - y) * echelle];
     dessinerFond(ctx, a, this.c, W, H, false, tempsCiel(this.vol), this.vol);
+    this.nuit = LUMIERE_SOL < 0.5;   // nuit (ou ombre d'un cratère polaire) : on allume les phares du casque
     if (this.terre) dessinerNuages(ctx, W, H, p.x * echelle);
     // Plan lointain : le relief des kilomètres alentour (paroi d'un canyon, flanc d'un volcan), derrière le terrain.
     if (!this.terre) dessinerPanorama(ctx, a, p.x, (x) => this.sol(x), W, camY + (yCam - this.sol(p.x)) * echelle, LUMIERE_SOL);
@@ -1528,7 +1529,7 @@ class Exploration {
     }
     else if (this.type === 'spationaute' && this.secours && (this.secours.phase === 'decollage' || this.dansSecours)) { /* à bord du module de secours */ }
     else if (this.type === 'spationaute' && this.poseGeste('moi') === 'allonge') dessinerAllonge(ctx, sx, sy, echelle, this.geste.sens, this.equipier().profil);
-    else if (this.type === 'spationaute') dessinerSpationaute(ctx, sx, sy, echelle, { ...p, grimpe: this.enEscalade ? p.grimpe : undefined, pose: this.poseGeste('moi') || (this.quatrePattes ? 'quatre-pattes' : undefined), inclinaison: this.penteSous(p.x), scaphandre: this.scaphandre }, this.terre, this.equipier().profil);
+    else if (this.type === 'spationaute') dessinerSpationaute(ctx, sx, sy, echelle, { ...p, grimpe: this.enEscalade ? p.grimpe : undefined, pose: this.poseGeste('moi') || (this.quatrePattes ? 'quatre-pattes' : undefined), inclinaison: this.penteSous(p.x), scaphandre: this.scaphandre, phares: this.nuit }, this.terre, this.equipier().profil);
     else {
       // Le bras sort pendant une analyse, ou un instant après avoir planté le drapeau.
       if (this.brasDrapeau > 0) this.brasDrapeau -= dt;

@@ -391,10 +391,12 @@ function dessinerSpationaute(ctx, x, y, s, p, surTerre, profil) {
     ctx.restore();
     ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.beginPath(); ctx.arc(tete[0] + h * 0.08, tete[1] - h * 0.03, h * 0.015, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#1d4f91'; ctx.fillRect(tete[0] - h * 0.13, tete[1] - h * 0.02, h * 0.04, h * 0.05);   // lampes / caméra
-    if (lourd) {
-      // Casque renforcé : anneau de protection, et deux phares avec leur faisceau (Titan est sombre et brumeux).
+    if (lourd) {   // casque renforcé : anneau de protection
       ctx.strokeStyle = '#78909c'; ctx.lineWidth = h * 0.025;
       ctx.beginPath(); ctx.arc(tete[0], tete[1], h * 0.13, -Math.PI * 0.95, Math.PI * 0.05); ctx.stroke();
+    }
+    // Phares du casque et leur faisceau : la nuit (p.phares), et toujours avec le scaphandre lourd (Titan est sombre).
+    if (lourd || p.phares) {
       const g = ctx.createLinearGradient(tete[0] + h * 0.1, 0, tete[0] + h * 0.6, 0);
       g.addColorStop(0, 'rgba(255,250,220,0.45)'); g.addColorStop(1, 'rgba(255,250,220,0)');
       ctx.fillStyle = g;

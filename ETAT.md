@@ -83,6 +83,7 @@ Carte 6 (4 et 5 novembre 2026), branches poussées mais pas fusionnées, chacune
   - Point 7 : étape 1 seulement (trajet automatique). Étapes suivantes possibles : piloter le trajet, consommation des vivres à une station ou à une base.
   - Point 6 : zones réelles sur Mars, la Lune (`carte6-zones-lune`) et 11 autres astres (`carte6-zones-tous`, qui contient tout) ; plus 4 zones schématiques (rive de Ligeia Mare sur Titan, avec une mer où l'on s'arrête sur la rive ; Galileo Regio ; Valhalla ; Triton). Détail dans `docs/carte6-zones.md`.
 - Scaphandre lourd pour Titan (branche `scaphandre-titan`, qui part de `carte6-zones-tous` et contient donc toute la carte 6) : chauffé, à pression ambiante, recycleur d'oxygène, jusqu'à 5 bar ; 20 % plus lent, 25 % d'autonomie en moins ; R&D en campagne, fourni en visite rapide ; enfilé automatiquement quand l'air dépasse 1,2 bar. Aucun autre astre du jeu n'est entre 1,2 et 5 bar (Terre 1, Titan 1,5, Vénus 92 ; exoplanètes sans atmosphère connue).
+- Même branche : visuel du scaphandre lourd (orange, recycleur, phares) ; phares du casque allumés la nuit partout (`LUMIERE_SOL` < 0,5), pour vous et le compagnon ; l'entraînement se passe au Centre des astronautes européens de l'ESA, à Cologne.
 - Rien n'est fusionné de la carte 6 : attendre « fusionne ».
 
 ## À faire, dans l'ordre
