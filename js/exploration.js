@@ -1528,7 +1528,7 @@ class Exploration {
     }
     else if (this.type === 'spationaute' && this.secours && (this.secours.phase === 'decollage' || this.dansSecours)) { /* à bord du module de secours */ }
     else if (this.type === 'spationaute' && this.poseGeste('moi') === 'allonge') dessinerAllonge(ctx, sx, sy, echelle, this.geste.sens, this.equipier().profil);
-    else if (this.type === 'spationaute') dessinerSpationaute(ctx, sx, sy, echelle, { ...p, grimpe: this.enEscalade ? p.grimpe : undefined, pose: this.poseGeste('moi') || (this.quatrePattes ? 'quatre-pattes' : undefined), inclinaison: this.penteSous(p.x) }, this.terre, this.equipier().profil);
+    else if (this.type === 'spationaute') dessinerSpationaute(ctx, sx, sy, echelle, { ...p, grimpe: this.enEscalade ? p.grimpe : undefined, pose: this.poseGeste('moi') || (this.quatrePattes ? 'quatre-pattes' : undefined), inclinaison: this.penteSous(p.x), scaphandre: this.scaphandre }, this.terre, this.equipier().profil);
     else {
       // Le bras sort pendant une analyse, ou un instant après avoir planté le drapeau.
       if (this.brasDrapeau > 0) this.brasDrapeau -= dt;

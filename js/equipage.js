@@ -206,8 +206,11 @@ function dessinerSpationaute(ctx, x, y, s, p, surTerre, profil) {
   const prof = profil || SPATIO;
   const peau = CARNATIONS[prof.carnation] || CARNATIONS[3];
   const phase = Math.sin((p.pas || 0) * 4.5);
-  const tissu = surTerre ? '#1d4f91' : '#f2f2f2';         // bleu des combinaisons de vol ESA / blanc du scaphandre
-  const tissuOmbre = surTerre ? '#163d72' : '#d5d8db';
+  // p.scaphandre : scaphandre lourd (Titan) : orange, molletonné et chauffé, membres plus épais, grosses bottes,
+  // recycleur d'oxygène à deux bouteilles, casque renforcé à deux phares (il fait sombre sous la brume de Titan).
+  const lourd = !!p.scaphandre && !surTerre;
+  const tissu = surTerre ? '#1d4f91' : lourd ? '#e07b39' : '#f2f2f2';         // bleu ESA / orange molletonné / blanc
+  const tissuOmbre = surTerre ? '#163d72' : lourd ? '#b45f27' : '#d5d8db';
   // Membres concernés : avec 1, c'est celui de devant ; avec 2, les deux.
   const nInf = prof.membresInf || 0, nSup = prof.membresSup || 0;
   const jambeTouchee = (devant) => nInf === 2 || (nInf === 1 && devant);
@@ -260,10 +263,11 @@ function dessinerSpationaute(ctx, x, y, s, p, surTerre, profil) {
       ctx.lineTo(pied[0] - h * 0.03, pied[1] + h * 0.025); ctx.closePath(); ctx.fill();
       return;
     }
-    trait([hanche, genou, pied], devant ? tissu : tissuOmbre, h * 0.11);
-    // Chaussure / botte
-    ctx.fillStyle = surTerre ? '#212121' : '#9e9e9e';
-    ctx.beginPath(); ctx.ellipse(pied[0] + h * 0.03, pied[1] + h * 0.01, h * 0.065, h * 0.03, 0, 0, Math.PI * 2); ctx.fill();
+    trait([hanche, genou, pied], devant ? tissu : tissuOmbre, h * (lourd ? 0.145 : 0.11));
+    if (lourd) trait([[genou[0] - h * 0.05, genou[1]], [genou[0] + h * 0.05, genou[1]]], '#5d4037', h * 0.02);   // genouillère
+    // Chaussure / botte (scaphandre lourd : grosse botte isolante)
+    ctx.fillStyle = surTerre ? '#212121' : lourd ? '#3e2723' : '#9e9e9e';
+    ctx.beginPath(); ctx.ellipse(pied[0] + h * 0.03, pied[1] + h * 0.005, h * (lourd ? 0.085 : 0.065), h * (lourd ? 0.045 : 0.03), 0, 0, Math.PI * 2); ctx.fill();
     if (touchee) {
       // Attelle : une barre graphite le long de la jambe, moteurs orange aux articulations.
       const dec = h * 0.035;
@@ -297,9 +301,9 @@ function dessinerSpationaute(ctx, x, y, s, p, surTerre, profil) {
       led(pts[1], h * 0.008);
       return;
     }
-    trait(pts, devant ? tissu : tissuOmbre, h * 0.075);
-    ctx.fillStyle = surTerre ? peau : devant ? '#eceff1' : '#cfd3d6';     // main, ou gant
-    ctx.beginPath(); ctx.arc(pts[2][0] + h * 0.01, pts[2][1], h * 0.03, 0, Math.PI * 2); ctx.fill();
+    trait(pts, devant ? tissu : tissuOmbre, h * (lourd ? 0.1 : 0.075));
+    ctx.fillStyle = surTerre ? peau : lourd ? (devant ? '#4e342e' : '#3e2723') : devant ? '#eceff1' : '#cfd3d6';     // main, gant, ou moufle chauffée
+    ctx.beginPath(); ctx.arc(pts[2][0] + h * 0.01, pts[2][1], h * (lourd ? 0.04 : 0.03), 0, Math.PI * 2); ctx.fill();
     if (touche) {
       const dec = -h * 0.03;
       trait(pts.map(([px, py]) => [px, py + dec]), '#37474f', h * 0.02);
@@ -310,13 +314,25 @@ function dessinerSpationaute(ctx, x, y, s, p, surTerre, profil) {
   dessinerBras(-1, false);
 
   // Sac de survie (scaphandre)
-  if (!surTerre) {
+  if (!surTerre && !lourd) {
     ctx.fillStyle = '#cfd8dc'; ctx.fillRect(-h * 0.21, -h * 0.84, h * 0.12, h * 0.36);
     ctx.fillStyle = '#90a4ae'; ctx.fillRect(-h * 0.21, -h * 0.84, h * 0.12, h * 0.04);
   }
-  // Corps
+  if (lourd) {
+    // Recycleur d'oxygène : boîtier, deux bouteilles, tuyau vers le casque.
+    ctx.fillStyle = '#546e7a'; ctx.beginPath(); ctx.roundRect(-h * 0.24, -h * 0.86, h * 0.13, h * 0.4, h * 0.02); ctx.fill();
+    for (const dx of [-0.235, -0.175]) {
+      ctx.fillStyle = '#eceff1'; ctx.beginPath(); ctx.roundRect(h * dx, -h * 0.84, h * 0.05, h * 0.3, h * 0.025); ctx.fill();
+    }
+    ctx.fillStyle = '#ffca28'; ctx.fillRect(-h * 0.235, -h * 0.5, h * 0.11, h * 0.025);   // bande de repérage
+    ctx.strokeStyle = '#263238'; ctx.lineWidth = h * 0.02;
+    ctx.beginPath(); ctx.moveTo(-h * 0.15, -h * 0.84); ctx.quadraticCurveTo(-h * 0.16, -h * 0.95, -h * 0.07, -h * 0.97); ctx.stroke();
+  }
+  // Corps (scaphandre lourd : plus large)
   ctx.fillStyle = tissu;
-  ctx.beginPath(); ctx.roundRect(-h * 0.11, -h * 0.83, h * 0.22, h * 0.42, h * 0.04); ctx.fill();
+  ctx.beginPath();
+  if (lourd) ctx.roundRect(-h * 0.13, -h * 0.85, h * 0.26, h * 0.45, h * 0.05); else ctx.roundRect(-h * 0.11, -h * 0.83, h * 0.22, h * 0.42, h * 0.04);
+  ctx.fill();
   if (surTerre) {
     // Combinaison de vol : fermeture, écusson ESA, drapeau européen à l'épaule.
     ctx.strokeStyle = '#0f2d55'; ctx.lineWidth = Math.max(0.5, h * 0.008);
@@ -334,6 +350,13 @@ function dessinerSpationaute(ctx, x, y, s, p, surTerre, profil) {
     ctx.fillStyle = '#b0bec5'; ctx.fillRect(h * 0.05, -h * 0.72, h * 0.07, h * 0.08);
     ctx.fillStyle = '#ef5350'; ctx.fillRect(h * 0.065, -h * 0.7, h * 0.015, h * 0.015);
     ctx.fillStyle = '#66bb6a'; ctx.fillRect(h * 0.09, -h * 0.7, h * 0.015, h * 0.015);
+    if (lourd) {
+      // Molleton isolant (coutures) et fils chauffants qui rougeoient un peu.
+      ctx.strokeStyle = '#9a4f1f'; ctx.lineWidth = Math.max(0.5, h * 0.006);
+      for (const yy of [-0.79, -0.67, -0.55, -0.47]) { ctx.beginPath(); ctx.moveTo(-h * 0.13, h * yy); ctx.lineTo(h * 0.13, h * yy); ctx.stroke(); }
+      ctx.strokeStyle = 'rgba(255,82,82,0.75)'; ctx.lineWidth = Math.max(0.5, h * 0.008);
+      ctx.beginPath(); ctx.moveTo(-h * 0.09, -h * 0.82); ctx.lineTo(-h * 0.09, -h * 0.43); ctx.moveTo(h * 0.0, -h * 0.6); ctx.lineTo(h * 0.0, -h * 0.43); ctx.stroke();
+    }
   }
   // Exosquelette : colonne et ceinture de hanches (jambes), harnais d'épaules (bras).
   ctx.fillStyle = '#37474f';
@@ -368,6 +391,17 @@ function dessinerSpationaute(ctx, x, y, s, p, surTerre, profil) {
     ctx.restore();
     ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.beginPath(); ctx.arc(tete[0] + h * 0.08, tete[1] - h * 0.03, h * 0.015, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#1d4f91'; ctx.fillRect(tete[0] - h * 0.13, tete[1] - h * 0.02, h * 0.04, h * 0.05);   // lampes / caméra
+    if (lourd) {
+      // Casque renforcé : anneau de protection, et deux phares avec leur faisceau (Titan est sombre et brumeux).
+      ctx.strokeStyle = '#78909c'; ctx.lineWidth = h * 0.025;
+      ctx.beginPath(); ctx.arc(tete[0], tete[1], h * 0.13, -Math.PI * 0.95, Math.PI * 0.05); ctx.stroke();
+      const g = ctx.createLinearGradient(tete[0] + h * 0.1, 0, tete[0] + h * 0.6, 0);
+      g.addColorStop(0, 'rgba(255,250,220,0.45)'); g.addColorStop(1, 'rgba(255,250,220,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.moveTo(tete[0] + h * 0.1, tete[1] - h * 0.11); ctx.lineTo(tete[0] + h * 0.6, tete[1] - h * 0.2); ctx.lineTo(tete[0] + h * 0.6, tete[1] + h * 0.02); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#fffde7';
+      for (const dy of [-0.11, -0.07]) { ctx.beginPath(); ctx.arc(tete[0] + h * 0.1, tete[1] + h * dy, h * 0.018, 0, Math.PI * 2); ctx.fill(); }
+    }
   }
 
   // Bras avant

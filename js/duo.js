@@ -246,7 +246,7 @@ Object.assign(Exploration.prototype, {
     if (!d || d.enRover || d.dansSecours || d.dansModule) return;   // à bord de l'astromobile ou du module de secours
     const [sx, sy] = versEcran(d.p.x, d.p.y);
     if (this.poseGeste('autre') === 'allonge') dessinerAllonge(ctx, sx, sy, echelle, this.geste.sens, d.eq.profil);
-    else dessinerSpationaute(ctx, sx, sy, echelle, { ...d.p, grimpe: d.enEscalade ? d.p.grimpe : undefined, pose: this.poseGeste('autre') || (d.quatrePattes && !d.enEscalade ? 'quatre-pattes' : undefined), inclinaison: this.penteSous(d.p.x) }, false, d.eq.profil);
+    else dessinerSpationaute(ctx, sx, sy, echelle, { ...d.p, grimpe: d.enEscalade ? d.p.grimpe : undefined, pose: this.poseGeste('autre') || (d.quatrePattes && !d.enEscalade ? 'quatre-pattes' : undefined), inclinaison: this.penteSous(d.p.x), scaphandre: this.scaphandre }, false, d.eq.profil);   // même tenue que vous
     texteSurFond(ctx, d.eq.nom, sx, sy - 2.3 * echelle, { police: '11px system-ui, sans-serif', couleur: '#b3e5fc' });
   },
 });
