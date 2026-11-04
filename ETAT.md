@@ -4,7 +4,7 @@ Dernière mise à jour : 5 novembre 2026 (nuit de travail sur la carte 6)
 
 ## En une phrase
 
-Jeu web de simulation spatiale (vol, atterrissage, exploration, campagne dans le Système solaire et au-delà), jouable en ligne, en bêta test : les cartes 5 et 7 sont terminées et fusionnées dans `main` ; la carte 6 est faite (points 1 à 8, le point 7 en première étape), sur des branches pas encore fusionnées, à relire par Edouard.
+Jeu web de simulation spatiale (vol, atterrissage, exploration, campagne dans le Système solaire et au-delà), jouable en ligne, en bêta test : les cartes 5 et 7 sont terminées et fusionnées dans `main` ; la carte 6 (points 1 à 8, le point 7 en première étape), le scaphandre de Titan, les phares de nuit et l'entraînement à Cologne sont fusionnés dans `main` (version 302, 5 novembre 2026).
 
 ## Fait
 
@@ -66,7 +66,7 @@ Carte 7 (3 et 4 novembre 2026), corde, grappin et mise en orbite, fusionnée dan
 - Rappel : le compagnon va jusqu'au bord pour descendre à son tour (bug d'avant la carte, sur paroi presque verticale) ; « bloqué au pied » seulement si l'on est plus haut que lui.
 - 4. Mise en orbite : titre « Orbite visée », jauges « valeur, minimum » ; le minimum de vitesse suit l'altitude actuelle, comme le test de réussite. Tolérance 90 % / 97 % gardée et expliquée dans l'Aide (vitesse en repère fixe : à 97 %, l'orbite repasserait ≈ 600 km sous la surface).
 
-Carte 6 (4 et 5 novembre 2026), branches poussées mais pas fusionnées, chacune partant de la précédente : `carte6-point1`, `carte6-point8`, `carte6-point2` … `carte6-point7` (la dernière contient tout). Compte rendu détaillé de la nuit : `docs/carte6-nuit.md`.
+Carte 6 (4 et 5 novembre 2026), fusionnée dans `main` (version 302). Compte rendu détaillé de la nuit : `docs/carte6-nuit.md`.
 - 1. Descente avec personne à bord : texte propre (tous morts, ou toute l'équipe en mission) au lieu de « une seule personne » ; bouton « Descendre » grisé ; le robot reste possible.
 - 8. Écran de fin : lieu du décès (`lieuAbord` : « en route vers Saturne », « en orbite de Titan », « sur » seulement au sol), aussi dans le registre ; morts regroupés par cause et par lieu, « mort » accordé (`groupesPertes`, `accorderCause`) ; titre « Fin de mission : équipage perdu » ; statistiques en tableau avec quatre compteurs nommés (bilan de l'expédition `v.bilan`, remis à zéro à chaque départ : échantillons rapportés, analyses effectuées, analyses transmises ; plus le total depuis le début). Une expédition commencée avant affiche « — ».
 - 2. Vivres pour les longs voyages : alerte au choix d'une cible (durée du voyage comparée à l'autonomie en route, date de la pénurie, confirmation) ; escale à une station sur le trajet, puis « Reprendre le voyage » ; R&D « Recyclage de l'eau et de l'air » et « Torpeur (science-fiction) » (consommation divisée par 4 en route).
@@ -79,12 +79,12 @@ Carte 6 (4 et 5 novembre 2026), branches poussées mais pas fusionnées, chacune
 ## En cours
 
 - Carte 6 (fichier de l'auteur : `C:\Users\DELL\Downloads\carte-jeu-fusee-6.md`) : tous les points faits pendant la nuit du 4 au 5 novembre, selon les décisions prises par Edouard avant la nuit (notées en tête de `docs/carte6-nuit.md`).
-  - À faire au réveil d'Edouard : relire `docs/carte6-nuit.md` (résumé en tête), `docs/carte6-echantillons.md` et `docs/carte6-zones.md`, tester, corriger ce qui ne va pas, puis « fusionne » (fusionner `carte6-point7`, qui contient tout).
+  - Fusionnée et publiée sans test en jeu : jouer, puis relire `docs/carte6-echantillons.md` et `docs/carte6-zones.md` et corriger ce qui ne va pas.
   - Point 7 : étape 1 seulement (trajet automatique). Étapes suivantes possibles : piloter le trajet, consommation des vivres à une station ou à une base.
   - Point 6 : zones réelles sur Mars, la Lune (`carte6-zones-lune`) et 11 autres astres (`carte6-zones-tous`, qui contient tout) ; plus 4 zones schématiques (rive de Ligeia Mare sur Titan, avec une mer où l'on s'arrête sur la rive ; Galileo Regio ; Valhalla ; Triton). Détail dans `docs/carte6-zones.md`.
 - Scaphandre lourd pour Titan (branche `scaphandre-titan`, qui part de `carte6-zones-tous` et contient donc toute la carte 6) : chauffé, à pression ambiante, recycleur d'oxygène, jusqu'à 5 bar ; 20 % plus lent, 25 % d'autonomie en moins ; R&D en campagne, fourni en visite rapide ; enfilé automatiquement quand l'air dépasse 1,2 bar. Aucun autre astre du jeu n'est entre 1,2 et 5 bar (Terre 1, Titan 1,5, Vénus 92 ; exoplanètes sans atmosphère connue).
 - Même branche : visuel du scaphandre lourd (orange, recycleur, phares) ; phares du casque allumés la nuit partout (`LUMIERE_SOL` < 0,5), pour vous et le compagnon ; l'entraînement se passe au Centre des astronautes européens de l'ESA, à Cologne.
-- Rien n'est fusionné de la carte 6 : attendre « fusionne ».
+- Branche ancienne non fusionnée : `accueil-progression` (un commit du 27 octobre, « Équipage après une perte, robot largué, plouf, temps unifié, stations, artefacts ») : à examiner avec Edouard.
 
 ## À faire, dans l'ordre
 
