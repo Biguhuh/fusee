@@ -639,7 +639,12 @@ class Exploration {
         }
         if (this.type === 'robot' || this.enRover) this.dire(`Pente trop raide pour les roues ${this.enRover ? 'de l’astromobile' : 'du robot'}.`);
       }
-      const nx = p.x + p.vx * dt;
+      let nx = p.x + p.vx * dt;
+      // Rive d'une mer (zones.js : mers de Titan) : on ne marche pas au fond du méthane liquide, on s'arrête au bord.
+      if (sousLiquide(this.astre, nx, (x) => this.sol(x)) && !sousLiquide(this.astre, p.x, (x) => this.sol(x))) {
+        nx = p.x; p.vx = 0;
+        if (!this.astuceMer) { this.astuceMer = true; this.dire('🌊 Rive d’une mer de méthane et d’éthane liquides, à −180 °C : on ne va pas plus loin à pied.'); }
+      }
       const ny = this.sol(nx);
       // Si le sol descend plus vite que la gravité ne nous y ramène, on décolle (bosses, falaises).
       if (p.y - ny > Math.max(0.05, 0.5 * g * dt * dt * 4) && p.vx !== 0 && !this.delorean) {   // emballée, elle colle à la route
@@ -1371,6 +1376,9 @@ class Exploration {
 
     // Terrain (réutilise le rendu de l'atterrissage)
     dessinerTerrain(ctx, { x: p.x, y: yCam, sol: (x) => this.sol(x), astre: a, autopilote: false }, W, H, echelle, camY);
+
+    // Mers (zones.js) : le liquide entre le fond et la surface.
+    if (!this.terre) dessinerLiquides(ctx, a, versEcran, (x) => this.sol(x), p.x - W / 2 / echelle - 2, p.x + W / 2 / echelle + 2);
 
     // Traces de pas ou de roues
     ctx.fillStyle = 'rgba(0,0,0,0.25)';

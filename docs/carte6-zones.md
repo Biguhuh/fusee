@@ -50,13 +50,17 @@ Dimensions vérifiées le 5 novembre 2026 (USGS, Gazetteer of Planetary Nomencla
 | Vesta | Bassin Rheasilvia | 75° S, 59° O | fond à −17 km (19 km sous le rempart), pic central à 20 km du fond | au fond | ≈ 505 km ; ≈ 19 km de profondeur ; pic 19 à 22 km |
 | Phobos | Cratère Stickney | 1° N, 49° O | 9 km de large, fond à −1,6 km (profondeur schématique : ≈ 1/5 du diamètre) | au fond | ≈ 9 km de diamètre |
 
-## Zones non faites, et pourquoi
+## Zones schématiques (relief choisi, non vérifié)
 
-| Astre | Zone | Raison |
-|---|---|---|
-| Titan | Kraken Mare, Ligeia Mare | ce sont des mers liquides : le sol du jeu ne sait pas représenter une étendue de liquide (il faudrait marcher au fond). Les lacs de méthane existent comme trouvailles (point 5), et le site de Huygens est déjà proposé. |
-| Ganymède | Galileo Regio | relief des sillons non trouvé (seulement leur tracé) ; région surtout remarquable par sa couleur sombre. |
-| Callisto | Bassin Valhalla | hauteurs des anneaux non trouvées (seulement leurs diamètres, 3 000 à 4 000 km). |
-| Triton | Geysers, terrain en peau de melon | position des geysers non trouvée (seulement leur latitude, 50 à 57° S) ; profondeur des alvéoles non trouvée. |
+Faites à la demande d'Edouard. Elles portent la mention « (relief schématique) » dans « Où se poser ? ».
 
-Ces quatre zones peuvent être ajoutées en version schématique si Edouard l'accepte (relief choisi, signalé comme tel).
+| Astre | Zone | Vérifié | Schématique |
+|---|---|---|---|
+| Titan | Rive de Ligeia Mare | position (79° N, 112° E) ; ≈ 500 km de long ; ≈ 50 m de profondeur moyenne, ≈ 160 m au centre | forme de la rive (plage de 1 km) ; relief ordinaire adouci à 10 % dans la zone |
+| Ganymède | Galileo Regio | position (47° N, 129,6° O) ; région sombre de plus de 3 000 km, rayée de sillons | sillons tous les 20 km, 8 km de large, 300 m de profondeur |
+| Callisto | Bassin Valhalla | position (14,7° N, 56° O) ; zone centrale de 360 à 600 km ; anneaux jusqu'à 3 000 à 4 000 km | zone centrale plate de 360 km ; fossés de 350 m entre deux crêtes de 150 m, tous les 60 km (coupe de ±620 km) |
+| Triton | Terrain en peau de melon | aspect (alvéoles de quelques dizaines de km) ; geysers de 8 km au sud | position (20° N, 30° E) ; alvéoles de 26 km, 200 m de profondeur |
+
+Nouveau : les **mers**. Une zone peut avoir un liquide (`liquide` dans `js/zones.js`) : le profil donne le fond, le liquide est dessiné jusqu'à sa surface, et l'on s'arrête sur la rive (« 🌊 Rive d'une mer de méthane et d'éthane liquides… ») au lieu de marcher au fond.
+
+Remarque : sur Titan, la pression (1,5 bar) dépasse ce que tient la combinaison du jeu (1,2 bar) : le spationaute ne survit pas longtemps dehors. C'était déjà le cas avant ; le robot, lui, tient. Les essais de la rive ont été faits avec le robot.

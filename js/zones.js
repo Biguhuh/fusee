@@ -21,7 +21,51 @@ function profilSpoutnik() {
   return p;
 }
 
+// ---------- Profils schématiques (relief choisi, non vérifié : signalé dans le jeu) ----------
+// Creux répétés : centres de d0 à d1 tous les pas km, largeur l km, profondeur h km (sillons, anneaux, alvéoles).
+function creuxRepetes(d0, d1, pas, l, h, bord = 0.04) {
+  const p = [];
+  for (let c = d0; c <= d1 + 1e-6; c += pas) p.push([c - l / 2, 0], [c - l / 4, bord], [c, -h], [c + l / 4, bord], [c + l / 2, 0]);
+  return p;
+}
+// Valhalla : zone centrale lisse, puis des anneaux de fossés (graben) et de crêtes vers l'extérieur.
+function profilValhalla() {
+  const p = [[-620, 0]];
+  for (let c = -580; c <= -220; c += 60) p.push([c - 8, 0], [c - 3, 0.15], [c, -0.35], [c + 3, 0.15], [c + 8, 0]);
+  p.push([-180, 0], [180, 0]);
+  for (let c = 220; c <= 580; c += 60) p.push([c - 8, 0], [c - 3, 0.15], [c, -0.35], [c + 3, 0.15], [c + 8, 0]);
+  p.push([620, 0]);
+  return p;
+}
+
 const ZONES_REELLES = {
+  // Titan : Ligeia Mare (Cassini) : ≈ 500 km de long, ≈ 50 m de profondeur moyenne, ≈ 160 m au centre. Une mer
+  // liquide (liquide : la surface, entre deux bornes en km ; le profil donne le fond). Rive schématique.
+  titan: [
+    { id: 'ligeia', nom: 'Rive de Ligeia Mare', lat: 79, lon: 112, poser: -258, schematique: true, lisse: 0.1,
+      // Rive : la terre reste au-dessus du niveau jusqu'au bord (±251 km), puis la plage plonge en 1 km.
+      liquide: { de: -251, a: 251, niveau: 0 },
+      profil: [[-290, 0], [-270, 0.08], [-252, 0.03], [-251, 0.03], [-250, -0.03], [-240, -0.05], [-150, -0.11], [0, -0.16], [150, -0.11], [240, -0.05], [250, -0.03], [251, 0.03], [252, 0.03], [270, 0.08], [290, 0]],
+      detail: 'La deuxième mer de Titan : ≈ 500 km de méthane et d’éthane liquides à −180 °C, ≈ 50 m de profondeur en moyenne et ≈ 160 m au centre. Sur la rive (relief schématique).' },
+  ],
+  // Ganymède : Galileo Regio, grande région sombre et ancienne, rayée de sillons (Lakhmu Fossae). Sillons schématiques.
+  ganymede: [
+    { id: 'galileo', nom: 'Galileo Regio', lat: 47, lon: -129.6, poser: -5, schematique: true,
+      profil: [[-110, 0], ...creuxRepetes(-90, 90, 20, 8, 0.3), [110, 0]],
+      detail: 'Une région sombre de plus de 3 000 km, parmi les plus vieux terrains de Ganymède, rayée de longs sillons concentriques. Relief des sillons schématique (≈ 300 m).' },
+  ],
+  // Callisto : Valhalla, le plus grand bassin à anneaux du Système solaire (Voyager, Galileo). Anneaux schématiques.
+  callisto: [
+    { id: 'valhalla', nom: 'Bassin Valhalla', lat: 14.7, lon: -56, poser: 0, schematique: true,
+      profil: profilValhalla(),
+      detail: 'Une zone centrale claire et lisse de 360 à 600 km, entourée d’anneaux de fossés et de crêtes jusqu’à 3 000 à 4 000 km de diamètre. Relief des anneaux schématique.' },
+  ],
+  // Triton : terrain « en peau de melon » (Voyager 2, 1989). Position et profondeur des alvéoles schématiques.
+  triton: [
+    { id: 'melon', nom: 'Terrain en peau de melon', lat: 20, lon: 30, poser: -15, schematique: true,
+      profil: [[-140, 0], ...creuxRepetes(-120, 120, 30, 26, 0.2, 0.06), [140, 0]],
+      detail: 'Un terrain unique, couvert d’alvéoles de quelques dizaines de km, comme la peau d’un melon. Au sud, des geysers d’azote montent à 8 km. Position et relief schématiques.' },
+  ],
   // Mercure : bassin Caloris (MESSENGER). Profondeur du fond non vérifiée : le fond est laissé au niveau moyen.
   mercure: [
     { id: 'caloris', nom: 'Bassin Caloris', lat: 30.5, lon: 170.2, poser: -700,
@@ -142,10 +186,17 @@ function terrainZones(astre, terrain) {
   if (!zs.length) return terrain;
   const centres = zs.map((z) => ({ z, x: xZone(astre, z), demi: Math.max(...z.profil.map((p) => Math.abs(p[0]))) * 1000 }));
   return function hauteur(x) {
-    let h = terrain(x);
+    const base = terrain(x);
+    let h = base;
     for (const c of centres) {
       const dx = ecartSol(astre, x, c.x);
-      if (Math.abs(dx) < c.demi) h += hauteurProfil(c.z.profil, dx);
+      if (Math.abs(dx) >= c.demi) continue;
+      // lisse : relief ordinaire atténué dans la zone (une mer a besoin d'une rive nette), raccordé vers les bords.
+      if (c.z.lisse !== undefined) {
+        const u = Math.max(0, Math.min(1, (Math.abs(dx) - 0.85 * c.demi) / (0.15 * c.demi))), s = u * u * (3 - 2 * u);
+        h -= base * (1 - (c.z.lisse + (1 - c.z.lisse) * s));
+      }
+      h += hauteurProfil(c.z.profil, dx);
     }
     return h;
   };
@@ -158,6 +209,43 @@ function zoneIci(a, x) {
     if (Math.abs(ecartSol(a, x, xZone(a, z))) < demi) return z;
   }
   return null;
+}
+
+// ---------- Mers (liquide) ----------
+// Surface d'une mer au-dessus de x (m), ou null hors de toute mer.
+function niveauLiquide(a, x) {
+  for (const z of zonesSur(a.id)) {
+    if (!z.liquide) continue;
+    const d = ecartSol(a, x, xZone(a, z)) / 1000;
+    if (d >= z.liquide.de && d <= z.liquide.a) return z.liquide.niveau * 1000;
+  }
+  return null;
+}
+// Sous la surface d'une mer : le sol (le fond) est plus bas que le niveau du liquide.
+function sousLiquide(a, x, sol) { const n = niveauLiquide(a, x); return n !== null && sol(x) < n; }
+// Dessin du liquide entre le fond et la surface, de xMin à xMax (m), avec un reflet sur la surface.
+function dessinerLiquides(ctx, a, versEcran, sol, xMin, xMax) {
+  if (!zonesSur(a.id).some((z) => z.liquide)) return;
+  const pas = Math.max(0.25, (xMax - xMin) / 300);
+  let bande = null;
+  const fermer = () => {
+    if (!bande || bande.length < 2) { bande = null; return; }
+    ctx.save();
+    ctx.fillStyle = 'rgba(52,58,72,0.92)';
+    ctx.beginPath();
+    bande.forEach(([x, n], i) => { const [sx, sy] = versEcran(x, n); if (i) ctx.lineTo(sx, sy); else ctx.moveTo(sx, sy); });
+    for (let i = bande.length - 1; i >= 0; i--) { const [sx, sy] = versEcran(bande[i][0], sol(bande[i][0])); ctx.lineTo(sx, sy); }
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(225,195,135,0.7)'; ctx.lineWidth = 1.5;   // la surface, où le ciel orangé se reflète
+    ctx.beginPath(); bande.forEach(([x, n], i) => { const [sx, sy] = versEcran(x, n); if (i) ctx.lineTo(sx, sy); else ctx.moveTo(sx, sy); }); ctx.stroke();
+    ctx.restore();
+    bande = null;
+  };
+  for (let x = xMin; x <= xMax; x += pas) {
+    const n = niveauLiquide(a, x);
+    if (n !== null && sol(x) < n) (bande = bande || []).push([x, n]); else fermer();
+  }
+  fermer();
 }
 
 // Plan lointain de l'exploration : le relief des kilomètres alentour, comprimé, dessiné derrière le terrain proche.

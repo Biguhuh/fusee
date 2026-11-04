@@ -94,7 +94,7 @@ function lieuxDescente(a, v) {
   for (const z of zonesSur(a.id)) {
     const x = xZone(a, z) + z.poser * 1000;
     // ombre : fond d'un cratère polaire, nuit permanente (voir dansLOmbre).
-    l.push({ cle: 'zone:' + z.id, zone: z.id, nom: `🏔 ${z.nom}`, detail: `${fmtCoord(z.lat, z.lon)}. ${z.detail}`, x, xDescente: x, nuit: nuit && !z.ombre, ombre: !!z.ombre });
+    l.push({ cle: 'zone:' + z.id, zone: z.id, nom: `🏔 ${z.nom}${z.schematique ? ' (relief schématique)' : ''}`, detail: `${fmtCoord(z.lat, z.lon)}. ${z.detail}`, x, xDescente: x, nuit: nuit && !z.ombre, ombre: !!z.ombre });
   }
   for (const t of tracesSur(a.id)) {
     const p = POSITIONS_TRACES[t.id], x = xTrace(a, t) + DISTANCE_TRACE;
