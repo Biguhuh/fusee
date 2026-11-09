@@ -2025,6 +2025,7 @@ const Orbiteur = {
         ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p[0], p[1], rr * 3, 0, 2 * Math.PI); ctx.fill();
       }
       if (a.id === 'roadster') dessinerVoitureRouge(ctx, p[0], p[1], Math.max(22, rr * 2.2));   // une voiture, pas un disque
+      else if (a.artificiel) dessinerObjetArtificiel(ctx, a, p[0], p[1], Math.max(20, rr * 2.2));   // sa vraie silhouette (objets.js)
       else if (a.type === 'etoile' || rr < 3.5) {
         ctx.fillStyle = a.couleurs.disque;
         ctx.beginPath(); ctx.arc(p[0], p[1], rr, 0, 2 * Math.PI); ctx.fill();
