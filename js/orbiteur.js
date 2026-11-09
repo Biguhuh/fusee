@@ -2502,6 +2502,8 @@ const Orbiteur = {
       }
       else {
         d += `<button disabled title="L’orbiteur est déjà amarré">⚓ Amarré ${au(st)}</button>`;
+        // Sortie extravéhiculaire à deux depuis le sas de la station (eva.js).
+        d += candidatsSortie(v, st).length >= 2 ? '<button id="nav-eva">🧑‍🚀 Sortie extravéhiculaire</button>' : '<button disabled title="Il faut deux personnes valides, à bord ou à la station">🧑‍🚀 Sortie extravéhiculaire (à deux)</button>';
         if (this.stockAPrendre(st)) d += `<button id="nav-amarrer" class="principal">⛽ Faire le plein (carburant, ergols, matériel)</button>`;
         if (v.vidange && v.vidange.st === st.id) d += `<p class="doux">🗑 Vidange en cours : ${fmtKg(v.vidange.kg)}, terminée dans ${fmtDuree(Math.max(0, v.vidange.fin - v.t))}. Restez amarré.</p>`;
         else if ((v.dechets || 0) >= 1) {
@@ -2588,6 +2590,7 @@ const Orbiteur = {
     document.querySelectorAll('[data-onglet-stock]').forEach((bt) => { bt.onclick = () => { this.ongletStock = bt.dataset.ongletStock; this.majHud(true); }; });
     bind('nav-amarrer', () => { this.amarrer(); this.majHud(true); });
     bind('nav-vidange', () => { this.vidanger(); this.majHud(true); });
+    bind('nav-eva', () => { const st = this.stationIci(); if (st) lancerSortieStation(this.v, st); });
     bind('nav-rdv-annuler', () => { this.v.rdvStation = null; this.log('Rendez-vous avec la station annulé (le Δv dépensé ne revient pas).'); this.majHud(true); });
     bind('nav-station', () => { this.construireStation(); this.majHud(true); });
     bind('nav-sonde', () => { this.lancerSonde(v.cible); this.majHud(true); });
