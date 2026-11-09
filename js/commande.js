@@ -18,6 +18,7 @@ const Commande = {
     { id: 'lancements', titre: '🚀 Lancements' },
     { id: 'ressources', titre: '⛏ Ressources' },
     { id: 'finances', titre: '💶 Finances' },
+    { id: 'bilan', titre: '⚖️ Bilan' },
     { id: 'journal', titre: '📜 Journal' },
     { id: 'audela', titre: '🌌 Au-delà' },
   ],
@@ -130,6 +131,7 @@ const Commande = {
 
   onglet_ressources(v, c) { ouvrirRessources(v, this.familleRessource || 'eau', false, c); },
   onglet_finances(v, c) { Finances.ouvrir(v, c); },
+  onglet_bilan(v, c) { c.innerHTML = htmlBilan(v); },
 
   onglet_journal(v, c) {
     c.innerHTML = `${htmlTrouvailles()}${htmlJournal(v)}`;

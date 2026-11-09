@@ -135,6 +135,8 @@ function valeurContenu(contenu) {
 function payerLancement(v, nom, prix, contenu) {
   const val = valeurContenu(contenu);
   depenser(v, 'lancements', nom, prix);
+  const cle = Object.keys(TARIFS.lanceurs).find((c) => TARIFS.lanceurs[c].prix === prix);
+  if (cle) noterLancementTerre(v, cle, contenu);   // bilan.js
   if (val) depenser(v, 'materiel', `${nom} : ${decrireContenu(Object.fromEntries(Object.entries(contenu).filter(([, q]) => q > 0)))}`, val);
   depenser(v, 'assurances', `Assurance : ${nom}`, (prix + val) * TARIFS.divers.tauxAssurance.prix);
 }

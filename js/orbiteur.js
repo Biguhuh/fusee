@@ -770,10 +770,13 @@ const Orbiteur = {
     if (!dest) return this.log('Station de destination introuvable.');
     const enTrop = extensionsEnTrop(v, dest, contenu);
     if (enTrop) return this.log(enTrop);
+    let origines = null;   // depuis la Terre : origine terrestre
     if (!estOrigine(origineId)) {
       const st = v.stations.find((s) => s.id === origineId);
       if (!st) return this.log('Station de départ introuvable.');
       for (const [cle, q] of Object.entries(contenu)) if ((st.stock[cle] || 0) < q) return this.log(`${Le(st)} n’a pas assez de ${NOMS_STOCK[cle]} pour ce cargo.`);
+      origines = retirerOrigines(st, contenu);   // bilan : provenance de ce qui part
+      noterEnvoi(v, st, origines, dest.centre);
       for (const [cle, q] of Object.entries(contenu)) st.stock[cle] -= q;
     }
     const depart = this.departCargo(origineId);
@@ -781,7 +784,7 @@ const Orbiteur = {
     const origine = estOrigine(origineId) ? SYSTEME.nomOrigine : v.stations.find((s) => s.id === origineId).nom;
     const id = 'c' + Date.now();
     const cargo = {
-      id, nom: `${nom} → ${dest.nom}`, type: 'cargo', cible: dest.centre, dest: destId, contenu, origine,
+      id, nom: `${nom} → ${dest.nom}`, type: 'cargo', cible: dest.centre, dest: destId, contenu, origine, origines,
       centre: depart.centre, r: depart.r.slice(), v: depart.v.slice(), transfert: null, etat: 'vol', tLancement: v.t,
     };
     // Départ et station autour du même astre (Terre → station terrestre, par exemple) : simple rendez-vous en orbite.
@@ -927,7 +930,7 @@ const Orbiteur = {
     if (c.passagers) return arriveeTransfertEquipage(this.v, c, (t) => this.log(t));   // vaisseau de transfert (transferts.js)
     const st = this.v.stations.find((s) => s.id === c.dest);
     if (!st) return this.log(`${c.nom} : station introuvable, cargo perdu.`);
-    ajouterAuStock(st, c.contenu);
+    ajouterAuStock(st, c.contenu, c.origines);
     this.log(`Cargo arrivé ${au(st)} après ${fmtDuree(this.v.t - c.tLancement)} : ${decrireContenu(c.contenu)}.`);
   },
 
@@ -996,6 +999,7 @@ const Orbiteur = {
   // Cargos venus de la Terre et production des bases au sol.
   mettreAJourLogistique() {
     const v = this.v;
+    bilanDe(v);   // bilan matière et carbone (tenu à partir d'ici pour une ancienne campagne)
     this.appliquerCommandeSol();
     if (v.equipe) mettreAJourEquipe(v, (t) => this.log(t));
     if (v.equipe) mettreAJourTransferts(v, (t) => this.log(t));   // navettes vers les bases, embarquement à une station
@@ -1015,7 +1019,7 @@ const Orbiteur = {
           this.log(`🔬 Atelier ${de(s)} : ${AMELIORATIONS[k].nom.toLowerCase()} au point (niveau ${niv}) : ${AMELIORATIONS[k].effet(Number(niv))}.`);
           continue;
         }
-        s.stock[c.cle] = (s.stock[c.cle] || 0) + 1;
+        ajouterObjet(s, c.cle, c.origines);
         this.log(`Atelier ${de(s)} : ${RECETTES[c.cle].nom.toLowerCase()} terminé${RECETTES[c.cle].fem ? 'e' : ''}, prêt${RECETTES[c.cle].fem ? 'e' : ''} à être envoyé${RECETTES[c.cle].fem ? 'e' : ''}.`);
       }
       if (s.chantiers) s.chantiers = s.chantiers.filter((x) => v.t < x.fin);
@@ -1061,14 +1065,14 @@ const Orbiteur = {
       // Ergols (ressource locale) et matériaux (mine), proportionnels au niveau de la base.
       const prod = productionBase(a) * b.niveau * (dt / JOUR);
       const mat = productionMateriaux(a, b.niveau) * (dt / JOUR);
-      if (st && mat > 0) st.stock.materiaux = Math.min(capaciteStation(st, 'materiaux'), st.stock.materiaux + mat);
+      if (st && mat > 0) ajouterLocal(st, 'materiaux', mat);   // provenance : l'astre de la base
       b.materiauxTotal = (b.materiauxTotal || 0) + mat;
       // La base garde d'abord 20 t pour les atterrisseurs ; sa navette monte le surplus à la station.
       b.stock = (b.stock || 0) + prod;
       const surplus = b.stock - 20000;
       if (st && surplus > 0) {
         const monte = Math.max(0, Math.min(capaciteStation(st, 'ergols') - st.stock.ergols, surplus));
-        st.stock.ergols += monte;
+        ajouterLocal(st, 'ergols', monte);
         b.stock -= monte;
       }
       b.produitTotal = (b.produitTotal || 0) + prod;
@@ -1259,15 +1263,16 @@ const Orbiteur = {
     st.chantiers = st.chantiers || [];
     const enCours = st.chantiers.filter((c) => c.cle === cle).length;
     if ((st.stock[cle] || 0) + enCours >= capaciteStation(st, cle)) return this.log(`${st.nom} : stock de ${NOMS_STOCK[cle]} plein.`);
+    const fractions = suivreFabrication(this.v, st, r);   // bilan : provenance des matériaux
     st.stock.materiaux -= r.materiaux;
     if (r.ergols) st.stock.ergols -= r.ergols;
     const cout = `${fmtStock('materiaux', r.materiaux)} de matériaux${r.ergols ? ` et ${fmtStock('ergols', r.ergols)} d’ergols` : ''}`;
     if (r.duree) {
       const duree = r.duree / niveauStation(st).vitesse;     // chantiers plus rapides dans une grande station
-      st.chantiers.push({ cle, fin: this.v.t + duree });
+      st.chantiers.push({ cle, fin: this.v.t + duree, origines: fractions });
       return this.log(`Atelier ${de(st)} : chantier « ${r.nom} » lancé (${cout}). Prêt le ${fmtDate(this.v.t + duree)}.`);
     }
-    st.stock[cle] = (st.stock[cle] || 0) + 1;
+    ajouterObjet(st, cle, fractions);
     this.log(`Atelier ${de(st)} : ${r.nom.toLowerCase()} fabriqué${r.fem ? 'e' : ''} avec ${cout}.`);
   },
 
@@ -1361,7 +1366,7 @@ const Orbiteur = {
       const champ = CHAMP_ORBITEUR[cle] || cle;
       const q = Math.max(0, Math.min(s.stock[cle] || 0, max - (v[champ] || 0)));
       const mot = Array.isArray(nom) ? nom[q >= 2 ? 1 : 0] : nom;
-      if (q > 0) { s.stock[cle] -= q; v[champ] = (v[champ] || 0) + q; pris.push(`${unite === 'kg' ? fmt(q / 1000, 1) + ' t' : fmt(q)} ${mot}`); }
+      if (q > 0) { noterEnvoi(v, s, retirerOrigines(s, { [cle]: q }), 'orbiteur'); s.stock[cle] -= q; v[champ] = (v[champ] || 0) + q; pris.push(`${unite === 'kg' ? fmt(q / 1000, 1) + ' t' : fmt(q)} ${mot}`); }
     };
     prendre('carburant', capOrbiteur(this.v, 'carburantMax'), 'de carburant', 'kg');
     prendre('ergols', capOrbiteur(this.v, 'ergolsAtt'), 'd’ergols pour l’atterrisseur', 'kg');

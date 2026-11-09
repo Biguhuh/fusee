@@ -402,9 +402,15 @@ function intervalleCargo(centreId) {
   return Math.max(120 * JOUR, tof);
 }
 
-function ajouterAuStock(s, contenu) {
+// origines : provenance de chaque quantité (bilan.js) ; sans elle, ce qui entre vient de la Terre.
+function ajouterAuStock(s, contenu, origines = null) {
   const k = s.stock;
-  for (const [cle, q] of Object.entries(contenu)) k[cle] = Math.min(capaciteStation(s, cle), (k[cle] || 0) + q);
+  reconcilier(s);
+  for (const [cle, q] of Object.entries(contenu)) {
+    const avant = k[cle] || 0;
+    k[cle] = Math.min(capaciteStation(s, cle), avant + q);
+    ajouterOrigines(s, cle, k[cle] - avant, origines);
+  }
 }
 
 // Ravitaillement courant : de quoi vivre et refaire un peu les pleins (doublé à partir du niveau 3).
@@ -412,7 +418,9 @@ function ajouterAuStock(s, contenu) {
 function livrerCargo(s) {
   const f = niveauStation(s).ravito;
   // Comme les cargos de l'ISS : des vivres et de l'eau à chaque passage.
-  ajouterAuStock(s, s.terrestre ? { carburant: 30000 * f, ergols: 30000 * f, sondes: f, kits: 1, vivres: 2000 * f, eau: 500 * f } : { carburant: 15000 * f, ergols: 15000 * f, sondes: f, vivres: 2000 * f, eau: 500 * f });
+  const c = s.terrestre ? { carburant: 30000 * f, ergols: 30000 * f, sondes: f, kits: 1, vivres: 2000 * f, eau: 500 * f } : { carburant: 15000 * f, ergols: 15000 * f, sondes: f, vivres: 2000 * f, eau: 500 * f };
+  ajouterAuStock(s, c);
+  noterRavitoCourant(c);   // bilan matière et carbone
 }
 
 // ---------- Bases au sol et ressources locales ----------
