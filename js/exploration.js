@@ -132,6 +132,11 @@ class Exploration {
       this.vMax *= SCAPHANDRE_LOURD.vitesse;   // plus lourd
       this.dire(`🧑‍🚀 Air trop dense pour la combinaison ordinaire (${fmtP(this.c.p)}) : ${this.def.nom} sort en scaphandre lourd, chauffé, à la pression ambiante, avec un recycleur d’oxygène. Il tient jusqu’à ${fmt(SCAPHANDRE_LOURD.pressionMax)} bar ; plus lent, et le chauffage réduit l’autonomie.`);
     }
+    // Triton : la surface la plus froide qu'on puisse fouler (−235 °C) ; les combinaisons sont prévues pour ≈ −150 °C.
+    if (type === 'spationaute' && this.astre.id === 'triton') {
+      const enCampagne = typeof etat !== 'undefined' && etat.enVoyage;
+      this.dire(`⚠ ${fmt(this.c.t).replace('-', '−')} °C : la surface la plus froide du Système solaire où l’on puisse marcher. Les combinaisons d’aujourd’hui sont prévues pour ≈ −150 °C ; ici, le froid traverse les gants et les semelles. ${enCampagne ? 'Gardez la sortie courte et ne restez pas immobile.' : `${majuscule(this.def.nom)} sort en scaphandre renforcé, chauffé et plus épais, prévu pour ce froid.`}`);
+    }
     this.acc = Math.min(type === 'robot' ? 1 : 4, 0.6 * g + 0.001);
     this.saut = type === 'robot' ? 0 : Math.min(2.2, 0.5 * this.vLib);
     this.cable = type === 'spationaute' && this.vLib < 4.4;

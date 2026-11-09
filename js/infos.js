@@ -22,7 +22,9 @@ const Infos = {
     const el = $('infobulle');
     if (!id) { el.classList.add('cache'); return; }
     const a = ASTRES_PAR_ID[id];
-    el.innerHTML = `<b>${a.nom}</b><span>${this.typeAstre(a)}</span><span>${a.artificiel ? a.taille || '' : ''}</span><span ${a.artificiel ? 'hidden' : ''}>Rayon ${fmt(a.rayonKm, a.rayonKm < 10 ? 1 : 0)} km · g ${fmtG(a.g)}</span><span class="doux">Clic : toutes les données</span>`;
+    // Depuis le sol (vol, sortie) : la distance de l'astre, vu d'ici.
+    const d = typeof etat !== 'undefined' && (etat.ecran === 'vol' || etat.ecran === 'explo') ? distanceCielSous(x, y) : null;
+    el.innerHTML = `<b>${a.nom}</b>${d !== null ? `<span>À ${fmtDistanceKm(d)} d’ici</span>` : ''}<span>${this.typeAstre(a)}</span><span>${a.artificiel ? a.taille || '' : ''}</span><span ${a.artificiel ? 'hidden' : ''}>Rayon ${fmt(a.rayonKm, a.rayonKm < 10 ? 1 : 0)} km · g ${fmtG(a.g)}</span><span class="doux">Clic : toutes les données</span>`;
     el.classList.remove('cache');
     const w = el.offsetWidth, h = el.offsetHeight;
     el.style.left = Math.min(innerWidth - w - 8, x + 16) + 'px';

@@ -1203,7 +1203,7 @@ function dessinerFond(ctx, a, c, W, H, sousLesNuages, t = DATE_DEBUT, porteur = 
     const g = ctx.createRadialGradient(pS.x, pS.y, 0, pS.x, pS.y, rS * 4);
     g.addColorStop(0, 'rgba(255,250,225,1)'); g.addColorStop(0.25, 'rgba(255,240,200,0.9)'); g.addColorStop(1, 'rgba(255,220,150,0)');
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(pS.x, pS.y, rS * 4, 0, Math.PI * 2); ctx.fill();
-    ZONES_CIEL.push({ x: pS.x, y: pS.y, r: Math.max(rS, 10), id: SYSTEME.etoile });
+    ZONES_CIEL.push({ x: pS.x, y: pS.y, r: Math.max(rS, 10), id: SYSTEME.etoile, dist: V.norm(pos) - etoileRacine().rayonKm });
   }
 
   // Autres astres : planète mère, lunes sœurs, ses propres lunes, et les planètes (points lumineux).
@@ -1248,7 +1248,7 @@ function dessinerFond(ctx, a, c, W, H, sousLesNuages, t = DATE_DEBUT, porteur = 
       r = 1.8;
     }
     ctx.globalAlpha = 1;
-    ZONES_CIEL.push({ x: p.x, y: p.y, r: Math.max(r, 8), id: X.id });
+    ZONES_CIEL.push({ x: p.x, y: p.y, r: Math.max(r, 8), id: X.id, dist: dist - X.rayonKm - a.rayonKm });   // de surface à surface
   }
   return jour;
 }
@@ -1256,6 +1256,18 @@ function dessinerFond(ctx, a, c, W, H, sousLesNuages, t = DATE_DEBUT, porteur = 
 function astreDuCielSous(x, y) {
   for (const z of ZONES_CIEL) if (Math.hypot(z.x - x, z.y - y) < z.r) return z.id;
   return null;
+}
+// Distance (km) de l'astre du ciel sous le curseur, vu depuis le sol ; null s'il n'y en a pas.
+function distanceCielSous(x, y) {
+  for (const z of ZONES_CIEL) if (Math.hypot(z.x - x, z.y - y) < z.r) return z.dist ?? null;
+  return null;
+}
+// « 384 400 km », « 58 millions de km », « 4,3 UA (640 millions de km) ».
+function fmtDistanceKm(km) {
+  if (km < 1e6) return `${fmt(km)} km`;
+  const ua = km / UA_KM;
+  if (ua < 0.1) return `${fmt(km / 1e6, km < 1e7 ? 1 : 0)} millions de km`;
+  return `${fmt(ua, ua < 10 ? 2 : 1)} UA (${km < 1e9 ? `${fmt(km / 1e6)} millions` : `${fmt(km / 1e9, 1)} milliards`} de km)`;
 }
 
 function dessinerTerrain(ctx, vol, W, H, echelle, fuseeY) {
