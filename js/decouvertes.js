@@ -680,7 +680,7 @@ function verifierDecouvertes(x) {
     x.dire(`🌍 Tour complet ${de(x.astre)} : ${fmt(P / 1000, P < 100000 ? 1 : 0)} km. Vous voilà revenu${acc()} au point de départ !`);
   }
   for (const e of eggsSur(x.astre.id)) {
-    const ex = x.posLibre(x.xFusee + e.dx), d = distSol(x.astre, p.x, ex);
+    const ex = x.posLibre(xEgg(x.astre, e)), d = distSol(x.astre, p.x, ex);
     // L'autre spationaute a l'œil (80 m) : il repère l'objet avant vous et vous appelle. La découverte ne compte
     // que quand vous l'examinez vous-même, de près.
     const autre = humain && x.duo && !x.duo.dansModule && !x.duo.dansSecours ? x.duo : null;
@@ -782,7 +782,7 @@ function dessinerDecouvertes(ctx, x, versEcran, s, W) {
     texteSurFond(ctx, `${t.nom} — ${t.annee}`, sx, sy - hMax * s - 14, { police: '12px system-ui, sans-serif', couleur: '#ffe0a3' });
   }
   for (const e of eggsSur(x.astre.id)) {
-    const ex = x.posLibre(x.xFusee + e.dx);
+    const ex = x.posLibre(xEgg(x.astre, e));
     const visible = eggTrouve(e.id) || ((humain || e.robot) && Math.abs(p.x - ex) < 25);
     if (!visible) continue;
     const [sx, sy] = versEcran(ex, x.sol(ex));

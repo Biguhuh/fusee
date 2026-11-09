@@ -105,8 +105,9 @@ function lieuEgg(e) {
   if (e.orbite) return `en orbite ${de(astrePartout(e.astre))} : l’équipage de l’orbiteur l’aperçoit après un tour complet (en campagne)`;
   const def = EASTER_EGGS.find((x) => x.id === e.id);
   if (!def) return sur(astrePartout(e.astre));
-  if (def.robot) return `au sol, à ${fmt(Math.abs(def.dx))} m ${def.dx < 0 ? 'à gauche ◀' : 'à droite ▶'} du site de descente, en robot (la pression écrase toute combinaison)`;
-  return `au sol, à ${fmt(Math.abs(def.dx))} m ${def.dx < 0 ? 'à gauche ◀' : 'à droite ▶'} du site de descente, à pied ou en astromobile`;
+  const ancre = ancreEgg(astrePartout(def.astre), def);
+  const ou = `au sol, à ${fmt(Math.abs(def.dx))} m ${def.dx < 0 ? 'à gauche ◀' : 'à droite ▶'} du point de descente « ${ancre.nom} »`;
+  return def.robot ? `${ou}, en robot (la pression écrase toute combinaison)` : `${ou}, à pied ou en astromobile`;
 }
 
 // Nom court d'une trouvaille (la voiture rouge compte trois étapes, mais un seul nom).
