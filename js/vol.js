@@ -789,7 +789,8 @@ function fmtDuree(s) {
 function fmtDate(t, avecHeure = true) {
   const ms = (t / 86400 + 2451545.0 - 2440587.5) * 86400000;
   const d = new Date(ms);
-  const date = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+  // « 1ᵉʳ mai », pas « 1 mai »
+  const date = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).replace(/^1(\s)/, '1ᵉʳ$1');
   return avecHeure ? date + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) : date;
 }
 

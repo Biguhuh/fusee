@@ -63,6 +63,16 @@ const ESSAIS = {
   },
 };
 
+// ---------- Premier départ : passage par l'entraînement ----------
+// Au tout début d'une campagne (pas encore de station, de base ni d'orbiteur garé), après le choix de l'équipage,
+// on passe une fois par le centre d'entraînement avant de choisir le lanceur. À refaire après une remise à zéro.
+function doitPasserEntrainement(v) { return !etat.entrainementPasse && !!v && !v.stations.length && !(v.bases || []).length && !v.orbiteurGare; }
+function parcoursEntrainement() { etat.parcoursEntrainement = true; sauver(etat); ouvrirCentreEssai(); }
+function finirParcoursEntrainement() {
+  etat.parcoursEntrainement = false; etat.entrainementPasse = true;
+  sauver(etat); Infos.fermer(); allerLancement();
+}
+
 // ---------- Fenêtre de l’entraînement ----------
 function ouvrirCentreEssai(message) {
   const m = $('modale'), faits = etat.essais || {};
@@ -73,10 +83,13 @@ function ouvrirCentreEssai(message) {
       <button data-essai="${cle}" class="${faits[cle] ? '' : 'principal'}">${faits[cle] ? '↺ Refaire' : '▶ Commencer'}</button></article>`;
   m.innerHTML = `<div class="fenetre large"><header class="entete"><div><h2>🎓 Entraînement, à Cologne</h2>
     <p>Au Centre des astronautes européens de l’ESA (EAC), à Cologne, en Allemagne, où s’entraînent les astronautes européens. Ici : apprenez à conduire l’astromobile, à escalader, à piloter le robot et le drone avant de partir. Comme en mission, l’oxygène et les batteries s’épuisent, et l’appel d’urgence (U) fonctionne ; mais ici, on ne meurt pas. Rien n’est pris à la campagne.</p>
-    ${message ? `<p class="encart">${message}</p>` : ''}</div><button class="fermer">✕</button></header>
+    ${message ? `<p class="encart">${message}</p>` : ''}
+    ${etat.parcoursEntrainement ? `<p class="encart">🎓 <b>Premier départ :</b> avant de partir, l’équipage passe par le centre d’entraînement. Faites les exercices que vous voulez (vous pourrez revenir ici depuis l’accueil), puis continuez vers le lanceur.</p>
+      <div class="actions" style="justify-content:flex-start"><button id="essai-suite" class="principal">✅ Fin de l’entraînement : choisir le lanceur →</button></div>` : ''}</div><button class="fermer">✕</button></header>
     <div class="cartes-essai">${Object.entries(ESSAIS).map(carte).join('')}</div></div>`;
   m.classList.remove('cache');
   m.querySelector('.fermer').onclick = () => Infos.fermer();
+  if ($('essai-suite')) $('essai-suite').onclick = finirParcoursEntrainement;
   m.querySelectorAll('[data-essai]').forEach((b) => { b.onclick = () => { Infos.fermer(); lancerEssai(b.dataset.essai); }; });
 }
 

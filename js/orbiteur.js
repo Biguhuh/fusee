@@ -2623,7 +2623,7 @@ function fmtHeureReelle(ms) {
   const opts = { weekday: 'long', day: 'numeric', month: 'long' };
   if (d.getFullYear() !== maintenant.getFullYear()) opts.year = 'numeric';
   const h = String(d.getHours()).padStart(2, '0'), mi = String(d.getMinutes()).padStart(2, '0');
-  return `${d.toLocaleDateString('fr-FR', opts)} à ${h} h ${mi}`;
+  return `${d.toLocaleDateString('fr-FR', opts).replace(/^(\S+\s)1(\s)/, (m, a, b) => `${a}1ᵉʳ${b}`)} à ${h} h ${mi}`;   // « 1ᵉʳ novembre »
 }
 
 // Fichier d'agenda (.ics) : le téléphone l'ouvre dans son application Agenda. Rappel 5 minutes avant.

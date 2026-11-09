@@ -1072,6 +1072,7 @@ const REMISES_A_ZERO = [
   ['drapeaux', 'Drapeaux plantés', true],
   ['artefacts', 'Artefacts et traces réelles vus', true],
   ['eggs', 'Easter eggs trouvés', false],
+  ['entrainement', 'Passage par l’entraînement au premier départ (à refaire)', true],
 ];
 function ouvrirNouvelleCampagne(lancer) {
   const m = $('modale');
@@ -1092,6 +1093,7 @@ function ouvrirNouvelleCampagne(lancer) {
     if (raz.drapeaux) etat.drapeaux = {};
     if (raz.artefacts) { etat.tracesVues = {}; etat.reperes = {}; }
     if (raz.eggs) { etat.decouvertes = {}; etat.reperes = {}; }
+    if (raz.entrainement) { etat.entrainementPasse = false; etat.parcoursEntrainement = false; }
     lancer();
   };
 }
