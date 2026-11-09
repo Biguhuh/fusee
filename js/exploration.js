@@ -575,6 +575,7 @@ class Exploration {
   }
   // Les messages restent affichés en temps réel (7 s, 12 s quand le temps est accéléré ×10 et plus), 3 au plus.
   dire(m) {
+    if (/^(⚠|🚑|💀|😵|🆘|🕯|🩸)/u.test(m)) this.warp = 1;   // alerte grave : on revient au temps réel
     if (/^✨/.test(m) && typeof afficherDecouverte === 'function') afficherDecouverte(m);
     this.message = m;
     const fin = performance.now() + ((this.warp || 1) >= 10 ? 12000 : 7000);
@@ -590,7 +591,8 @@ class Exploration {
   sol(x) { return this.vol.sol(x); }
 
   step(dt, cmd) {
-    if (this.fin) return;
+    if (this.fin || this.fondu) return;   // fondu au noir après une mort (physiologie.js)
+    if (this.physio && !this.physio.conscient) cmd = {};   // inconscient : on ne bouge plus
     if (this.geste) { this.majGeste(dt); this.vol.t += dt; this.reserve -= dt; return; }
     if (this.enEmbarquement()) { this.reserve -= dt; this.vol.t += dt; this.suivreSecours(dt); return; }
     if (this.traceFeu) this.traceFeu.age += dt;
@@ -758,7 +760,8 @@ class Exploration {
       this.dire(`⚠ Attention : ${this.type === 'robot' ? 'batterie vide' : 'plus d’oxygène'}. En mission, c’était la mort assurée. Réserves rechargées pour l’entraînement.`);
     }
     if (this.reserve <= 0) {
-      return this.terminer('perdu', this.type === 'robot' ? 'Batterie vide : le robot s’est arrêté pour toujours.' : `Plus d’oxygène : ${this.def.nom} n’a pas pu rentrer à temps.`);
+      if (this.type === 'robot') return this.terminer('perdu', 'Batterie vide : le robot s’est arrêté pour toujours.');
+      this.reserve = 0;   // plus d'oxygène : le sang s'appauvrit en quelques minutes (physiologie.js)
     }
 
     // Dangers (dégradation progressive, comme la coque de la fusée)
@@ -780,16 +783,20 @@ class Exploration {
       this.integrite = 100;
       this.dire(`⚠ Attention : ${this.type === 'robot' ? 'le robot est détruit' : 'la combinaison a lâché'}. En mission, c’était la mort assurée. Tout est réparé pour l’entraînement.`);
     }
-    if (this.integrite <= 0) {
+    const dechiree = this.type === 'spationaute' && this.causeDegats !== 'pression' && this.causeDegats !== 'chaleur';
+    if (this.integrite <= 0 && dechiree) this.integrite = 0;   // décompression : quelques dizaines de secondes (physiologie.js)
+    else if (this.integrite <= 0) {
       // La vraie cause : pression, chaleur, ou réceptions trop brutales (sauts, chutes).
       const qui = this.type === 'robot' ? 'le robot' : 'la combinaison';
       const texte = this.causeDegats === 'pression' ? `La pression (${fmtP(this.c.p)}) a écrasé ${qui}.`
         : this.causeDegats === 'chaleur' ? `La chaleur (${fmt(this.c.t)} °C) a eu raison ${this.type === 'robot' ? 'du robot' : 'de la combinaison'}.`
           : `Des réceptions trop brutales ont ${this.type === 'robot' ? 'disloqué le robot' : 'déchiré la combinaison'}.`;
-      return this.terminer('perdu', texte);
+      return this.type === 'spationaute' ? this.mourirSortie(this, texte.replace(/\.$/, '').toLowerCase()) : this.terminer('perdu', texte);
     }
     if (this.essai && this.dose >= 100) { this.dose = 0; this.doseSv = 0; this.dire('⚠ Attention : dose mortelle. En mission, c’était la mort assurée.'); }
-    if (this.dose >= 100) return this.terminer('perdu', `Le rayonnement a ${this.type === 'robot' ? 'grillé l’électronique du robot' : `été mortel pour ${this.def.nom}`}.`);
+    if (this.dose >= 100) return this.type === 'spationaute' ? this.mourirSortie(this, 'dose mortelle de rayonnement') : this.terminer('perdu', 'Le rayonnement a grillé l’électronique du robot.');
+    // Cœur et oxygène du sang des deux spationautes ; mort en fondu (physiologie.js).
+    if (this.type === 'spationaute' && !this.essai && this.majPhysiologie(dt)) return;
   }
 
   // Temps qu'il reste au robot avant que le rayonnement grille son électronique.
@@ -927,7 +934,9 @@ class Exploration {
   // la combinaison la plus abîmée (+25 %). Chacun emporte 2 rouleaux ; on peut prendre ceux de l'autre.
   ruban() {
     if (this.type !== 'spationaute' || this.terre) return;
-    const d = this.duo && this.procheDuo() && !this.enRover && !this.duo.enRover ? this.duo : null;
+    // Dans l'astromobile : seulement à l'arrêt.
+    if ((this.enRover || (this.duo && this.duo.enRover)) && Math.abs(this.p.vx) > 0.1) return this.dire('Arrêtez l’astromobile pour poser du ruban adhésif.');
+    const d = this.duo && this.procheDuo() ? this.duo : null;
     const cible = d && d.integrite < this.integrite ? d : this;
     const avant = cible.integrite;
     if (avant >= 90) return this.dire(d ? 'Les deux combinaisons sont en bon état.' : 'Combinaison en bon état : pas besoin de ruban.');
@@ -1538,6 +1547,7 @@ class Exploration {
       dessinerRobot(ctx, sx, sy, echelle, p, this.analyse || this.brasDrapeau > 0, this.inclinaison || 0);
     }
 
+    this.dessinerDanger(ctx, W, H);   // grave danger : voile rouge au rythme du cœur (physiologie.js)
     if (this.terre) this.dessinerHudTerre(ctx, W, H);
     else this.dessinerHud(ctx, W, H);
     if (this.essai) dessinerPanneauEssai(ctx, W, H, this.essai);
@@ -1547,6 +1557,7 @@ class Exploration {
     texteSurFond(ctx, texteTemps, W - 14, yTemps, { police: policeTemps, couleur: this.warp > 1 ? '#ffca28' : '#ffffff', align: 'right' });
     ctx.font = policeTemps;
     dessinerBoutonsTemps(ctx, W - 14 - ctx.measureText(texteTemps).width - 14, yTemps);
+    this.dessinerFondu(ctx, W, H);
   }
 
   dessinerHudTerre(ctx, W, H) {
@@ -1584,10 +1595,11 @@ class Exploration {
       const l = [];
       l.push([d.ressource, fmtDuree(this.reserve), fr < 0.2 ? '#ef5350' : '#66bb6a']);
       l.push([this.type === 'robot' ? 'Robot' : 'Combi.', fmt(this.integrite) + ' %' + (this.type === 'spationaute' && this.integrite < 90 ? ` · ${etatCombi(this.integrite).nom}` : ''), this.integrite > 60 ? '#66bb6a' : this.integrite > 30 ? '#ffca28' : '#ef5350']);
+      if (this.type === 'spationaute' && this.physio) l.push(['Cœur', textePhysio(this.physio).replace('❤ ', '').replace(' · SpO₂', ' · O₂ sang'), couleurSpo2(this.physio.spo2)]);
       if (this.blessure) l.push(['Santé', this.texteBlessure(), this.blessure.gravite === 'grave' ? '#ef5350' : '#ffca28']);
       l.push([this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? `${sc.analyses} (+${this.donneesEnAttente})` : `${this.sac.length}/${d.capacite}` + (this.rover ? ` · astromobile ${this.sacRover.length}/${this.caisseRover}` : ''), this.donneesEnAttente ? '#ffca28' : '#fff']);
       l.push(['Module', fmt(distSol(this.astre, this.p.x, this.xFusee)) + ' m', '#fff']);
-      if (this.duo) l.push([`👥 ${this.duo.eq.nom}`, `O₂ ${fmtDuree(this.duo.reserve)} · ${fmt(this.duo.integrite)} % · ${this.duo.sac.length}/${this.def.capacite}${this.duo.mode === 'attend' ? ' · attend' : ''}`, this.duo.reserve < 900 ? '#ef5350' : '#b3e5fc']);
+      if (this.duo) l.push([`👥 ${this.duo.eq.nom}`, `O₂ ${fmtDuree(this.duo.reserve)} · ${fmt(this.duo.integrite)} % · ${this.duo.sac.length}/${this.def.capacite}${this.duo.mode === 'attend' ? ' · attend' : ''}${this.duo.physio ? ` · ❤ ${fmt(this.duo.physio.fc)} · ${fmt(this.duo.physio.spo2)} %` : ''}`, this.duo.reserve < 900 || (this.duo.physio && this.duo.physio.spo2 < SPO2_ALERTE) ? '#ef5350' : '#b3e5fc']);
       { const tp = tracePlusProche(this.astre, this.p.x); if (tp && tp.d < 5000 && tp.d > 15) l.push(['📍 ' + tp.trace.nom, `${tp.ecart < 0 ? '◀' : '▶'} ${fmt(tp.d)} m`, '#ffe0a3']); }
       if (this.type === 'spationaute' && !this.terre && this.retour && this.retour.dist > 0) l.push(['Retour', this.retour.bloque ? 'bloqué ⛔' : '≈ ' + fmtDuree(this.retour.temps), this.retour.bloque || this.reserve < this.retour.temps * 1.3 ? '#ef5350' : '#fff']);
       if (this.rover) l.push(['Astromob.', fmtDuree(this.batterieRover), this.batterieRover < 30 * 60 ? '#ef5350' : '#66bb6a']);
@@ -1613,6 +1625,7 @@ class Exploration {
     const ligne = (k, v, coul = '#fff') => lignes.push([k, v, coul]);
     ligne(d.ressource, fmtDuree(this.reserve), fr < 0.2 ? '#ef5350' : '#66bb6a');
     ligne(this.type === 'robot' ? 'État du robot' : this.scaphandre ? 'Scaphandre lourd' : 'Combinaison', fmt(this.integrite) + ' %' + (this.type === 'spationaute' ? ` · ${etatCombi(this.integrite).nom}${etatCombi(this.integrite).fuite > 1 ? `, O₂ ×${fmt(etatCombi(this.integrite).fuite, 1)}` : ''} · ruban ${this.rubans + (this.duo ? this.duo.rubans : 0)}` : ''), this.integrite > 60 ? '#66bb6a' : this.integrite > 30 ? '#ffca28' : '#ef5350');
+    if (this.type === 'spationaute' && this.physio) ligne('Cœur · sang', `${fmt(this.physio.fc)} bpm · SpO₂ ${fmt(this.physio.spo2)} %${this.physio.conscient ? '' : ' · inconscient'}`, couleurSpo2(this.physio.spo2));
     if (this.type === 'spationaute') ligne('Santé', this.texteBlessure(), !this.blessure ? '#66bb6a' : this.blessure.gravite === 'grave' ? '#ef5350' : '#ffca28');
     ligne('Pression', fmtP(c.p) + ' / ' + fmt(d.pressionMax, 1), couleurRisque(c.p / d.pressionMax));
     ligne('Température', fmt(c.t) + ' / ' + fmt(d.tempMax) + ' °C', couleurRisque((c.t + KELVIN) / (d.tempMax + KELVIN)));
@@ -1636,7 +1649,7 @@ class Exploration {
     ligne(this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? `${sc.analyses} envoyées, ${this.donneesEnAttente} en mémoire` : `${this.sac.length} / ${d.capacite}` + (this.rover ? `  astromobile ${this.sacRover.length} / ${this.caisseRover}` : ''), this.donneesEnAttente ? '#ffca28' : '#fff');
     ligne('Sites étudiés ici', String(Object.keys(sc.sites || {}).length));
     ligne('Distance module', fmt(distSol(this.astre, this.p.x, this.xFusee)) + ' m');
-    if (this.duo) ligne(`👥 ${this.duo.eq.nom}`, `O₂ ${fmtDuree(this.duo.reserve)} · combi. ${fmt(this.duo.integrite)} % · sac ${this.duo.sac.length}/${this.def.capacite}${this.duo.mode === 'attend' ? ' · attend' : this.duo.enRover ? ' · à bord' : ' · suit'}`, this.duo.reserve < 900 ? '#ef5350' : '#b3e5fc');
+    if (this.duo) ligne(`👥 ${this.duo.eq.nom}`, `O₂ ${fmtDuree(this.duo.reserve)} · combi. ${fmt(this.duo.integrite)} % · sac ${this.duo.sac.length}/${this.def.capacite}${this.duo.mode === 'attend' ? ' · attend' : this.duo.enRover ? ' · à bord' : ' · suit'}${this.duo.physio ? ` · ${textePhysio(this.duo.physio)}` : ''}`, this.duo.reserve < 900 || (this.duo.physio && this.duo.physio.spo2 < SPO2_ALERTE) ? '#ef5350' : '#b3e5fc');
     if (this.type === 'spationaute' && !this.terre && this.retour && this.retour.dist > 0) ligne('Retour au module', this.retour.bloque ? `bloqué : paroi de ${fmt(this.retour.bloque.hauteur, 1)} m` : `≈ ${fmtDuree(this.retour.temps)}${this.retour.enRover ? ' (astromobile)' : ''}`, this.retour.bloque || this.reserve < this.retour.temps * 1.3 ? '#ef5350' : '#fff');
     if (this.rover) ligne('Batterie astromobile', fmtDuree(this.batterieRover) + (this.usureBatterieRover > 0 ? ` (capacité ${fmt(100 - this.usureBatterieRover)} %)` : ''), this.batterieRover < 30 * 60 ? '#ef5350' : this.usureBatterieRover > 30 ? '#ffca28' : '#66bb6a');
     if (this.rover && this.degatsRover > 0) ligne('État astromobile', this.degatsRover >= 100 ? 'hors d’usage' : `abîmée à ${fmt(this.degatsRover)} %, vitesse ×${fmt(1 - 0.5 * this.degatsRover / 100, 2)}`, this.degatsRover >= 50 ? '#ef5350' : '#ffca28');

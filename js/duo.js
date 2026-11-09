@@ -52,7 +52,8 @@ Object.assign(Exploration.prototype, {
     const d = this.duo;
     if (!d) return this.dire('Personne d’autre dehors : vous êtes seul·e à sortir.');
     if (this.fin || this.enEmbarquement()) return;
-    const moi = { p: this.p, reserve: this.reserve, integrite: this.integrite, sac: this.sac, doseSv: this.doseSv, dose: this.dose, enRover: this.enRover, blessure: this.blessure, eq: this.vol.equipier || equipierDescente(null) };
+    const moi = { p: this.p, reserve: this.reserve, integrite: this.integrite, sac: this.sac, doseSv: this.doseSv, dose: this.dose, enRover: this.enRover, blessure: this.blessure, physio: this.physio, eq: this.vol.equipier || equipierDescente(null) };
+    this.physio = d.physio || physioNeuve(); d.physio = moi.physio;
     this.p = d.p; this.reserve = d.reserve; this.integrite = d.integrite; this.sac = d.sac; this.doseSv = d.doseSv; this.dose = d.dose; this.enRover = d.enRover; this.blessure = d.blessure || null; this.appliquerBlessure();
     this.vol.equipier = d.eq; this.def.nom = d.eq.nom;
     Object.assign(d, { p: moi.p, reserve: moi.reserve, integrite: moi.integrite, sac: moi.sac, doseSv: moi.doseSv, dose: moi.dose, enRover: moi.enRover, blessure: moi.blessure, eq: moi.eq });
@@ -136,6 +137,7 @@ Object.assign(Exploration.prototype, {
     const d = this.duo;
     if (!d) return;
     if (!this.procheDuo()) return this.dire(`Approchez-vous de ${d.eq.nom} pour relier vos combinaisons.`);
+    if ((this.enRover || d.enRover) && Math.abs(this.p.vx) > 0.1) return this.dire('Arrêtez l’astromobile pour relier vos combinaisons.');
     const moyenne = (this.reserve + d.reserve) / 2;
     if (Math.abs(this.reserve - moyenne) < 60) return this.dire('Vos réserves d’oxygène sont déjà à égalité.');
     this.reserve = moyenne; d.reserve = moyenne;
@@ -151,7 +153,9 @@ Object.assign(Exploration.prototype, {
     d.dose = (100 * d.doseSv) / DOSE_MORTELLE;
     if (this.essai && d.reserve <= 0) d.reserve = this.def.autonomie;
     if (d.reserve < 15 * 60 && !d.alerteO2) { d.alerteO2 = true; this.dire(`⚠ ${d.eq.nom} : moins de 15 min d’oxygène. Partagez le vôtre (O, à côté), ou rentrez.`); }
-    if (d.reserve <= 0 || d.dose >= 100) return this.perdreDuo(d.reserve <= 0 ? 'plus d’oxygène' : 'dose mortelle de rayonnement');
+    if (d.reserve < 0) d.reserve = 0;   // plus d'oxygène : hypoxie progressive (physiologie.js)
+    if (d.integrite < 0) d.integrite = 0;
+    if (d.dose >= 100) return this.mourirSortie(d, 'dose mortelle de rayonnement');
     // Deux places dans l'astromobile : il roule avec vous.
     if (d.enRover) { q.x = p.x; q.y = p.y; q.vx = p.vx; q.auSol = true; return; }
     if (!q.auSol) {
@@ -159,6 +163,7 @@ Object.assign(Exploration.prototype, {
       if (q.y <= this.sol(q.x)) { q.y = this.sol(q.x); q.vy = 0; q.vx = 0; q.auSol = true; }
       return;
     }
+    if (d.physio && !d.physio.conscient) { q.vx = 0; return; }   // inconscient : il ne bouge plus
     // Rappel : vous êtes en bas, la corde est plantée au bord ; l'autre descend à son tour, le long de la paroi.
     if (d.enRappel) {
       const gr = this.grappin, sens = gr ? -gr.sens : (q.dir || 1);

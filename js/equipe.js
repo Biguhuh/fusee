@@ -185,6 +185,7 @@ function rateParTrauma(v) {
   return Math.random() < risqueTrauma(v) + risqueDechets(v) + risqueVivres(v);   // soute à déchets pleine : hygiène dégradée
 }
 function causeSortie(texte) {
+  if (/décompression/.test(texte)) return 'combinaison percée, décompression';   // avant « pression », qu'il contient
   if (/pression/.test(texte)) return 'combinaison écrasée par la pression';
   if (/chaleur/.test(texte)) return 'combinaison détruite par la chaleur';
   if (/rayonnement/.test(texte)) return 'dose mortelle de rayonnement';
