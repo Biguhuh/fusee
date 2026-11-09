@@ -224,7 +224,7 @@ function htmlBilan(v) {
       <tr><td>Lanceurs construits (étages, à vide)</td><td><b>${fmtMasse(T.masseLanceurs)}</b></td></tr>
       <tr><td>Ergols brûlés au décollage</td><td><b>${fmtMasse(ergolsT)}</b>${ergolsT ? `<br><span class="doux">${Object.entries(T.ergols).map(([k, kg]) => `${FACTEURS_ERGOLS[k].nom.toLowerCase()} : ${fmtMasse(kg)}`).join(' · ')}</span>` : ''}</td></tr>
       <tr><td>Capacité mise en orbite</td><td><b>${fmtMasse(T.chargeUtile)}</b>${envoiTerre ? `<br><span class="doux">dont chargements : ${envoiTerre}</span>` : ''}</td></tr>
-      <tr><td>Ravitaillement courant des stations</td><td><b>${fmtMasse(T.ravito)}</b> <span class="doux">(vivres, eau, ergols, sondes)</span></td></tr>
+      <tr><td>Ravitaillement courant des stations</td><td><b>${fmtMasse(T.ravito)}</b> <span class="doux">(vivres, eau, carburant, ergols)</span></td></tr>
       <tr><td>Part de la masse de la Terre partie dans l’espace</td><td><b>${fmtPart((T.chargeUtile + T.ravito) / masseAstreKg(ASTRES_PAR_ID[planeteOrigine().id]))}</b></td></tr></table></section>`;
 
   // Astres

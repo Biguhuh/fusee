@@ -281,12 +281,12 @@ function fusionnerDoublons(v) {
 // Niveaux des stations orbitales. Chaque niveau s'obtient avec une extension de station (atelier ou ravito),
 // assemblée en orbite en quelques jours.
 //   stock : multiplie les capacités de stockage ; vitesse : accélère les chantiers de l'atelier ;
-//   ravito : multiplie le ravitaillement courant ; habitat : accueille l'équipe de spationautes ;
+//   ravito : passages du ravitaillement courant plus fréquents ; habitat : accueille l'équipe de spationautes ;
 //   interstellaire : chantier du vaisseau de départ vers une autre étoile.
 const NIVEAUX_STATION = {
   1: { stock: 1, vitesse: 1, ravito: 1, apport: 'amarrage, stock, atelier' },
   2: { stock: 2, vitesse: 1, ravito: 1, apport: 'stockage doublé' },
-  3: { stock: 2, vitesse: 1.5, ravito: 2, apport: 'chantiers 1,5 fois plus rapides, ravitaillement courant doublé' },
+  3: { stock: 2, vitesse: 1.5, ravito: 2, apport: 'chantiers 1,5 fois plus rapides, ravitaillement courant deux fois plus fréquent' },
   4: { stock: 3, vitesse: 1.5, ravito: 2, habitat: true, apport: 'habitat pour l’équipe de spationautes, stockage triplé' },
   5: { stock: 3, vitesse: 2, ravito: 2, habitat: true, interstellaire: true, apport: 'chantier interstellaire : assemble le vaisseau de départ vers une autre étoile, chantiers 2 fois plus rapides' },
 };
@@ -413,17 +413,8 @@ function ajouterAuStock(s, contenu, origines = null) {
   }
 }
 
-// Ravitaillement courant : de quoi vivre et refaire un peu les pleins (doublé à partir du niveau 3).
-// Le reste, ce sont les ravitos lancés par le joueur.
-function livrerCargo(s) {
-  const f = niveauStation(s).ravito;
-  // Comme les cargos de l'ISS : des vivres et de l'eau à chaque passage.
-  const c = s.terrestre ? { carburant: 30000 * f, ergols: 30000 * f, sondes: f, kits: 1, vivres: 2000 * f, eau: 500 * f } : { carburant: 15000 * f, ergols: 15000 * f, sondes: f, vivres: 2000 * f, eau: 500 * f };
-  ajouterAuStock(s, c);
-  noterRavitoCourant(c);   // bilan matière et carbone
-  const v = campagneEnCours();
-  if (v) payerRavitoCourant(v, c);   // finances
-}
+// Ravitaillement courant : seulement ce qui manque à la station (ravitaillement.js). Renvoie ce qui est livré.
+function livrerCargo(s) { return ravitoSelonBesoins(s); }
 
 // ---------- Bases au sol et ressources locales ----------
 // Production d'ergols (kg par jour) selon ce qu'on trouve sur place.

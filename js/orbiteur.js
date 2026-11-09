@@ -1033,14 +1033,16 @@ const Orbiteur = {
       // Extension de station en stock : l'assemblage démarre tout seul (plus besoin de cliquer « Agrandir »).
       if (!s.agrandissement && (s.niveau || 1) < 5 && (s.stock.extensionsStation || 0) > 0) this.agrandirStation(s.id);
       if (!ressourcesIllimitees()) continue;
-      if (!s.prochainCargo) s.prochainCargo = v.t + intervalleCargo(s.centre);
-      let n = 0;
+      if (!s.prochainCargo) s.prochainCargo = v.t + intervalleRavito(s);
+      let n = 0, livre = null;
       while (v.t >= s.prochainCargo && n++ < 50) {
-        livrerCargo(s);
-        s.prochainCargo += intervalleCargo(s.centre);
-        if (n === 1) this.log(`Ravitaillement courant arrivé ${au(s)}.`);
+        livre = livrerCargo(s) || livre;   // seulement ce qui manque (ravitaillement.js)
+        s.prochainCargo += intervalleRavito(s);
       }
+      if (v.t >= s.prochainCargo) s.prochainCargo = v.t + intervalleRavito(s);   // très long saut de temps
+      if (livre) this.log(`Ravitaillement courant arrivé ${au(s)} : ${decrireContenu(livre)}.`);
     }
+    mettreAJourResidents(v, (t) => this.log(t));   // occupants des stations et des bases, navette (ravitaillement.js)
     for (const b of v.bases) {
       const dt = v.t - (b.tMaj || v.t);
       b.tMaj = v.t;

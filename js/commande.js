@@ -67,9 +67,11 @@ const Commande = {
       const ta = Orbiteur.arriveePrevue(cg);
       return `<li><b>${cg.nom}</b> — ${decrireContenu(cg.contenu)} · depuis ${cg.origine ? le(cg.origine) : '?'} · ${ta ? (ta > v.t ? `arrive dans ${fmtDuree(ta - v.t)}` : 'arrive bientôt') : 'arrivée inconnue'}</li>`;
     };
-    c.innerHTML = `<p>Un cargo part de la Terre (lancement payé) ou d’une station (avec ce qu’elle a en stock), sur sa propre trajectoire. Les stations proches de la Terre reçoivent aussi un ravitaillement courant automatique.</p>
+    c.innerHTML = `<p>Un cargo part de la Terre (lancement payé) ou d’une station (avec ce qu’elle a en stock), sur sa propre trajectoire. Dans le Système solaire, chaque station reçoit aussi un ravitaillement courant automatique, selon ses besoins.</p>
       ${v.stations.length ? `<div class="actions" style="justify-content:flex-start"><button id="cmd-ravito" class="principal">📦 Préparer un ravito</button>${v.stations.map((s) => `<button data-rav="${s.id}">→ ${s.nom}</button>`).join('')}</div>` : '<p class="encart">Aucune station : construisez-en une avec l’orbiteur (un kit de station) pour pouvoir la ravitailler.</p>'}
-      <h3>En route</h3>${cargos.length ? `<ul class="sondes">${cargos.map(ligne).join('')}</ul>` : '<p class="doux">Aucun cargo en route.</p>'}`;
+      <h3>En route</h3>${cargos.length ? `<ul class="sondes">${cargos.map(ligne).join('')}</ul>` : '<p class="doux">Aucun cargo en route.</p>'}
+      ${htmlRavitoCourant(v)}`;
+    c.querySelectorAll('[data-auto]').forEach((x) => { x.onchange = () => { const s = v.stations.find((y) => y.id === x.dataset.auto); if (s) s.ravitoAuto = x.checked; sauver(etat); this.afficher(); }; });
     const b = $('cmd-ravito');
     if (b) b.onclick = () => Orbiteur.ouvrirRavito(null, () => this.afficher());
     c.querySelectorAll('[data-rav]').forEach((x) => { x.onclick = () => Orbiteur.ouvrirRavito(x.dataset.rav, () => this.afficher()); });
