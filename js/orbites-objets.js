@@ -36,17 +36,71 @@ function decrireOrbiteObjet(o) {
   if (c.type === 'etoile') return `${fmt(o.a / UA_KM, 4)} UA du Soleil, excentricité ${fmt(o.e, 3)}`;
   return `${fmtAlt((o.a * (1 - o.e) - c.rayonKm) * 1000)} × ${fmtAlt((o.a * (1 + o.e) - c.rayonKm) * 1000)} d’altitude`;
 }
-// Change la vitesse d'un objet de dv (km/s, repère de son centre). Renvoie { ok, avant, apres } ou { ok: false, texte }.
-function modifierOrbiteObjet(v, a, dv) {
-  const s = etatRelatif(a, v.t), c = ASTRES_PAR_ID[a.orbite.centre];
-  const o = orbiteDepuisEtat(a.orbite.centre, s.r, V.add(s.v, dv), v.t);
-  if (!o) return { ok: false, texte: `${le(a)} quitterait ${le(c)} pour de bon` };
-  if (c.type !== 'etoile' && o.a * (1 - o.e) < c.rayonKm + (c.atm ? 150 : 10)) return { ok: false, texte: `${le(a)} retomberait ${c.atm ? 'dans l’atmosphère' : 'au sol'}` };
-  const avant = a.orbite;
+// Ce que deviendrait l'objet après dv (km/s) : { o, parti } ou { o, chute: { dt, cause } } ou { o }.
+function evaluerPoussee(v, a, dv) {
+  const s = etatRelatif(a, v.t), c = ASTRES_PAR_ID[a.orbite.centre], nv = V.add(s.v, dv);
+  const o = orbiteDepuisEtat(a.orbite.centre, s.r, nv, v.t);
+  if (!o) return { parti: true, etat: { r: s.r, v: nv } };
+  const rp = o.a * (1 - o.e), sol = c.type === 'etoile' ? c.rayonKm : c.rayonKm + (c.atm ? 150 : 10);
+  if (rp >= sol) return { o };
+  // Il descend jusqu'à son périgée : il touche l'atmosphère (ou le sol, ou le Soleil) avant.
+  const nRad = (o.n * DEG) / JOUR, M = ((((o.M0 * DEG + nRad * v.t) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI));
+  const dt = Math.max(60, (2 * Math.PI - M) / nRad);
+  return { o, chute: { dt, cause: c.type === 'etoile' ? 'soleil' : c.atm ? 'atmosphere' : 'sol' } };
+}
+// futur : « retombera » plutôt que « retomberait ».
+function texteChute(a, c, cause, futur = false) {
+  const t = futur ? 'a' : 'ait';
+  if (cause === 'soleil') return `${le(a)} plonger${t} dans le Soleil`;
+  return cause === 'atmosphere' ? `${le(a)} retomber${t} dans l’atmosphère ${de(c)}` : `${le(a)} s’écraser${t} ${sur(c)}`;
+}
+// Change la vitesse d'un objet de dv (km/s, repère de son centre). libre : sans garde-fous (on peut le perdre).
+// Renvoie { ok, avant, apres, chute, parti } ou { ok: false, texte }.
+function modifierOrbiteObjet(v, a, dv, libre = false) {
+  const c = ASTRES_PAR_ID[a.orbite.centre], ev = evaluerPoussee(v, a, dv), avant = a.orbite;
+  if (ev.parti) {
+    if (!libre) return { ok: false, texte: `${le(a)} quitterait ${le(c)} pour de bon` };
+    perdreObjet(v, a, 'parti', ev.etat);
+    return { ok: true, avant, parti: true };
+  }
+  if (ev.chute && !libre) return { ok: false, texte: texteChute(a, c, ev.chute.cause) };
   v.orbitesObjets = v.orbitesObjets || {};
-  v.orbitesObjets[a.id] = o;
+  v.orbitesObjets[a.id] = ev.o;
   appliquerOrbitesObjets(v);
-  return { ok: true, avant, apres: o };
+  if (ev.chute) (v.chutesObjets = v.chutesObjets || {})[a.id] = { t: v.t + ev.chute.dt, cause: ev.chute.cause };
+  else if (v.chutesObjets) delete v.chutesObjets[a.id];
+  return { ok: true, avant, apres: ev.o, chute: ev.chute || null };
+}
+// L'objet n'existe plus (retombé, écrasé, parti) : s'il était le centre de l'orbiteur, celui-ci passe au centre de l'objet.
+function perdreObjet(v, a, cause, etatRel) {
+  (v.objetsPerdus = v.objetsPerdus || {})[a.id] = { cause, t: v.t };
+  if (v.chutesObjets) delete v.chutesObjets[a.id];
+  if (v.orb && v.orb.centre === a.id) {
+    const e = etatRel || etatRelatif(a, v.t);
+    Object.assign(v.orb, { centre: a.orbite.centre, r: V.add(e.r, v.orb.r), v: V.add(e.v, v.orb.v), transfert: null });
+  }
+  if (v.cible === a.id) v.cible = null;
+  if (a.observatoire) { v.deranges = v.deranges || {}; v.deranges[a.id] = v.deranges[a.id] || { t: v.t }; }
+}
+function objetPerdu(a) { const v = campagneEnCours(); return !!(v && v.objetsPerdus && v.objetsPerdus[a.id]); }
+function texteObjetPerdu(a) {
+  const p = campagneEnCours().objetsPerdus[a.id];
+  return { atmosphere: '🔥 Retombé dans l’atmosphère', sol: '💥 Écrasé au sol', soleil: '☀️ Plongé dans le Soleil', parti: '🚀 Parti pour toujours' }[p.cause] || 'Perdu';
+}
+// Chutes prévues : l'objet arrive à son périgée, dans l'atmosphère ou au sol.
+function verifierChutesObjets(v, log) {
+  for (const [id, ch] of Object.entries(v.chutesObjets || {})) {
+    if (v.t < ch.t) continue;
+    const a = ASTRES_PAR_ID[id], c = ASTRES_PAR_ID[a.orbite.centre];
+    const etat = etatRelatif(a, ch.t);
+    const colle = !!(v.orb && v.orb.centre === id && V.norm(v.orb.r) < DIST_OBJET_PROCHE);   // l'orbiteur ne s'est pas écarté
+    perdreObjet(v, a, ch.cause, etat);
+    const quoi = ch.cause === 'soleil' ? `a plongé dans le Soleil et s’est vaporisé${a.art === 'la' ? 'e' : ''}`
+      : ch.cause === 'atmosphere' ? `est rentré${a.art === 'la' ? 'e' : ''} dans l’atmosphère ${de(c)} et s’est désintégré${a.art === 'la' ? 'e' : ''} : quelques débris tombent${c.id === 'terre' ? ' dans l’océan' : ''}`
+      : `s’est écrasé${a.art === 'la' ? 'e' : ''} ${sur(c)}`;
+    log(`${ch.cause === 'soleil' ? '☀️' : ch.cause === 'atmosphere' ? '🔥' : '💥'} ${majuscule(le(a))} ${quoi}. ${a.colere || ''}`);
+    if (colle && Orbiteur.v === v) return Orbiteur.crash(ch.cause === 'soleil');   // resté collé : l'orbiteur suit le même sort
+  }
 }
 // L'orbiteur est à côté de l'objet (fin du rendez-vous), presque immobile par rapport à lui.
 function aCoteObjet(v, a) {
@@ -84,18 +138,23 @@ function souffleMoteurs(orb, dv) {
 // Poussée volontaire : l'orbiteur, à côté, pousse l'objet vers l'avant ou l'arrière de sa course.
 function ouvrirPousseeObjet(orb, a) {
   const v = orb.v, m = $('modale'), masseObj = a.masseKg || 1000;
-  const choix = [1, 5, 20, 100];
+  const choix = [1, 5, 20, 100, 500, 3000];
   const carbu = (dvMs) => (ORBITEUR.masseSeche + v.carburant + masseObj) * (1 - Math.exp(-dvMs / (ORBITEUR.isp * G0)));
   const sens = (s) => V.mul(V.unit(etatRelatif(a, v.t).v), s);
+  const c = ASTRES_PAR_ID[a.orbite.centre];
   const apercu = (dvMs, s) => {
-    const st = etatRelatif(a, v.t), o = orbiteDepuisEtat(a.orbite.centre, st.r, V.add(st.v, V.mul(sens(s), dvMs / 1000)), v.t);
-    return o ? decrireOrbiteObjet(o) : 'orbite ouverte, il partirait';
+    const ev = evaluerPoussee(v, a, V.mul(sens(s), dvMs / 1000));
+    if (ev.parti) return `${le(a)} quitterait ${le(c)} pour de bon${libre() ? '' : ' (garde-fous : refusé)'}`;
+    if (ev.chute) return `${texteChute(a, c, ev.chute.cause)} dans ${fmtDuree(ev.chute.dt)}${libre() ? ', et l’orbiteur avec, s’il reste collé' : ' (garde-fous : refusé)'}`;
+    return decrireOrbiteObjet(ev.o);
   };
+  const libre = () => !!($('pousse-libre') && $('pousse-libre').checked);
   const ligne = (s, nom) => `<tr><td>${nom}</td>${choix.map((x) => `<td><button data-pousse="${s}|${x}" ${carbu(x) > v.carburant ? 'disabled' : ''}>${x} m/s</button><br><span class="doux">${fmt(carbu(x))} kg</span></td>`).join('')}</tr>`;
   m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>🔧 Pousser ${le(a)}</h2>
     <p>L’orbiteur s’amarre doucement ${au(a)} et pousse l’ensemble (${fmt((ORBITEUR.masseSeche + v.carburant + masseObj) / 1000)} t). Orbite actuelle : ${decrireOrbiteObjet(a.orbite)}.</p>
     <p class="doux">Vers l’avant de sa course, l’orbite monte du côté opposé ; vers l’arrière, elle descend. En 2022, SpaceX et la NASA ont étudié une remontée de Hubble par une capsule Dragon, pour lui donner des années de plus.</p></div><button class="fermer">✕</button></header>
     <table class="table-progression"><tr><th>Sens</th>${choix.map(() => '<th>Δv · carburant</th>').join('')}</tr>${ligne(1, '⬆ Vers l’avant')}${ligne(-1, '⬇ Vers l’arrière')}</table>
+    <label class="choix-ravito"><input type="checkbox" id="pousse-libre"> 🔓 Sans garde-fous : on peut le faire retomber, l’écraser ou le perdre pour toujours</label>
     <p id="pousse-apercu">Survolez un bouton pour voir la nouvelle orbite. Carburant de l’orbiteur : ${fmt(v.carburant)} kg.</p></div>`;
   m.classList.remove('cache');
   m.querySelector('.fermer').onclick = () => Infos.fermer();
@@ -105,11 +164,14 @@ function ouvrirPousseeObjet(orb, a) {
     b.onclick = () => {
       const kg = carbu(x);
       if (kg > v.carburant) return;
-      const r = modifierOrbiteObjet(v, a, V.mul(sens(s), x / 1000));
-      if (!r.ok) { $('pousse-apercu').textContent = `Poussée refusée : ${r.texte}.`; return; }
+      const r = modifierOrbiteObjet(v, a, V.mul(sens(s), x / 1000), libre());
+      if (!r.ok) { $('pousse-apercu').textContent = `Poussée refusée : ${r.texte}. Cochez « Sans garde-fous » pour le faire quand même.`; return; }
       v.carburant -= kg;   // l'orbiteur, amarré, suit l'objet : sa position relative ne change pas
       Infos.fermer();
-      orb.log(`🔧 ${majuscule(le(a))} poussé${a.art === 'la' ? 'e' : ''} de ${x} m/s ${s > 0 ? 'vers l’avant' : 'vers l’arrière'} (${fmt(kg)} kg de carburant) : ${decrireOrbiteObjet(r.apres)}. ${reactionOrbite(v, a, r)}`);
+      const fait = `🔧 ${majuscule(le(a))} poussé${a.art === 'la' ? 'e' : ''} de ${x} m/s ${s > 0 ? 'vers l’avant' : 'vers l’arrière'} (${fmt(kg)} kg de carburant)`;
+      if (r.parti) orb.log(`${fait} : ${le(a)} quitte ${le(c)} pour toujours. L’orbiteur, lancé avec lui, file aussi : vérifiez votre trajectoire. ${a.colere || ''}`);
+      else if (r.chute) orb.log(`${fait} : ⚠ ${texteChute(a, c, r.chute.cause, true)} dans ${fmtDuree(r.chute.dt)}. L’orbiteur, collé à lui, suit la même trajectoire : écartez-vous et remontez avant !`);
+      else orb.log(`${fait} : ${decrireOrbiteObjet(r.apres)}. ${reactionOrbite(v, a, r)}`);
       orb.majHud(true);
       if (typeof sauver === 'function') sauver(etat);
     };

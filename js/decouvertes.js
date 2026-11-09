@@ -318,7 +318,7 @@ const G_KM = 6.674e-20;   // constante de la gravitation en km³/(kg·s²)
 })();
 
 // Propulseur solaire (campagne.js) : proposé à l'atelier une fois la voiture découverte.
-function astreMasque(a) { return !!(a.id === 'roadster' && voitureEtape(2)); }
+function astreMasque(a) { return !!(a.id === 'roadster' && voitureEtape(2)) || (a.artificiel && typeof objetPerdu === 'function' && objetPerdu(a)); }
 // Rendez-vous fait : à quelques km de l'objet, vitesse relative presque nulle.
 function aCoteDe(v, id) { return v.orb && v.orb.centre === id && V.norm(v.orb.r) < 20 && V.norm(v.orb.v) < 0.01; }
 function recetteVisible(cle, st) {

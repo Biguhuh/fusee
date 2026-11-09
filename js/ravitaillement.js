@@ -15,7 +15,8 @@ function consoParPersonne(v) {
   const serre = niveauAmelio('serre', v), recyc = niveauAmelio('recyclage', v);
   return { vivres: VIVRES_PAR_JOUR * (1 - 0.1 * serre), eau: EAU_PAR_JOUR * (1 - 0.25 * recyc) + 0.1 * serre };
 }
-function residents(v, lieu) { return (v.equipe || []).filter((m) => lieuMembre(m) === lieu).length; }
+function membresA(v, lieu) { return (v.equipe || []).filter((m) => lieuMembre(m) === lieu && !(m.principal && v.equipagePerdu)); }
+function residents(v, lieu) { return membresA(v, lieu).length; }
 function basesDeStation(v, st) { return (v.bases || []).filter((b) => b.astre === st.centre && !b.deploiement); }
 function residentsAstre(v, st) { return residents(v, 'st:' + st.id) + basesDeStation(v, st).reduce((s, b) => s + residents(v, idBase(b)), 0); }
 function eauGlaceParJour(b) { return /glace/.test(ressourceLocale(ASTRES_PAR_ID[b.astre])[0] || '') ? EAU_GLACE_PAR_JOUR * (b.niveau || 1) : 0; }
@@ -61,6 +62,45 @@ function ravitoSelonBesoins(s) {
 }
 
 // ---------- Navette vers les bases, consommation des occupants ----------
+// Mêmes règles qu'à bord de l'orbiteur : à sec, rationnement, puis des morts (sans eau au bout de 3 jours, puis un
+// par jour ; sans vivres au bout de 3 semaines, puis un par semaine). L'alerte arrive tant qu'il est encore temps
+// d'envoyer un ravito « Vivres et eau » depuis la Terre : trajet réel du cargo, plus une marge.
+const MARGE_SECOURS = 1.5, JOURS_MARGE_SECOURS = 10;
+
+// Durée du trajet d'un cargo de la Terre jusqu'à la station (même calcul que les vrais cargos), en cache 10 jours.
+function delaiSecours(v, st) {
+  const c = st.delaiSecours;
+  if (c && Math.abs(v.t - c.t) < 10 * JOUR) return c.d;
+  let d = null;
+  try {
+    const dep = Orbiteur.departCargo(SYSTEME.origine);
+    if (dep.centre === st.centre) d = DUREE_RDV_LOCAL;
+    else {
+      const p = Orbiteur.planTrajet({ type: 'cargo', centre: dep.centre, r: dep.r.slice(), v: dep.v.slice(), transfert: null, cible: st.centre, dest: st.id });
+      if (p.fin === 'arrivee') d = p.tFin - v.t;
+    }
+  } catch (e) { d = null; }
+  if (!d) d = estOrigine(st.centre) ? DUREE_RDV_LOCAL : intervalleCargo(st.centre);   // ordre de grandeur
+  st.delaiSecours = { t: v.t, d };
+  return d;
+}
+// Jours qu'il faut garder en réserve pour qu'un ravito de secours arrive à temps.
+function seuilSecours(v, st) { return (delaiSecours(v, st) / JOUR) * MARGE_SECOURS + JOURS_MARGE_SECOURS; }
+
+// Un occupant meurt de faim ou de soif.
+function mourirResident(v, lieu, cause, ou, log) {
+  const l = membresA(v, lieu);
+  if (!l.length) return;
+  const m = l[Math.floor(Math.random() * l.length)];
+  const nom = m.principal ? nomSpatio() : m.nom;
+  if (m.principal) v.equipagePerdu = true; else m.etat = 'perdu';
+  const b = baseDe(v, lieu), st = stationDe(v, lieu);
+  noterPerte(v, nom, b ? b.astre : st ? st.centre : SYSTEME.origine, cause, ou);
+  v.proposerRappel = { nom, acc: accordMembre(m) };
+  verifierEquipageEntierPerdu(v);
+  log(`💀 ${majuscule(nom)} est mort${accordMembre(m)} ${ou} : ${cause}.`);
+}
+
 // Appelé par mettreAJourLogistique, après les livraisons du ravitaillement courant.
 function mettreAJourResidents(v, log) {
   const dtJ = Math.max(0, v.t - (v.tResidents ?? v.t)) / JOUR;
@@ -68,18 +108,25 @@ function mettreAJourResidents(v, log) {
   if (!dtJ || !v.equipe) return;
   const c = consoParPersonne(v);
   v.alertesResidents = v.alertesResidents || {};
-  const manger = (lieu, k, nom) => {
+  v.penuries = v.penuries || {};
+  const NOMS = { eau: ['💧', 'd’eau potable'], vivres: ['🍞', 'de vivres'] };
+  // Consommation à un lieu ; à sec : rationnement, puis des morts.
+  const manger = (lieu, k, ou) => {
     const n = residents(v, lieu);
-    if (!n) return;
     for (const cle of ['vivres', 'eau']) {
+      const p = v.penuries[lieu + ':' + cle] || (v.penuries[lieu + ':' + cle] = { sans: 0, morts: 0, alerte: false });
+      if (!n || !c[cle]) { p.sans = 0; p.morts = 0; p.alerte = false; continue; }
       const avant = k[cle] || 0;
       k[cle] = Math.max(0, avant - n * c[cle] * dtJ);
-      const a = lieu + ':' + cle;
-      if (k[cle] <= 0 && c[cle] > 0 && !v.alertesResidents[a]) {
-        v.alertesResidents[a] = true;
-        log(`${cle === 'eau' ? '💧' : '🍞'} Plus ${cle === 'eau' ? 'd’eau potable' : 'de vivres'} ${nom} : ${n === 1 ? 'son occupant se rationne' : `ses ${n} occupants se rationnent`}. Envoyez un ravito « Vivres et eau », ou ramenez-les.`);
+      if (k[cle] > 0) { p.sans = 0; p.morts = 0; p.alerte = false; continue; }
+      if (!p.alerte) { p.alerte = true; log(`${NOMS[cle][0]} Plus ${NOMS[cle][1]} ${ou} : rationnement. ${n === 1 ? 'Son occupant s’affaiblit' : `Ses ${n} occupants s’affaiblissent`}. ${cle === 'eau' ? 'Sans eau, on meurt en 3 jours.' : 'Sans vivres, on tient environ 3 semaines.'} Envoyez un ravito « Vivres et eau », ou ramenez-les.`); }
+      p.sans += dtJ;
+      const [premier, suivants] = JOURS_AVANT_MORT[cle];
+      while (p.sans >= (p.morts ? suivants : premier) && residents(v, lieu)) {
+        p.sans -= p.morts ? suivants : premier;
+        p.morts++;
+        mourirResident(v, lieu, cle === 'eau' ? 'mort de soif, à court d’eau potable' : 'mort de faim, à court de vivres', ou, log);
       }
-      if (k[cle] > n * c[cle] * 10) v.alertesResidents[a] = false;
     }
   };
   for (const b of v.bases || []) {
@@ -94,7 +141,46 @@ function mettreAJourResidents(v, log) {
     }
     manger(lieu, k, `à la base ${de(ASTRES_PAR_ID[b.astre])}`);
   }
-  for (const st of v.stations) manger('st:' + st.id, st.stock, au(st));
+  for (const st of v.stations) manger('st:' + st.id, st.stock, `à bord ${de(st)}`);
+  alertesSecours(v, log);
+}
+
+// Autonomie d'une station et de ses bases (jours), pour chaque ressource ; Infinity si personne ne consomme.
+function autonomieAstre(v, st) {
+  const n = residentsAstre(v, st), c = consoParPersonne(v), r = {};
+  for (const cle of ['vivres', 'eau']) {
+    const stock = (st.stock[cle] || 0) + basesDeStation(v, st).reduce((s, b) => s + ((b.reserve || {})[cle] || 0), 0);
+    r[cle] = n && c[cle] ? stock / (n * c[cle]) : Infinity;
+  }
+  return r;
+}
+// Alerte tant qu'il est temps : moins de jours de réserve que le trajet d'un ravito (avec la marge), et pas de
+// ravitaillement courant qui arrive avant (il apporte ce qui manque pour les occupants).
+function alertesSecours(v, log) {
+  for (const st of v.stations) {
+    const n = residentsAstre(v, st);
+    if (!n) continue;
+    const aut = autonomieAstre(v, st), seuil = seuilSecours(v, st);
+    const auto = ressourcesIllimitees() && st.ravitoAuto !== false && st.prochainCargo;
+    for (const cle of ['vivres', 'eau']) {
+      const k = 'secours:' + st.id + ':' + cle, j = aut[cle];
+      const couvert = auto && (st.prochainCargo - v.t) / JOUR < j - 1;
+      if (j < seuil && !couvert && !v.alertesResidents[k]) {
+        v.alertesResidents[k] = true;
+        log(`⚠ ${cle === 'eau' ? '💧 Eau potable' : '🍞 Vivres'} : plus que ${texteJours(j)} ${au(st)} et dans ses bases (${n} occupant${n > 1 ? 's' : ''}). Un ravito « Vivres et eau » met environ ${fmtDuree(delaiSecours(v, st))} depuis la Terre : envoyez-le maintenant${auto ? '' : ' (ravitaillement automatique coupé)'}.`);
+      }
+      if (j > seuil + 5 || couvert) v.alertesResidents[k] = false;
+    }
+  }
+  // Bases sans station : personne ne peut les ravitailler.
+  for (const b of v.bases || []) {
+    const lieu = idBase(b), n = residents(v, lieu);
+    if (!n || stationSur(v, b.astre)) continue;
+    const c = consoParPersonne(v), k = 'secours:' + lieu;
+    const j = Math.min(...['vivres', 'eau'].map((x) => (c[x] ? ((b.reserve || {})[x] || 0) / (n * c[x]) : Infinity)));
+    if (j < 30 && !v.alertesResidents[k]) { v.alertesResidents[k] = true; log(`⚠ Base ${de(ASTRES_PAR_ID[b.astre])} : plus que ${texteJours(j)} de réserve, et pas de station au-dessus pour la ravitailler. Ramenez ses occupants.`); }
+    if (j > 35) v.alertesResidents[k] = false;
+  }
 }
 
 // ---------- Onglet Ravitos : le ravitaillement courant de chaque station ----------
@@ -107,6 +193,7 @@ function htmlRavitoCourant(v) {
     return `<article class="encart"><h4>🛰 ${s.nom} <span class="doux">— tous les ${fmtDuree(intervalleRavito(s))}${n ? `, ${n} occupant${n > 1 ? 's' : ''} (station et bases)` : ''}</span></h4>
       <label class="choix-ravito"><input type="checkbox" data-auto="${s.id}" ${s.ravitoAuto === false ? '' : 'checked'}> Ravitaillement automatique</label>
       ${s.ravitoAuto === false ? '<p class="doux">Coupé : rien ne part de la Terre vers cette station.</p>' : `<p>Prochain passage ${s.prochainCargo ? `dans ${fmtDuree(Math.max(0, s.prochainCargo - v.t))}` : 'bientôt'} : ${Object.keys(b).length ? `${decrireContenu(b)} <span class="doux">(≈ ${fmtEuros(Object.entries(b).reduce((x, [k, q]) => x + q * masseUnite(k), 0) * prixRavitoParKg() + valeurContenu(b))} hors assurance)</span>` : 'rien ne manque, pas de cargo.'}</p>`}
+      ${n ? (() => { const aut = autonomieAstre(v, s); return `<p>Autonomie : ${texteJours(aut.vivres)} de vivres, ${texteJours(aut.eau)} d’eau. Un ravito de secours met ≈ ${fmtDuree(delaiSecours(v, s))} depuis la Terre ; alerte sous ${texteJours(seuilSecours(v, s))}.</p>`; })() : ''}
       ${bases.map((x) => `<p class="doux">🏠 Base ${de(ASTRES_PAR_ID[x.astre])} : ${fmt((x.reserve || {}).vivres || 0)} kg de vivres, ${fmt((x.reserve || {}).eau || 0)} kg d’eau (navette depuis la station).</p>`).join('')}
       ${dernier.length ? `<p class="doux">Derniers passages : ${dernier.map((r) => `${fmtDate(r.t, false)}, ${decrireContenu(r.contenu)}`).join(' · ')}</p>` : ''}</article>`;
   };

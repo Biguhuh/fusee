@@ -1001,6 +1001,7 @@ const Orbiteur = {
   mettreAJourLogistique() {
     const v = this.v;
     bilanDe(v);   // bilan matière et carbone (tenu à partir d'ici pour une ancienne campagne)
+    verifierChutesObjets(v, (t) => this.log(t));   // objets artificiels poussés trop bas (orbites-objets.js)
     this.appliquerCommandeSol();
     if (v.equipe) mettreAJourEquipe(v, (t) => this.log(t));
     if (v.equipe) mettreAJourTransferts(v, (t) => this.log(t));   // navettes vers les bases, embarquement à une station
@@ -1694,7 +1695,7 @@ const Orbiteur = {
   // Actions proposées dans la fiche d'un astre.
   actionsPour(a) {
     const l = [];
-    if (astreMasque(a)) return [{ texte: '☀️ Partie dans le Soleil', desactive: 'La voiture n’existe plus' }];
+    if (astreMasque(a)) return [a.id === 'roadster' ? { texte: '☀️ Partie dans le Soleil', desactive: 'La voiture n’existe plus' } : { texte: texteObjetPerdu(a), desactive: 'Il n’existe plus' }];
     if (a.type !== 'etoile' || a.id === SYSTEME.etoile) l.push({ texte: '🎯 Choisir comme cible', action: () => this.choisirCible(a.id) });
     l.push({ texte: '🔭 Centrer la vue', action: () => this.centrerSur(a.id) });
     // Objet artificiel : pas de sonde ni de grappe ; à côté, on peut le pousser (sauf la voiture, qui a son propulseur).
