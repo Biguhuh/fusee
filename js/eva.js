@@ -66,7 +66,7 @@ function plusProcheContour(g, x, y) {
 }
 
 class SortieStation {
-  constructor(v, st, membres) {
+  constructor(v, st, membres, mission = null) {
     this.v = v; this.st = st; this.a = ASTRES_PAR_ID[st.centre];
     this.g = geometrieStation(st);
     this.fini = false; this.warp = 1; this.messages = []; this.duree = 0; this.zoom = 1;
@@ -80,6 +80,7 @@ class SortieStation {
     this.reliefs = Array.from({ length: 26 }, () => ({ a: Math.random() * Math.PI * 2, l: 0.02 + Math.random() * 0.06, k: Math.random() }));
     this.dire(`🧑‍🚀 Sortie ${de(this.st)} : ${this.corps.map((c) => c.eq.nom).join(' et ')}, ${this.dose > 0.05 ? '⚠ rayonnement intense ici' : 'longes accrochées'}. ← → : avancer le long des mains courantes · L : raccrocher la longe · Espace : se lâcher · E : se rattraper · J + flèches : SAFER · Tab : changer · Échap : rentrer au sas.`);
     if (this.dose > 0.05) this.dire(`⚠ Rayonnement : ${fmtDose(this.dose)} en combinaison. Dose mortelle (${DOSE_MORTELLE} Sv) en ${fmtDuree(tempsAvantDoseMortelle(this.dose))}. Faites vite.`);
+    this.initMission(mission);   // tâches de réparation (eva-missions.js)
   }
   get c() { return this.corps[this.actif]; }
   autre() { return this.corps[1 - this.actif]; }
@@ -114,6 +115,7 @@ class SortieStation {
   touche(code) {
     if (this.fondu) return;
     const c = this.c;
+    if (this.toucheMission(code)) return;   // R : travailler ; E : rattraper le sac à outils
     if (code === 'Escape') return this.rentrer();
     if (code === 'Tab') { this.actif = 1 - this.actif; return this.dire(`🔁 Vous pilotez ${this.c.eq.nom}.`); }
     if (code === 'KeyG') { const o = this.autre(); o.suit = !o.suit; return this.dire(o.suit ? `👣 ${o.eq.nom} vous suit.` : `✋ ${o.eq.nom} attend ici.`); }
@@ -147,6 +149,8 @@ class SortieStation {
   }
   rentrer() {
     const loin = this.corps.filter((c) => !c.mort && (c.libre || Math.abs(ecartContour(this.g, c.s, 0.5)) > 5));
+    const contamines = this.corps.filter((c) => !c.mort && typeof c.ammoniac === 'number');
+    if (contamines.length) return this.dire(`❄ Pas encore : ${contamines.map((c) => `${c.eq.nom} (encore ${fmtDuree(30 * 60 - c.ammoniac)} au soleil)`).join(', ')}. L’ammoniac doit s’évaporer avant d’entrer dans le sas.`);
     if (loin.length) return this.dire(`Retournez au sas d’abord : ${loin.map((c) => c.eq.nom).join(' et ')} ${loin.length > 1 ? 'en sont' : 'en est'} loin. (← → le long des mains courantes ; l’écoutille est à gauche du gros module.)`);
     this.terminer();
   }
@@ -167,7 +171,10 @@ class SortieStation {
       let veut = 0;
       if (actif && !inconscient) veut = (cmd.droite ? 1 : 0) - (cmd.gauche ? 1 : 0);
       else if (!actif && c.suit && !inconscient && !c.libre) {
-        const meneur = this.c, cible = meneur.libre ? null : meneur.s - 3 * (meneur.sens || 1);   // derrière, dans son sens de marche
+        // Derrière, dans son sens de marche ; à côté de la tâche s'il faut être deux.
+        const meneur = this.c, tc = this.tacheCourante && this.tacheCourante();
+        const aDeux = tc && tc.deux && Math.abs(ecartContour(this.g, meneur.s, tc.s)) < 3;
+        const cible = meneur.libre ? null : aDeux ? tc.s - 1.5 * (meneur.sens || 1) : meneur.s - 3 * (meneur.sens || 1);
         if (cible !== null) { const e = ecartContour(this.g, c.s, cible); if (Math.abs(e) > 1) veut = Math.sign(e); }
         // L'autre raccroche sa longe tout seul quand elle se tend.
         if (c.ancre !== null && Math.abs(ecartContour(this.g, c.ancre, c.s)) > EVA.longe - 3 && c.raccroche <= 0) c.raccroche = 3;
@@ -223,6 +230,7 @@ class SortieStation {
     const jour = this.orbite(this.v.t).hs > 0;
     if (this.jour !== undefined && jour !== this.jour) this.dire(jour ? `🌅 Lever ${de(etoileRacine())} : la lumière revient d’un coup, et la chaleur avec.` : `🌇 Coucher ${de(etoileRacine())} : nuit noire, lampes des casques allumées. Prochain lever dans ≈ ${fmtDuree(this.prochainChangement() || 0)}.`);
     this.jour = jour;
+    this.majMission(dt);
   }
   mourir(c, cause) {
     if (this.fondu) return;
@@ -241,6 +249,8 @@ class SortieStation {
     const v = this.v, vivants = this.corps.filter((c) => !c.mort);
     for (const c of this.corps) if (c.doseSv) regDose(c.m, c.doseSv);
     for (const c of vivants) regDureeSortie(c.m, this.duree, this.a.id);
+    const m = this.mission;
+    if (m) fin = `${m.finie ? `✅ ${m.p.nom} : réparé.` : `${m.p.icone} ${m.p.nom} : pas fini (${m.i}/${m.taches.length} tâches), à reprendre.`}${this.sac && this.sac.perdu ? ' Un sac à outils perdu.' : ''} ${fin}`.trim();
     Orbiteur.log(`🧑‍🚀 Sortie ${de(this.st)} : ${fmtDuree(this.duree)} dehors${vivants.length ? `, ${vivants.map((c) => c.eq.nom).join(' et ')}` : ''}. Dose : ${this.corps.map((c) => `${c.eq.nom} ${fmtDoseTotale(c.doseSv)}`).join(', ')}.${fin ? ' ' + fin : ''}`);
   }
 
@@ -290,6 +300,7 @@ class SortieStation {
     const cx = W / 2 - pc.x * k, cy = H * 0.45 + pc.y * k;
     const E = (x, y) => [cx + x * k, cy - y * k];
     this.dessinerStation(ctx, E, k, lum);
+    this.dessinerMission(ctx, E, k);
     for (const [i, q] of this.corps.entries()) if (!q.mort) this.dessinerCorps(ctx, E, k, q, i === this.actif, lum);
     // Nuit : un voile sombre (les lampes des casques restent)
     if (nuit > 0) {
@@ -382,6 +393,8 @@ class SortieStation {
     lignes.push([o.hs > 0 ? '☀ Jour' : '🌑 Nuit', ch ? `${o.hs > 0 ? 'coucher' : 'lever'} ${de(etoile)} dans ${fmtDuree(ch)}` : (o.hs > 0 ? 'toujours au soleil' : 'toujours à l’ombre'), o.hs > 0 ? '#ffd54f' : '#90a4ae']);
     lignes.push(['Rayonnement', fmtDose(this.dose), couleurRisque(this.dose / 0.5)]);
     lignes.push(['Dehors depuis', fmtDuree(this.duree), '#fff']);
+    lignes.push(...this.lignesMission());
+    if (this.sac && !this.sac.attache) lignes.push(['🎒 Sac', this.sac.perdu ? 'perdu' : 'il s’éloigne !', '#ef5350']);
     for (const [i, q] of this.corps.entries()) {
       if (q.mort) continue;
       const pc = (100 * q.doseSv) / DOSE_MORTELLE;
@@ -402,7 +415,7 @@ class SortieStation {
     const t = performance.now();
     this.messages = this.messages.filter((m) => m.fin > t);
     afficherMessages(ctx, this.messages.map((m) => m.texte), W, H - 60);
-    texteSurFond(ctx, '← → : mains courantes · L : raccrocher la longe · Espace : se lâcher · E : se rattraper · J + flèches : SAFER · Tab : changer · G : suis-moi · Z : zoom · Échap : rentrer au sas', W / 2, H - 12, { police: '11px system-ui' });
+    texteSurFond(ctx, '← → : mains courantes · R : travailler · L : raccrocher la longe · Espace : se lâcher · E : se rattraper · J + flèches : SAFER · Tab : changer · G : suis-moi · Z : zoom · Échap : rentrer au sas', W / 2, H - 12, { police: '11px system-ui' });
   }
 }
 
@@ -410,11 +423,4 @@ class SortieStation {
 function candidatsSortie(v, st) {
   return (v.equipe || []).filter((m) => (lieuMembre(m) === 'orbiteur' || lieuMembre(m) === 'st:' + st.id) && !(m.principal && v.equipagePerdu) && !(m.blessure && m.blessure.gravite === 'grave'));
 }
-function lancerSortieStation(v, st) {
-  const l = candidatsSortie(v, st).sort((a, b) => (b.principal ? 1 : 0) - (a.principal ? 1 : 0));
-  if (l.length < 2) return Orbiteur.log('🧑‍🚀 Une sortie se fait à deux : il faut deux personnes valides, à bord ou à la station.');
-  v.t += EVA.prepa;   // préparation dans le sas : oxygène pur, combinaisons, vérifications
-  Orbiteur.log(`🧑‍🚀 Préparation dans le sas ${de(st)} (≈ ${fmtDuree(EVA.prepa)}) : on respire de l’oxygène pur pour chasser l’azote du sang, on enfile les combinaisons, on vérifie tout. Dépressurisation…`);
-  const scene = new SortieStation(v, st, l.slice(0, 2));
-  jouerScene(scene, () => { Orbiteur.mettreAJourLogistique(); sauver(etat); allerNavigation(); });
-}
+// Lancement (choix de la mission) : lancerSortieStation, dans eva-missions.js.

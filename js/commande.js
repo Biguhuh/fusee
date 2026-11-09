@@ -86,6 +86,7 @@ const Commande = {
       const chantiers = (st.chantiers || []).map((ch) => `<li>🔧 ${nomChantier(ch.cle)}, prêt le ${fmtDate(ch.fin)} (dans ${fmtDuree(ch.fin - v.t)})</li>`).join('');
       return `<article class="encart"><h3>🛰 ${st.nom} <span class="doux">— ${enOrbite(a)}, niveau ${st.niveau || 1}${st.agrandissement ? ` (agrandissement : prêt le ${fmtDate(st.agrandissement.fin, false)})` : ''}</span></h3>
         <p class="doux">${niveauStation(st).apport}.</p>
+        ${pannesDe(st).length ? `<p class="encart">🔧 En panne : ${texteePannes(st)}. Atelier ${fmt(100 * (1 - facteurPannes(st)))} % plus lent. À réparer en sortie extravéhiculaire (orbiteur amarré à la station).</p>` : ''}
         <dl>${Object.keys(NOMS_STOCK).filter((cle) => (k[cle] || 0) > 0).map((cle) => `<dt>${NOMS_STOCK[cle]}</dt><dd>${fmtStock(cle, k[cle])} <span class="doux">/ ${fmtStock(cle, capaciteStation(st, cle))}</span></dd>`).join('') || '<dt>Stock</dt><dd>vide</dd>'}
           <dt>Déchets</dt><dd>${fmtKg(st.dechets || 0)} <span class="doux">/ ${fmtKg(capaciteDechetsStation(st))}</span></dd></dl>
         ${ressourcesIllimitees() && st.prochainCargo ? `<p class="doux">Ravitaillement courant de la Terre dans ${fmtDuree(st.prochainCargo - v.t)}.</p>` : ''}

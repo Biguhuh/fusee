@@ -1001,7 +1001,8 @@ const Orbiteur = {
   mettreAJourLogistique() {
     const v = this.v;
     bilanDe(v);   // bilan matière et carbone (tenu à partir d'ici pour une ancienne campagne)
-    verifierChutesObjets(v, (t) => this.log(t));   // objets artificiels poussés trop bas (orbites-objets.js)
+    verifierChutesObjets(v, (t) => this.log(t));
+    mettreAJourPannes(v, (t) => this.log(t));   // pannes des stations, réparées en sortie (eva-missions.js)   // objets artificiels poussés trop bas (orbites-objets.js)
     this.appliquerCommandeSol();
     if (v.equipe) mettreAJourEquipe(v, (t) => this.log(t));
     if (v.equipe) mettreAJourTransferts(v, (t) => this.log(t));   // navettes vers les bases, embarquement à une station
@@ -1272,7 +1273,7 @@ const Orbiteur = {
     if (r.ergols) st.stock.ergols -= r.ergols;
     const cout = `${fmtStock('materiaux', r.materiaux)} de matériaux${r.ergols ? ` et ${fmtStock('ergols', r.ergols)} d’ergols` : ''}`;
     if (r.duree) {
-      const duree = r.duree / niveauStation(st).vitesse;     // chantiers plus rapides dans une grande station
+      const duree = r.duree / (niveauStation(st).vitesse * facteurPannes(st));     // plus rapides dans une grande station, plus lents en panne
       st.chantiers.push({ cle, fin: this.v.t + duree, origines: fractions });
       return this.log(`Atelier ${de(st)} : chantier « ${r.nom} » lancé (${cout}). Prêt le ${fmtDate(this.v.t + duree)}.`);
     }
