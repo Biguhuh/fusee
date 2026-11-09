@@ -677,7 +677,7 @@ class Vol {
       carburantVideAlt: this.carburantVideAlt,
       stats: { ...this.stats },
     };
-    if (detruite) this.explosion = creerExplosion();
+    if (detruite) this.explosion = this.f.mega ? creerExplosionLanceur(this) : creerExplosion();   // grand lanceur : effondrement puis explosion (explosion.js)
     this.manette = 0;
     this.throttle = 0;
   }
@@ -1011,7 +1011,9 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
   }
   if (!vol.fin && dtReel > 0) emettreParticules(vol, W / 2, fuseeY, hPx, dtReel);
   dessinerParticules(ctx, vol, depX, depY, dtReel);
-  if (vol.explosion) {
+  if (vol.explosion && vol.explosion.lanceur) {
+    dessinerExplosionLanceur(ctx, vol, vol.explosion, W / 2, fuseeY, hPx, dtReel);
+  } else if (vol.explosion) {
     dessinerExplosion(ctx, vol.explosion, W / 2, fuseeY - hPx * 0.4, dtReel);
   } else {
     dessinerFusee(ctx, vol, W / 2, fuseeY, hPx);

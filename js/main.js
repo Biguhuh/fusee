@@ -1488,7 +1488,8 @@ function image(t) {
     if (etat.pause && !Infos.estOuverte()) dessinerPause(ctx, canvas.width, canvas.height);
     if (v.fin) {
       etat.finDepuis += dt;
-      if (etat.finDepuis > (v.fin.detruite ? 1.8 : 0.6)) terminerVol(v);
+      // Grand lanceur détruit : on laisse le temps de le voir s'effondrer puis exploser.
+      if (etat.finDepuis > (v.fin.detruite ? (v.explosion && v.explosion.duree) || 1.8 : 0.6)) terminerVol(v);
     }
   } else if (etat.ecran === 'scene' && etat.scene) {
     const sc = etat.scene;
