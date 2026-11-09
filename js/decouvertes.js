@@ -35,6 +35,8 @@ const EASTER_EGGS = [
     texte: 'Une licorne prise dans la glace, figée en plein galop. À ses pieds, un petit origami de papier plié.' },
   { id: 'pluton', astre: 'pluton', dx: -450, dessin: 'coeur',
     texte: 'Une immense plaine claire en forme de cœur : Tombaugh Regio, du nom de l’astronome qui a découvert Pluton en 1930.' },
+  { id: 'pluton-personne', astre: 'pluton', dx: 650, dessin: 'feuillePersonne',
+    texte: 'On est allé voir, et finalement, les Plutoniens n’existent pas.' },
   { id: 'triton', astre: 'triton', dx: 400, dessin: 'robotCri',
     texte: 'Il crie depuis longtemps. Il n’y a pas d’air pour porter sa voix.' },
   { id: 'charon', astre: 'l901', dx: -300, dessin: 'serviette',
@@ -1361,6 +1363,20 @@ const DESSINS_EGGS = {
     ctx.fillStyle = 'rgba(250,240,225,0.75)';
     ctx.beginPath(); ctx.ellipse(x - 6 * s, y - 0.05 * s, 9 * s, 0.25 * s, 0, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.ellipse(x + 6 * s, y - 0.05 * s, 9 * s, 0.25 * s, 0, 0, Math.PI * 2); ctx.fill();
+  },
+  // Pluton : une feuille A4 punaisée sur un piquet, « Personne ici ». Assez grande à l'écran pour être lue.
+  feuillePersonne(ctx, x, y, s) {
+    const w = Math.max(0.21 * s, 46), h = w * 1.414, haut = y - Math.max(1.1 * s, h + 18);
+    trait(ctx, [[x, y], [x, haut + h * 0.5]], '#8d6e63', Math.max(2, 0.04 * s));   // piquet
+    ctx.save(); ctx.translate(x, haut); ctx.rotate(-0.06 + 0.02 * Math.sin(performance.now() / 1500));
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(-w / 2 + 2, 2, w, h);   // ombre
+    ctx.fillStyle = '#fafafa'; ctx.fillRect(-w / 2, 0, w, h);
+    ctx.fillStyle = '#e0e0e0'; ctx.beginPath(); ctx.moveTo(w / 2 - w * 0.18, h); ctx.lineTo(w / 2, h - w * 0.18); ctx.lineTo(w / 2, h); ctx.fill();   // coin corné
+    disque(ctx, 0, h * 0.06, Math.max(1.5, w * 0.035), '#e53935');   // punaise
+    ctx.fillStyle = '#263238'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `${Math.round(w * 0.2)}px "Comic Sans MS", "Segoe Print", cursive`;
+    ctx.fillText('Personne', 0, h * 0.38); ctx.fillText('ici', 0, h * 0.56);
+    ctx.restore();
   },
   robotCri(ctx, x, y, s) {
     const c = '#b0bec5';

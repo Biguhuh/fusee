@@ -21,6 +21,7 @@ const REFERENCES_EGGS = {
   callisto: 'WALL-E (Pixar, 2008) : le petit robot qui compacte les déchets, seul sur une Terre abandonnée.',
   encelade: 'Blade Runner (1982) : la licorne et le petit origami en papier plié.',
   pluton: 'Fait réel : Tombaugh Regio, le cœur de Pluton photographié par New Horizons en 2015.',
+  'pluton-personne': 'Aucune référence : on est allé voir, il n’y avait personne.',
   triton: 'Création du jeu : un cri que personne n’entend, faute d’air pour le porter.',
   charon: 'Le Guide du voyageur galactique (Douglas Adams) : un bon voyageur sait toujours où est sa serviette.',
   japet: 'Stargate SG-1 : la porte des étoiles, et Teal’c, le guerrier impassible qui lève un sourcil.',
