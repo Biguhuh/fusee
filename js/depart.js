@@ -44,7 +44,7 @@ function vitesseSortieOrbiteur(v) {
 
 // Année (calendrier) d'une date du jeu (s depuis J2000).
 function anneeDuJeu(t) { return new Date(Date.UTC(2000, 0, 1, 12) + t * 1000).getUTCFullYear(); }
-function fmtAnnee(a) { return `l’an ${Math.round(a).toLocaleString('fr-FR')}`; }
+function fmtAnnee(a) { const n = Math.round(a); return `l’an ${n < 10000 ? n : n.toLocaleString('fr-FR')}`; }   // « l’an 2052 », mais « l’an 77 000 »
 function fmtDureeAnnees(ans) {
   if (ans >= 100) return `${Math.round(ans).toLocaleString('fr-FR')} ans`;
   return fmtDuree(ans * ANNEE_S);
@@ -146,7 +146,7 @@ const Depart = {
       if (ch.base && !bases.some((b) => b.a.id === ch.base && b.site)) ch.base = null;
       const sondes = !es
         ? `<p>Aucune sonde n’a encore exploré ce système. Une grappe de ${SONDES_GRAPPE_INTERSTELLAIRE} sondes à voile laser (20 % de la vitesse de la lumière) arriverait vers ${fmtAnnee(anneeDuJeu(v.t) + d.distanceAL / VITESSE_SONDES_INTERSTELLAIRES)}, et ses données reviendraient à la vitesse de la lumière vers ${fmtAnnee(anneeDuJeu(v.t) + d.distanceAL / VITESSE_SONDES_INTERSTELLAIRES + d.distanceAL)}.</p>
-           <button id="dep-sondes" ${sondesDisponibles(v) < SONDES_GRAPPE_INTERSTELLAIRE ? 'disabled' : ''}>🛰 Envoyer la grappe (${nombre(sondesDisponibles(v), 'sonde disponible', 'sondes disponibles')})</button>`
+           <button id="dep-sondes">🛰 Envoyer une grappe depuis la Terre</button>`
         : es.enRoute ? `<p>🛰 Grappe en route : arrivée vers ${fmtAnnee(anneeDuJeu(es.arrivee))}, données reçues vers ${fmtAnnee(anneeDuJeu(es.reception))}. Accélérez le temps à l’orbiteur.</p>`
           : `<p>✅ Données reçues : les planètes sont cartographiées.</p>`;
       const techs = Object.entries(TECHNOLOGIES).map(([cle, T]) => {
@@ -172,7 +172,7 @@ const Depart = {
       m.querySelectorAll('input[name=dep-tech]').forEach((i) => { i.onchange = () => { ch.tech = i.value; majSF(); }; });
       m.querySelectorAll('input[name=dep-base]').forEach((i) => { i.onchange = () => { ch.base = i.value; majSF(); }; });
       const bs = $('dep-sondes');
-      if (bs) bs.onclick = () => { envoyerSondesInterstellaires(v, sys, (t) => this.contexte.log(t)); majSF(); };
+      if (bs) bs.onclick = () => ouvrirGrappes(v, { preselection: sys, apres: () => this.ouvrir(v) });
       $('dep-partir').textContent = pret ? `🚀 Partir vers ${le(d)}` : '🚀 Partir (liste incomplète)';
       $('dep-partir').disabled = !pret;
     };

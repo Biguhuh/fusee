@@ -140,12 +140,14 @@ const Commande = {
   onglet_audela(v, c) {
     const grappes = (v.sondesInterstellaires || []).map((s) => {
       const d = DONNEES_ETOILES[s.systeme], recu = v.systemesSondes && v.systemesSondes[s.systeme];
-      return `<li>🛰 Grappe vers ${le(d)} — ${recu ? '✅ données reçues' : `arrivée vers ${fmtAnnee(anneeDuJeu(s.arrivee))}, données vers ${fmtAnnee(anneeDuJeu(s.reception))}`}</li>`;
+      return `<li>🛰 Grappe vers ${le(d)}${s.tech ? ` (${PROPULSIONS_SONDES[s.tech].nom.toLowerCase()})` : ''} — ${recu ? '✅ données reçues' : `arrivée vers ${fmtAnnee(anneeDuJeu(s.arrivee))}, données vers ${fmtAnnee(anneeDuJeu(s.reception))}`}</li>`;
     }).join('');
-    c.innerHTML = `<h3>Sondes vers d’autres étoiles</h3>${grappes ? `<ul class="sondes">${grappes}</ul>` : '<p class="doux">Aucune grappe envoyée. Elles partent depuis la fenêtre du départ, ci-dessous.</p>'}
+    c.innerHTML = `<h3>Sondes vers d’autres étoiles</h3>${grappes ? `<ul class="sondes">${grappes}</ul>` : '<p class="doux">Aucune grappe envoyée.</p>'}
+      <div class="actions" style="justify-content:flex-start"><button id="cmd-grappes" class="principal">🛰 Envoyer des grappes de sondes</button></div>
       ${SYSTEME.retour !== false ? `<h3>Avant de quitter le ${SYSTEME.nom}</h3>${htmlListeDepart(v)}
       <div class="actions" style="justify-content:flex-start"><button id="cmd-depart" class="principal">🌌 Quitter le ${SYSTEME.nom}</button></div>` : ''}`;
     const b = $('cmd-depart');
     if (b) b.onclick = () => Depart.ouvrir(v);
+    $('cmd-grappes').onclick = () => ouvrirGrappes(v, { apres: () => this.afficher() });
   },
 };

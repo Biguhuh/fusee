@@ -889,6 +889,8 @@ function allerNavigation() {
   // Plus personne à bord : l'orbiteur rentre seul (on l'annonce, puis le pilote auto le ramène).
   if (etat.voyage.retourAuto === 'a_annoncer' && !Infos.estOuverte()) Orbiteur.annoncerRetourAuto();
   if (etat.voyage.retourAuto === 'en_cours' && !Orbiteur.auto) Orbiteur.lancerRetourAuto();
+  // Premier départ de la Terre : penser aux autres étoiles (grappes de sondes), une fois par campagne.
+  if (!etat.voyage.grappesProposees && SYSTEME.retour !== false && !Infos.estOuverte()) { etat.voyage.grappesProposees = true; ouvrirGrappes(etat.voyage, { premiere: true }); }
   sauver(etat);
 }
 
