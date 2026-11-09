@@ -23,8 +23,7 @@ function manquePourNiveau(v, b) {
 // ---------- Logistique : récapitulatif de toute l'exploration ----------
 // Astres visités ou équipés, bases et productions, stations et stocks, chantiers, ravitos et sondes en route,
 // et ce qui manque pour faire progresser chaque base. Un clic sur un astre ouvre son tableau de bord.
-function ouvrirLogistique(v, actif) {
-  const m = $('modale');
+function htmlVueEnsemble(v) {
   const ids = new Set([...Object.keys(v.visites).filter((id) => astreVisite(v, id)), ...v.bases.map((b) => b.astre), ...v.stations.map((s) => s.centre),
     ...Object.keys(v.echantillonsRapportes || {})]);
   const astres = [...ids].map((id) => ASTRES_PAR_ID[id]).filter(Boolean).sort((x, y) => (x.distanceUA || 0) - (y.distanceUA || 0));
@@ -53,17 +52,14 @@ function ouvrirLogistique(v, actif) {
     const stock = sts.map((s) => `${s.nom} (niveau ${s.niveau || 1}${s.agrandissement ? ' ⬆' : ''}) : ${fmtStock('ergols', s.stock.ergols || 0)} d’ergols, ${fmtStock('materiaux', s.stock.materiaux || 0)} de matériaux${(s.chantiers || []).length ? ` · 🔧 ${s.chantiers.length}` : ''}`).join('<br>') || '—';
     return `<tr><td><button class="lien-astre" data-id="${a.id}">${a.nom}</button></td><td>${astreVisite(v, a.id) ? (a.type === 'gazeuse' ? '✓ plongée' : '✓') : ''}</td><td>${ech || ''}</td><td>${prod}</td><td>${stock}</td></tr>`;
   }).join('');
-  const enRoute = [...(v.cargos || []).map((c) => `📦 ${c.nom}`), ...v.sondesEnVol.map((s) => `🛰 ${s.nom} (${s.etat === 'vol' ? 'en route' : 'en orbite'})`)];
-  m.innerHTML = `<div class="fenetre large"><header class="entete"><div><h2>📊 Logistique de l’exploration</h2>
-    <p>Production totale des bases : <b>${fmt(ergolsJour / 1000, 1)} t d’ergols</b> et <b>${fmt(matJour / 1000, 1)} t de matériaux</b> par jour. ${v.stations.length} station${v.stations.length > 1 ? 's' : ''}, ${v.bases.length} base${v.bases.length > 1 ? 's' : ''}.</p></div><button class="fermer">✕</button></header>
+  // Les cargos ont leur onglet (Ravitos) : ici, seulement leur nombre.
+  const nC = (v.cargos || []).length;
+  const enRoute = [...(nC ? [`📦 ${nC} cargo${nC > 1 ? 's' : ''} en route (onglet Ravitos)`] : []), ...v.sondesEnVol.map((s) => `🛰 ${s.nom} (${s.etat === 'vol' ? 'en route' : 'en orbite'})`),
+    ...(v.equipe || []).filter((x) => x.etat === 'transit').map((x) => `🧑‍🚀 ${x.nom}, en route vers ${nomLieu(v, x.transit ? x.transit.vers : 'orbiteur')}`)];
+  return `<p>Production totale des bases : <b>${fmt(ergolsJour / 1000, 1)} t d’ergols</b> et <b>${fmt(matJour / 1000, 1)} t de matériaux</b> par jour.</p>
     <section><h3>Astres</h3>${astres.length ? `<div class="defile"><table class="logistique"><thead><tr><th>Astre</th><th>Posé</th><th>Échant.</th><th>Bases</th><th>Stations</th></tr></thead><tbody>${lignes}</tbody></table></div>` : '<p class="doux">Aucun astre exploré ni équipé pour l’instant.</p>'}</section>
-    <section><h3>À faire pour progresser</h3>${besoins.length ? `<ul class="sondes">${besoins.map((b, i) => `<li>${b.texte} ${actif && b.station ? `<button data-rav="${b.station.id}">📦 Ravito</button>` : ''}</li>`).join('')}</ul>` : '<p class="doux">Rien d’urgent.</p>'}</section>
-    ${SYSTEME.retour !== false ? `<section><h3>Avant de quitter le ${SYSTEME.nom}</h3>${htmlListeDepart(v)}</section>` : ''}
-    <section><h3>En route</h3>${enRoute.length ? `<ul class="sondes">${enRoute.map((t) => `<li>${t}</li>`).join('')}</ul>` : '<p class="doux">Rien en route.</p>'}</section></div>`;
-  m.classList.remove('cache');
-  m.querySelector('.fermer').onclick = () => Infos.fermer();
-  m.querySelectorAll('.lien-astre').forEach((b) => { b.onclick = () => Infos.ouvrirFiche(b.dataset.id); });
-  m.querySelectorAll('[data-rav]').forEach((b) => { b.onclick = () => Orbiteur.ouvrirRavito(b.dataset.rav); });
+    <section><h3>À faire pour progresser</h3>${besoins.length ? `<ul class="sondes">${besoins.map((x) => `<li>${x.texte} ${x.station ? `<button data-rav="${x.station.id}">📦 Ravito</button>` : ''}</li>`).join('')}</ul>` : '<p class="doux">Rien d’urgent.</p>'}</section>
+    <section><h3>En route</h3>${enRoute.length ? `<ul class="sondes">${enRoute.map((t) => `<li>${t}</li>`).join('')}</ul>` : '<p class="doux">Rien en route.</p>'}</section>`;
 }
 
 // ---------- Ressources : où miner quoi ----------
@@ -90,31 +86,36 @@ function astresPourRessource(famille) {
   return l;
 }
 
-function ouvrirRessources(v, famille = 'eau', tout = false) {
-  const m = $('modale');
+// cible : un conteneur (onglet du centre de commande) ; sinon, la fenêtre.
+function ouvrirRessources(v, famille = 'eau', tout = false, cible = null) {
+  const m = cible || $('modale');
   const ici = v.orb ? V.add(etatAbsolu(v.orb.centre, v.t).r, v.orb.r) : etatAbsolu(astreAncrage(), v.t).r;
   const liste = astresPourRessource(famille).map((x) => ({ ...x, d: V.norm(V.sub(etatAbsolu(x.a.id, v.t).r, ici)) }))
     .sort((p, q) => q.richesse - p.richesse || p.d - q.d);
   const montrees = tout ? liste : liste.slice(0, 40);
   const fmtD = (km) => (km > 0.05 * UA_KM ? `${fmt(km / UA_KM, 2)} UA` : `${fmt(km)} km`);
   const f = FAMILLES_RESSOURCES.find((x) => x.id === famille);
-  m.innerHTML = `<div class="fenetre large"><header class="entete"><div><h2>⛏ Où miner quoi ?</h2>
-    <p>Choisissez une ressource : les astres où une base peut l’exploiter, les plus riches d’abord, puis les plus proches ${v.orb ? 'de l’orbiteur' : `de ${SYSTEME.nomOrigine}`}.</p></div><button class="fermer">✕</button></header>
+  const corps = `<p>Choisissez une ressource : les astres où une base peut l’exploiter, les plus riches d’abord, puis les plus proches ${v.orb ? 'de l’orbiteur' : `de ${SYSTEME.nomOrigine}`}.</p>
     <div class="orientations">${FAMILLES_RESSOURCES.map((x) => `<button data-famille="${x.id}" class="${x.id === famille ? 'principal' : ''}">${x.nom}</button>`).join('')}</div>
     <p class="doux">${f.nom} : ${f.def}. ${liste.length} astre${liste.length > 1 ? 's' : ''}.</p>
     <div class="defile"><table class="logistique"><thead><tr><th>Astre</th><th>Ressource</th><th>Richesse</th><th>Distance</th><th></th></tr></thead><tbody>${montrees.map((x) => {
       const b = baseSur(v, x.a.id);
       return `<tr><td><button class="lien-astre" data-id="${x.a.id}">${x.a.nom}</button>${b ? ` <span class="doux">🏠 niveau ${b.niveau || 1}</span>` : ''}</td><td>${x.texte}</td><td>${fmt(x.richesse / 1000, 1)} t/jour</td><td>${fmtD(x.d)}</td><td>${v.orb ? `<button data-cible="${x.a.id}" ${v.cible === x.a.id ? 'disabled' : ''}>🎯 Cible</button>` : ''}</td></tr>`;
     }).join('')}</tbody></table></div>
-    ${!tout && liste.length > montrees.length ? `<p><button id="res-tout">Voir les ${liste.length} astres</button></p>` : ''}</div>`;
-  m.classList.remove('cache');
-  m.querySelector('.fermer').onclick = () => Infos.fermer();
-  m.querySelectorAll('[data-famille]').forEach((b) => { b.onclick = () => ouvrirRessources(v, b.dataset.famille); });
-  const bt = $('res-tout'); if (bt) bt.onclick = () => ouvrirRessources(v, famille, true);
+    ${!tout && liste.length > montrees.length ? `<p><button id="res-tout">Voir les ${liste.length} astres</button></p>` : ''}`;
+  if (cible) m.innerHTML = corps;
+  else {
+    m.innerHTML = `<div class="fenetre large"><header class="entete"><div><h2>⛏ Où miner quoi ?</h2></div><button class="fermer">✕</button></header>${corps}</div>`;
+    m.classList.remove('cache');
+    m.querySelector('.fermer').onclick = () => Infos.fermer();
+  }
+  m.querySelectorAll('[data-famille]').forEach((b) => { b.onclick = () => { if (cible) Commande.familleRessource = b.dataset.famille; ouvrirRessources(v, b.dataset.famille, false, cible); }; });
+  const bt = $('res-tout'); if (bt) bt.onclick = () => ouvrirRessources(v, famille, true, cible);
   m.querySelectorAll('.lien-astre').forEach((b) => { b.onclick = () => Infos.ouvrirFiche(b.dataset.id); });
   m.querySelectorAll('[data-cible]').forEach((b) => {
     b.onclick = () => {
       Infos.fermer();
+      if (cible) Commande.quitter();   // depuis le centre de commande : retour à l'orbiteur, cible choisie
       Orbiteur.choisirCible(b.dataset.cible, f.nom.replace(/^\S+\s/, ''));
     };
   });

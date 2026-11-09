@@ -86,6 +86,7 @@ function montrer(ecran) {
   etat.ecran = ecran;
   $('ecran-accueil').classList.toggle('cache', ecran !== 'accueil');
   $('ecran-lancement').classList.toggle('cache', ecran !== 'lancement');
+  $('ecran-commande').classList.toggle('cache', ecran !== 'commande');
   $('ecran-equipage').classList.toggle('cache', ecran !== 'equipage');
   $('ecran-hangar').classList.toggle('cache', ecran !== 'hangar');
   $('ecran-carte').classList.toggle('cache', ecran !== 'carte');
@@ -151,6 +152,7 @@ function allerAccueil() {
   const v = etat.voyage;
   // Campagne terminée par un départ vers une autre étoile : on ne la reprend plus.
   $('accueil-reprendre').classList.toggle('cache', !v || !!v.fin);
+  $('accueil-commande').classList.toggle('cache', !v || !!v.fin);
   $('accueil-reprendre').textContent = v && v.orb ? '▶ Reprendre l’expédition' : '▶ Reprendre la campagne';
   // Pas d'expédition en cours (après un retour sur Terre) : on propose d'abord de composer l'équipage,
   // puis on enchaîne sur le pas de tir. « Reprendre » devient secondaire.
@@ -1146,6 +1148,7 @@ $('rejouer').onclick = () => {
 };
 $('accueil-campagne').onclick = () => $('voyage-nouveau').click();
 $('accueil-reprendre').onclick = ouvrirReprise;
+$('accueil-commande').onclick = () => Commande.ouvrir('ensemble', 'accueil');
 $('accueil-equipage').onclick = () => composerApresAccueil();
 // Composer un équipage, c'est lancer une nouvelle expédition : un crash pas encore acté l'est alors
 // (« Recommencer avant le crash » ne se propose que dans « Reprendre la campagne »).

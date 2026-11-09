@@ -175,26 +175,29 @@ function htmlTarifs() {
 // ---------- Fenêtre des finances (campagne) ----------
 const Finances = {
   periode: 'an',   // 'mois' ou 'an'
-  ouvrir(v) {
+  ouvrir(v, cible = null) {
     majFinances(v);
-    const f = financesDe(v), m = $('modale'), k = this.periode === 'mois' ? 1 / 12 : 1, per = this.periode === 'mois' ? 'mois' : 'an';
+    const f = financesDe(v), m = cible || $('modale'), k = this.periode === 'mois' ? 1 / 12 : 1, per = this.periode === 'mois' ? 'mois' : 'an';
     const taux = tauxCourants(v), totalTaux = taux.reduce((s, r) => s + r.parAn, 0);
     const total = Object.values(f.cumul).reduce((s, x) => s + x, 0);
     const ponctuels = Object.keys(CATEGORIES_FINANCES).filter((c) => !taux.some((r) => r.cat === c));
     const duree = Math.max(0, v.t - f.debut);
     const ligneJ = (j) => `<tr><td class="doux">${fmtDate(j.t, false)}</td><td>${CATEGORIES_FINANCES[j.cat] || j.cat}</td><td>${j.libelle}</td><td><b>${fmtEuros(j.montant)}</b></td></tr>`;
-    m.innerHTML = `<div class="fenetre large"><header class="entete"><div><h2>💶 Finances du programme</h2>
-      <p>Pour le plaisir : on ne manque jamais d’argent. Comptes tenus depuis le ${fmtDate(f.debut, false)}${f.debut > (v.journal[0] || {}).t + 86400 ? ' (cette campagne a commencé avant les finances : ce qui précède n’est pas compté)' : ''}.</p></div><button class="fermer">✕</button></header>
-      <p class="encart">Dépensé depuis le début : <b>${fmtEuros(total)}</b> en ${fmtDuree(duree)}, soit ${fmt(total / BUDGET_NASA, total < BUDGET_NASA ? 2 : 1)} année${total >= 2 * BUDGET_NASA ? 's' : ''} du budget de la NASA (≈ 25 Md$ par an). Coûts courants : <b>${fmtEuros(totalTaux * k)} par ${per}</b>.</p>
+    const intro = `<p>Pour le plaisir : on ne manque jamais d’argent. Comptes tenus depuis le ${fmtDate(f.debut, false)}${f.debut > (v.journal[0] || {}).t + 86400 ? ' (cette campagne a commencé avant les finances : ce qui précède n’est pas compté)' : ''}.</p>`;
+    const corps = `<p class="encart">Dépensé depuis le début : <b>${fmtEuros(total)}</b> en ${fmtDuree(duree)}, soit ${fmt(total / BUDGET_NASA, total < BUDGET_NASA ? 2 : 1)} année${total >= 2 * BUDGET_NASA ? 's' : ''} du budget de la NASA (≈ 25 Md$ par an). Coûts courants : <b>${fmtEuros(totalTaux * k)} par ${per}</b>.</p>
       <div class="actions" style="justify-content:flex-start"><button data-per="mois" ${per === 'mois' ? 'class="principal"' : ''}>Par mois</button><button data-per="an" ${per === 'an' ? 'class="principal"' : ''}>Par an</button></div>
       <div class="sections"><section><h3>📅 Coûts courants</h3><table class="table-progression"><tr><th>Poste</th><th>Par ${per}</th><th>Cumulé</th></tr>
         ${taux.map((r) => `<tr><td>${CATEGORIES_FINANCES[r.cat]} <span class="doux">(${r.detail})</span></td><td>${fmtEuros(r.parAn * k)}</td><td><b>${fmtEuros(f.cumul[r.cat] || 0)}</b></td></tr>`).join('')}</table></section>
       <section><h3>🧾 Dépenses ponctuelles (cumulé)</h3><table class="table-progression"><tr><th>Poste</th><th>Cumulé</th><th>Moyenne par ${per}</th></tr>
         ${ponctuels.map((c) => `<tr><td>${CATEGORIES_FINANCES[c]}</td><td><b>${fmtEuros(f.cumul[c] || 0)}</b></td><td class="doux">${duree > 86400 ? fmtEuros(((f.cumul[c] || 0) / duree) * AN_S * k) : '—'}</td></tr>`).join('')}</table></section></div>
       <section><h3>📜 Dernières dépenses</h3>${f.journal.length ? `<table class="table-progression"><tr><th>Date</th><th>Poste</th><th>Objet</th><th>Montant</th></tr>${f.journal.slice(-40).reverse().map(ligneJ).join('')}</table>` : '<p class="doux">Aucune dépense ponctuelle pour l’instant.</p>'}</section>
-      <details class="encart"><summary><b>📋 Tarifs et sources</b></summary>${htmlTarifs()}</details></div>`;
-    m.classList.remove('cache');
-    m.querySelector('.fermer').onclick = () => Infos.fermer();
-    m.querySelectorAll('[data-per]').forEach((b) => { b.onclick = () => { this.periode = b.dataset.per; this.ouvrir(v); }; });
+      <details class="encart"><summary><b>📋 Tarifs et sources</b></summary>${htmlTarifs()}</details>`;
+    if (cible) m.innerHTML = intro + corps;
+    else {
+      m.innerHTML = `<div class="fenetre large"><header class="entete"><div><h2>💶 Finances du programme</h2>${intro}</div><button class="fermer">✕</button></header>${corps}</div>`;
+      m.classList.remove('cache');
+      m.querySelector('.fermer').onclick = () => Infos.fermer();
+    }
+    m.querySelectorAll('[data-per]').forEach((b) => { b.onclick = () => { this.periode = b.dataset.per; this.ouvrir(v, cible); }; });
   },
 };
