@@ -34,6 +34,35 @@ const AMELIORATIONS = {
 const NIVEAU_MAX_AMELIO = 3;
 const COUT_AMELIO = [null, { materiaux: 6000, jours: 5 }, { materiaux: 12000, jours: 10 }, { materiaux: 20000, jours: 20 }];
 function maxAmelio(cle) { return AMELIORATIONS[cle].max || NIVEAU_MAX_AMELIO; }
+
+// Durée des mises au point sur Terre, en années, niveau par niveau : comme de vrais programmes (arrondi).
+// ref : le programme réel dont on s'inspire.
+const DUREES_RD = {
+  coqueThermique: { ans: [1, 2, 4], ref: 'bouclier PICA de la NASA : ≈ 3 ans de mise au point' },
+  blindageBord: { ans: [2, 4, 6], ref: 'blindages d’Orion et de Gateway : plusieurs années d’essais' },
+  habitat: { ans: [3, 5, 8], ref: 'module gonflable BEAM : 4 ans, du contrat (2012) à l’ISS (2016)' },
+  reservoirs: { ans: [1, 2, 3], ref: 'nouveaux réservoirs composites : 1 à 3 ans' },
+  soutes: { ans: [0.5, 1, 2], ref: 'aménagement de soutes : quelques mois à 2 ans' },
+  serre: { ans: [1, 2, 4], ref: 'serre Veggie de l’ISS : ≈ 3 ans avant la première laitue (2015)' },
+  ecosysteme: { ans: [25], ref: 'MELiSSA (ESA) : en recherche depuis 1989, toujours pas complet' },
+  recyclage: { ans: [2, 5, 10], ref: 'recyclage de l’eau de l’ISS : 98 % atteints en 2023, après 15 ans' },
+  torpeur: { ans: [40], ref: 'torpeur humaine : rien qu’en études (SpaceWorks, ESA), science-fiction' },
+  scaphandre: { ans: [6], ref: 'scaphandre lunaire xEMU : commencé en 2017, pas fini en 2023' },
+  batterieRover: { ans: [0.5, 1, 2], ref: 'nouvelles batteries d’un véhicule : 6 mois à 2 ans' },
+  caisseRover: { ans: [0.25, 0.5, 1], ref: 'simple aménagement : quelques mois' },
+  moteurRover: { ans: [1, 2, 3], ref: 'moteurs du rover lunaire d’Apollo : ≈ 2 ans' },
+  robotDurci: { ans: [2, 4, 8], ref: 'électronique pour Vénus (HOTTech, LLISSE de la NASA) : près de 10 ans' },
+  batterieRobot: { ans: [1, 2, 3], ref: 'batteries pour le froid ou le chaud extrêmes : 1 à 3 ans' },
+  batterieDrone: { ans: [0.5, 1, 2], ref: 'Ingenuity : ≈ 5 ans en tout, dont les batteries' },
+};
+function dureeRD(cle, n) { const d = DUREES_RD[cle]; return ((d && d.ans[n - 1]) || 1) * 365.25 * JOUR; }
+// « 3 mois », « 1 an », « 1 an et demi », « 25 ans ».
+function fmtDureeRD(s) {
+  const a = s / (365.25 * JOUR);
+  if (a < 1) return `${Math.round(a * 12)} mois`;
+  const e = Math.floor(a), demi = a - e >= 0.4;
+  return `${e} an${e > 1 ? 's' : ''}${demi ? ' et demi' : ''}`;
+}
 function coutAmelio(cle, n) { return (AMELIORATIONS[cle].couts || COUT_AMELIO)[n]; }
 // Ce qu'il faut avoir mis au point avant ('' si rien ne manque).
 function prerequisManquant(cle, v) {
@@ -85,10 +114,10 @@ function rechercherTerre(v, cle, log) {
   if (pre) return log(`${a.nom} : ${pre}.`);
   if (n >= maxAmelio(cle)) return log(`${a.nom} : déjà au niveau maximal.`);
   if (rdEnCours(v, cle)) return log(`${a.nom} : déjà en cours de mise au point.`);
-  const jours = coutAmelio(cle, n + 1).jours;
-  (v.rdTerre = v.rdTerre || []).push({ cle, niveau: n + 1, fin: v.t + jours * JOUR });
+  const duree = dureeRD(cle, n + 1);   // comme un vrai programme : des mois, des années, voire des décennies
+  (v.rdTerre = v.rdTerre || []).push({ cle, niveau: n + 1, fin: v.t + duree });
   depenser(v, 'rd', `R&D : ${a.nom}, niveau ${n + 1}`, coutRD(cle, n + 1));
-  log(`🔬 Laboratoires sur Terre : mise au point « ${a.nom} », niveau ${n + 1} (${a.effet(n + 1)}). Prête le ${fmtDate(v.t + jours * JOUR)}.`);
+  log(`🔬 Laboratoires sur Terre : mise au point « ${a.nom} », niveau ${n + 1} (${a.effet(n + 1)}). Durée : ${fmtDureeRD(duree)}, prête le ${fmtDate(v.t + duree, false)}.`);
 }
 // Mises au point terminées (appelé quand le temps avance).
 function terminerRDTerre(v, log) {
@@ -101,7 +130,7 @@ function terminerRDTerre(v, log) {
 }
 // Onglet R&D du centre de commande.
 function htmlRDTerre(v) {
-  let d = '<p>Les laboratoires sur Terre mettent au point les améliorations ; elles valent ensuite pour toute l’expédition (vaisseau, atterrisseurs, astromobile, robot, drone). Une seule à la fois par amélioration ; plusieurs améliorations peuvent avancer ensemble. Le temps avance avec celui de l’orbiteur.</p>';
+  let d = '<p>Les laboratoires sur Terre mettent au point les améliorations ; elles valent ensuite pour toute l’expédition (vaisseau, atterrisseurs, astromobile, robot, drone). Une seule à la fois par amélioration ; plusieurs améliorations peuvent avancer ensemble. Comme de vrais programmes, elles durent des mois, des années, parfois des décennies : lancez-les tôt. Le temps avance avec celui de l’orbiteur.</p>';
   const enCours = Object.keys(AMELIORATIONS).map((cle) => [cle, rdEnCours(v, cle)]).filter(([, e]) => e);
   if (enCours.length) d += `<p class="encart">⏳ En cours : ${enCours.map(([cle, e]) => `${AMELIORATIONS[cle].nom}${e.c.niveau ? ` ${e.c.niveau}` : ''}, prête le ${fmtDate(e.c.fin, false)}`).join(' · ')}</p>`;
   let groupe = '';
@@ -111,9 +140,9 @@ function htmlRDTerre(v) {
     if (n >= maxAmelio(cle)) { d += `<button disabled title="${a.effet(n)}">✓ ${a.nom}${maxAmelio(cle) > 1 ? ' (niveau max)' : ''}<br><small class="doux">${a.effet(n)}</small></button>`; continue; }
     const pre = prerequisManquant(cle, v);
     if (pre) { d += `<button disabled title="${a.effet(n + 1)}">🔒 ${a.nom}<br><small class="doux">${pre}</small></button>`; continue; }
-    if (e) { d += `<button disabled title="${a.effet(n + 1)}">⏳ ${a.nom} ${n + 1} · encore ${fmtDuree(e.c.fin - v.t)}</button>`; continue; }
-    const jours = coutAmelio(cle, n + 1).jours;
-    d += `<button data-rd-terre="${cle}" title="Niveau ${n + 1} : ${a.effet(n + 1)}${n ? ` (actuel : ${a.effet(n)})` : ''}">${a.nom}${maxAmelio(cle) > 1 ? ` ${n + 1}` : ''} · ${fmtEuros(coutRD(cle, n + 1))} · ${fmtDuree(jours * JOUR)}<br><small class="doux">${a.effet(n + 1)}</small></button>`;
+    if (e) { d += `<button disabled title="${a.effet(n + 1)}">⏳ ${a.nom} ${n + 1} · encore ${fmtDuree(e.c.fin - v.t)}<br><small class="doux">prête le ${fmtDate(e.c.fin, false)}</small></button>`; continue; }
+    const ref = DUREES_RD[cle] ? DUREES_RD[cle].ref : '';
+    d += `<button data-rd-terre="${cle}" title="Niveau ${n + 1} : ${a.effet(n + 1)}${n ? ` (actuel : ${a.effet(n)})` : ''}${ref ? ` — ${ref}` : ''}">${a.nom}${maxAmelio(cle) > 1 ? ` ${n + 1}` : ''} · ${fmtEuros(coutRD(cle, n + 1))} · ${fmtDureeRD(dureeRD(cle, n + 1))}<br><small class="doux">${a.effet(n + 1)}</small>${ref ? `<br><small class="doux">⏱ ${ref}</small>` : ''}</button>`;
   }
   return d + '</div>';
 }
