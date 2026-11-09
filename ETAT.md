@@ -1,10 +1,10 @@
 # État du projet
 
-Dernière mise à jour : 5 novembre 2026 (nuit de travail sur la carte 6)
+Dernière mise à jour : 10 novembre 2026 (fin de session, avant la reprise à 1 h 40)
 
 ## En une phrase
 
-Jeu web de simulation spatiale (vol, atterrissage, exploration, campagne dans le Système solaire et au-delà), jouable en ligne, en bêta test : les cartes 5 et 7 sont terminées et fusionnées dans `main` ; la carte 6 (points 1 à 8, le point 7 en première étape), le scaphandre de Titan, les phares de nuit et l'entraînement à Cologne sont fusionnés dans `main` (version 302, 5 novembre 2026).
+Jeu web de simulation spatiale (vol, atterrissage, exploration, campagne dans le Système solaire et au-delà), jouable en ligne, en bêta test : tout le travail jusqu'aux sorties depuis les stations (étapes 1 et 2) est fusionné dans `main` et publié (version 351, 10 novembre 2026) ; la suite (astromobile, stations construites module par module, imprévus des sorties) est décidée dans `docs/plan-stations-astromobile.md`, rien n'est encore codé.
 
 ## Fait
 
@@ -31,7 +31,7 @@ Carte 5 (novembre 2026), points 1 à 22 :
 - 8. Saut en astromobile : batterie, combinaison du conducteur et du passager abîmées séparément, au hasard.
 - 9. Escalade animée, grappin, cordée (Sam suit, encordé ; la corde retient les glissades).
 - 10. Courte-échelle (3,5 m au plus) et main tendue, allongé au bord (2,8 m au plus), animées.
-- 11. À quatre pattes en montée au-delà de 35° (debout en descente).
+- 11. Montée raide au-delà de 35° (debout en descente) ; depuis le 6 novembre, marche penchée en avant au lieu de quatre pattes.
 - 12. Choisir qui descend : 2 places (3 avec le module d'habitation), quelqu'un reste en orbite, blessé grave exclu.
 - 13. Module de secours : choisir qui monte, embarquement de chacun à son tour.
 - 14. Personnage coincé : départs séparés (module de secours, module posé), atterrisseur conservé.
@@ -54,7 +54,6 @@ Retours de jeu (1er novembre 2026, après la carte 5) :
 - Entraînement à l'astromobile : deux objectifs de plus, débrider (B) et dépasser 5 m/s, puis rebrider et ralentir.
 - Astromobile à batterie vide : l'accélérateur ne répond plus (roue libre), même débridée.
 - Corde du grappin rangée d'elle-même dès que la cordée est en haut (`cordeInutile`).
-- Quatre pattes seulement en montée, au-delà de 35° (`monteeDevant`) ; debout en descente.
 - Sortie à deux : le compagnon ne saute pas d'une falaise pour suivre, il attend au bord (Tab pour le piloter).
 - Descente en rappel : ↓ au bord d'une falaise (plus de 45°), le grappin est planté au bord ; le compagnon descend ensuite ; corde récupérée quand tous sont en bas ; bouton ⤓ sur téléphone.
 - Astromobile qui capote : tonneaux avec l'élan conservé (70 % de la vitesse après le choc), freinés par le frottement (0,6 × g), puis retour sur les roues.
@@ -73,95 +72,105 @@ Carte 6 (4 et 5 novembre 2026), fusionnée dans `main` (version 302). Compte ren
 - 3. Équipage mort : choix entre ramener l'orbiteur et « continuer en sonde », piloté depuis le sol (seul le pilote auto ; commandes avec le délai radio réel). Bouton « ⚙ » de l'orbiteur : réglages de la campagne (délai radio, calcul simplifié).
 - 4. Calcul simplifié des objets en transit (sondes, ravitos) : trajectoire calculée une fois puis suivie ; réglage automatique au-delà de 10 objets, toujours ou jamais ; ≈ 200 fois moins de calcul.
 - 5. Aspect des trouvailles (`trouvailles.js`) : sites à grande échelle (lac sur la rive, cratère, coulée, panache, fissure, lit de rivière) et échantillons à petite échelle, à leur taille réelle. Liste : `docs/carte6-echantillons.md`.
-- 6. Zones réelles (`zones.js`) : Valles Marineris, Olympus Mons, Hellas, Gale, Jezero, à l'échelle réelle, dans « Où se poser ? » ; plan lointain dans l'exploration. Méthode et liste des autres zones : `docs/carte6-zones.md`.
-- 7. Recrues transportées (`transferts.js`), étape 1 : fenêtre « Envoyer des spationautes » (recrues ou spationautes en service, vers l'orbiteur, une station ou une base), vaisseau de transfert de 4 places sur une vraie trajectoire, en arrière-plan. Plus d'apparition instantanée.
+- 6. Zones réelles (`zones.js`) : Mars, la Lune et 11 autres astres à l'échelle réelle, plus 4 zones schématiques, dans « Où se poser ? » ; plan lointain dans l'exploration. Méthode et liste : `docs/carte6-zones.md`.
+- 7. Recrues transportées (`transferts.js`), étape 1 : fenêtre « Envoyer des spationautes » (recrues ou spationautes en service, vers l'orbiteur, une station ou une base), vaisseau de transfert de 4 places sur une vraie trajectoire, en arrière-plan.
+- Scaphandre lourd pour Titan (R&D en campagne, fourni en visite rapide), phares du casque la nuit, entraînement au Centre des astronautes européens de Cologne.
+
+Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
+- Montée raide : marche penchée en avant, mains au sol par moments ; le compagnon n'est plus dans deux états à la fois.
+- Easter eggs répartis sur les lieux de descente (`sites.js`, `ancresEggs`) ; feuille « Personne ici » sur Pluton.
+- Finances (`finances.js`) : chaque dépense chiffrée en euros, coûts courants, vue par mois ou par an, tarifs et sources dans l'Aide ; ravitaillement courant facturé.
+- Centre de commande (`commande.js`), onglets : vue d'ensemble (avec le portrait de la flotte), ravitos, stations et bases, R&D, équipage, lancements, ressources, finances, bilan, journal, au-delà. R&D menée sur Terre (euros et temps).
+- Grappes de sondes vers d'autres étoiles : fenêtre après le premier décollage, systèmes à cocher, voile laser ou fusion, lancées depuis la Terre (`interstellaire.js`).
+- Bilan (`bilan.js`) : ce que la Terre a fourni, ce qu'on a tiré de chaque astre (provenance suivie dans les stocks), allègement en masse et en part de la masse ; bilan carbone avec facteurs et sources.
+- Ravitaillement courant selon les besoins (`ravitaillement.js`) : seulement ce qui manque ; navette vers les bases ; occupants des stations et des bases qui consomment, pénuries (rationnement puis morts) et alerte à temps selon le trajet réel d'un ravito de secours.
+- Objets artificiels : silhouettes réelles (`objets.js`) ; orbite modifiable par le jet des moteurs ou une poussée volontaire, garde-fous en option, chute et départ possibles (`orbites-objets.js`).
+- Silhouettes de l'orbiteur (selon la R&D et ce qu'il emporte) et des stations (selon leur niveau) (`vaisseaux.js`).
+- Durées de R&D comme de vrais programmes (mois, années, décennies), référence réelle affichée.
+- Dates « 1ᵉʳ mai » ; premier départ : passage obligatoire par l'entraînement (une fois, à refaire après une remise à zéro).
+- Exploration : relief lointain opaque, qui descend derrière le terrain proche quand on monte ; distance des astres du ciel au survol ; avertissement du froid sur Triton.
+- Sorties au sol (`physiologie.js`) : cœur et oxygène du sang, mort non instantanée, perte de connaissance, secours, séquelles, fondu au noir, temps ×1 aux alertes, voile rouge, ruban et oxygène dans l'astromobile à l'arrêt, fenêtre de secours.
+- Lanceur détruit (`explosion.js`) : effondrement puis grosse explosion.
+- Sorties depuis une station (`eva.js`, `eva-missions.js`), étapes 1 et 2 : à deux par le sas, mains courantes, longe, dérive et SAFER, jour et nuit réels, rayonnement du lieu ; pannes des stations et missions de réparation (batteries, panneau, ammoniac, détecteur), sac à outils, robot si le rayonnement est trop fort.
 
 ## En cours
 
-- Carte 6 (fichier de l'auteur : `C:\Users\DELL\Downloads\carte-jeu-fusee-6.md`) : tous les points faits pendant la nuit du 4 au 5 novembre, selon les décisions prises par Edouard avant la nuit (notées en tête de `docs/carte6-nuit.md`).
-  - Fusionnée et publiée sans test en jeu : jouer, puis relire `docs/carte6-echantillons.md` et `docs/carte6-zones.md` et corriger ce qui ne va pas.
-  - Point 7 : étape 1 seulement (trajet automatique). Étapes suivantes possibles : piloter le trajet, consommation des vivres à une station ou à une base.
-  - Point 6 : zones réelles sur Mars, la Lune (`carte6-zones-lune`) et 11 autres astres (`carte6-zones-tous`, qui contient tout) ; plus 4 zones schématiques (rive de Ligeia Mare sur Titan, avec une mer où l'on s'arrête sur la rive ; Galileo Regio ; Valhalla ; Triton). Détail dans `docs/carte6-zones.md`.
-- Scaphandre lourd pour Titan (branche `scaphandre-titan`, qui part de `carte6-zones-tous` et contient donc toute la carte 6) : chauffé, à pression ambiante, recycleur d'oxygène, jusqu'à 5 bar ; 20 % plus lent, 25 % d'autonomie en moins ; R&D en campagne, fourni en visite rapide ; enfilé automatiquement quand l'air dépasse 1,2 bar. Aucun autre astre du jeu n'est entre 1,2 et 5 bar (Terre 1, Titan 1,5, Vénus 92 ; exoplanètes sans atmosphère connue).
-- Même branche : visuel du scaphandre lourd (orange, recycleur, phares) ; phares du casque allumés la nuit partout (`LUMIERE_SOL` < 0,5), pour vous et le compagnon ; l'entraînement se passe au Centre des astronautes européens de l'ESA, à Cologne.
-- Branche ancienne non fusionnée : `accueil-progression` (un commit du 27 octobre, « Équipage après une perte, robot largué, plouf, temps unifié, stations, artefacts ») : à examiner avec Edouard.
+- Plan décidé, rien de codé : `docs/plan-stations-astromobile.md` (branche `plan-stations`, avec cet `ETAT.md`). Astromobile pliée ou apportée par cargo, laissée sur place ; stations construites module par module ; étape 3 des sorties depuis une station.
 
 ## À faire, dans l'ordre
 
-1. Jouer une vraie campagne avec tous ces ajouts : beaucoup n'ont été testés que par appels directs (vivres, déchets, extensions, secours, capsules multiples, atterrissage progressif, easter eggs de la carte 5).
-2. Rappel et tonneaux : testés sur des terrains de test seulement. Vérifier en jouant que ↓ au bord se déclenche facilement (il faut appuyer dans les 60 derniers centimètres, sinon on tombe).
-3. Vérifier les blocs centrés (chiffres de l'accueil, cartes de l'équipage) avec le texte justifié : ils n'ont pas été vus à l'écran.
-4. Carte 6, point 8 : la date « 4 mars 2265 » de la capture d'Edouard (≈ 240 ans de jeu) n'est pas expliquée ; le calcul de la date semble juste. Demander sa sauvegarde pour comprendre (accélération du temps ?).
-5. Carte 6, point 1 : le bouton « Descendre » grisé n'a pas été vu en vraie campagne (testé par appels directs).
-6. Carte 7 : escalade, cordée, Tab et rappel testés sur la paroi d'entraînement seulement (8 m, presque verticale) ; à essayer sur d'autres astres.
-7. Carte 6 : tout a été testé par appels directs dans des campagnes neuves en mémoire ; rien n'a été joué dans une vraie partie (alerte vivres et escale, contrôle au sol, calcul simplifié, trouvailles, zones de Mars, transferts d'équipage).
+1. Astromobile, visuels : scaphandre lourd porté dans l'astromobile ; lampe du casque la nuit avec la combinaison blanche (`exploration.js`, `equipage.js`).
+2. Astromobile laissée sur place au décollage, retrouvée si l'on revient à moins de 2 km.
+3. Astromobile pliée (R&D ≤ 1) ou apportée par un cargo depuis la station (R&D ≥ 2) ; choix « avec ou sans » à la descente ; niveau maximal de la campagne en visite rapide.
+4. Stations construites module par module, selon `docs/plan-stations-astromobile.md` (noyau par Hercule ou par cargo lourd, un module par niveau, sortie d'assemblage ou robot, kits changés en noyaux, rien ne change hors du Système solaire).
+5. Sorties depuis une station, étape 3 : eau dans le casque, combinaison trop gonflée au sas, débris en approche.
+6. Jouer une vraie campagne : presque tout le travail de novembre n'a été testé que par appels directs, sur des copies de la sauvegarde.
+7. Rappel et tonneaux, escalade et cordée : vérifier en jouant sur d'autres astres (testés sur des terrains d'essai).
+8. Carte 6, point 8 : la date « 4 mars 2265 » de la capture d'Edouard n'est pas expliquée ; demander sa sauvegarde.
 
 ## Bugs connus de la bêta
 
-- Aucun pour l'instant.
+- Boutons de l'accueil sans réponse juste après une publication : non reproduit : déploiement de GitHub Pages : probablement un cache mélangé (attendre ≈ 10 min, puis Ctrl+F5).
+- Ravitaillement courant de la station terrestre : jusqu'à 150 t par passage au niveau 5, soit des milliards d'euros par mois : `ravitaillement.js` : un plein d'orbiteur gardé en réserve à chaque station, peut-être trop.
 
 ## Décisions prises
 
 - Pas de framework ni de build : le jeu doit s'ouvrir avec un simple `index.html`.
-- Valeurs physiques réelles, arrondies ; les exagérations sont signalées (Soleil agrandi ×3 dans le ciel).
+- Valeurs physiques réelles, arrondies ; les exagérations sont signalées (Soleil agrandi ×3 dans le ciel, feuille A4 agrandie sur Pluton).
 - Le sol est un anneau à une dimension de périmètre 2πR : la longitude donne la position, la latitude ne sert qu'aux textes.
 - La visite rapide sait tout d'avance (pas besoin de sonde) ; la campagne, non.
 - Une seule base, une seule station et une seule sonde par astre ; une extension n'est pas une base.
-- Les améliorations de R&D valent pour toute l'expédition, et la suivent vers une autre étoile.
+- Les améliorations de R&D valent pour toute l'expédition ; elles se mettent au point sur Terre, en euros et en temps réaliste.
 - Sortie à deux : automatique quand un second membre descend (en visite rapide : Sam) ; les messages prennent le vrai nom du compagnon.
-- Easter eggs : découverts seulement par le spationaute incarné, de près (le compagnon peut les signaler) ; les traces réelles, par tous. Mars peut en avoir plusieurs (Total Recall en plus des autres).
+- Easter eggs : découverts seulement par le spationaute incarné ; un seul près de la zone de la sonde, plusieurs répartis sur les lieux de descente.
 - Blessures : le « mode dégradé » est celui qui existe après une mort (équipage traumatisé, manœuvres risquées).
-- Cordée : encordé au grappin, une glissade ne fait pas tomber (on pend, puis on se rattrape).
-- Cordée (carte 7) : elle n'existe que si les deux sont sur la paroi ; seul celui qui est sur la paroi est attaché au grappin ; plus personne sur la paroi = grappin rangé (sauf au pied, corde en main, tant que personne n'est monté). Le grimpeur qu'on quitte (Tab) termine seul sa montée, puis attend.
+- Cordée : elle n'existe que si les deux sont sur la paroi ; plus personne sur la paroi = grappin rangé.
 - Mise en orbite : tolérance de jeu gardée (90 % de l'altitude visée, 97 % de la vitesse circulaire), signalée dans l'Aide.
-- Personne à bord : pas de descente humaine ; le robot peut descendre. Tout l'équipage mort : les échantillons à bord sont récupérés (la capsule vide les rapporte).
-- Vivres (carte 6) : règles réalistes dans le Système solaire (alerte, escale, ravito, recyclage) ; torpeur et écosystème fermé sont de la science-fiction, signalée comme telle, débloquée par la R&D d'une station.
+- Personne à bord : pas de descente humaine ; le robot peut descendre.
+- Vivres : règles réalistes dans le Système solaire ; torpeur et écosystème fermé sont de la science-fiction signalée.
 - Équipage mort : au choix, ramener l'orbiteur ou continuer en sonde ; délai radio réel, désactivable (⚙).
-- Calcul simplifié des objets en transit : automatique au-delà de 10 objets (réglable), manuel possible.
-- Trouvailles : sites à grande échelle (on prélève au bord), échantillons à petite échelle, à taille réelle.
-- Zones réelles : profils simplifiés à la main, à l'échelle réelle, posés est-ouest à leur vraie longitude ; Mars d'abord.
-- Recrues : un vrai transport (vaisseau de transfert de 4 places, trajectoire des cargos) ; la fenêtre sert aussi à déplacer les spationautes en service.
-- Descente : quelqu'un reste toujours en orbite ; 2 places, 3 avec le module d'habitation.
-- Module d'urgence = module de secours (appel U) ; le module posé sur place est l'autre.
-- Vivres et eau : pénurie = rationnement puis morts ; production hors Terre limitée (eau des glaces, petite serre) ; 100 % d'autonomie seulement avec l'écosystème fermé, exigé pour quitter le Système solaire.
-- Quatre pattes : en montée seulement, entre 35° (pente de marche) et 45° (paroi, on escalade).
-- Falaise en descente : on peut y tomber ; le compagnon, lui, attend au bord. Pour descendre proprement : le rappel (↓).
-- Capotage : physique de l'élan (quantité de mouvement conservée, énergie dissipée par le choc puis le frottement), pas d'arrêt net.
-- Température au sol sans air : sin(élévation du Soleil)^¼ entre la nuit et le maximum de midi ; la Lune monte à 120 °C seulement à midi, la combinaison tient 130 °C. Sur Mercure, on peut sortir quand le Soleil est à moins de 3° environ (voulu).
+- Montée raide : marche penchée, pas de quatre pattes (personne ne rampe en scaphandre).
+- Finances pour le plaisir : on ne manque jamais d'argent ; montants tirés de vrais programmes, sources affichées.
+- La Terre décide (centre de commande) ; l'orbiteur garde un raccourci.
+- Grappes de sondes : lancées depuis la Terre (pas le stock de l'orbiteur), propulsion au choix.
+- Carbone : ergols des lanceurs calculés, le reste par ratios monétaires (ordre de grandeur, signalé).
+- Ravitaillement courant : seulement ce qui manque ; facturé ; les occupants des stations et des bases mangent, avec les mêmes règles qu'à bord.
+- Objets artificiels : leur orbite peut changer ; garde-fous en option (on peut tout faire, même les perdre).
+- Mort en sortie : jamais instantanée sauf écrasement, brûlure ou rayonnement ; fondu au noir, retour au module, sans détails.
+- Sorties depuis une station : n'importe quelle station ; ciel et rayonnement réels ; robot si le rayonnement est trop fort.
+- Astromobile et stations : décisions du 10 novembre dans `docs/plan-stations-astromobile.md`.
 - Espaces insécables : jamais dans le code, les commandes, les noms de fichiers ; gardées dans les textes affichés (`outils/typo.py`).
 
 ## Pièges
 
 - Les chaînes du jeu contiennent des espaces insécables : une ancre d'`Edit` qui en contient échoue, et la lecture ne les montre pas. Passer par un script Python avec une recherche tolérante (chaque espace accepte aussi U+00A0 et U+202F) ou repérer la ligne par son début.
 - Commandes PowerShell vers WSL : les guillemets et `$` imbriqués font planter zsh ou PowerShell. Écrire le script dans un fichier, puis `wsl -d ubuntu -- bash fichier.sh` (ou `python3 fichier.py`).
-- Le navigateur garde l'ancien JS en cache : toujours monter `?v=` avant de recharger. Il peut aussi garder `index.html` lui-même (donc les anciens `?v=`) : recharger avec `http://localhost:8765/?r=N`, et vérifier la version chargée (`document.scripts`).
-- Volet du navigateur caché : `requestAnimationFrame` tourne au ralenti, le jeu semble figé. Faire avancer la simulation à la main (`x.step(1/30, commandes)`).
-- Tester sans abîmer la sauvegarde d'Edouard : remplacer `window.sauver` par une fonction vide pendant le test, restaurer ce qu'on touche (`etat.decouvertes`…), puis recharger la page.
-- Un saut de temps (traversée vers une autre étoile, retour d'absence) fait tout consommer d'un coup : remettre à jour les horodatages (`tVivres`, `tDechets`) quand le temps saute sans que l'équipage vive.
+- Le navigateur garde l'ancien JS en cache : toujours monter `?v=` à un numéro jamais utilisé avant de recharger, et vérifier la version chargée (`document.scripts`).
+- Volet du navigateur caché : `requestAnimationFrame` ne tourne pas. Faire avancer la simulation à la main (`x.step(…)`, ou `boucle(t)` avec `t` croissant pour les scènes).
+- Images de contrôle avec le volet caché : dessiner sur un canvas, l'envoyer en `text/plain` à `~/code/Biguhuh/recevoir.py` (port 8766, un seul envoi par lancement), puis lire le PNG.
+- Tester sans abîmer la sauvegarde d'Edouard : `window.sauver = () => {}`, travailler sur `etat.voyage = structuredClone(etat.voyage)`, puis recharger la page.
+- Un saut de temps fait tout consommer d'un coup : remettre à jour les horodatages (`tVivres`, `tDechets`, `tResidents`) quand le temps saute sans que l'équipage vive.
 - Un texte dans une chaîne simple `'…'` n'interpole pas `${…}` : utiliser un gabarit `` `…` ``.
 - `outils/typo.py` traite tous les fichiers, quels que soient les arguments : relire le diff avant de commiter.
-- Créer la branche (`git switch -c …`) avant de commiter, et vérifier avec `git branch --show-current` : un commit est déjà parti sur la branche du point précédent.
-- Ne pas forcer `x.duo = true` en test : sans second personnage, `dessinerDuo` plante à chaque image.
-- `ECRAN_TACTILE` est calculé au chargement, et une largeur sous 768 px dans le navigateur intégré émule un téléphone. Pour voir un écran étroit au clavier : charger à 768 px ou plus, puis rétrécir sans recharger.
-- Après `navigate`, attendre le chargement (`await new Promise(r => setTimeout(r, 1000))`) avant d'appeler les fonctions du jeu : sinon « lancerEssai is not defined ».
-- Scripts Python d'édition : les lancer depuis la racine du dépôt (`cd ~/code/Biguhuh/fusee && python3 …`), sinon « No such file ».
-- Émojis récents (🪢, 🪨, 🛞…) : carré vide sur beaucoup d'écrans. Préférer les anciens (🧗, 🚙…).
-- Tester un terrain précis : remplacer `x.sol` par une fonction (plateau, falaise…) et faire avancer `x.step(1/30, { droite, frein… })` avec `etat.pause = true`.
-- Commentaire en fin de ligne : ne jamais le glisser au milieu d'une ligne de code (`{ … ; // commentaire` met en commentaire la suite, le fichier ne se charge plus : « creerDuo is not defined »). Le mettre sur sa propre ligne.
-- `read_console_messages` garde les erreurs des chargements précédents : pour savoir si une erreur est actuelle, ouvrir un onglet neuf (`preview_start` avec l'URL) et relire sa console.
-- Tester l'escalade : `lancerEssai('escalade')` (avec Sam), marcher 15 s vers la droite pour atteindre le pied (paroi de 8 m à x = 32), puis `{ droite: true, saut: true }` pour grimper. Pour vérifier le dessin, appeler `x.dessiner(ctx, W, H, dt)` à chaque pas, ou `x.dessinerCorde` avec un faux contexte qui note les traits.
+- Créer la branche avant de commiter, et vérifier avec `git branch --show-current`.
+- Après `navigate`, attendre le chargement (une seconde) avant d'appeler les fonctions du jeu.
+- `read_console_messages` garde les erreurs des chargements précédents : ouvrir un onglet neuf pour savoir si une erreur est actuelle.
+- Commentaire en fin de ligne : ne jamais le glisser au milieu d'une ligne de code ; le mettre sur sa propre ligne.
+- Identifiants d'astres : vérifier qu'ils existent (Encelade est `l602`, Charon `l901`, Cérès `a1`).
+- Expressions régulières : « décompression » contient « pression » : tester le plus long d'abord.
+- Remplacement JS `'$11ᵉʳ'` lu comme le groupe 11 : passer par une fonction `(m, a, b) => …`.
+- Push : sans « pousse » ou « publie » d'Edouard, le contrôle automatique des permissions le refuse ; commiter en local et demander.
+- Publication : GitHub Pages met quelques minutes ; pendant ce temps, le navigateur peut mélanger anciens et nouveaux fichiers.
+- Tester l'orbiteur : `Orbiteur.charger(v)` avant tout, puis `allerNavigation()` pour que le panneau existe (`majHud` sinon plante).
 - Comparer avec `main` sans changer de branche : `git worktree add /tmp/fusee-main main`, serveur sur le port 8766, puis `git worktree remove --force /tmp/fusee-main`.
-- Tester l'orbiteur sans abîmer la sauvegarde : `window.sauver = () => {}; noterPointReprise = () => {};` (le point de reprise écrit directement dans le stockage), `const v = Orbiteur.nouveauVoyage(); etat.voyage = v; etat.enVoyage = true; Orbiteur.v = v; Orbiteur.demarrerExpedition(); allerNavigation();` (le panneau doit exister : `choisirCible` appelle `majHud`). Avancer : `v.t += pas; Orbiteur.mettreAJourSondes(pas); Orbiteur.mettreAJourLogistique();`.
-- Identifiants d'astres : vérifier qu'ils existent avant de s'en servir (`ceres`, `encelade` n'existent pas sous ces noms ; Encelade est `l602`).
-- Tester un écran de fin : remplacer `etat.voyage` par un faux voyage en mémoire (pertes, `bilan`, `echantillonsRapportes`…), appeler `afficherRetourTerre(res, equipage)`, puis recharger la page.
-- Tester l'amarrage sans campagne : `Orbiteur.amarrer.call(faux, true)`, avec un objet `faux` qui fournit `v`, `stationIci()`, `etatStation()` et `log()`.
 
 ## Carte des fichiers importants
 
 Cœur :
 - `index.html` : écrans et ordre de chargement des scripts.
-- `js/main.js` : boucle de jeu, touches, lancement des vols, descente (lieu, équipage), robot, drone, base, fin de vol, secours, sauvegarde ; écran de fin de mission (`afficherRetourTerre`, `statsFinMission`).
-- `js/vol.js` : simulation et dessin d'un vol (poussée, atmosphère, température de coque, atterrissage, ciel, terrain, base animée, tableau de bord), jour local et chaleur du Soleil au sol.
+- `js/main.js` : boucle de jeu, touches, lancement des vols, descente, robot, drone, base, fin de vol, secours, sauvegarde, nouvelle campagne (remises à zéro) ; écran de fin de mission.
+- `js/vol.js` : simulation et dessin d'un vol, ciel (astres survolés, distance), terrain, base animée, tableau de bord.
+- `js/explosion.js` : destruction d'un grand lanceur (effondrement, explosion).
 - `js/physique.js` : conditions selon l'altitude, sol en anneau (`distSol`, `ecartSol`).
 - `js/astres.js`, `js/catalogue.js`, `js/donnees-jpl.js` : les astres.
 - `js/systemes.js`, `js/etoiles-proches.js` : systèmes stellaires.
@@ -169,38 +178,47 @@ Cœur :
 - `js/francais.js` : articles et élisions devant les noms, `nombre()` pour accorder une quantité.
 
 Campagne :
-- `js/orbiteur.js` : écran de l'orbiteur (pilotage, sondes, stations, amarrage et plein, atelier, R&D, ravitos, vidange, deuil, rappel).
+- `js/orbiteur.js` : écran de l'orbiteur (pilotage, sondes, stations, amarrage et plein, ravitos, vidange, deuil, rappel, carte, sortie depuis une station).
+- `js/commande.js` : centre de commande et ses onglets.
+- `js/finances.js` : tarifs, dépenses, coûts courants, fenêtre des finances.
+- `js/bilan.js` : bilan matière par astre et bilan carbone.
+- `js/ravitaillement.js` : ravitaillement courant selon les besoins, navette vers les bases, occupants et pénuries.
 - `js/orbites.js`, `js/navigation.js` : mécanique orbitale et manœuvres.
 - `js/campagne.js` : règles (atterrisseur, stocks et cargos, bases, ressources, recettes, extensions).
-- `js/ameliorations.js` : R&D (améliorations, niveaux, coûts, prérequis, serre, écosystème fermé).
-- `js/vivres.js` : vivres et eau potable (consommation, production, pénurie).
-- `js/dechets.js` : déchets de l'équipage, vidange.
-- `js/sites.js` : lieux d'atterrissage (première descente, suggestions), positions réelles des anciennes missions, cratère polaire de Mercure.
-- `js/transferts.js` : transport des spationautes (recrues, déplacements entre orbiteur, stations et bases).
-- `js/equipe.js` : équipe, missions de fond, blessures et soins, choix de qui descend, réparation de l'astromobile ; pertes de l'expédition (lieu, regroupement par cause) et bilan de l'expédition (`compterExpedition`).
-- `js/equipage.js` : profils et dessin des spationautes (poses : escalade, quatre pattes, courte-échelle, allongé).
-- `js/registre.js`, `js/vaisseau.js` : registre des équipages, nom du vaisseau.
-- `js/tableau.js`, `js/journal.js`, `js/progression.js` : tableau de bord d'un astre, journal, progression (références des easter eggs).
-- `js/amarrage.js`, `js/retour.js`, `js/kourou.js` : scènes animées (`retour.js` : capsules selon l'équipage, repêchage).
-- `js/depart.js`, `js/interstellaire.js` : départ vers une autre étoile (liste de contrôle).
+- `js/ameliorations.js` : R&D sur Terre (améliorations, niveaux, durées réelles, coûts, prérequis).
+- `js/vivres.js`, `js/dechets.js` : vivres et eau de l'orbiteur, déchets.
+- `js/sites.js` : lieux d'atterrissage, anciennes missions, ancres des easter eggs.
+- `js/transferts.js` : transport des spationautes.
+- `js/equipe.js` : équipe, missions de fond, blessures et soins, choix de qui descend ; pertes et bilan de l'expédition.
+- `js/equipage.js` : profils et dessin des spationautes.
+- `js/registre.js`, `js/vaisseau.js` : registre des équipages, nom du vaisseau, composition de l'équipage.
+- `js/tableau.js`, `js/journal.js`, `js/progression.js` : tableau de bord d'un astre, journal, progression.
+- `js/amarrage.js`, `js/retour.js`, `js/kourou.js` : scènes animées.
+- `js/depart.js`, `js/interstellaire.js` : départ vers une autre étoile ; grappes de sondes.
 - `js/rayonnement.js` : doses de rayonnement réelles.
+- `js/vaisseaux.js` : silhouettes de l'orbiteur et des stations, portrait de la flotte.
+- `js/eva.js` : sortie extravéhiculaire depuis une station (scène, longe, SAFER, jour et nuit, rayonnement).
+- `js/eva-missions.js` : pannes des stations, missions de réparation, robot, choix de la sortie.
 
 Au sol :
-- `js/trouvailles.js` : aspect des sites et des échantillons au sol (carte 6, point 5).
-- `js/zones.js` : zones réelles (relief simplifié, appelé par `creerTerrain`) et plan lointain de l'exploration.
-- `js/exploration.js` : sortie à pied, astromobile (bridage, tonneaux), robot ; chutes et blessures, combinaison, escalade, grappin et rappel, quatre pattes, jour et nuit, retour (`cheminVers`), appel d'urgence et départs séparés.
-- `js/duo.js` : sortie à deux (suivre, cordée, rappel, arrêt au bord d'une falaise, courte-échelle, main tendue, oxygène partagé).
+- `js/trouvailles.js` : aspect des sites et des échantillons au sol.
+- `js/zones.js` : zones réelles et plan lointain de l'exploration.
+- `js/exploration.js` : sortie à pied, astromobile, robot ; chutes, combinaison, escalade, grappin et rappel, jour et nuit, retour, appel d'urgence.
+- `js/duo.js` : sortie à deux (suivre, cordée, rappel, entraide, oxygène partagé).
+- `js/physiologie.js` : cœur et oxygène du sang, secours, mort en fondu, voile rouge.
 - `js/decouvertes.js` : easter eggs et leurs dessins, traces réelles, signalements du compagnon.
 - `js/descente-robot.js`, `js/drone.js` : largage du robot, drone.
 - `js/visuels.js` : visuels des niveaux de R&D sur les véhicules, planche d'évolution.
-- `js/essai.js` : entraînement sur Terre (objectifs de chaque exercice dans `ESSAIS`).
+- `js/essai.js` : entraînement sur Terre ; passage obligatoire au premier départ.
 
 Écrans et interface :
 - `js/ecrans.js` : hangar, carte, résultat, sauvegarde.
-- `js/infos.js`, `js/aide.js` : fiches, encyclopédie, onglet Aide.
+- `js/infos.js`, `js/aide.js` : fiches, infobulles, encyclopédie, onglet Aide.
 - `js/observation.js`, `js/observatoires.js` : ciel lointain, observatoires.
+- `js/objets.js`, `js/orbites-objets.js` : silhouettes et orbites modifiables des objets artificiels.
 - `js/globes.js` : apparence des astres ; `js/formes.js` : silhouettes des astres non sphériques.
 - `js/repliques.js` : répliques de science-fiction.
 - `js/tactile.js` : boutons tactiles.
 - `css/style.css` : mise en forme.
 - `outils/typo.py` : typographie française des textes affichés.
+- `docs/` : comptes rendus, plans (`plan-stations-astromobile.md`).

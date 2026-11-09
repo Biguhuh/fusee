@@ -34,7 +34,7 @@ En ligne : https://biguhuh.github.io/fusee/ (GitHub Pages, branche `main`). Dép
 - Messages courts, une étape à la fois.
 - Petites modifications ciblées, pas de refonte sans demande.
 - Avant de modifier un gros fichier, dis ce que tu comptes changer.
-- Une branche par demande. Commit puis push de la branche ; test dans le navigateur intégré.
+- Une branche par demande. Commit, test dans le navigateur intégré ; push de la branche seulement quand Edouard le dit (« pousse », « publie »).
 - On ne fusionne dans `main` (et donc on ne publie) que quand Edouard dit « fusionne » (ou « fusionne et push »). Ordre : commit, push de la branche, puis fusion dans `main` et push de `main`.
 - Cartes de travail (« carte jeu fusée N ») : un point à la fois, dans l'ordre ; après chaque point, résumer ce qui a changé et comment tester, puis attendre la validation. Si un point est ambigu, poser la question au lieu de deviner. Les branches d'une carte s'enchaînent (`carte5-pointN` part de la précédente).
   - La carte en cours est un fichier d'Edouard (souvent dans `C:\Users\DELL\Downloads\`) : son chemin et le point suivant sont notés dans `ETAT.md`, section « En cours ».
