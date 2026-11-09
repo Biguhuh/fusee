@@ -56,6 +56,8 @@ function envoyerSondesInterstellaires(v, sys, log) {
   const d = DONNEES_ETOILES[sys].distanceAL;
   const arrivee = v.t + (d / VITESSE_SONDES_INTERSTELLAIRES) * ANNEE_S;
   const reception = arrivee + d * ANNEE_S;                  // les données reviennent à la vitesse de la lumière
+  if (!v.reseauLasers) { v.reseauLasers = true; depenser(v, 'interstellaire', TARIFS.interstellaire.lasers.nom, TARIFS.interstellaire.lasers.prix); }
+  depenser(v, 'interstellaire', `${TARIFS.interstellaire.grappeVoile.nom} → ${DONNEES_ETOILES[sys].nom}`, TARIFS.interstellaire.grappeVoile.prix);
   v.sondesInterstellaires = v.sondesInterstellaires || [];
   v.sondesInterstellaires.push({ systeme: sys, depart: v.t, arrivee, reception, n: SONDES_GRAPPE_INTERSTELLAIRE });
   log(`Grappe de ${SONDES_GRAPPE_INTERSTELLAIRE} sondes à voile laser lancée vers ${le(DONNEES_ETOILES[sys])} : arrivée vers ${fmtAnnee(anneeDuJeu(arrivee))}, données reçues vers ${fmtAnnee(anneeDuJeu(reception))}.`);

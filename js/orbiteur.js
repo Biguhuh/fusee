@@ -228,6 +228,7 @@ const Orbiteur = {
   // Fait avancer la simulation de dt secondes de jeu. tempsReel : appel du mode temps réel (pas de ×1 forcé).
   avancer(dt, tempsReel) {
     const v = this.v;
+    majFinances(v);   // les coûts courants courent avec le temps
     // Assistant / pilote auto : on ne dépasse pas l'instant de la prochaine manœuvre
     // (sauf en temps réel avec l'option « manœuvre ratée », où la mission continue sans l'attendre).
     const ratee = tempsReel && v.tempsReel.option === 'ratee' && !this.auto;
@@ -787,6 +788,7 @@ const Orbiteur = {
     // Le calcul interplanétaire, à qui l'on demandait d'aller vers l'astre où l'on est déjà, partait au loin.
     if (depart.centre === dest.centre) { cargo.local = true; cargo.tArrivee = v.t + DUREE_RDV_LOCAL; }
     v.cargos.push(cargo);
+    if (estOrigine(origineId)) payerLancement(v, `Cargo « ${nom} »`, TARIFS.lanceurs.cargo.prix, contenu);   // d'une station : rien à payer de plus
     this.arriveePrevue(cargo);
     this.log(`Cargo « ${nom} » lancé depuis ${le(origine)} vers ${le(dest)} : ${decrireContenu(contenu)}.`);
     const note = noteExtensionSansBase(v, dest, contenu);   // une extension n'est pas une base
@@ -1294,6 +1296,7 @@ const Orbiteur = {
     const duree = (c.jours * JOUR) / niveauStation(st).vitesse;
     st.chantiers = st.chantiers || [];
     st.chantiers.push({ cle: `rd:${cle}:${n + 1}`, fin: v.t + duree });
+    depenser(v, 'rd', `R&D : ${a.nom}, niveau ${n + 1}`, coutRD(cle, n + 1));
     this.log(`🔬 Atelier ${de(st)} : mise au point « ${a.nom} », niveau ${n + 1} (${a.effet(n + 1)}). Prête le ${fmtDate(v.t + duree)}.`);
   },
 
@@ -2484,6 +2487,7 @@ const Orbiteur = {
     if (this.peutRenvoyerParSonde()) d += `<button id="nav-sonde-ech" ${v.sondes > 0 ? '' : 'disabled title="Plus de sonde à bord"'}>📦 Renvoyer les échantillons par sonde (${v.sondes} sonde${v.sondes > 1 ? 's' : ''} à bord)</button>`;
     if (c.id === 'terre' && fermee) d += v.aIss ? '<button disabled title="Vous y êtes">📍 Amarré à la Station spatiale internationale</button>' : '<button id="nav-iss">🛰 Rendez-vous avec la Station spatiale internationale</button>';
     if (estOrigine(c.id) && fermee) d += `<button id="nav-plein-origine">🌍 Faire le plein depuis ${SYSTEME.nomOrigine} (gratuit)</button>`;
+    d += '<button id="nav-finances">💶 Finances du programme</button>';
     if (SYSTEME.retour !== false) d += `<button id="nav-depart">🌌 Quitter le ${SYSTEME.nom}</button>`;
     if (this.peutDescendre()) {
       // L'atterrisseur est conçu pour l'astre : on ne descend que si l'on peut repartir.
@@ -2613,6 +2617,7 @@ const Orbiteur = {
     bind('nav-capsule-ech', () => this.contexte.renvoyerEchantillons());
     bind('nav-sonde-ech', () => this.renvoyerParSonde());
     bind('nav-depart', () => Depart.ouvrir(this.v));
+    bind('nav-finances', () => Finances.ouvrir(this.v));
     bind('nav-plein-origine', () => { this.pleinDepuisOrigine(); this.majHud(true); });
     bind('nav-iss', () => this.rendezVousISS());
     bind('nav-voiture', () => { actionVoiture(this); this.majHud(true); });

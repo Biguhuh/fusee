@@ -154,6 +154,7 @@ const ONGLETS_AIDE = [
       'Un saut trop fort sur un petit astre dépasse la vitesse de libération.',
     ])}` },
 
+  { id: 'finances', titre: '💶 Finances', html: () => htmlTarifs() },
   { id: 'commandes', titre: '🎮 Commandes', html: () => `
     <h3>Atterrissage et décollage</h3>
     ${tableAide([

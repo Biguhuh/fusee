@@ -87,6 +87,8 @@ function lancerEssai(cle) {
   etat.warp = 1;
   etat.pause = false;
   const essai = { cle, etape: 0, fait: false };
+  const vc = campagneEnCours();
+  if (vc && !vc.fin) depenser(vc, 'formation', `Entraînement : ${ESSAIS[cle].titre}`, TARIFS.divers.entrainement.prix);
   if (cle === 'drone') {
     const v = new Vol(terre, fuseeDrone(terre), { depuisSol: true });
     v.droneSeul = true; v.equipier = null; v.essai = essai;

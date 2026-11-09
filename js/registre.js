@@ -67,7 +67,7 @@ function regDepart(v) {
 function regRecrue(v, m) {
   const f = ficheDe(m);
   for (const x of lesDeux(f)) x.expeditions.push(v.expeditions);
-  if (f.debut === null) f.debut = v.t;
+  if (f.debut === null) { f.debut = v.t; depenser(v, 'formation', `Formation : ${m.nom}`, TARIFS.divers.formation.prix); }   // nouveau dans le programme
   f.statut = 'expedition'; m.tDepart = v.t;
 }
 function compterTemps(v, m, tFin) {
@@ -87,6 +87,7 @@ function regMort(v, m, cause, astreId, lieu) {
   if (f.statut === 'mort') return;
   compterTemps(v, m, v.t);
   f.statut = 'mort';
+  depenser(v, 'indemnites', `Indemnité de décès : ${m.nom}`, TARIFS.divers.deces.prix);
   f.mort = { cause, astre: astreId, lieu: lieu || null, t: v.t, systeme: SYSTEME.id, campagne: idCampagne() };
 }
 // Orbiteur écrasé : toute personne encore à bord ou en mission meurt avec l'expédition.

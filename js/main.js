@@ -440,6 +440,9 @@ function lancerMegaFusee(type = etat.typeLanceur || 'station') {
   replique('velo');
   etat.typeLanceur = type;
   etat.destination = SYSTEME.origine;
+  // Finances : chaque tir se paie (même raté). Aube monte l'équipage seul ; les autres, l'expédition complète.
+  const v = campagneEnCours(), T = TARIFS.lanceurs[type];
+  if (v && T) payerLancement(v, `Lancement ${T.nom}`, T.prix, type === 'equipage' ? {} : chargementExpedition());
   lancer({ fusee: megaFusee(type), lancement: true, depuisSol: true, voyage: false });
 }
 
@@ -708,6 +711,11 @@ function rentrerSurTerre() {
   const personnes = v.equipe ? survivants(v).map((m) => ({ nom: m.nom, profil: m.principal ? SPATIO : m.profil || PROFIL_DEFAUT }))
     : (v.equipagePerdu ? [] : [{ nom: nomSpatio(), profil: SPATIO }]);
   regRetour(v);
+  // Finances : les capsules (selon le nombre à bord) et leur récupération en mer.
+  for (const c of equipage ? repartirCapsules(personnes.length) : [{ type: null }]) {
+    if (c.type) depenser(v, 'retours', `Capsule de retour, ${c.type.nom}`, TARIFS.capsules[c.type.places]);
+    depenser(v, 'retours', 'Récupération en mer', TARIFS.divers.recuperation.prix);
+  }
   const res = Orbiteur.rentrerSurTerre();
   sauver(etat);
   jouerScene(new RetourTerre({ equipage, echantillons: res.n, nom, personnes }), () => afficherRetourTerre(res, equipage, nom));
@@ -724,6 +732,7 @@ function renvoyerEchantillons() {
   compterExpedition('echantillons', n);
   const liste = Object.entries(v.echantillonsABord).map(([id, k]) => `${k} ${de(ASTRES_PAR_ID[id])}`).join(', ');
   v.echantillonsABord = {};
+  depenser(v, 'retours', 'Récupération en mer (capsule d’échantillons)', TARIFS.divers.recuperation.prix);
   Orbiteur.log(`Capsule sans équipage envoyée vers la Terre avec ${n} échantillon${n > 1 ? 's' : ''} (${liste}).`);
   sauver(etat);
   jouerScene(new RetourTerre({ equipage: false, echantillons: n, nom: '' }), () => {
@@ -983,6 +992,7 @@ function terminerParDepart(info) {
 function partirVersSysteme(info) {
   const v = etat.voyage;
   replique('force');
+  depenser(v, 'interstellaire', `Vaisseau interstellaire : ${TECHNOLOGIES[info.tech].nom}`, TARIFS.interstellaire.vaisseaux[info.tech]);
   regVoyageEtoile(v, (info.ansBord || info.ans) * 365.25 * 86400);   // registre : le temps vécu à bord
   Orbiteur.log(`Départ pour ${le(info.nomSysteme)} en ${TECHNOLOGIES[info.tech].nom.toLowerCase()} : ${fmtDureeAnnees(info.ans)} de voyage, installation prévue sur ${info.nomBase}.`);
   sauver(etat);
