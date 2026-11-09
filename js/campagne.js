@@ -421,6 +421,8 @@ function livrerCargo(s) {
   const c = s.terrestre ? { carburant: 30000 * f, ergols: 30000 * f, sondes: f, kits: 1, vivres: 2000 * f, eau: 500 * f } : { carburant: 15000 * f, ergols: 15000 * f, sondes: f, vivres: 2000 * f, eau: 500 * f };
   ajouterAuStock(s, c);
   noterRavitoCourant(c);   // bilan matière et carbone
+  const v = campagneEnCours();
+  if (v) payerRavitoCourant(v, c);   // finances
 }
 
 // ---------- Bases au sol et ressources locales ----------

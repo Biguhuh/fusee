@@ -140,6 +140,16 @@ function payerLancement(v, nom, prix, contenu) {
   if (val) depenser(v, 'materiel', `${nom} : ${decrireContenu(Object.fromEntries(Object.entries(contenu).filter(([, q]) => q > 0)))}`, val);
   depenser(v, 'assurances', `Assurance : ${nom}`, (prix + val) * TARIFS.divers.tauxAssurance.prix);
 }
+// Ravitaillement courant des stations : la part d'un cargo lourd au prorata de la masse, le contenu, l'assurance.
+function prixRavitoParKg() { return TARIFS.lanceurs.cargo.prix / LANCEURS.station.chargeUtile; }
+function payerRavitoCourant(v, contenu) {
+  let kg = 0;
+  for (const [k, q] of Object.entries(contenu)) kg += q * masseUnite(k);
+  const lanceur = kg * prixRavitoParKg(), val = valeurContenu(contenu);
+  depenser(v, 'lancements', 'Ravitaillement courant (part du lanceur)', lanceur);
+  depenser(v, 'materiel', `Ravitaillement courant : ${decrireContenu(contenu)}`, val);
+  depenser(v, 'assurances', 'Assurance : ravitaillement courant', (lanceur + val) * TARIFS.divers.tauxAssurance.prix);
+}
 // Chargement d'une nouvelle expédition (orbiteur et atterrisseur au plein).
 function chargementExpedition() {
   const O = ORBITEUR;
@@ -160,6 +170,7 @@ function htmlTarifs() {
   const L = (o, suffixe = '') => Object.values(o).map((x) => [x.nom, fmtEuros(x.prix) + suffixe, x.ref, x.src]);
   return `<p>Pour le plaisir : en campagne, chaque dépense du programme est chiffrée (fenêtre « 💶 Finances » de l’orbiteur). On ne manque jamais d’argent. Montants inspirés de vrais programmes, arrondis, en euros (1 $ ≈ 0,9 €) ; « estimé » : aucun chiffre public, un ordre de grandeur plausible.</p>
     ${table('🚀 Lancements depuis la Terre', L(T.lanceurs))}
+    <p class="doux">Ravitaillement courant des stations (petits cargos automatiques) : la part d’un cargo lourd au prorata de la masse, soit ${fmtEuros(prixRavitoParKg() * 1000)} par tonne, plus la valeur du contenu et l’assurance.</p>
     ${table('📦 Matériel envoyé (valeur au départ de la Terre)', [...L(T.materiel), ...Object.values(T.parKg).map((x) => [x.nom, `${fmt(x.prix, x.prix < 1 ? 1 : 0)} €/kg`, x.ref])])}
     <p class="doux">Ce que fabrique l’atelier d’une station ne coûte rien de plus : les matériaux ont déjà été payés.</p>
     ${table('📅 Coûts courants (par an)', L(T.courants, ' / an'))}
