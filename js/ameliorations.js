@@ -68,30 +68,53 @@ function nomChantier(cle) {
   return RECETTES[cle].nom;
 }
 
-// Chantier de R&D en cours, dans n'importe quelle station.
+// Mise au point en cours : dans les laboratoires sur Terre, ou (anciennes parties) dans l'atelier d'une station.
 function rdEnCours(v, cle) {
+  for (const c of v.rdTerre || []) if (c.cle === cle) return { c };
   for (const st of v.stations || []) for (const c of st.chantiers || []) if (c.cle.startsWith('rd:' + cle + ':')) return { st, c };
   return null;
 }
 
-// Panneau de la station : ce qu'on peut mettre au point.
-function htmlRD(v, st) {
-  const k = st.stock;
-  let d = '<p class="doux"><b>🔬 Recherche et développement</b> : mises au point pour toute l’expédition (une à la fois par amélioration).</p>';
+// ---------- R&D sur Terre ----------
+// Décidée au centre de commande, menée dans les laboratoires sur Terre : elle coûte des euros et du temps, pas de
+// matériaux. Une fois au point, l'amélioration vaut pour toute l'expédition (comme avant).
+function rechercherTerre(v, cle, log) {
+  const a = AMELIORATIONS[cle];
+  if (!a) return;
+  const n = niveauAmelio(cle, v), pre = prerequisManquant(cle, v);
+  if (pre) return log(`${a.nom} : ${pre}.`);
+  if (n >= maxAmelio(cle)) return log(`${a.nom} : déjà au niveau maximal.`);
+  if (rdEnCours(v, cle)) return log(`${a.nom} : déjà en cours de mise au point.`);
+  const jours = coutAmelio(cle, n + 1).jours;
+  (v.rdTerre = v.rdTerre || []).push({ cle, niveau: n + 1, fin: v.t + jours * JOUR });
+  depenser(v, 'rd', `R&D : ${a.nom}, niveau ${n + 1}`, coutRD(cle, n + 1));
+  log(`🔬 Laboratoires sur Terre : mise au point « ${a.nom} », niveau ${n + 1} (${a.effet(n + 1)}). Prête le ${fmtDate(v.t + jours * JOUR)}.`);
+}
+// Mises au point terminées (appelé quand le temps avance).
+function terminerRDTerre(v, log) {
+  for (const c of (v.rdTerre || []).filter((x) => v.t >= x.fin)) {
+    v.ameliorations = v.ameliorations || {};
+    v.ameliorations[c.cle] = Math.max(v.ameliorations[c.cle] || 0, c.niveau);
+    log(`🔬 Laboratoires sur Terre : ${AMELIORATIONS[c.cle].nom.toLowerCase()} au point (niveau ${c.niveau}) : ${AMELIORATIONS[c.cle].effet(c.niveau)}.`);
+  }
+  if (v.rdTerre) v.rdTerre = v.rdTerre.filter((x) => v.t < x.fin);
+}
+// Onglet R&D du centre de commande.
+function htmlRDTerre(v) {
+  let d = '<p>Les laboratoires sur Terre mettent au point les améliorations ; elles valent ensuite pour toute l’expédition (vaisseau, atterrisseurs, astromobile, robot, drone). Une seule à la fois par amélioration ; plusieurs améliorations peuvent avancer ensemble. Le temps avance avec celui de l’orbiteur.</p>';
+  const enCours = Object.keys(AMELIORATIONS).map((cle) => [cle, rdEnCours(v, cle)]).filter(([, e]) => e);
+  if (enCours.length) d += `<p class="encart">⏳ En cours : ${enCours.map(([cle, e]) => `${AMELIORATIONS[cle].nom}${e.c.niveau ? ` ${e.c.niveau}` : ''}, prête le ${fmtDate(e.c.fin, false)}`).join(' · ')}</p>`;
   let groupe = '';
   for (const [cle, a] of Object.entries(AMELIORATIONS)) {
-    if (a.groupe !== groupe) { d += `${groupe ? '</div>' : ''}<p class="doux" style="margin-bottom:2px">${a.groupe}</p><div class="orientations">`; groupe = a.groupe; }
-    const n = niveauAmelio(cle, v), enCours = rdEnCours(v, cle);
-    if (n >= maxAmelio(cle)) { d += `<button disabled title="${a.effet(n)}">✓ ${a.nom}${maxAmelio(cle) > 1 ? ' (niveau max)' : ''}</button>`; continue; }
+    if (a.groupe !== groupe) { d += `${groupe ? '</div>' : ''}<h3>${a.groupe}</h3><div class="orientations">`; groupe = a.groupe; }
+    const n = niveauAmelio(cle, v), e = rdEnCours(v, cle);
+    if (n >= maxAmelio(cle)) { d += `<button disabled title="${a.effet(n)}">✓ ${a.nom}${maxAmelio(cle) > 1 ? ' (niveau max)' : ''}<br><small class="doux">${a.effet(n)}</small></button>`; continue; }
     const pre = prerequisManquant(cle, v);
     if (pre) { d += `<button disabled title="${a.effet(n + 1)}">🔒 ${a.nom}<br><small class="doux">${pre}</small></button>`; continue; }
-    if (enCours) { d += `<button disabled title="${a.effet(n + 1)}">⏳ ${a.nom} ${n + 1} · ${fmtDuree(enCours.c.fin - v.t)}</button>`; continue; }
-    const c = coutAmelio(cle, n + 1);
-    const titre = `Niveau ${n + 1} : ${a.effet(n + 1)}${n ? ` (actuel : ${a.effet(n)})` : ''}`;
-    d += `<button data-rd="${cle}" title="${titre}" ${k.materiaux < c.materiaux ? 'disabled' : ''}>${a.nom}${maxAmelio(cle) > 1 ? ` ${n + 1}` : ''} · ${fmtStock('materiaux', c.materiaux)} · ${fmtDuree(c.jours * JOUR / niveauStation(st).vitesse)}<br><small class="doux">${a.effet(n + 1)}</small></button>`;
+    if (e) { d += `<button disabled title="${a.effet(n + 1)}">⏳ ${a.nom} ${n + 1} · encore ${fmtDuree(e.c.fin - v.t)}</button>`; continue; }
+    const jours = coutAmelio(cle, n + 1).jours;
+    d += `<button data-rd-terre="${cle}" title="Niveau ${n + 1} : ${a.effet(n + 1)}${n ? ` (actuel : ${a.effet(n)})` : ''}">${a.nom}${maxAmelio(cle) > 1 ? ` ${n + 1}` : ''} · ${fmtEuros(coutRD(cle, n + 1))} · ${fmtDuree(jours * JOUR)}<br><small class="doux">${a.effet(n + 1)}</small></button>`;
   }
-  d += '</div>';
-  const acquis = Object.entries(AMELIORATIONS).filter(([cle]) => niveauAmelio(cle, v)).map(([cle, a]) => `${a.nom} ${niveauAmelio(cle, v)} (${a.effet(niveauAmelio(cle, v))})`);
-  if (acquis.length) d += `<p class="doux">Déjà au point : ${acquis.join(' · ')}.</p>`;
-  return d;
+  return d + '</div>';
 }
+

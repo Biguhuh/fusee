@@ -47,19 +47,82 @@ function etatSondesSysteme(v, sys) {
   const s = (v.sondesInterstellaires || []).find((x) => x.systeme === sys);
   return s ? { enRoute: true, ...s } : null;
 }
-function envoyerSondesInterstellaires(v, sys, log) {
+// Propulsion des grappes. La voile laser ne freine pas : ses puces traversent le système en quelques heures et le
+// photographient au passage. La fusion accélère puis freine (deux ans chacun) : plus lente, elle reste sur place.
+const PROPULSIONS_SONDES = {
+  voile: { nom: 'Voile laser', vitesse: 0.2, phases: 0, detail: 'des puces de quelques grammes, poussées par un réseau de lasers sur Terre (projet Starshot). Rapides, mais sans frein : elles photographient le système en le traversant.' },
+  fusion: { nom: 'Fusion (type Daedalus)', vitesse: 0.12, phases: 4, detail: 'des sondes lourdes qui accélèrent, puis freinent à l’arrivée et restent en orbite (science-fiction plausible).' },
+};
+// Années de voyage d'une grappe, et coût (le réseau de lasers ne se paie qu'une fois).
+function dureeGrappe(tech, dAL) { const P = PROPULSIONS_SONDES[tech]; return dAL / P.vitesse + P.phases / 2; }
+function coutGrappe(v, tech, lasersDejaPrevus = false) {
+  const T = TARIFS.interstellaire;
+  return tech === 'fusion' ? T.grappeFusion.prix : T.grappeVoile.prix + (v.reseauLasers || lasersDejaPrevus ? 0 : T.lasers.prix);
+}
+// Lance une grappe depuis la Terre (rien n'est pris à l'orbiteur ni aux stations).
+function envoyerGrappe(v, sys, tech, log) {
   if (etatSondesSysteme(v, sys)) return log('Des sondes ont déjà été envoyées vers ce système.');
-  if (sondesDisponibles(v) < SONDES_GRAPPE_INTERSTELLAIRE) return log(`Il faut ${SONDES_GRAPPE_INTERSTELLAIRE} sondes (à bord de l’orbiteur et à la grande station).`);
-  let reste = SONDES_GRAPPE_INTERSTELLAIRE;
-  const prisBord = Math.min(v.sondes, reste); v.sondes -= prisBord; reste -= prisBord;
-  const st = stationDeDepart(v); if (reste > 0 && st) st.stock.sondes -= reste;
-  const d = DONNEES_ETOILES[sys].distanceAL;
-  const arrivee = v.t + (d / VITESSE_SONDES_INTERSTELLAIRES) * ANNEE_S;
+  const d = DONNEES_ETOILES[sys].distanceAL, P = PROPULSIONS_SONDES[tech];
+  if (tech === 'voile' && !v.reseauLasers) { v.reseauLasers = true; depenser(v, 'interstellaire', TARIFS.interstellaire.lasers.nom, TARIFS.interstellaire.lasers.prix); }
+  depenser(v, 'interstellaire', `${tech === 'fusion' ? TARIFS.interstellaire.grappeFusion.nom : TARIFS.interstellaire.grappeVoile.nom} → ${DONNEES_ETOILES[sys].nom}`, tech === 'fusion' ? TARIFS.interstellaire.grappeFusion.prix : TARIFS.interstellaire.grappeVoile.prix);
+  const arrivee = v.t + dureeGrappe(tech, d) * ANNEE_S;
   const reception = arrivee + d * ANNEE_S;                  // les données reviennent à la vitesse de la lumière
   v.sondesInterstellaires = v.sondesInterstellaires || [];
-  v.sondesInterstellaires.push({ systeme: sys, depart: v.t, arrivee, reception, n: SONDES_GRAPPE_INTERSTELLAIRE });
-  log(`Grappe de ${SONDES_GRAPPE_INTERSTELLAIRE} sondes à voile laser lancée vers ${le(DONNEES_ETOILES[sys])} : arrivée vers ${fmtAnnee(anneeDuJeu(arrivee))}, données reçues vers ${fmtAnnee(anneeDuJeu(reception))}.`);
+  v.sondesInterstellaires.push({ systeme: sys, depart: v.t, arrivee, reception, n: SONDES_GRAPPE_INTERSTELLAIRE, tech });
+  log(`🛰 Grappe de ${SONDES_GRAPPE_INTERSTELLAIRE} sondes (${P.nom.toLowerCase()}) lancée depuis la Terre vers ${le(DONNEES_ETOILES[sys])} : arrivée vers ${fmtAnnee(anneeDuJeu(arrivee))}, données reçues vers ${fmtAnnee(anneeDuJeu(reception))}.`);
 }
+// Ancien nom (fenêtre du départ) : une grappe à voile laser.
+function envoyerSondesInterstellaires(v, sys, log) { envoyerGrappe(v, sys, 'voile', log); }
+
+// ---------- Fenêtre des grappes ----------
+// Après le premier décollage de la Terre (une fois par campagne), puis à la demande (centre de commande, onglet Au-delà) :
+// choisir les systèmes à explorer, et pour chacun la propulsion. apres : appelé après le lancement.
+function ouvrirGrappes(v, { premiere = false, preselection = null, apres = null } = {}) {
+  const m = $('modale'), choix = {};
+  const systemes = Object.keys(DONNEES_ETOILES).filter((k) => SYSTEMES[k]).sort((p, q) => DONNEES_ETOILES[p].distanceAL - DONNEES_ETOILES[q].distanceAL);
+  if (preselection) choix[preselection] = 'voile';
+  const an0 = anneeDuJeu(v.t);
+  const ligne = (k) => {
+    const d = DONNEES_ETOILES[k], es = etatSondesSysteme(v, k);
+    if (es) return `<li class="ok">✅ <b>${d.nom}</b> <span class="doux">— ${fmt(d.distanceAL, 2)} années-lumière · ${es.recu ? 'données reçues' : `grappe en route, données vers ${fmtAnnee(anneeDuJeu(es.reception))}`}</span></li>`;
+    const c = choix[k];
+    const tech = (t) => {
+      const ans = dureeGrappe(t, d.distanceAL);
+      return `<label><input type="radio" name="tech-${k}" value="${t}" ${c === t ? 'checked' : ''} ${c ? '' : 'disabled'}> ${PROPULSIONS_SONDES[t].nom} : arrivée vers ${fmtAnnee(an0 + ans)}, données vers ${fmtAnnee(an0 + ans + d.distanceAL)}</label>`;
+    };
+    return `<li><label class="choix-ravito"><input type="checkbox" data-sys="${k}" ${c ? 'checked' : ''}> <b>${d.nom}</b> — ${fmt(d.distanceAL, 2)} années-lumière<br><span class="doux">${d.etoiles.map((e) => e.type).join(' et ')} · ${d.planetes.length} planète${d.planetes.length > 1 ? 's' : ''} connue${d.planetes.length > 1 ? 's' : ''}</span></label>
+      <div class="doux" style="margin-left:1.6em">${tech('voile')}<br>${tech('fusion')}</div></li>`;
+  };
+  const afficher = () => {
+    const coches = Object.entries(choix);
+    let total = 0, lasers = false;
+    for (const [, t] of coches) { total += coutGrappe(v, t, lasers); if (t === 'voile') lasers = true; }
+    const libres = systemes.filter((k) => !etatSondesSysteme(v, k));
+    m.innerHTML = `<div class="fenetre large"><header class="entete"><div><h2>🛰 Sondes vers d’autres étoiles</h2>
+      <p>${premiere ? 'Votre programme vient de quitter la Terre. Pensez déjà plus loin : ' : ''}avant de partir un jour vers une autre étoile, il faut savoir où se poser. Une grappe de ${SONDES_GRAPPE_INTERSTELLAIRE} sondes, lancée depuis la Terre, cartographie un système et repère une zone de base sur chaque planète solide. Le voyage prend des années, puis les données reviennent à la vitesse de la lumière : plus tôt elles partent, mieux c’est. Cochez les systèmes qui vous tentent, ou tous.</p></div><button class="fermer">✕</button></header>
+      <section><h3>Propulsion des sondes</h3><ul class="sondes">${Object.values(PROPULSIONS_SONDES).map((P) => `<li><b>${P.nom}</b> (${fmt(P.vitesse * 100)} % de la vitesse de la lumière) : ${P.detail}</li>`).join('')}</ul>
+        <p class="doux">Coût : ${fmtEuros(TARIFS.interstellaire.grappeVoile.prix)} la grappe à voile laser, plus ${fmtEuros(TARIFS.interstellaire.lasers.prix)} une seule fois pour le réseau de lasers${v.reseauLasers ? ' (déjà construit)' : ''} ; ${fmtEuros(TARIFS.interstellaire.grappeFusion.prix)} la grappe à fusion.</p></section>
+      <section><h3>Systèmes</h3>${libres.length > 1 ? '<p><button id="grp-tout">☑ Tout cocher</button></p>' : ''}<ul class="liste-depart">${systemes.map(ligne).join('')}</ul></section>
+      <div class="actions"><button id="grp-plus-tard">${premiere ? 'Plus tard (centre de commande, onglet Au-delà)' : 'Fermer'}</button><button id="grp-lancer" class="principal" ${coches.length ? '' : 'disabled'}>🚀 Lancer ${coches.length > 1 ? `${coches.length} grappes` : 'la grappe'}${coches.length ? ` · ${fmtEuros(total)}` : ''}</button></div></div>`;
+    m.classList.remove('cache');
+    const fermer = () => { Infos.fermer(); if (apres) apres(); };
+    m.querySelector('.fermer').onclick = fermer;
+    $('grp-plus-tard').onclick = fermer;
+    const bt = $('grp-tout');
+    if (bt) bt.onclick = () => { for (const k of libres) choix[k] = choix[k] || 'voile'; afficher(); };
+    m.querySelectorAll('[data-sys]').forEach((c) => { c.onchange = () => { if (c.checked) choix[c.dataset.sys] = 'voile'; else delete choix[c.dataset.sys]; afficher(); }; });
+    m.querySelectorAll('input[type=radio][name^="tech-"]').forEach((r) => { r.onchange = () => { choix[r.name.slice(5)] = r.value; afficher(); }; });
+    $('grp-lancer').onclick = () => {
+      // Journal de la campagne (par l'orbiteur s'il est chargé, pour les alertes à l'écran).
+      const log = (x) => (Orbiteur.v === v ? Orbiteur.log(x) : v.journal.push({ t: v.t, texte: x }));
+      for (const [k, t] of Object.entries(choix)) envoyerGrappe(v, k, t, log);
+      sauver(etat);
+      fermer();
+    };
+  };
+  afficher();
+}
+
 // Données reçues : les sondes ont cartographié les planètes et repéré une zone de base sur chaque astre solide.
 function mettreAJourSondesInterstellaires(v, log) {
   for (const s of v.sondesInterstellaires || []) {

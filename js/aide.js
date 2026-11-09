@@ -62,7 +62,7 @@ const ONGLETS_AIDE = [
     }) +
     ficheAide('Atterrisseur', {
       role: 'Descendre de l’orbite jusqu’au sol, puis remonter.',
-      obtenir: 'L’orbiteur en emporte deux. Une station en fabrique d’autres à son atelier.',
+      obtenir: 'L’orbiteur en emporte deux. Une station en fabrique d’autres à son atelier (centre de commande, onglet Stations et bases).',
       fait: 'Il est conçu automatiquement pour chaque astre, par des vols d’essai : moteur, réservoir, coque, bouclier et panneau adaptés. Il consomme les ergols de l’orbiteur.',
       evolue: 'Si aucun atterrisseur ne peut repartir d’un astre, le jeu le dit : on y largue alors un robot.',
     }) +
@@ -112,18 +112,18 @@ const ONGLETS_AIDE = [
     }) +
     ficheAide('Cargos et ravitaillement', {
       role: 'Envoyer du matériel d’une station à une autre, ou depuis la Terre.',
-      obtenir: 'Bouton « 📦 Envoyer un ravito », dès qu’une station existe.',
+      obtenir: 'Centre de commande, onglet « 📦 Ravitos » (raccourci « 📦 Ravito » à l’orbiteur), dès qu’une station existe.',
       fait: 'Vous dites de quoi vous avez besoin et où. Le jeu propose la source qui arrivera le plus vite. Le cargo part sur sa vraie trajectoire.',
       evolue: 'Contenus : kit d’expédition, ergols, matériaux, extension de base, extension de station. Depuis la Terre, le stock est illimité.',
     }) +
-    `<h3>Où miner quoi ?</h3><p>Le bouton « ⛏ Où miner quoi ? » classe les astres selon la ressource cherchée, les plus riches et les plus proches d’abord. « 📊 Logistique » résume les stations, les bases et ce qu’il reste à faire.</p>` },
+    `<h3>Centre de commande</h3><p>Ce que décide la Terre, à part de l’orbiteur (bouton « 🏢 Centre de commande », ou depuis l’accueil) : vue d’ensemble, ravitos, stations et bases (atelier), R&D (dans les laboratoires sur Terre, payée en euros), équipage, lancements, ressources (« où miner quoi »), finances, journal, et départ vers d’autres étoiles. L’orbiteur garde ce que fait le vaisseau : la cible, les manœuvres, la descente, l’amarrage et le plein.</p>` },
 
   { id: 'sol', titre: '⛰ Au sol', html: () =>
     ficheAide('Spationaute', {
       role: 'Explorer à pied et ramasser des échantillons.',
       obtenir: 'Posé sur un astre solide, touche E.',
       fait: '4 heures d’oxygène, un sac de 6 échantillons. Les sauts dépendent de la gravité. Sur les tout petits astres, un câble le retient près du module.',
-      evolue: 'La combinaison tient 1,2 bar. Sur Titan (1,5 bar, −180 °C), il faut le scaphandre lourd : chauffé, à la pression ambiante, avec un recycleur d’oxygène, jusqu’à 5 bar ; plus lent, et 25 % d’autonomie en moins. En campagne, R&D d’une station ; en visite rapide, il est fourni. Vénus (92 bar) reste réservée au robot.',
+      evolue: 'La combinaison tient 1,2 bar. Sur Titan (1,5 bar, −180 °C), il faut le scaphandre lourd : chauffé, à la pression ambiante, avec un recycleur d’oxygène, jusqu’à 5 bar ; plus lent, et 25 % d’autonomie en moins. En campagne, R&D au centre de commande ; en visite rapide, il est fourni. Vénus (92 bar) reste réservée au robot.',
     }) +
     ficheAide('Équipe', {
       role: 'Explorer plusieurs astres en même temps.',
@@ -135,7 +135,7 @@ const ONGLETS_AIDE = [
       role: 'Aller plus loin et plus vite.',
       obtenir: 'Garée à côté du module, pour le spationaute. Touche V pour monter ou descendre.',
       fait: 'Elle roule jusqu’à environ 3,6 m/s sur la Lune et emporte 20 échantillons.',
-      evolue: 'R&D à l’atelier d’une station : batteries, caisse à échantillons, moteur (3 niveaux chacun). Chaque niveau se voit sur l’engin : voir la planche plus bas.',
+      evolue: 'R&D au centre de commande : batteries, caisse à échantillons, moteur (3 niveaux chacun). Chaque niveau se voit sur l’engin : voir la planche plus bas.',
     }) +
     ficheAide('Robots', {
       role: 'Explorer là où un équipage ne peut pas aller, ou pas revenir.',
@@ -143,7 +143,7 @@ const ONGLETS_AIDE = [
       fait: 'Posé, touche R : le robot analyse les sites et transmet ses données au module. Larguer un robot depuis l’orbite est un aller simple. Il résiste à la pression et à la chaleur bien mieux qu’un humain.',
       evolue: 'Le robot de prélèvement descend seul, ramasse des échantillons pendant des jours, puis lance son conteneur en orbite. Son blindage décide combien de temps il tient au rayonnement. R&D : robot durci, batterie (voir la planche plus bas).',
     }) +
-    `<h3>Évolution des véhicules</h3><p>Chaque amélioration mise au point à l’atelier d’une station (R&D) se voit sur l’engin, et grandit à chaque niveau. Les améliorations se combinent.</p>
+    `<h3>Évolution des véhicules</h3><p>Chaque amélioration mise au point (R&D, au centre de commande) se voit sur l’engin, et grandit à chaque niveau. Les améliorations se combinent.</p>
     <canvas class="planche-evolution" style="width:100%;height:auto;border-radius:8px"></canvas>` +
     `<h3>Le drapeau</h3><p>Touche F : le drapeau des Nations unies et le fanion de l’AS Nancy Lorraine. Un drapeau tous les 20 m au plus.</p>
     <h3>Les dangers</h3>
@@ -154,6 +154,7 @@ const ONGLETS_AIDE = [
       'Un saut trop fort sur un petit astre dépasse la vitesse de libération.',
     ])}` },
 
+  { id: 'finances', titre: '💶 Finances', html: () => htmlTarifs() },
   { id: 'commandes', titre: '🎮 Commandes', html: () => `
     <h3>Atterrissage et décollage</h3>
     ${tableAide([

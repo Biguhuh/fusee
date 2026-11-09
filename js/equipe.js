@@ -402,12 +402,15 @@ function missionsEnCours(v) { return (v.equipe || []).filter((m) => m.etat === '
 // Encore dans l'expédition : ni mort, ni rapatrié sur Terre.
 function survivants(v) { return (v.equipe || []).filter((m) => m.etat !== 'perdu' && m.etat !== 'rapatrie' && !(m.principal && v.equipagePerdu)); }
 
-// Liste de l'équipe pour le panneau de l'orbiteur, avec les boutons de mission vers l'astre survolé.
-function htmlEquipe(v) {
+// Liste de l'équipe. mode 'orbiteur' : seulement ceux du vaisseau (à bord, en mission), avec les boutons de mission
+// vers l'astre survolé ; mode 'centre' : toute l'équipe, où qu'elle soit (centre de commande).
+function htmlEquipe(v, mode = 'orbiteur') {
   if (!v.equipe) return '';
+  const centre = mode === 'centre';
   const a = v.orb ? ASTRES_PAR_ID[v.orb.centre] : null;
   const pb = a ? empechementMission(v, a) : 'pas d’orbiteur';
-  const lignes = v.equipe.map((m) => {
+  const membres = centre ? v.equipe : v.equipe.filter((m) => m.etat === 'bord' || m.etat === 'mission');
+  const lignes = membres.map((m) => {
     let etat;
     if (m.etat === 'perdu' || (m.principal && v.equipagePerdu)) etat = '✝ perdu';
     else if (m.etat === 'mission') etat = `en mission ${sur(ASTRES_PAR_ID[m.mission.astre])}, retour dans ${fmtDuree(m.mission.fin - v.t)}`;
@@ -416,14 +419,17 @@ function htmlEquipe(v) {
     else etat = m.principal ? 'à bord (vous)' : 'à bord';
     if (m.etat === 'rapatrie') etat = '🏥 rapatrié' + accordMembre(m) + ' sur Terre';
     if (m.blessure && m.etat === 'bord') etat += ` · ${texteBlessureMembre(m, v)}`;
-    const btn = m.etat === 'bord' && !m.principal && !pb && !m.blessure ? ` <button data-mission="${m.id}">🧑‍🚀 Mission</button>` : '';
+    const btn = !centre && m.etat === 'bord' && !m.principal && !pb && !m.blessure ? ` <button data-mission="${m.id}">🧑‍🚀 Mission</button>` : '';
     return `<li>${m.nom} — ${etat}${m.dose > 0.001 ? ` · ${fmtDoseTotale(m.dose)}` : ''}${btn}</li>`;
   }).join('');
   // Robots de prélèvement en cours, conteneurs en attente, et bouton pour en larguer un ici.
   const robots = (v.robotsAuto || []).map((r) => `<li>🤖 Robot ${sur(ASTRES_PAR_ID[r.astre])} — conteneur lancé dans ${fmtDuree(r.fin - v.t)}</li>`).join('');
   const conteneurs = (v.conteneurs || []).map((c) => `<li>📦 Conteneur de ${c.n} échantillons ${enOrbite(ASTRES_PAR_ID[c.astre])} (à récupérer)</li>`).join('');
   const pbR = a ? empechementRobotAuto(v, a) : 'pas d’orbiteur';
-  return `<h3>Équipe (${survivants(v).length}/${capaciteEquipe(v)})</h3>${v.vivres !== undefined ? `<p class="doux">${resumeVivres(v)}</p>` : ''}<ul class="sondes">${lignes}${robots}${conteneurs}</ul>` +
+  if (centre) return `<h3>Équipe (${survivants(v).length}/${capaciteEquipe(v)})</h3><ul class="sondes">${lignes}${robots}${conteneurs}</ul>`;
+  const ailleurs = survivants(v).length - membres.filter((m) => survivants(v).includes(m)).length;
+  return `<h3>À bord (${aBordOrbiteur(v).length})</h3>${v.vivres !== undefined ? `<p class="doux">${resumeVivres(v)}</p>` : ''}<ul class="sondes">${lignes}${robots}${conteneurs}</ul>` +
+    (ailleurs > 0 ? `<p class="doux">${ailleurs} autre${ailleurs > 1 ? 's' : ''} membre${ailleurs > 1 ? 's' : ''} ailleurs (stations, bases, en route) : centre de commande, onglet Équipage.</p>` : '') +
     (pb && a ? `<p class="doux">Missions : ${pb}.</p>` : '') +
     (!pbR ? `<button id="nav-robot-auto">🤖 Robot de prélèvement (${v.robots})</button>` : '');
 }

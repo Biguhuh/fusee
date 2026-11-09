@@ -228,6 +228,7 @@ const Orbiteur = {
   // Fait avancer la simulation de dt secondes de jeu. tempsReel : appel du mode temps réel (pas de ×1 forcé).
   avancer(dt, tempsReel) {
     const v = this.v;
+    majFinances(v);   // les coûts courants courent avec le temps
     // Assistant / pilote auto : on ne dépasse pas l'instant de la prochaine manœuvre
     // (sauf en temps réel avec l'option « manœuvre ratée », où la mission continue sans l'attendre).
     const ratee = tempsReel && v.tempsReel.option === 'ratee' && !this.auto;
@@ -787,6 +788,7 @@ const Orbiteur = {
     // Le calcul interplanétaire, à qui l'on demandait d'aller vers l'astre où l'on est déjà, partait au loin.
     if (depart.centre === dest.centre) { cargo.local = true; cargo.tArrivee = v.t + DUREE_RDV_LOCAL; }
     v.cargos.push(cargo);
+    if (estOrigine(origineId)) payerLancement(v, `Cargo « ${nom} »`, TARIFS.lanceurs.cargo.prix, contenu);   // d'une station : rien à payer de plus
     this.arriveePrevue(cargo);
     this.log(`Cargo « ${nom} » lancé depuis ${le(origine)} vers ${le(dest)} : ${decrireContenu(contenu)}.`);
     const note = noteExtensionSansBase(v, dest, contenu);   // une extension n'est pas une base
@@ -1001,6 +1003,7 @@ const Orbiteur = {
     mettreAJourVivres(v, (t) => this.log(t));
     if (v.sondesInterstellaires && v.sondesInterstellaires.length) mettreAJourSondesInterstellaires(v, (t) => this.log(t));
     this.arriveesEchantillons();
+    terminerRDTerre(v, (t) => this.log(t));
     for (const s of v.stations) {
       s.stock = { ...STOCK_VIDE(), ...(s.stock || {}) };
       // Chantiers de l'atelier terminés
@@ -1147,7 +1150,7 @@ const Orbiteur = {
   //   2. le jeu calcule, pour chaque source possible (la planète d'origine, chaque station qui a le stock),
   //      le temps d'arrivée réel (attente de la fenêtre de tir comprise) et propose la plus rapide en premier.
   // destId : destination présélectionnée.
-  ouvrirRavito(destId) {
+  ouvrirRavito(destId, apres) {
     const v = this.v;
     const m = $('modale');
     const nomO = SYSTEME.nomOrigine.charAt(0).toUpperCase() + SYSTEME.nomOrigine.slice(1);
@@ -1201,7 +1204,7 @@ const Orbiteur = {
       this.calculRavito = jeton;
       afficherSources(liste);
       const suivante = () => {
-        if (this.calculRavito !== jeton) return;            // la sélection a changé, ou la fenêtre est fermée
+        if (this.calculRavito !== jeton || !$('rav-sources')) return;   // la sélection a changé, ou la fenêtre est fermée
         const s = liste.find((x) => x.ok && x.duree === undefined);
         if (!s) return;
         s.duree = this.estimerRavito(s.id, d);
@@ -1239,6 +1242,7 @@ const Orbiteur = {
       this.lancerCargo(origineChoisie, $('rav-dest').value, contenuPourSource(CONTENUS_CARGO[k].contenu, stO), CONTENUS_CARGO[k].nom);
       Infos.fermer();
       this.majHud(true);
+      if (apres) apres();
     };
   },
 
@@ -1277,24 +1281,6 @@ const Orbiteur = {
     if (dv.kg < 1) return this.log(`${Le(st)} ne peut plus prendre de déchets : elle en élimine ${fmtKg(ELIMINATION_STATION * niveauStation(st).stock)} par jour.`);
     v.vidange = { st: st.id, kg: dv.kg, fin: v.t + dv.duree };
     this.log(`🗑 Vidange ${au(st)} : ${fmtKg(dv.kg)} de déchets${dv.kg < v.dechets - 0.5 ? ` (la station n’a de place que pour ça, sur ${fmtKg(v.dechets)})` : ''}, terminée dans ${fmtDuree(dv.duree)}. Restez amarré.`);
-  },
-
-  // R&D : l'atelier met au point le niveau suivant d'une amélioration (matériaux du stock, quelques jours).
-  rechercher(stationId, cle) {
-    const v = this.v, st = v.stations.find((s) => s.id === stationId), a = AMELIORATIONS[cle];
-    if (!st || !a) return;
-    const n = niveauAmelio(cle, v);
-    const pre = prerequisManquant(cle, v);
-    if (pre) return this.log(`${a.nom} : ${pre}.`);
-    if (n >= maxAmelio(cle)) return this.log(`${a.nom} : déjà au niveau maximal.`);
-    if (rdEnCours(v, cle)) return this.log(`${a.nom} : déjà en cours de mise au point.`);
-    const c = coutAmelio(cle, n + 1);
-    if (st.stock.materiaux < c.materiaux) return this.log(`${st.nom} : pas assez de matériaux pour ${a.nom.toLowerCase()} (${fmtStock('materiaux', c.materiaux)} nécessaires).`);
-    st.stock.materiaux -= c.materiaux;
-    const duree = (c.jours * JOUR) / niveauStation(st).vitesse;
-    st.chantiers = st.chantiers || [];
-    st.chantiers.push({ cle: `rd:${cle}:${n + 1}`, fin: v.t + duree });
-    this.log(`🔬 Atelier ${de(st)} : mise au point « ${a.nom} », niveau ${n + 1} (${a.effet(n + 1)}). Prête le ${fmtDate(v.t + duree)}.`);
   },
 
   // La vraie Station spatiale internationale, en orbite terrestre : un amarrage, et un clin d’œil.
@@ -2475,7 +2461,6 @@ const Orbiteur = {
     d += actionsVoiture(this);
     d += this.boutonRetourSolaire();
     // Recrues et déplacements de spationautes (transferts.js).
-    if (v.equipe) d += '<button id="nav-envoi-equipe">🧑‍🚀 Envoyer des spationautes (recrues, transferts)</button>';
     // Escale atteinte : reprendre le voyage vers la destination finale (les vivres sont revérifiés).
     if (v.voyageFinal && v.orb.centre === v.cible && this.orbiteFermee()) d += `<button id="nav-reprendre" class="principal">▶ Reprendre le voyage vers ${le(ASTRES_PAR_ID[v.voyageFinal])}</button>`;
     const fermee = this.orbiteFermee();
@@ -2484,7 +2469,6 @@ const Orbiteur = {
     if (this.peutRenvoyerParSonde()) d += `<button id="nav-sonde-ech" ${v.sondes > 0 ? '' : 'disabled title="Plus de sonde à bord"'}>📦 Renvoyer les échantillons par sonde (${v.sondes} sonde${v.sondes > 1 ? 's' : ''} à bord)</button>`;
     if (c.id === 'terre' && fermee) d += v.aIss ? '<button disabled title="Vous y êtes">📍 Amarré à la Station spatiale internationale</button>' : '<button id="nav-iss">🛰 Rendez-vous avec la Station spatiale internationale</button>';
     if (estOrigine(c.id) && fermee) d += `<button id="nav-plein-origine">🌍 Faire le plein depuis ${SYSTEME.nomOrigine} (gratuit)</button>`;
-    if (SYSTEME.retour !== false) d += `<button id="nav-depart">🌌 Quitter le ${SYSTEME.nom}</button>`;
     if (this.peutDescendre()) {
       // L'atterrisseur est conçu pour l'astre : on ne descend que si l'on peut repartir.
       const conc = this.conceptionPour(c);
@@ -2526,8 +2510,9 @@ const Orbiteur = {
     else if (v.kits > 0 && fermee && c.type !== 'etoile' && c.type !== 'objet') d += `<button id="nav-station" ${estOrigine(c.id) ? 'class="principal"' : ''}>🏗 Construire une station ici</button>`;
     if (v.cible && sondeVers(v, v.cible)) d += `<button disabled title="Une seule sonde par astre">🛰 Sonde déjà envoyée vers ${le(ASTRES_PAR_ID[v.cible])}</button>`;
     else if (v.cible && v.sondes > 0) d += `<button id="nav-sonde">🛰 Sonde vers ${le(ASTRES_PAR_ID[v.cible])} (repérage)</button>`;
-    if (v.stations.length) d += `<button id="nav-ravito">📦 Envoyer un ravito</button>`;
-    d += `<button id="nav-logistique">📊 Logistique</button><button id="nav-ressources">⛏ Où miner quoi ?</button><button id="nav-journal">📜 Journal</button></div>`;
+    d += '</div><h3>Centre de commande</h3><div class="actions-nav"><button id="nav-commande" class="principal">🏢 Centre de commande</button>';
+    if (v.stations.length) d += '<button id="nav-ravito">📦 Ravito</button>';
+    d += '</div>';
     // Site repéré pour une base sur l'astre courant
     const site = (v.sites || {})[c.id];
     if (c.type === 'solide' && !estOrigine(c.id)) {
@@ -2565,39 +2550,16 @@ const Orbiteur = {
           `<dt>Déchets</dt><dd>${fmtKg(st.dechets || 0)} <span class="doux">/ ${fmtKg(capaciteDechetsStation(st))}, −${fmtKg(ELIMINATION_STATION * niveauStation(st).stock)} par jour</span></dd></dl>`;
         d += '<p class="doux">Stock de la station : il reste dans la station tant que l’orbiteur ne vient pas le prendre (amarrage, « ⛽ Faire le plein »).</p>';
         if (ressourcesIllimitees() && st.prochainCargo) d += `<p class="doux">Ravitaillement courant de la Terre dans ${fmtDuree(st.prochainCargo - v.t)}.</p>`;
-        d += `<p class="doux"><b>🔧 Atelier : construire</b> avec les matériaux et les ergols du stock (cliquez pour lancer la fabrication) :</p><div class="orientations">` +
-          Object.entries(RECETTES).filter(([cle]) => recetteVisible(cle, st)).map(([cle, r]) =>
-            `<button data-fab="${cle}" ${k.materiaux < r.materiaux || (r.ergols && k.ergols < r.ergols) ? 'disabled' : ''}>${r.nom} · ${fmtStock('materiaux', r.materiaux)}${r.ergols ? ` + ${fmtStock('ergols', r.ergols)} d’ergols` : ''}${r.duree ? ` · ${fmtDuree(r.duree)}` : ''}</button>`).join('') + '</div>';
-        d += htmlRD(v, st);
-        for (const ch of st.chantiers || []) d += `<p class="doux">🔧 Chantier : ${nomChantier(ch.cle)}, prêt le ${fmtDate(ch.fin)} (dans ${fmtDuree(ch.fin - v.t)}).</p>`;
+        d += '<p class="doux">🔧 L’atelier de la station et la R&D se pilotent depuis le centre de commande.</p>';
       }
     }
-    const bases = v.bases.filter((b) => ancetres(b.astre).includes(c.id) || b.astre === c.id);
-    if (bases.length) {
-      d += '<h3>Bases</h3><ul class="sondes">' + bases.map((b) => {
-        const a = ASTRES_PAR_ID[b.astre]; const [res, p] = ressourceLocale(a); const n = b.niveau || 1;
-        const mat = productionMateriaux(a, n);
-        // Extension disponible à la station de cet astre : on peut la faire descendre à la base.
-        const stB = v.stations.find((s) => s.centre === b.astre);
-        let ext = '';
-        if (b.descente) ext = `<br><span class="doux">⬇ ${moduleExtension(a).nom} en descente : posé dans ${fmtDuree(b.descente.fin - v.t)} (niveau ${n + 1}).</span>`;
-        else if (n < 5 && stB && stB.stock.extensions > 0) ext = `<br><button data-extension="${v.bases.indexOf(b)}">⬇ Envoyer l’extension à la base (niveau ${n + 1})</button>`;
-        return `<li>${nomBase(a)}, niveau ${n} — ${p ? `${res} : ${fmt((p * n) / 1000, 1)} t/jour` : 'pas de ressource locale'}${mat ? `, matériaux ${fmt(mat / 1000, 1)} t/jour` : ''} ; ${fmt((b.stock || 0) / 1000, 1)} t au sol${ext}</li>`;
-      }).join('') + '</ul>';
-    }
     d += htmlEquipe(v);
-    const cargos = v.cargos || [];
-    if (cargos.length) d += '<h3>Ravitos en route</h3><ul class="sondes">' + cargos.map((s) => `<li>${s.nom} (parti il y a ${fmtDuree(v.t - s.tLancement)})</li>`).join('') + '</ul>';
-    const sondes = v.sondesEnVol;
-    if (sondes.length) d += '<h3>Sondes</h3><ul class="sondes">' + sondes.map((s) => `<li>${s.nom} — ${s.etat === 'vol' ? 'en route' : 'en orbite'}</li>`).join('') + '</ul>';
     this.ecrirePanneau($('nav-actions'), d);
-    $('nav-actions').querySelectorAll('[data-fab]').forEach((b) => { b.onclick = () => { this.fabriquer(st.id, b.dataset.fab); this.majHud(true); }; });
-    $('nav-actions').querySelectorAll('[data-rd]').forEach((b) => { b.onclick = () => { this.rechercher(st.id, b.dataset.rd); this.majHud(true); }; });
     $('nav-actions').querySelectorAll('[data-mission]').forEach((b) => { b.onclick = () => ouvrirMission(v, b.dataset.mission, (t) => this.log(t), () => this.majHud(true)); });
     const bRobotAuto = $('nav-robot-auto');
     if (bRobotAuto) bRobotAuto.onclick = () => ouvrirRobotAuto(v, (t) => this.log(t), () => this.majHud(true));
     const bRavito = $('nav-ravito');
-    if (bRavito) bRavito.onclick = () => this.ouvrirRavito();
+    if (bRavito) bRavito.onclick = () => Commande.ouvrir('ravitos', 'orbiteur');
     const bind = (id, f) => { const b = $(id); if (b) b.onclick = f; };
     bind('nav-avancer', () => { this.avance = !this.avance; this.majHud(true); });
     bind('nav-executer', () => { this.executerEtape(); this.majHud(true); });
@@ -2609,26 +2571,21 @@ const Orbiteur = {
     bind('nav-rentrer', () => this.contexte.rentrer());
     bind('nav-reprendre', () => this.choisirCible(v.voyageFinal));
     bind('nav-ramener', () => this.lancerRetourAuto());
-    bind('nav-envoi-equipe', () => ouvrirEnvoiEquipage(v, (t) => this.log(t), () => this.majHud(true)));
     bind('nav-capsule-ech', () => this.contexte.renvoyerEchantillons());
     bind('nav-sonde-ech', () => this.renvoyerParSonde());
-    bind('nav-depart', () => Depart.ouvrir(this.v));
+    bind('nav-commande', () => Commande.ouvrir(null, 'orbiteur'));
     bind('nav-plein-origine', () => { this.pleinDepuisOrigine(); this.majHud(true); });
     bind('nav-iss', () => this.rendezVousISS());
     bind('nav-voiture', () => { actionVoiture(this); this.majHud(true); });
     bind('nav-retour-solaire', () => this.retourSolaire());
     bind('nav-deployer-base', () => { this.deployerBase(v.orb.centre); this.majHud(true); });
-    bind('nav-logistique', () => ouvrirLogistique(this.v, true));
-    bind('nav-ressources', () => ouvrirRessources(this.v));
     document.querySelectorAll('[data-onglet-stock]').forEach((bt) => { bt.onclick = () => { this.ongletStock = bt.dataset.ongletStock; this.majHud(true); }; });
     bind('nav-amarrer', () => { this.amarrer(); this.majHud(true); });
     bind('nav-vidange', () => { this.vidanger(); this.majHud(true); });
     bind('nav-rdv-annuler', () => { this.v.rdvStation = null; this.log('Rendez-vous avec la station annulé (le Δv dépensé ne revient pas).'); this.majHud(true); });
     bind('nav-station', () => { this.construireStation(); this.majHud(true); });
     bind('nav-sonde', () => { this.lancerSonde(v.cible); this.majHud(true); });
-    bind('nav-journal', () => this.contexte.journal());
     bind('nav-rappel', () => this.ouvrirTempsReel());
-    $('nav-actions').querySelectorAll('[data-extension]').forEach((b) => { b.onclick = () => { this.envoyerExtension(Number(b.dataset.extension)); this.majHud(true); }; });
   },
 
   touche(e) {

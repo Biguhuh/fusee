@@ -177,6 +177,7 @@ function ouvrirEnvoiEquipage(v, log, apres, versPreselection) {
       if (!estOrigine(o)) { const st = v.stations.find((s) => s.id === o); st.stock.ergols -= Math.ceil(membres.length / PLACES_TRANSFERT) * ERGOLS_TRANSFERT; }
       for (let i = 0; i < membres.length; i += PLACES_TRANSFERT) {
         const lot = membres.slice(i, i + PLACES_TRANSFERT), c = lancerTransfert(v, dep, l.vers, lot, log);
+        if (dep === 'terre') payerLancement(v, `Lancement ${TARIFS.lanceurs.equipage.nom}`, TARIFS.lanceurs.equipage.prix, {});
         log(`🚀 ${listeEt(lot.map((x) => x.nom))} ${lot.length > 1 ? 'partent' : 'part'} depuis ${nomLieu(v, dep)} vers ${nomLieu(v, l.vers)}${c.tArrivee ? ` : arrivée le ${fmtDate(c.tArrivee, false)}` : ''}.`);
       }
     }
