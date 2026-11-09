@@ -56,7 +56,8 @@ const Commande = {
   },
 
   onglet_ensemble(v, c) {
-    c.innerHTML = htmlVueEnsemble(v);
+    c.innerHTML = `<canvas id="cmd-flotte" style="width:100%;height:auto;border-radius:8px"></canvas>${htmlVueEnsemble(v)}`;
+    dessinerFlotte($('cmd-flotte'), v);   // l'orbiteur et les stations, tels qu'ils sont (vaisseaux.js)
     c.querySelectorAll('.lien-astre').forEach((b) => { b.onclick = () => Infos.ouvrirFiche(b.dataset.id); });
     c.querySelectorAll('[data-rav]').forEach((b) => { b.onclick = () => Orbiteur.ouvrirRavito(b.dataset.rav, () => this.afficher()); });
   },

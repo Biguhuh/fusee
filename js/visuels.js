@@ -127,6 +127,11 @@ const LIGNES_PLANCHE = [
   ['Drone', 'batterie', 'drone', 'batterieDrone'],
   ['Module', 'bouclier thermique', 'module', 'coqueThermique'],
   ['Module', 'blindage anti-rayonnement', 'module', 'blindageBord'],
+  ['Orbiteur', 'réservoirs agrandis', 'orbiteur', 'reservoirs'],
+  ['Orbiteur', 'soutes agrandies', 'orbiteur', 'soutes'],
+  ['Orbiteur', 'module d’habitation', 'orbiteur', 'habitat'],
+  ['Orbiteur', 'serre de bord', 'orbiteur', 'serre'],
+  ['Orbiteur', 'recyclage de l’eau et de l’air', 'orbiteur', 'recyclage'],
 ];
 function dessinerPlancheEvolution(c) {
   const CW = 230, CH = 170, X0 = 230, Y0 = 50, W = X0 + 4 * CW, H = Y0 + LIGNES_PLANCHE.length * CH;
@@ -143,11 +148,12 @@ function dessinerPlancheEvolution(c) {
     ctx.font = '15px system-ui, sans-serif'; ctx.fillStyle = '#90a4ae'; ctx.fillText(quoi, 14, y0 + CH / 2 + 11);
     for (let n = 0; n <= 3; n++) {
       const niv = { [cle]: n }, cx = X0 + n * CW + CW / 2, sol = y0 + CH - 28;
-      ctx.fillStyle = '#5d5d5d'; ctx.fillRect(X0 + n * CW + 10, sol, CW - 20, 4);
+      if (type !== 'orbiteur') { ctx.fillStyle = '#5d5d5d'; ctx.fillRect(X0 + n * CW + 10, sol, CW - 20, 4); }   // l'orbiteur ne se pose pas
       ctx.save();
       if (type === 'rover') dessinerRover(ctx, cx, sol, 42, { dir: 1, pas: 0 }, false, 0, 0, niv);
       if (type === 'robot') dessinerRobot(ctx, cx, sol, 80, { dir: 1, pas: 0 }, false, 0, niv);
       if (type === 'drone') dessinerDrone(ctx, { angle: 0, throttle: 0, t: 0 }, cx, sol, 160, niv);
+      if (type === 'orbiteur') dessinerOrbiteurDetail(ctx, cx, sol - CH * 0.4, 150, { niv: niv, c: { carburant: 1, sondes: 0, kits: 0, atterrisseurs: 0, propulseurs: 0 } });
       if (type === 'module') dessinerModule(ctx, { f: fMod, angle: 0, throttle: 0, temp: 20, integrite: 100, pose: true, t: 0, degats: { pression: 0, chaleur: 0, impact: 0 }, taux: { pression: 0, chaleur: 0 }, enDegats: () => false, niv }, cx, sol, 130);
       ctx.restore();
     }

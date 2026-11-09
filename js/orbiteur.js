@@ -2074,7 +2074,7 @@ const Orbiteur = {
       // Taille : lisible de loin, plus détaillée quand on zoome sur son orbite.
       const taille = Math.max(9, Math.min(22, s * V.norm(e.r) * 0.08));
       // Poutre perpendiculaire au rayon, comme l'ISS qui garde ses panneaux face au Soleil.
-      dessinerIconeStation(ctx, p[0], p[1], taille, -Math.atan2(e.r[1], e.r[0]), st.terrestre, t);
+      dessinerStationNiveau(ctx, p[0], p[1], taille, -Math.atan2(e.r[1], e.r[0]), st, t);   // grandit avec son niveau (vaisseaux.js)
       ctx.fillStyle = 'rgba(255,220,150,0.9)';
       ctx.font = '11px system-ui, sans-serif';
       if (s * V.norm(e.r) > 30) ctx.fillText(st.nom, p[0] + taille + 4, p[1] + taille * 0.6 + 8);
@@ -2143,17 +2143,8 @@ const Orbiteur = {
     // Orbiteur
     const po = ecran(this.absolu(v.orb));
     const dir = this.v.mode === 'libre' ? this.directionPoussee() : V.unit(v.orb.v);
-    ctx.save();
-    ctx.translate(po[0], po[1]);
-    ctx.rotate(-Math.atan2(dir[1], dir[0]));
-    if (this.enPoussee() || this.flash > 0) {
-      ctx.fillStyle = '#ffab40';
-      ctx.beginPath(); ctx.moveTo(-6, -3); ctx.lineTo(-16 - 6 * Math.random(), 0); ctx.lineTo(-6, 3); ctx.fill();
-    }
-    ctx.fillStyle = '#eceff1';
-    ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-6, -5); ctx.lineTo(-6, 5); ctx.fill();
-    ctx.fillStyle = '#2f6fd6'; ctx.fillRect(-4, -11, 4, 6); ctx.fillRect(-4, 5, 4, 6);
-    ctx.restore();
+    // Sa silhouette évolue avec la R&D et ce qu'il emporte (vaisseaux.js).
+    dessinerOrbiteurDetail(ctx, po[0], po[1], 40, etatOrbiteurVisuel(v), { angle: -Math.atan2(dir[1], dir[0]), poussee: this.enPoussee() || this.flash > 0 });
     if (this.flash > 0) this.flash -= 1 / 30;
 
     this.dessinerTrajet(ctx, ecran, W, H);
