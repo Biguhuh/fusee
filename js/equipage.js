@@ -218,14 +218,17 @@ function dessinerSpationaute(ctx, x, y, s, p, surTerre, profil) {
   const exoJambes = nInf > 0 && prof.aideInf === 'exo', exoBras = nSup > 0 && prof.aideSup === 'exo';
   ctx.save();
   ctx.translate(x, y);
-  if (p.pose === 'quatre-pattes' && p.inclinaison) ctx.rotate(-p.inclinaison);   // à quatre pattes, le corps suit la pente
+
   ctx.scale(p.dir || 1, 1);
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  // À quatre pattes : tout le corps bascule vers l'avant autour des hanches (à 0,28 h du sol) ; mains et genoux
-  // se posent au sol, en alternance. versFig ramène un point de l'écran (pieds = origine) dans le repère du corps.
-  const quatre = p.pose === 'quatre-pattes', TH = (65 * Math.PI) / 180;
-  if (quatre) { ctx.translate(0, -h * 0.28); ctx.rotate(TH); ctx.translate(0, h * 0.45); }
-  const versFig = (sx, sy) => { const y = sy + h * 0.28, c = Math.cos(TH), si = Math.sin(TH); return [sx * c + y * si, -sx * si + y * c - h * 0.45]; };
+  // Montée très raide : le buste penché vers l'avant (≈ 40°) autour des hanches, genoux fléchis ; les jambes
+  // marchent sur la pente (le pied de devant plus haut) et les mains cherchent le sol devant, l'une puis l'autre.
+  // versFig ramène un point de l'écran (pieds = origine) dans le repère du corps penché.
+  const penche = p.pose === 'penche', TH = (40 * Math.PI) / 180, HH = 0.42;
+  const monte = Math.tan(Math.max(0, (p.inclinaison || 0) * (p.dir || 1)));   // pente devant soi (montée)
+  if (penche) { ctx.translate(0, -h * HH); ctx.rotate(TH); ctx.translate(0, h * 0.45); }
+  const versFig = (sx, sy) => { const y = sy + h * HH, c = Math.cos(TH), si = Math.sin(TH); return [sx * c + y * si, -sx * si + y * c - h * 0.45]; };
+  const auSol = (sx, lev) => versFig(sx, -h * 0.03 - sx * monte - lev);   // un point du sol en pente, levé de lev
 
   const hanche = [0, -h * 0.45];
   // Escalade (p.grimpe : distance grimpée) : face à la paroi, une main puis l'autre plus haut, genoux pliés,
@@ -233,7 +236,7 @@ function dessinerSpationaute(ctx, x, y, s, p, surTerre, profil) {
   const grimpe = p.grimpe !== undefined, pg = grimpe ? Math.sin(p.grimpe * 5) : 0;
   const pose = p.pose;   // 'courte' (mains jointes en marchepied), 'bras-hauts', 'allonge' (dessiné couché par dessinerAllonge)
   const jambe = (sgn) => {
-    if (quatre) return { genou: versFig(sgn * phase * h * 0.05, -h * 0.02), pied: versFig(-h * 0.25 + sgn * phase * h * 0.05, -h * 0.03) };
+    if (penche) { const px = sgn * phase * h * 0.14; return { genou: versFig(px * 0.6 + h * 0.07, -h * 0.24 - px * 0.6 * monte), pied: auSol(px, 0) }; }
     if (pose === 'courte') return { genou: [h * 0.14 + sgn * h * 0.03, -h * 0.27], pied: [sgn * h * 0.06, -h * 0.03] };
     if (pose === 'allonge' || pose === 'bras-hauts') return { genou: [sgn * h * 0.02, -h * 0.23], pied: [sgn * h * 0.03, -h * 0.03] };
     if (grimpe) return { genou: [h * 0.14, -h * (0.3 + 0.07 * sgn * pg)], pied: [h * 0.12, -h * (0.08 + 0.09 * Math.max(0, sgn * pg))] };
@@ -280,7 +283,9 @@ function dessinerSpationaute(ctx, x, y, s, p, surTerre, profil) {
 
   // Bras : humain, bionique (à pince), ou humain soutenu par une attelle d'exosquelette.
   const epaule = [0, -h * 0.76];
-  const brasPts = (sgn) => quatre ? [epaule, versFig(h * 0.31 - sgn * phase * h * 0.05, -h * 0.2), versFig(h * 0.33 - sgn * phase * h * 0.07, -h * 0.03)]
+  // Penché : la main touche le sol devant à chaque pas, en alternance (levée le reste du temps).
+  const mainSol = (sgn) => auSol(h * 0.3 - sgn * phase * h * 0.04, Math.max(0, sgn * phase) * h * 0.12);
+  const brasPts = (sgn) => penche ? [epaule, [(epaule[0] + mainSol(sgn)[0]) / 2 + h * 0.05, (epaule[1] + mainSol(sgn)[1]) / 2], mainSol(sgn)]
     : pose === 'courte' ? [epaule, [h * 0.14, -h * 0.6], [h * 0.2, -h * 0.52]]
     : pose === 'bras-hauts' ? [epaule, [h * 0.06 + sgn * h * 0.03, -h * 0.97], [h * 0.08 + sgn * h * 0.02, -h * 1.15]]
     : pose === 'allonge' ? [epaule, [h * 0.15, -h * 0.9 + sgn * h * 0.02], [h * 0.36, -h * 0.95 + sgn * h * 0.03]]

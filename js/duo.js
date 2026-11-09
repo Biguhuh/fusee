@@ -200,8 +200,11 @@ Object.assign(Exploration.prototype, {
       const cible = cordee ? gp.x0 + gp.sens * 0.5 : versRappel ? gp.x - gp.sens * 3 : p.x - (p.dir || 1) * 1.8, e = ecartSol(this.astre, cible, q.x);
       if (Math.abs(e) > 0.6) veut = Math.sign(e);
     }
-    d.quatrePattes = this.monteeDevant(q.x, veut) > PENTE_QUATRE_PATTES;   // montée très raide : à quatre pattes
-    const vise = veut * this.vMax * (d.quatrePattes ? VITESSE_QUATRE_PATTES : 1);
+    // Penché selon son déplacement réel (il s'arrête et repart souvent en vous suivant) ; à l'arrêt, il le reste
+    // tant que la pente devant lui est raide : pas de va-et-vient d'une image à l'autre.
+    const sensReel = Math.abs(q.vx) > 0.05 ? Math.sign(q.vx) : veut || (d.penche ? q.dir : 0);
+    d.penche = this.monteeDevant(q.x, sensReel) > PENTE_PENCHE;
+    const vise = veut * this.vMax * (d.penche ? VITESSE_PENCHE : 1);
     q.vx += Math.sign(vise - q.vx) * Math.min(Math.abs(vise - q.vx), this.acc * dt);
     if (veut) q.dir = veut;
     const pente = Math.atan2(this.sol(q.x + 0.5 * (veut || 1)) - this.sol(q.x), 0.5) * 180 / Math.PI;
@@ -246,7 +249,7 @@ Object.assign(Exploration.prototype, {
     if (!d || d.enRover || d.dansSecours || d.dansModule) return;   // à bord de l'astromobile ou du module de secours
     const [sx, sy] = versEcran(d.p.x, d.p.y);
     if (this.poseGeste('autre') === 'allonge') dessinerAllonge(ctx, sx, sy, echelle, this.geste.sens, d.eq.profil);
-    else dessinerSpationaute(ctx, sx, sy, echelle, { ...d.p, grimpe: d.enEscalade ? d.p.grimpe : undefined, pose: this.poseGeste('autre') || (d.quatrePattes && !d.enEscalade ? 'quatre-pattes' : undefined), inclinaison: this.penteSous(d.p.x), scaphandre: this.scaphandre, phares: this.nuit }, false, d.eq.profil);   // même tenue que vous
+    else dessinerSpationaute(ctx, sx, sy, echelle, { ...d.p, grimpe: d.enEscalade ? d.p.grimpe : undefined, pose: this.poseGeste('autre') || (d.penche && !d.enEscalade ? 'penche' : undefined), inclinaison: this.penteSous(d.p.x), scaphandre: this.scaphandre, phares: this.nuit }, false, d.eq.profil);   // même tenue que vous
     texteSurFond(ctx, d.eq.nom, sx, sy - 2.3 * echelle, { police: '11px system-ui, sans-serif', couleur: '#b3e5fc' });
   },
 });
