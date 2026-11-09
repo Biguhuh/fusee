@@ -254,14 +254,18 @@ function dessinerPanorama(ctx, a, xIci, sol, W, horizonY, lumiere) {
   const mParPx = 250, pxParM = 0.035;   // ≈ 200 km sur la largeur de l'écran ; 7 km de relief ≈ 245 px
   const h0 = sol(xIci), pts = [];
   for (let sx = -4; sx <= W + 4; sx += 4) pts.push([sx, horizonY - (sol(xIci + (sx - W / 2) * mParPx) - h0) * pxParM]);
-  const haut = Math.min(...pts.map((p) => p[1]));
-  if (horizonY - haut < 6) return;   // relief lointain négligeable : rien à montrer
+  const ys = pts.map((p) => p[1]), haut = Math.min(...ys), bas = Math.max(...ys);
+  if (bas - haut < 6) return;   // relief lointain négligeable (tout plat) : rien à montrer
+  // Plus on monte, plus le relief lointain descend : il passe derrière le terrain proche, sans disparaître d'un coup.
+  const fond = Math.max(horizonY, bas) + 400;
+  const forme = () => { ctx.beginPath(); ctx.moveTo(pts[0][0], fond); for (const [x, y] of pts) ctx.lineTo(x, y); ctx.lineTo(W + 4, fond); ctx.closePath(); };
   ctx.save();
-  ctx.globalAlpha = 0.8;
+  // Opaque : on ne voit pas les étoiles à travers. Un voile de la couleur du ciel donne l'effet de lointain.
   ctx.fillStyle = assombrir(a.couleurs.sol, 0.6 * lumiere);
-  ctx.beginPath(); ctx.moveTo(pts[0][0], horizonY + 400);
-  for (const [x, y] of pts) ctx.lineTo(x, y);
-  ctx.lineTo(W + 4, horizonY + 400); ctx.closePath(); ctx.fill();
+  forme(); ctx.fill();
+  ctx.globalAlpha = 0.2;
+  ctx.fillStyle = a.atm ? assombrir(a.couleurs.ciel, lumiere) : '#02030a';
+  forme(); ctx.fill();
   // Ligne de crête, éclairée : elle détache le relief lointain du ciel.
   ctx.globalAlpha = 0.7; ctx.strokeStyle = assombrir(a.couleurs.sol, 1.1 * lumiere); ctx.lineWidth = 1.5;
   ctx.beginPath(); pts.forEach(([x, y], i) => { if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.stroke();
