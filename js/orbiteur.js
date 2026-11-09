@@ -153,7 +153,7 @@ const Orbiteur = {
   },
 
   // Le pilote auto garde son état (le trajet en cours continue) ; sans cible, il n'a rien à faire.
-  charger(v) { this.v = v; this.etape = null; if (!v.cible) this.auto = false; this.avance = false; this.messages = []; },
+  charger(v) { appliquerOrbitesObjets(v); this.v = v; this.etape = null; if (!v.cible) this.auto = false; this.avance = false; this.messages = []; },
 
   // ---------- Outils ----------
   absolu(vs) { const c = etatAbsolu(vs.centre, this.v.t); return V.add(c.r, vs.r); },
@@ -620,6 +620,7 @@ const Orbiteur = {
     }
     v.carburant = reservoir.kg;
     this.log(`${e.texte} — poussée de ${fmtV(V.norm(dv) * 1000)}.`);
+    souffleMoteurs(this, dv);   // tout près d'un objet artificiel, le jet le pousse (observatoires.js)
     this.flash = 1;
     this.prevision = null;   // la trajectoire vient de changer
     this.etape = null;
@@ -1696,7 +1697,12 @@ const Orbiteur = {
     if (astreMasque(a)) return [{ texte: '☀️ Partie dans le Soleil', desactive: 'La voiture n’existe plus' }];
     if (a.type !== 'etoile' || a.id === SYSTEME.etoile) l.push({ texte: '🎯 Choisir comme cible', action: () => this.choisirCible(a.id) });
     l.push({ texte: '🔭 Centrer la vue', action: () => this.centrerSur(a.id) });
-    if (a.artificiel) return l;   // pas de sonde ni de grappe vers un objet artificiel
+    // Objet artificiel : pas de sonde ni de grappe ; à côté, on peut le pousser (sauf la voiture, qui a son propulseur).
+    if (a.artificiel && a.id !== 'roadster' && this.v.orb) {
+      if (aCoteObjet(this.v, a)) l.push({ texte: `🔧 Pousser ${le(a)}`, action: () => ouvrirPousseeObjet(this, a) });
+      else l.push({ texte: '🔧 Pousser', desactive: 'Rejoignez-le d’abord : rendez-vous, à côté, vitesse relative nulle' });
+    }
+    if (a.artificiel) return l;
     if (a.type !== 'etoile' && sondeVers(this.v, a.id)) l.push({ texte: '🛰 Sonde déjà envoyée', desactive: 'Une seule sonde par astre' });
     else if (a.type !== 'etoile' && this.v.sondes > 0) l.push({ texte: '🛰 Lancer une sonde', action: () => this.lancerSonde(a.id) });
     if (a.type !== 'etoile' && this.v.sondes > 0 && (ENFANTS[a.id] || []).length) l.push({ texte: '🛰 Grappe de sondes', action: () => this.ouvrirGrappe(a.id) });
