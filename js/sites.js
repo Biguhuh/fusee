@@ -103,6 +103,32 @@ function lieuxDescente(a, v) {
   return l;
 }
 
+// ---------- Easter eggs : à des lieux fixes de l'astre ----------
+// Un egg est posé à e.dx m d'un lieu où l'on peut se poser, pas du module : sinon on les trouverait tous à la
+// première descente. Un seul egg sur l'astre : près de la zone repérée par la sonde. Plusieurs : répartis sur
+// la zone de la sonde, l'équateur, les anciennes missions, les zones remarquables, puis d'autres longitudes
+// (« Ailleurs »). Deux lieux à moins de 5 km comptent pour un seul.
+const ANCRES_EGGS = {};
+function ancresEggs(a) {
+  if (ANCRES_EGGS[a.id]) return ANCRES_EGGS[a.id];
+  const l = [];
+  const ajoute = (x, nom) => { if (!l.some((u) => Math.abs(ecartSol(a, u.x, x)) < 5000)) l.push({ x, nom }); };
+  const z = a.type === 'solide' ? zoneDeBase(a) : null;
+  if (z) ajoute(z.x, 'Zone de base repérée par la sonde');
+  ajoute(0, 'À l’équateur (longitude 0°)');
+  for (const t of tracesSur(a.id)) ajoute(xTrace(a, t) + DISTANCE_TRACE, `${t.nom} (${t.annee})`);
+  for (const zr of zonesSur(a.id)) ajoute(xZone(a, zr) + zr.poser * 1000, zr.nom);
+  for (const lon of [90, 180, -90]) ajoute(xLongitude(a, lon), `Ailleurs, longitude ${lon > 0 ? lon + '° E' : -lon + '° O'}`);
+  return (ANCRES_EGGS[a.id] = l);
+}
+// Lieu de rattachement d'un egg au sol : { x, nom }.
+function ancreEgg(a, e) {
+  const liste = eggsSur(a.id).filter((u) => !u.orbite), ancres = ancresEggs(a);
+  return ancres[Math.max(0, liste.indexOf(e)) % ancres.length];
+}
+// Position d'un egg sur le sol (x absolu).
+function xEgg(a, e) { return ancreEgg(a, e).x + e.dx; }
+
 // Texte d'avertissement propre à l'astre (Mercure).
 function noteLieux(a, v) {
   if (a.id !== 'mercure') return '';

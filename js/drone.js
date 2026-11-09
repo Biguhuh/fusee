@@ -27,10 +27,10 @@ function facteurAirDrone(vol) { return Math.min(3, (vol.c ? vol.c.rho : 0) / vol
 // des missions passées. Comme le robot, il signale l'objet ; une exploration humaine permettra de l'examiner.
 function reperagesDrone(vol) {
   if (vol.fin || vol.altSol() > 60) return;
-  const a = vol.astre, x0 = vol.xDepart;
+  const a = vol.astre;
   vol.vusDrone = vol.vusDrone || {};
   for (const e of eggsSur(a.id)) {
-    const ex = x0 + e.dx;
+    const ex = xEgg(a, e);
     if (distSol(a, vol.x, ex) < 25 && !eggTrouve(e.id) && !vol.vusDrone[e.id]) {
       vol.vusDrone[e.id] = true;
       etat.reperes = etat.reperes || {};
