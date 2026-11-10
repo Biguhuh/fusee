@@ -1,10 +1,10 @@
 # État du projet
 
-Dernière mise à jour : 10 novembre 2026 (fin de session, avant la reprise à 1 h 40)
+Dernière mise à jour : 10 novembre 2026 (nuit, après la reprise à 1 h 40)
 
 ## En une phrase
 
-Jeu web de simulation spatiale (vol, atterrissage, exploration, campagne dans le Système solaire et au-delà), jouable en ligne, en bêta test : tout le travail jusqu'aux sorties depuis les stations (étapes 1 et 2) est fusionné dans `main` et publié (version 351, 10 novembre 2026) ; la suite (astromobile, stations construites module par module, imprévus des sorties) est décidée dans `docs/plan-stations-astromobile.md`, rien n'est encore codé.
+Jeu web de simulation spatiale (vol, atterrissage, exploration, campagne dans le Système solaire et au-delà), jouable en ligne, en bêta test : `main` est publié en version 354 (sorties tenues par les mains, tour de Kourou) ; les cinq points du plan `docs/plan-stations-astromobile.md` (astromobile, stations module par module, imprévus des sorties) sont codés et testés par appels directs, sur des branches locales enchaînées, pas encore poussées.
 
 ## Fait
 
@@ -92,21 +92,22 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 - Sorties au sol (`physiologie.js`) : cœur et oxygène du sang, mort non instantanée, perte de connaissance, secours, séquelles, fondu au noir, temps ×1 aux alertes, voile rouge, ruban et oxygène dans l'astromobile à l'arrêt, fenêtre de secours.
 - Lanceur détruit (`explosion.js`) : effondrement puis grosse explosion.
 - Sorties depuis une station (`eva.js`, `eva-missions.js`), étapes 1 et 2 : à deux par le sas, mains courantes, longe, dérive et SAFER, jour et nuit réels, rayonnement du lieu ; pannes des stations et missions de réparation (batteries, panneau, ammoniac, détecteur), sac à outils, robot si le rayonnement est trop fort.
+- Sorties depuis une station plus réalistes (publié, v354) : tenu par les mains, jambes dans le vide ; longe souple accrochée à la taille ; T pour se hisser le long de la longe ; plus de blocage à ×50 ; − reconnu sur AZERTY. Tour de Kourou posée sur la Terre arrondie.
+- Astromobile (branches locales) : même tenue qu'à pied (scaphandre lourd, lampes la nuit), équipier assis à l'arrière ; laissée sur place et retrouvée à moins de 2 km (batterie, dégâts) ; choix à la descente : repliée (niveau ≤ 1, se déplie en 20 min à côté d'elle), par cargo depuis la station (niveau 2, ergols du stock, 400 M€), ou sans (`astromobile.js`).
+- Stations module par module (branche locale, Système solaire) : noyau lancé par Hercule ou par cargo (vrai trajet), ou depuis le kit d'une station ; chaque module s'amarre puis attend une sortie d'assemblage à deux, ou le robot (bras dès le niveau 3), deux fois plus lent ; kits de l'orbiteur déposés à l'amarrage (`modules-station.js`).
+- Sorties depuis une station, étape 3 (branche locale) : eau dans le casque, combinaison trop gonflée au sas (P), débris en approche avec manœuvre et éclats (`eva-imprevus.js`).
 
 ## En cours
 
-- Plan décidé, rien de codé : `docs/plan-stations-astromobile.md` (branche `plan-stations`, avec cet `ETAT.md`). Astromobile pliée ou apportée par cargo, laissée sur place ; stations construites module par module ; étape 3 des sorties depuis une station.
+- Branches locales enchaînées, non poussées : `astromobile-visuels` → `astromobile-sur-place` → `astromobile-cargo` → `stations-modules` → `eva-imprevus` (la dernière contient tout, version 361). À pousser et fusionner quand Edouard le dit.
 
 ## À faire, dans l'ordre
 
-1. Astromobile, visuels : scaphandre lourd porté dans l'astromobile ; lampe du casque la nuit avec la combinaison blanche (`exploration.js`, `equipage.js`).
-2. Astromobile laissée sur place au décollage, retrouvée si l'on revient à moins de 2 km.
-3. Astromobile pliée (R&D ≤ 1) ou apportée par un cargo depuis la station (R&D ≥ 2) ; choix « avec ou sans » à la descente ; niveau maximal de la campagne en visite rapide.
-4. Stations construites module par module, selon `docs/plan-stations-astromobile.md` (noyau par Hercule ou par cargo lourd, un module par niveau, sortie d'assemblage ou robot, kits changés en noyaux, rien ne change hors du Système solaire).
-5. Sorties depuis une station, étape 3 : eau dans le casque, combinaison trop gonflée au sas, débris en approche.
-6. Jouer une vraie campagne : presque tout le travail de novembre n'a été testé que par appels directs, sur des copies de la sauvegarde.
-7. Rappel et tonneaux, escalade et cordée : vérifier en jouant sur d'autres astres (testés sur des terrains d'essai).
-8. Carte 6, point 8 : la date « 4 mars 2265 » de la capture d'Edouard n'est pas expliquée ; demander sa sauvegarde.
+1. Jouer en vrai les nouveautés de la nuit : choix de l'astromobile à la descente, dépliage, cargo, réemploi à 2 km ; noyau de station et sortie d'assemblage ; imprévus des sorties (tout n'a été testé que par appels directs).
+2. Dessiner le module amarré, pas encore raccordé, sur la silhouette de la station (`vaisseaux.js`, `eva.js`).
+3. Jouer une vraie campagne : presque tout le travail de novembre n'a été testé que par appels directs, sur des copies de la sauvegarde.
+4. Rappel et tonneaux, escalade et cordée : vérifier en jouant sur d'autres astres (testés sur des terrains d'essai).
+5. Carte 6, point 8 : la date « 4 mars 2265 » de la capture d'Edouard n'est pas expliquée ; demander sa sauvegarde.
 
 ## Bugs connus de la bêta
 
@@ -139,6 +140,10 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 - Mort en sortie : jamais instantanée sauf écrasement, brûlure ou rayonnement ; fondu au noir, retour au module, sans détails.
 - Sorties depuis une station : n'importe quelle station ; ciel et rayonnement réels ; robot si le rayonnement est trop fort.
 - Astromobile et stations : décisions du 10 novembre dans `docs/plan-stations-astromobile.md`.
+- Astromobile repliée : elle se déplie seulement si quelqu'un se tient à côté (on tire sur les sangles, comme sur Apollo) ; à deux, deux fois plus vite.
+- Cargo de l'astromobile : il se pose à 150 m du lieu choisi, pas du lieu réel d'atterrissage ; se poser loin, c'est marcher.
+- Stations : hors du Système solaire (sans Terre pour lancer), on garde le déploiement depuis l'orbiteur et l'assemblage automatique en 10 jours.
+- Imprévus des sorties : au plus un de chaque par sortie (eau 12 %, combinaison gonflée 12 %, débris 10 %) ; abri contre les débris : à moins de 6 m de l'écoutille.
 - Espaces insécables : jamais dans le code, les commandes, les noms de fichiers ; gardées dans les textes affichés (`outils/typo.py`).
 
 ## Pièges
@@ -162,6 +167,9 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 - Push : sans « pousse » ou « publie » d'Edouard, le contrôle automatique des permissions le refuse ; commiter en local et demander.
 - Publication : GitHub Pages met quelques minutes ; pendant ce temps, le navigateur peut mélanger anciens et nouveaux fichiers.
 - Tester l'orbiteur : `Orbiteur.charger(v)` avant tout, puis `allerNavigation()` pour que le panneau existe (`majHud` sinon plante).
+- L'outil `Write` refuse d'écraser un fichier pas encore lu : si la commande qui suit lance ce fichier, c'est l'ancienne version qui tourne (arrivé avec `publier.sh`). Lire le fichier avant de le réécrire.
+- `recevoir.py` attend le chemin de sortie en argument ; l'envoi depuis la page a échoué cette nuit. Plus simple : poser un canvas en `position:fixed` dans la page et faire une capture du volet.
+- `Orbiteur.log` plante si l'écran de l'orbiteur n'a pas été ouvert (journal absent) : en test, le remplacer par une fonction qui garde les messages.
 - Comparer avec `main` sans changer de branche : `git worktree add /tmp/fusee-main main`, serveur sur le port 8766, puis `git worktree remove --force /tmp/fusee-main`.
 
 ## Carte des fichiers importants
@@ -199,12 +207,15 @@ Campagne :
 - `js/vaisseaux.js` : silhouettes de l'orbiteur et des stations, portrait de la flotte.
 - `js/eva.js` : sortie extravéhiculaire depuis une station (scène, longe, SAFER, jour et nuit, rayonnement).
 - `js/eva-missions.js` : pannes des stations, missions de réparation, robot, choix de la sortie.
+- `js/eva-imprevus.js` : imprévus des sorties (eau dans le casque, combinaison gonflée, débris).
+- `js/modules-station.js` : noyau de station, modules par niveau, amarrage et raccordement (Système solaire).
 
 Au sol :
 - `js/trouvailles.js` : aspect des sites et des échantillons au sol.
 - `js/zones.js` : zones réelles et plan lointain de l'exploration.
 - `js/exploration.js` : sortie à pied, astromobile, robot ; chutes, combinaison, escalade, grappin et rappel, jour et nuit, retour, appel d'urgence.
 - `js/duo.js` : sortie à deux (suivre, cordée, rappel, entraide, oxygène partagé).
+- `js/astromobile.js` : astromobile repliée ou par cargo, choix à la descente, dépliage, dessin du cargo.
 - `js/physiologie.js` : cœur et oxygène du sang, secours, mort en fondu, voile rouge.
 - `js/decouvertes.js` : easter eggs et leurs dessins, traces réelles, signalements du compagnon.
 - `js/descente-robot.js`, `js/drone.js` : largage du robot, drone.
