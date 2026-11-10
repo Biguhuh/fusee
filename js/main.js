@@ -260,6 +260,8 @@ function lancer(options = {}) {
   if (options.voyage && etat.voyage) {
     etat.vol.equipier = options.equipier || equipierDescente(etat.voyage);   // choisi avant la descente
     etat.vol.passagers = options.passagers || null;
+    etat.vol.roverMode = options.rover || null;
+    etat.vol.cargoRover = options.cargoRover || null;
     ameliorerAtterrisseur(etat.vol);
   }
   etat.enVoyage = !!options.voyage;
@@ -528,6 +530,8 @@ function descendre(id, site, compo) {
   const c = concevoirAtterrisseur(a);
   if (!c.ok) return Orbiteur.log(c.raison);
   if (v.equipe && !pilote(v)) return Orbiteur.log('Personne à bord de l’orbiteur pour piloter l’atterrisseur : rappelez l’équipage, ou attendez le retour d’une mission.');
+  // Astromobile : repliée, par cargo, ou sans (astromobile.js).
+  if (astromobilePossible(a) && (!compo || compo.rover === undefined)) return ouvrirChoixAstromobile(v, a, site || siteDescente(id), (rover) => descendre(id, site, { ...(compo || {}), rover }));
   // Vénus : sans lanceur de retour prêt en orbite, la descente est un aller simple. On prévient.
   if (AEROSTAT[id]) {
     const d = lanceurRetourDisponible(v, id);
@@ -552,7 +556,9 @@ function descendre(id, site, compo) {
     carb = dispo * 0.6;
     Orbiteur.log(`😰 Fausse manœuvre au départ de la descente ${sur(a)} : l’équipage traumatisé a gaspillé 40 % des ergols de l’atterrisseur.`);
   }
-  lancer({ voyage: true, fusee: c.fusee, carburant: carb, bases: basesSur(id), site: site || siteDescente(id), ...(compo || {}) });
+  const lieu = site || siteDescente(id);
+  const cargoRover = compo && compo.rover === 'cargo' ? envoyerCargoRover(v, a, lieu) : null;
+  lancer({ voyage: true, fusee: c.fusee, carburant: carb, bases: basesSur(id), site: lieu, ...(compo || {}), cargoRover });
 }
 
 // Dangers d'une sortie (spationaute ou robot) là où l'on est posé : pression, chaleur, rayonnement.

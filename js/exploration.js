@@ -146,16 +146,21 @@ class Exploration {
     this.campagne = options.provisions || null;
     this.bieres = 0;
     this.sites = this.terre ? this.genererTerre() : this.genererSites();
+    // Astromobile laissée sur place (cette sortie ou une mission précédente), et comment vient la nouvelle (astromobile.js).
+    this.roverTrouve = type === 'spationaute' && !options.essai ? this.chercherRover(vol) : null;
+    const modeRover = this.roverTrouve ? this.roverTrouve.mode : vol.roverMode;
+    this.modeRover = modeRover;
+    this.nivRover = nivVisuelAstromobile(modeRover);
     // Rover : garé à côté de la fusée, pour le spationaute (plus rapide, 20 échantillons).
     this.rover = type === 'spationaute' && !this.terre && !vol.robotSeul && !this.cable ? { x: this.xFusee - 5, dir: 1, pas: 0 } : null;
     this.enRover = false;
-    this.autonomieRover = AUTONOMIE_ROVER * (1 + 0.5 * niveauAmelio('batterieRover'));
-    this.caisseRover = 20 + 10 * niveauAmelio('caisseRover');
+    this.autonomieRover = AUTONOMIE_ROVER * (1 + 0.5 * nivAstromobile('batterieRover', modeRover));
+    this.caisseRover = 20 + 10 * nivAstromobile('caisseRover', modeRover);
     this.batterieRover = this.rover ? this.autonomieRover : 0;
     this.sacRover = [];
     this.vMaxRover = Math.min(5, 2.8 * Math.sqrt(g));          // ≈ 3,6 m/s sur la Lune, comme le rover d'Apollo
     this.accRover = Math.min(1.5, 0.5 * g + 0.001);
-    const kMoteur = 1 + 0.25 * niveauAmelio('moteurRover');
+    const kMoteur = 1 + 0.25 * nivAstromobile('moteurRover', modeRover);
     this.accRover *= kMoteur;
     this.vMoteurRover = Math.min(10, 2 * this.vMaxRover) * kMoteur;
     // Dégâts de l'astromobile (0 à 100), gardés d'une sortie à l'autre (et dans la campagne).
@@ -513,21 +518,36 @@ class Exploration {
 
   // Astromobile laissée sur place : à la sortie suivante du même atterrissage, elle est où on l'a garée ;
   // en campagne, on retrouve aussi celle d'une mission précédente si l'on se pose à moins de 2 km (comme Apollo).
+  chercherRover(vol) {
+    if (vol.roverEtat) return vol.roverEtat;
+    const vR = etat.enVoyage && etat.voyage;
+    if (!vR || (vol.roverMode && vol.roverMode !== 'sans')) return null;   // on a choisi d'en apporter une neuve
+    const pr = astromobileProche(vR, this.astre, this.xFusee);
+    if (!pr) return null;
+    const r = pr.m;
+    this.dire(`🚙 L’astromobile d’une mission précédente est là, à ${fmtDistanceSol(pr.d)} du module : batterie ${fmtDuree(r.batterie)}${r.degats > 0 ? `, abîmée à ${fmt(r.degats)} %` : ''}.`);
+    return r;
+  }
   retrouverRover(vol, vR, options) {
     if (!this.rover || options.essai) return;
-    let r = vol.roverEtat || null;
-    if (!r && vR && vR.astromobiles) {
-      const proches = vR.astromobiles.filter((m) => m.astre === this.astre.id && distSol(this.astre, m.x, this.xFusee) <= DISTANCE_REEMPLOI_ROVER);
-      proches.sort((m, n) => distSol(this.astre, m.x, this.xFusee) - distSol(this.astre, n.x, this.xFusee));
-      r = proches[0] || null;
-      if (r) {
-        const d = distSol(this.astre, r.x, this.xFusee);
-        this.dire(`🚙 L’astromobile d’une mission précédente est là, à ${d < 1000 ? fmt(d) + ' m' : fmt(d / 1000, 1) + ' km'} du module : batterie ${fmtDuree(r.batterie)}${r.degats > 0 ? `, abîmée à ${fmt(r.degats)} %` : ''}.`);
+    const r = this.roverTrouve;
+    if (!r) {
+      const mode = vol.roverMode, n = niveauAstromobile();
+      if (mode === 'sans') { this.rover = null; this.batterieRover = 0; return; }
+      if (mode === 'cargo') {
+        if (!vol.cargoRover || vol.cargoRover.x === null) vol.cargoRover = { x: this.xFusee + ECART_CARGO_ROVER };
+        this.rover.x = vol.cargoRover.x + 5;
+        const d = distSol(this.astre, this.rover.x, this.xFusee);
+        this.dire(`🚀 L’atterrisseur cargo s’est posé à ${fmtDistanceSol(d)} du module : l’astromobile vous attend au pied de sa rampe.`);
+      } else if (mode === 'replie' || n <= 1) {
+        this.modeRover = 'replie';
+        this.rover.x = this.xFusee - 4; this.rover.deplie = 0;
+        this.dire('📦 L’astromobile est repliée contre le module. Restez à côté d’elle pour la déplier (≈ 20 min ; à deux, deux fois plus vite).');
       }
+      return;
     }
-    if (!r) return;
     if (vR && vR.astromobiles) vR.astromobiles = vR.astromobiles.filter((m) => m !== r && !(m.astre === r.astre && m.x === r.x));
-    this.rover.x = r.x; this.rover.dir = r.dir || 1;
+    this.rover.x = r.x; this.rover.dir = r.dir || 1; this.rover.deplie = r.deplie ?? 1;
     this.degatsRover = r.degats ?? this.degatsRover;
     this.usureBatterieRover = r.usure ?? this.usureBatterieRover;
     this.appliquerDegatsRover();
@@ -536,7 +556,8 @@ class Exploration {
     this.batterieRover = Math.min(this.autonomieRover, r.batterie ?? this.autonomieRover);
   }
   laisserRover() {
-    const r = { astre: this.astre.id, x: this.rover.x, dir: this.rover.dir, batterie: this.batterieRover, degats: this.degatsRover, usure: this.usureBatterieRover };
+    const r = { astre: this.astre.id, x: this.rover.x, dir: this.rover.dir, batterie: this.batterieRover, degats: this.degatsRover, usure: this.usureBatterieRover,
+      deplie: this.rover.deplie ?? 1, mode: this.modeRover || null };
     this.vol.roverEtat = r;
     const vR = etat.enVoyage && etat.voyage;
     if (vR && this.vol.voyage) (vR.astromobiles = vR.astromobiles || []).push(r);
@@ -551,12 +572,14 @@ class Exploration {
       this.rover.x = p.x;
       if (this.duo && this.duo.enRover) { this.duo.enRover = false; this.duo.p.x = p.x - 1.5; this.duo.p.y = this.sol(this.duo.p.x); this.duo.p.auSol = true; this.duo.p.vx = 0; }
       this.dire(`Vous descendez de l’astromobile. ${this.sacRover.length} échantillon${this.sacRover.length > 1 ? 's' : ''} dans sa caisse.`);
+    } else if (this.rover.deplie < 1 && distSol(this.astre, p.x, this.rover.x) < 4) {
+      this.dire(`📦 L’astromobile est encore repliée (${fmt(100 * this.rover.deplie)} % dépliée) : restez à côté d’elle.`);
     } else if (distSol(this.astre, p.x, this.rover.x) < 4 && p.auSol) {
       this.enRover = true;
       p.x = this.rover.x;
       if (this.duo && this.duo.mode === 'suit' && distSol(this.astre, this.duo.p.x, this.rover.x) < 8) { this.duo.enRover = true; this.dire(`${this.duo.eq.nom} monte à côté de vous : deux places dans l’astromobile.`); }
       this.dire('À bord de l’astromobile : jusqu’à ' + fmtV(this.vMaxRover) + ` et ${this.caisseRover} échantillons.`);
-    } else this.dire('Approchez-vous de l’astromobile (à côté du module) pour monter dedans.');
+    } else this.dire(`Approchez-vous de l’astromobile (à ${fmtDistanceSol(distSol(this.astre, p.x, this.rover.x))} d’ici) pour monter dedans.`);
   }
 
   // La personne qui sort : celle qui pilotait la descente (votre spationaute, ou un membre d'équipage).
@@ -778,6 +801,7 @@ class Exploration {
     this.reserve -= dt * (this.type === 'robot' ? effort : etatCombi(this.integrite).fuite);
     if (this.type === 'spationaute') this.surveillerCombi();
     if (this.moduleRobot && this.presDeLaFusee()) this.reserve = Math.min(this.def.autonomie, this.reserve + dt * 20);
+    if (this.rover && this.rover.deplie < 1) this.deplierRover(dt);
     if (this.rover && distSol(this.astre, this.rover.x, this.xFusee) < 12) this.batterieRover = Math.min(this.autonomieRover, this.batterieRover + dt * 20);
     if (this.type === 'spationaute' && !this.terre) {
       if (this.suivreSecours(dt)) return;
@@ -1540,9 +1564,14 @@ class Exploration {
     this.dessinerTraceFeu(ctx, versEcran, echelle);
     if (this.essai) dessinerPlotEssai(ctx, versEcran, this, echelle);
     // Rover garé
+    if (this.vol.cargoRover && this.vol.cargoRover.x !== null) {
+      const [cx, cy] = versEcran(this.vol.cargoRover.x, this.sol(this.vol.cargoRover.x));
+      dessinerCargoRover(ctx, cx, cy, echelle);
+    }
     if (this.rover && !this.enRover) {
       const [rx, ry] = versEcran(this.rover.x, this.sol(this.rover.x));
-      dessinerRover(ctx, rx, ry, echelle, { dir: this.rover.dir, pas: this.rover.pas }, false, this.penteSous(this.rover.x), this.degatsRover);
+      if (this.rover.deplie < 1) dessinerRoverReplie(ctx, rx, ry, echelle, this.rover.deplie, this.rover.dir);
+      else dessinerRover(ctx, rx, ry, echelle, { dir: this.rover.dir, pas: this.rover.pas }, false, this.penteSous(this.rover.x), this.degatsRover, this.nivRover);
     }
 
     // Câble de sécurité
@@ -1573,9 +1602,9 @@ class Exploration {
         passager: this.duo && this.duo.enRover ? this.duo.eq.profil : null };
       if (this.tonneau) {   // en tonneaux : elle tourne autour de son centre (≈ 0,8 m au-dessus des roues)
         ctx.save(); ctx.translate(sx, sy - 0.8 * echelle); ctx.rotate(this.tonneau.angle);
-        dessinerRover(ctx, 0, 0.8 * echelle, echelle, pr, true, 0, this.degatsRover);
+        dessinerRover(ctx, 0, 0.8 * echelle, echelle, pr, true, 0, this.degatsRover, this.nivRover);
         ctx.restore();
-      } else dessinerRover(ctx, sx, sy, echelle, pr, true, this.inclinaison || 0, this.degatsRover);
+      } else dessinerRover(ctx, sx, sy, echelle, pr, true, this.inclinaison || 0, this.degatsRover, this.nivRover);
       if (this.delorean) texteSurFond(ctx, `${fmt(Math.abs(p.vx) * 2.2369)} mph`, sx, sy - 3.2 * echelle, { police: '700 16px system-ui, sans-serif', couleur: Math.abs(p.vx) > 30 ? '#ff5252' : '#ffca28' });
     }
     else if (this.type === 'spationaute' && this.secours && (this.secours.phase === 'decollage' || this.dansSecours)) { /* à bord du module de secours */ }

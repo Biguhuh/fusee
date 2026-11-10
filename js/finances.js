@@ -30,6 +30,7 @@ const TARIFS = {
     extensionsStation: { nom: 'Extension de station', prix: 1 * MD_EUR, ref: 'estimé' },
     kitsBase: { nom: 'Kit de base', prix: 1 * MD_EUR, ref: 'estimé' },
     extensions: { nom: 'Extension de base', prix: 500 * M_EUR, ref: 'estimé' },
+    cargoRover: { nom: 'Atterrisseur cargo (astromobile)', prix: 400 * M_EUR, ref: 'atterrisseurs cargo de la Lune (CLPS) : 100 à 300 M$, plus gros ici (estimé)' },
     robots: { nom: 'Robot', prix: 500 * M_EUR, ref: 'rover de Curiosity, hors lancement (estimé)' },
     sondes: { nom: 'Sonde', prix: 300 * M_EUR, ref: 'petite sonde interplanétaire (estimé)' },
     drones: { nom: 'Drone', prix: 80 * M_EUR, ref: 'Ingenuity ≈ 85 M$' },
