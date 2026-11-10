@@ -965,9 +965,16 @@ function dessinerVol(ctx, vol, W, H, dtReel, warp) {
   }
   // Pas de tir : la tour de lancement, à côté de la fusée.
   if (vol.lancement && solide) {
-    const xt = 9;
-    const sx = W / 2 + (xt - vol.x) * echelle, sy = fuseeY + (vol.y - vol.sol(xt)) * echelle;
-    if (sx > -200 && sx < W + 200 && sy > -50) dessinerTour(ctx, sx, sy, echelle, vol.f.etages[0].hauteur);
+    // Placée sur la sphère, comme le sol (dessinerTerrain) : en altitude, elle reste sur la Terre qui s'arrondit,
+    // penchée comme elle, et passe derrière l'horizon.
+    const xt = 9, R = vol.astre.rayonKm * 1000, theta = (xt - vol.x) / R, r = R + vol.sol(xt);
+    const sx = W / 2 + r * Math.sin(theta) * echelle, sy = fuseeY + (vol.y - (r * Math.cos(theta) - R)) * echelle;
+    const thetaH = Math.acos(Math.min(1, R / (R + Math.max(0, vol.y - vol.sol(vol.x)) + 1)));
+    if (Math.abs(theta) <= thetaH + 1e-9 && sx > -200 && sx < W + 200 && sy > -50) {
+      ctx.save(); ctx.translate(sx, sy); ctx.rotate(theta);
+      dessinerTour(ctx, 0, 0, echelle, vol.f.etages[0].hauteur);
+      ctx.restore();
+    }
   }
   // Étage largué qui retombe
   // Échelle d'affichage de la fusée (agrandie quand la caméra est très reculée, pour qu'on la voie) :
