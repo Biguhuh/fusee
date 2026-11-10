@@ -60,9 +60,10 @@ function pointContour(g, s) {
 function ecartContour(g, a, b) { const P = g.perimetre, d = (((b - a) % P) + P) % P; return d > P / 2 ? d - P : d; }
 // Point du contour le plus proche de (x, y).
 function plusProcheContour(g, x, y) {
-  let best = { s: 0, d: Infinity };
-  for (let s = 0; s < g.perimetre; s += 0.25) { const p = pointContour(g, s), d = Math.hypot(p.x - x, p.y - y); if (d < best.d) best = { s, d }; }
-  return best;
+  if (!g.echantillons) { g.echantillons = []; for (let s = 0; s < g.perimetre; s += 0.25) { const p = pointContour(g, s); g.echantillons.push([s, p.x, p.y]); } }
+  let best = { s: 0, d2: Infinity };
+  for (const [s, px, py] of g.echantillons) { const d2 = (px - x) ** 2 + (py - y) ** 2; if (d2 < best.d2) best = { s, d2 }; }
+  return { s: best.s, d: Math.sqrt(best.d2) };
 }
 
 class SortieStation {
@@ -103,16 +104,17 @@ class SortieStation {
   }
   // Prochain lever ou coucher (s), en suivant l'orbite.
   prochainChangement() {
-    if (this.cacheChangement && Math.abs(this.v.t - this.cacheChangement.t) < 20) return this.cacheChangement.d;
-    const jour = this.orbite(this.v.t).hs > 0, T = (2 * Math.PI) / this.orbite(this.v.t).omega;
+    const cc = this.cacheChangement;
+    if (cc && (cc.d === null ? this.v.t - cc.t < 600 : this.v.t < cc.t + cc.d)) return cc.d === null ? null : cc.d - (this.v.t - cc.t);
+    const o = this.orbite(this.v.t), jour = o.hs > 0, T = (2 * Math.PI) / o.omega;
     let d = null;
-    for (let k = 1; k <= 240; k++) { const dt = (T * k) / 240; if ((this.orbite(this.v.t + dt).hs > 0) !== jour) { d = dt; break; } }
+    for (let k = 1; k <= 180; k++) { const dt = (T * k) / 180; if ((this.orbite(this.v.t + dt).hs > 0) !== jour) { d = dt; break; } }
     this.cacheChangement = { t: this.v.t, d, jour, T };
     return d;
   }
 
   // ---------- Commandes ----------
-  touche(code) {
+  touche(code, car = '') {
     if (this.fondu) return;
     const c = this.c;
     if (this.toucheMission(code)) return;   // R : travailler ; E : rattraper le sac à outils
@@ -125,8 +127,8 @@ class SortieStation {
     if (code === 'KeyE') return this.rattraper(c);
     if (code === 'KeyZ') { this.zoom = this.zoom === 1 ? 0.35 : 1; return; }
     const pal = [1, 2, 5, 10, 50], i = pal.indexOf(this.warp);
-    if (['Equal', 'NumpadAdd'].includes(code)) this.warp = pal[Math.min(pal.length - 1, i + 1)];
-    if (['Minus', 'NumpadSubtract'].includes(code)) this.warp = pal[Math.max(0, i - 1)];
+    if (car === '+' || ['Equal', 'NumpadAdd'].includes(code)) this.warp = pal[Math.min(pal.length - 1, i + 1)];
+    if (car === '-' || ['Minus', 'NumpadSubtract'].includes(code)) this.warp = pal[Math.max(0, i - 1)];
   }
   raccrocher(c) {
     if (c.libre) return this.dire('Rattrapez d’abord une main courante (E).');
@@ -138,7 +140,7 @@ class SortieStation {
     if (c.libre) return this.dire('Vous flottez déjà : E pour vous rattraper, J + flèches pour le SAFER.');
     const p = pointContour(this.g, c.s);
     c.libre = { x: p.x + p.nx * 0.9, y: p.y + p.ny * 0.9, vx: p.nx * EVA.poussee, vy: p.ny * EVA.poussee, rot: 0 };
-    this.dire(c.ancre === null ? `⚠ ${c.eq.nom} se lâche sans longe ! Le SAFER (J + flèches) est la seule façon de revenir.` : `${c.eq.nom} se lâche : la longe le retiendra à ${EVA.longe} m. E pour se rattraper.`);
+    this.dire(c.ancre === null ? `⚠ ${c.eq.nom} se lâche sans longe ! Le SAFER (J + flèches) est la seule façon de revenir.` : `${c.eq.nom} se lâche : la longe le retiendra à ${EVA.longe} m. T (maintenu) : se hisser le long de la longe ; E pour se rattraper.`);
   }
   rattraper(c) {
     if (!c.libre) return;
@@ -159,8 +161,13 @@ class SortieStation {
   step(dtReel) {
     if (this.fini) return;
     if (this.fondu) return;
-    const total = Math.min(dtReel, 0.1) * this.warp, n = Math.max(1, Math.ceil(total / 0.05));
+    const total = Math.min(dtReel, 0.1) * this.warp, n = Math.min(30, Math.max(1, Math.ceil(total / 0.05)));
+    this.o = this.orbite(this.v.t);   // une fois par image : c'est le calcul le plus lourd
     for (let i = 0; i < n && !this.fondu; i++) this.pas(total / n);
+    // Lever et coucher de l'étoile.
+    const jour = this.orbite(this.v.t).hs > 0;
+    if (this.jour !== undefined && jour !== this.jour) this.dire(jour ? `🌅 Lever ${de(etoileRacine())} : la lumière revient d’un coup, et la chaleur avec.` : `🌇 Coucher ${de(etoileRacine())} : nuit noire, lampes des casques allumées. Prochain lever dans ≈ ${fmtDuree(this.prochainChangement() || 0)}.`);
+    this.jour = jour;
   }
   pas(dt) {
     this.v.t += dt; this.duree += dt;
@@ -195,6 +202,13 @@ class SortieStation {
           const dv = Math.hypot(ax, ay) * dt;
           if (dv > 0) { L.vx += ax * dt; L.vy += ay * dt; c.safer = Math.max(0, c.safer - dv); this.jetSafer = { ax, ay, t: 0.1 }; }
         }
+        if (actif && touches.has('KeyT') && c.ancre !== null && !inconscient) {
+          // Main sur main le long de la longe, vers son point d'accroche : on ralentit en arrivant.
+          const a = pointContour(this.g, c.ancre), dx = a.x - L.x, dy = a.y - L.y, d = Math.hypot(dx, dy) || 1;
+          const vVoulue = Math.min(0.35, 0.08 + 0.06 * d), vx = (dx / d) * vVoulue, vy = (dy / d) * vVoulue;
+          L.vx += (vx - L.vx) * Math.min(1, dt * 1.5); L.vy += (vy - L.vy) * Math.min(1, dt * 1.5);
+          L.tire = Math.atan2(dx, -dy); c.pas += dt * 0.6;
+        } else L.tire = null;
         L.x += L.vx * dt; L.y += L.vy * dt; L.rot += 0.2 * dt;
         if (c.ancre !== null) {
           const a = pointContour(this.g, c.ancre), dx = L.x - a.x, dy = L.y - a.y, d = Math.hypot(dx, dy);
@@ -226,10 +240,6 @@ class SortieStation {
     // La personne pilotée perd connaissance : on prend la main sur l'autre.
     const o = this.autre();
     if (!this.c.physio.conscient && o && !o.mort && o.physio.conscient) { this.actif = 1 - this.actif; this.dire(`🆘 Vous pilotez ${this.c.eq.nom} : ramenez ${o.eq.nom} au sas, vite.`); }
-    // Lever et coucher de l'étoile.
-    const jour = this.orbite(this.v.t).hs > 0;
-    if (this.jour !== undefined && jour !== this.jour) this.dire(jour ? `🌅 Lever ${de(etoileRacine())} : la lumière revient d’un coup, et la chaleur avec.` : `🌇 Coucher ${de(etoileRacine())} : nuit noire, lampes des casques allumées. Prochain lever dans ≈ ${fmtDuree(this.prochainChangement() || 0)}.`);
-    this.jour = jour;
     this.majMission(dt);
   }
   mourir(c, cause) {
@@ -307,7 +317,7 @@ class SortieStation {
       ctx.fillStyle = `rgba(0,0,8,${0.55 * nuit})`; ctx.fillRect(0, 0, W, H * 0.9);
       for (const q of this.corps) {
         if (q.mort) continue;
-        const p = q.libre || pointContour(this.g, q.s), [qx, qy] = E(p.x + (q.libre ? 0 : p.nx * 1.5), p.y + (q.libre ? 0 : p.ny * 1.5));
+        const cp = this.corpsPose(q), [qx, qy] = E(cp.hx, cp.hy);
         const g = ctx.createRadialGradient(qx, qy, 0, qx, qy, 6 * k);
         g.addColorStop(0, `rgba(255,250,220,${0.35 * nuit})`); g.addColorStop(1, 'rgba(255,250,220,0)');
         ctx.fillStyle = g; ctx.beginPath(); ctx.arc(qx, qy, 6 * k, 0, Math.PI * 2); ctx.fill();
@@ -358,24 +368,48 @@ class SortieStation {
     g.contour.forEach(([x, y], i) => { const p = pointContour(g, g.long[i]); const [a, b] = E(x + p.nx * 0.25, y + p.ny * 0.25); if (i) ctx.lineTo(a, b); else ctx.moveTo(a, b); });
     ctx.stroke(); ctx.setLineDash([]);
   }
+  // Position de la taille (où la longe est accrochée) et de la tête, en mètres.
+  corpsPose(q) {
+    if (q.libre) return { tx: q.libre.x, ty: q.libre.y, hx: q.libre.x, hy: q.libre.y + 1 };
+    const p = pointContour(this.g, q.s);
+    // Mains sur la main courante, corps tendu vers l'extérieur : la taille est à ≈ 1 m de la paroi.
+    return { tx: p.x + p.nx * 1.15, ty: p.y + p.ny * 1.15, hx: p.x + p.nx * 0.5, hy: p.y + p.ny * 0.5, p };
+  }
   dessinerCorps(ctx, E, k, q, actif, lum) {
-    const g = this.g;
-    // Longe : de son point d'accroche au spationaute, un peu détendue.
+    const g = this.g, cp = this.corpsPose(q);
+    // Longe : du mousqueton à la taille, souple ; elle ondule doucement tant qu'elle n'est pas tendue.
     if (q.ancre !== null) {
-      const a = pointContour(g, q.ancre), p = q.libre || pointContour(g, q.s);
-      const [ax, ay] = E(a.x, a.y), [bx, by] = E(p.x + (q.libre ? 0 : p.nx * 0.9), p.y + (q.libre ? 0 : p.ny * 0.9));
-      ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 1.2;
-      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.quadraticCurveTo((ax + bx) / 2 + 8, (ay + by) / 2 + 10, bx, by); ctx.stroke();
-      ctx.fillStyle = '#ffd54f'; ctx.beginPath(); ctx.arc(ax, ay, 3, 0, Math.PI * 2); ctx.fill();
+      const a = pointContour(g, q.ancre), [ax, ay] = E(a.x + a.nx * 0.25, a.y + a.ny * 0.25), [bx, by] = E(cp.tx, cp.ty);
+      const dl = Math.hypot(bx - ax, by - ay) / k, mou = Math.max(0, EVA.longe - dl) / EVA.longe;
+      const nx = -(by - ay) / (dl * k || 1), ny = (bx - ax) / (dl * k || 1), t = performance.now() / 1300;
+      ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = Math.max(1.2, k * 0.05); ctx.beginPath();
+      for (let i = 0; i <= 24; i++) {
+        const u = i / 24, amp = (0.15 + 1.4 * mou) * k * Math.sin(Math.PI * u) * Math.min(1, dl / 3);
+        const o = amp * (Math.sin(Math.PI * u * 2 + t) * 0.6 + 0.4);
+        const x = ax + (bx - ax) * u + nx * o, y = ay + (by - ay) * u + ny * o;
+        if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+      }
+      ctx.stroke();
+      ctx.fillStyle = '#ffd54f'; ctx.beginPath(); ctx.arc(ax, ay, 3, 0, Math.PI * 2); ctx.fill();   // mousqueton
     }
     ctx.save();
-    if (q.libre) { const [x, y] = E(q.libre.x, q.libre.y); ctx.translate(x, y + 0.9 * k); ctx.rotate(q.libre.rot); }
-    else { const p = pointContour(g, q.s), [x, y] = E(p.x, p.y); ctx.translate(x, y); ctx.rotate(Math.atan2(p.nx, p.ny)); }
-    dessinerSpationaute(ctx, 0, 0, k, { dir: 1, pas: q.pas * 2, auSol: !q.libre, phares: lum < 0.5 }, false, q.eq.profil);
-    // SAFER en action
-    if (actif && q.libre && this.jetSafer && this.jetSafer.t > 0) { this.jetSafer.t -= 0.016; ctx.fillStyle = 'rgba(200,230,255,0.8)'; ctx.beginPath(); ctx.arc(-this.jetSafer.ax * k * 2, 1.2 * k + this.jetSafer.ay * k * 2, k * 0.3, 0, Math.PI * 2); ctx.fill(); }
+    const balance = Math.sin(q.pas * 4) * 0.12;   // main sur main : le corps se balance un peu
+    if (q.libre) {
+      const [x, y] = E(q.libre.x, q.libre.y);
+      ctx.translate(x, y);
+      // En se hissant, la tête vers la longe ; sinon, il tourne lentement sur lui-même.
+      ctx.rotate(q.libre.tire !== null && q.libre.tire !== undefined ? q.libre.tire + Math.PI + balance : q.libre.rot);
+      ctx.translate(0, 0.95 * k);
+    } else {
+      const p = cp.p, [x, y] = E(p.x + p.nx * 2.15, p.y + p.ny * 2.15);
+      // Tête et mains vers la station, jambes dans le vide, penché dans le sens où l'on avance.
+      ctx.translate(x, y); ctx.rotate(Math.atan2(p.nx, p.ny) + Math.PI + 0.25 * (q.sens || 1) + balance);
+    }
+    const tire = q.libre && q.libre.tire !== null && q.libre.tire !== undefined;
+    dessinerSpationaute(ctx, 0, 0, k, { dir: q.sens || 1, pas: 0, auSol: false, phares: lum < 0.5, pose: !q.libre || tire ? 'bras-hauts' : undefined }, false, q.eq.profil);
+    if (actif && q.libre && this.jetSafer && this.jetSafer.t > 0) { this.jetSafer.t -= 0.016; ctx.fillStyle = 'rgba(200,230,255,0.8)'; ctx.beginPath(); ctx.arc(-this.jetSafer.ax * k * 2, -1.2 * k + this.jetSafer.ay * k * 2, k * 0.3, 0, Math.PI * 2); ctx.fill(); }
     ctx.restore();
-    const p = q.libre || pointContour(g, q.s), [lx, ly] = E(p.x + (q.libre ? 0 : p.nx * 2.3), p.y + (q.libre ? 2.2 : p.ny * 2.3));
+    const [lx, ly] = E(cp.tx + (cp.p ? cp.p.nx * 1.6 : 0), cp.ty + (cp.p ? cp.p.ny * 1.6 : 1.4));
     texteSurFond(ctx, q.eq.nom, lx, ly, { police: '11px system-ui', couleur: actif ? '#ffffff' : '#b3e5fc' });
   }
   dessinerDanger(ctx, W, H) {
@@ -415,7 +449,7 @@ class SortieStation {
     const t = performance.now();
     this.messages = this.messages.filter((m) => m.fin > t);
     afficherMessages(ctx, this.messages.map((m) => m.texte), W, H - 60);
-    texteSurFond(ctx, '← → : mains courantes · R : travailler · L : raccrocher la longe · Espace : se lâcher · E : se rattraper · J + flèches : SAFER · Tab : changer · G : suis-moi · Z : zoom · Échap : rentrer au sas', W / 2, H - 12, { police: '11px system-ui' });
+    texteSurFond(ctx, '← → : main sur main · R : travailler · L : raccrocher la longe · Espace : se lâcher · T : se hisser sur la longe · E : se rattraper · J + flèches : SAFER · Tab : changer · G : suis-moi · Z : zoom · Échap : rentrer au sas', W / 2, H - 12, { police: '11px system-ui' });
   }
 }
 

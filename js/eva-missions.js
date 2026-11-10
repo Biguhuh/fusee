@@ -184,7 +184,7 @@ Object.assign(SortieStation.prototype, {
     for (const f of this.flocons || []) { f.t += dt; f.x += f.vx * dt; f.y += f.vy * dt; }
     if (this.flocons) this.flocons = this.flocons.filter((f) => f.t < 20).slice(-200);
     // Décontamination : au soleil, l'ammoniac s'évapore.
-    const auSoleil = this.orbite(this.v.t).hs > 0;
+    const auSoleil = (this.o || this.orbite(this.v.t)).hs > 0;   // orbite de l'image (eva.js)
     for (const c of this.corps) if (c.ammoniac !== undefined && c.ammoniac !== true && auSoleil) { c.ammoniac += dt; if (c.ammoniac >= 30 * 60) { c.ammoniac = true; this.dire(`☀ L’ammoniac s’est évaporé de la combinaison de ${c.eq.nom}.`); } }
     // Travail en cours.
     const t = this.tacheCourante();

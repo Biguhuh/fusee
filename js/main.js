@@ -1264,7 +1264,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyI') { Infos.ouvrirEncyclopedie(); return; }
   if (etat.ecran === 'scene') {
     // Scène jouable (sortie extravéhiculaire) : elle reçoit ses touches.
-    if (etat.scene && etat.scene.obj.touche) { e.preventDefault(); touches.add(e.code); touchesBreves.add(e.code); if (!e.repeat) etat.scene.obj.touche(e.code); return; }
+    if (etat.scene && etat.scene.obj.touche) { e.preventDefault(); touches.add(e.code); touchesBreves.add(e.code); if (!e.repeat) etat.scene.obj.touche(e.code, e.key); return; }
     if (['Enter', 'Space', 'Escape', 'NumpadEnter'].includes(e.code)) { e.preventDefault(); passerScene(); }
     else if (etat.scene && etat.scene.obj.touche) etat.scene.obj.touche(e);     // zoom de l'observation
     if (e.code === 'KeyP') etat.pause = !etat.pause;
