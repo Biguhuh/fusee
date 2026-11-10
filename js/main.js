@@ -1502,6 +1502,7 @@ function image(t) {
   } else if (etat.ecran === 'scene' && etat.scene) {
     const sc = etat.scene;
     if (!etat.pause) sc.obj.step(dt);
+    touchesBreves.clear();   // sinon ← et → appuyées une fois chacune s'annulent pour toujours
     sc.obj.dessiner(ctx, canvas.width, canvas.height);
     if (etat.pause && !Infos.estOuverte()) dessinerPause(ctx, canvas.width, canvas.height);
     if (sc.obj.fini) { etat.scene = null; sc.suite(); }
