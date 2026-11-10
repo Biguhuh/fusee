@@ -82,6 +82,7 @@ class SortieStation {
     this.dire(`🧑‍🚀 Sortie ${de(this.st)} : ${this.corps.map((c) => c.eq.nom).join(' et ')}, ${this.dose > 0.05 ? '⚠ rayonnement intense ici' : 'longes accrochées'}. ← → : avancer le long des mains courantes · L : raccrocher la longe · Espace : se lâcher · E : se rattraper · J + flèches : SAFER · Tab : changer · Échap : rentrer au sas.`);
     if (this.dose > 0.05) this.dire(`⚠ Rayonnement : ${fmtDose(this.dose)} en combinaison. Dose mortelle (${DOSE_MORTELLE} Sv) en ${fmtDuree(tempsAvantDoseMortelle(this.dose))}. Faites vite.`);
     this.initMission(mission);   // tâches de réparation (eva-missions.js)
+    this.initImprevus();         // eau dans le casque, combinaison gonflée, débris (eva-imprevus.js)
   }
   get c() { return this.corps[this.actif]; }
   autre() { return this.corps[1 - this.actif]; }
@@ -118,6 +119,7 @@ class SortieStation {
     if (this.fondu) return;
     const c = this.c;
     if (this.toucheMission(code)) return;   // R : travailler ; E : rattraper le sac à outils
+    if (this.toucheImprevus(code)) return;  // P : baisser la pression de la combinaison
     if (code === 'Escape') return this.rentrer();
     if (code === 'Tab') { this.actif = 1 - this.actif; return this.dire(`🔁 Vous pilotez ${this.c.eq.nom}.`); }
     if (code === 'KeyG') { const o = this.autre(); o.suit = !o.suit; return this.dire(o.suit ? `👣 ${o.eq.nom} vous suit.` : `✋ ${o.eq.nom} attend ici.`); }
@@ -153,6 +155,7 @@ class SortieStation {
     const loin = this.corps.filter((c) => !c.mort && (c.libre || Math.abs(ecartContour(this.g, c.s, 0.5)) > 5));
     const contamines = this.corps.filter((c) => !c.mort && typeof c.ammoniac === 'number');
     if (contamines.length) return this.dire(`❄ Pas encore : ${contamines.map((c) => `${c.eq.nom} (encore ${fmtDuree(30 * 60 - c.ammoniac)} au soleil)`).join(', ')}. L’ammoniac doit s’évaporer avant d’entrer dans le sas.`);
+    if (!loin.length && this.bloqueSas()) return;   // combinaison trop gonflée (eva-imprevus.js)
     if (loin.length) return this.dire(`Retournez au sas d’abord : ${loin.map((c) => c.eq.nom).join(' et ')} ${loin.length > 1 ? 'en sont' : 'en est'} loin. (← → le long des mains courantes ; l’écoutille est à gauche du gros module.)`);
     this.terminer();
   }
@@ -226,11 +229,11 @@ class SortieStation {
       }
       // Oxygène, cœur, rayonnement.
       const effort = c.libre ? 0.2 : veut ? 0.6 : 0.25;
-      c.reserve = Math.max(0, c.reserve - dt * (1 + 0.3 * effort));
+      c.reserve = Math.max(0, c.reserve - dt * (1 + 0.3 * effort) * (c.fuite || 1));   // combinaison percée : fuite
       const avant = c.physio.conscient;
-      majPhysio(c.physio, dt, { o2: c.reserve > 0, decomp: false, effort });
+      majPhysio(c.physio, dt, { o2: c.reserve > 0 && !(c.eau >= 1), decomp: false, effort });   // eau sur le nez : plus d'air
       if (avant && !c.physio.conscient) this.dire(`😵 ${majuscule(c.eq.nom)} a perdu connaissance (sang à ${fmt(c.physio.spo2)} %).`);
-      if (c.physio.mort) return this.mourir(c, 'plus d’oxygène');
+      if (c.physio.mort) return this.mourir(c, c.eau >= 1 ? 'noyé dans son casque' : 'plus d’oxygène');
       if (c.reserve < 30 * 60 && !c.alerteO2) { c.alerteO2 = true; this.dire(`⚠ ${majuscule(c.eq.nom)} : moins de 30 min d’oxygène. Rentrez au sas.`); }
       c.doseSv += (this.dose * dt) / 86400;
       const pc = (100 * c.doseSv) / DOSE_MORTELLE;
@@ -241,6 +244,7 @@ class SortieStation {
     const o = this.autre();
     if (!this.c.physio.conscient && o && !o.mort && o.physio.conscient) { this.actif = 1 - this.actif; this.dire(`🆘 Vous pilotez ${this.c.eq.nom} : ramenez ${o.eq.nom} au sas, vite.`); }
     this.majMission(dt);
+    this.majImprevus(dt);
   }
   mourir(c, cause) {
     if (this.fondu) return;
@@ -260,7 +264,7 @@ class SortieStation {
     for (const c of this.corps) if (c.doseSv) regDose(c.m, c.doseSv);
     for (const c of vivants) regDureeSortie(c.m, this.duree, this.a.id);
     const m = this.mission;
-    if (m) fin = `${m.finie ? `✅ ${m.p.nom} : réparé.` : `${m.p.icone} ${m.p.nom} : pas fini (${m.i}/${m.taches.length} tâches), à reprendre.`}${this.sac && this.sac.perdu ? ' Un sac à outils perdu.' : ''} ${fin}`.trim();
+    if (m) fin = `${m.finie ? (m.type === 'raccordement' ? '✅ Module raccordé.' : `✅ ${m.p.nom} : réparé.`) : `${m.p.icone} ${m.p.nom} : pas fini (${m.i}/${m.taches.length} tâches), à reprendre.`}${this.sac && this.sac.perdu ? ' Un sac à outils perdu.' : ''} ${fin}`.trim();
     Orbiteur.log(`🧑‍🚀 Sortie ${de(this.st)} : ${fmtDuree(this.duree)} dehors${vivants.length ? `, ${vivants.map((c) => c.eq.nom).join(' et ')}` : ''}. Dose : ${this.corps.map((c) => `${c.eq.nom} ${fmtDoseTotale(c.doseSv)}`).join(', ')}.${fin ? ' ' + fin : ''}`);
   }
 
@@ -311,6 +315,7 @@ class SortieStation {
     const E = (x, y) => [cx + x * k, cy - y * k];
     this.dessinerStation(ctx, E, k, lum);
     this.dessinerMission(ctx, E, k);
+    this.dessinerImprevus(ctx, E, k, W, H);
     for (const [i, q] of this.corps.entries()) if (!q.mort) this.dessinerCorps(ctx, E, k, q, i === this.actif, lum);
     // Nuit : un voile sombre (les lampes des casques restent)
     if (nuit > 0) {
@@ -428,6 +433,7 @@ class SortieStation {
     lignes.push(['Rayonnement', fmtDose(this.dose), couleurRisque(this.dose / 0.5)]);
     lignes.push(['Dehors depuis', fmtDuree(this.duree), '#fff']);
     lignes.push(...this.lignesMission());
+    lignes.push(...this.lignesImprevus());
     if (this.sac && !this.sac.attache) lignes.push(['🎒 Sac', this.sac.perdu ? 'perdu' : 'il s’éloigne !', '#ef5350']);
     for (const [i, q] of this.corps.entries()) {
       if (q.mort) continue;
@@ -449,7 +455,7 @@ class SortieStation {
     const t = performance.now();
     this.messages = this.messages.filter((m) => m.fin > t);
     afficherMessages(ctx, this.messages.map((m) => m.texte), W, H - 60);
-    texteSurFond(ctx, '← → : main sur main · R : travailler · L : raccrocher la longe · Espace : se lâcher · T : se hisser sur la longe · E : se rattraper · J + flèches : SAFER · Tab : changer · G : suis-moi · Z : zoom · Échap : rentrer au sas', W / 2, H - 12, { police: '11px system-ui' });
+    texteSurFond(ctx, '← → : main sur main · R : travailler · L : raccrocher la longe · Espace : se lâcher · T : se hisser sur la longe · E : se rattraper · J + flèches : SAFER · P : dégonfler la combinaison · Tab : changer · G : suis-moi · Z : zoom · Échap : rentrer au sas', W / 2, H - 12, { police: '11px system-ui' });
   }
 }
 
