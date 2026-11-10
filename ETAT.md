@@ -4,7 +4,7 @@ Dernière mise à jour : 10 novembre 2026 (nuit, après la reprise à 1 h 40)
 
 ## En une phrase
 
-Jeu web de simulation spatiale (vol, atterrissage, exploration, campagne dans le Système solaire et au-delà), jouable en ligne, en bêta test : `main` est publié en version 354 (sorties tenues par les mains, tour de Kourou) ; les cinq points du plan `docs/plan-stations-astromobile.md` (astromobile, stations module par module, imprévus des sorties) sont codés et testés par appels directs, sur des branches locales enchaînées, pas encore poussées.
+Jeu web de simulation spatiale (vol, atterrissage, exploration, campagne dans le Système solaire et au-delà), jouable en ligne, en bêta test : tout est fusionné dans `main` et publié (version 361, 10 novembre 2026), y compris les cinq points du plan `docs/plan-stations-astromobile.md` (astromobile, stations module par module, imprévus des sorties), testés par appels directs mais pas encore joués en vraie partie.
 
 ## Fait
 
@@ -93,13 +93,13 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 - Lanceur détruit (`explosion.js`) : effondrement puis grosse explosion.
 - Sorties depuis une station (`eva.js`, `eva-missions.js`), étapes 1 et 2 : à deux par le sas, mains courantes, longe, dérive et SAFER, jour et nuit réels, rayonnement du lieu ; pannes des stations et missions de réparation (batteries, panneau, ammoniac, détecteur), sac à outils, robot si le rayonnement est trop fort.
 - Sorties depuis une station plus réalistes (publié, v354) : tenu par les mains, jambes dans le vide ; longe souple accrochée à la taille ; T pour se hisser le long de la longe ; plus de blocage à ×50 ; − reconnu sur AZERTY. Tour de Kourou posée sur la Terre arrondie.
-- Astromobile (branches locales) : même tenue qu'à pied (scaphandre lourd, lampes la nuit), équipier assis à l'arrière ; laissée sur place et retrouvée à moins de 2 km (batterie, dégâts) ; choix à la descente : repliée (niveau ≤ 1, se déplie en 20 min à côté d'elle), par cargo depuis la station (niveau 2, ergols du stock, 400 M€), ou sans (`astromobile.js`).
-- Stations module par module (branche locale, Système solaire) : noyau lancé par Hercule ou par cargo (vrai trajet), ou depuis le kit d'une station ; chaque module s'amarre puis attend une sortie d'assemblage à deux, ou le robot (bras dès le niveau 3), deux fois plus lent ; kits de l'orbiteur déposés à l'amarrage (`modules-station.js`).
-- Sorties depuis une station, étape 3 (branche locale) : eau dans le casque, combinaison trop gonflée au sas (P), débris en approche avec manœuvre et éclats (`eva-imprevus.js`).
+- Astromobile : même tenue qu'à pied (scaphandre lourd, lampes la nuit), équipier assis à l'arrière ; laissée sur place et retrouvée à moins de 2 km (batterie, dégâts) ; choix à la descente : repliée (niveau ≤ 1, se déplie en 20 min à côté d'elle), par cargo depuis la station (niveau 2, ergols du stock, 400 M€), ou sans (`astromobile.js`).
+- Stations module par module (Système solaire) : noyau lancé par Hercule ou par cargo (vrai trajet), ou depuis le kit d'une station ; chaque module s'amarre puis attend une sortie d'assemblage à deux, ou le robot (bras dès le niveau 3), deux fois plus lent ; kits de l'orbiteur déposés à l'amarrage (`modules-station.js`).
+- Sorties depuis une station, étape 3 : eau dans le casque, combinaison trop gonflée au sas (P), débris en approche avec manœuvre et éclats (`eva-imprevus.js`).
 
 ## En cours
 
-- Branches locales enchaînées, non poussées : `astromobile-visuels` → `astromobile-sur-place` → `astromobile-cargo` → `stations-modules` → `eva-imprevus` (la dernière contient tout, version 361). À pousser et fusionner quand Edouard le dit.
+Rien.
 
 ## À faire, dans l'ordre
 
