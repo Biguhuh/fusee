@@ -1,10 +1,10 @@
 # État du projet
 
-Dernière mise à jour : 10 novembre 2026 (nuit, après la reprise à 1 h 40)
+Dernière mise à jour : 10 novembre 2026 (fin de session)
 
 ## En une phrase
 
-Jeu web de simulation spatiale (vol, atterrissage, exploration, campagne dans le Système solaire et au-delà), jouable en ligne, en bêta test : tout est fusionné dans `main` et publié (version 361, 10 novembre 2026), y compris les cinq points du plan `docs/plan-stations-astromobile.md` (astromobile, stations module par module, imprévus des sorties), testés par appels directs mais pas encore joués en vraie partie.
+Jeu web de simulation spatiale (vol, atterrissage, exploration, campagne dans le Système solaire et au-delà), jouable en ligne, en bêta test : tout est fusionné dans `main` et publié (version 363, 10 novembre 2026), y compris les cinq points du plan `docs/plan-stations-astromobile.md` (astromobile, stations module par module, imprévus des sorties), testés par appels directs mais pas encore joués en vraie partie.
 
 ## Fait
 
@@ -95,6 +95,7 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 - Sorties depuis une station plus réalistes (publié, v354) : tenu par les mains, jambes dans le vide ; longe souple accrochée à la taille ; T pour se hisser le long de la longe ; plus de blocage à ×50 ; − reconnu sur AZERTY. Tour de Kourou posée sur la Terre arrondie.
 - Astromobile : même tenue qu'à pied (scaphandre lourd, lampes la nuit), équipier assis à l'arrière ; laissée sur place et retrouvée à moins de 2 km (batterie, dégâts) ; choix à la descente : repliée (niveau ≤ 1, se déplie en 20 min à côté d'elle), par cargo depuis la station (niveau 2, ergols du stock, 400 M€), ou sans (`astromobile.js`).
 - Stations module par module (Système solaire) : noyau lancé par Hercule ou par cargo (vrai trajet), ou depuis le kit d'une station ; chaque module s'amarre puis attend une sortie d'assemblage à deux, ou le robot (bras dès le niveau 3), deux fois plus lent ; kits de l'orbiteur déposés à l'amarrage (`modules-station.js`).
+- Sorties depuis une station, corrections (v363) : corps le long de la coque, presque à plat, tête en avant ; caméra avec une marge (on voit avancer) ; image plus grande ; plus de blocage des flèches (appuis brefs jamais effacés pendant une scène).
 - Sorties depuis une station, étape 3 : eau dans le casque, combinaison trop gonflée au sas (P), débris en approche avec manœuvre et éclats (`eva-imprevus.js`).
 
 ## En cours
@@ -170,6 +171,8 @@ Rien.
 - L'outil `Write` refuse d'écraser un fichier pas encore lu : si la commande qui suit lance ce fichier, c'est l'ancienne version qui tourne (arrivé avec `publier.sh`). Lire le fichier avant de le réécrire.
 - `recevoir.py` attend le chemin de sortie en argument ; l'envoi depuis la page a échoué cette nuit. Plus simple : poser un canvas en `position:fixed` dans la page et faire une capture du volet.
 - `Orbiteur.log` plante si l'écran de l'orbiteur n'a pas été ouvert (journal absent) : en test, le remplacer par une fonction qui garde les messages.
+- Scènes jouables (`jouerScene`) : vider `touchesBreves` à chaque image, comme dans le vol et l'exploration ; sinon deux touches opposées appuyées une fois restent « tenues » pour toujours.
+- Une sortie qui « paraît figée » : vérifier d'abord la vitesse à l'écran (0,4 m/s à 18 px/m ≈ 7 px/s), et si une fenêtre `#modale` invisible n'avale pas les touches (`Infos.estOuverte()`).
 - Comparer avec `main` sans changer de branche : `git worktree add /tmp/fusee-main main`, serveur sur le port 8766, puis `git worktree remove --force /tmp/fusee-main`.
 
 ## Carte des fichiers importants
