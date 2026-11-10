@@ -164,6 +164,7 @@ class Exploration {
     this.appliquerDegatsRover();
     this.usureBatterieRover = vol.usureBatterieRover ?? (vR ? vR.usureBatterieRover : null) ?? 0;
     this.appliquerUsureBatterie();     // débridé : ce que le moteur peut donner
+    this.retrouverRover(vol, vR, options);
     this.roverBride = true;                                     // accélérateur bridé par la gravité locale
     this.warp = 1;
     // Robot : ses analyses attendent dans sa mémoire jusqu'au retour à sa base (module robot ou fusée).
@@ -509,6 +510,37 @@ class Exploration {
   }
 
 
+
+  // Astromobile laissée sur place : à la sortie suivante du même atterrissage, elle est où on l'a garée ;
+  // en campagne, on retrouve aussi celle d'une mission précédente si l'on se pose à moins de 2 km (comme Apollo).
+  retrouverRover(vol, vR, options) {
+    if (!this.rover || options.essai) return;
+    let r = vol.roverEtat || null;
+    if (!r && vR && vR.astromobiles) {
+      const proches = vR.astromobiles.filter((m) => m.astre === this.astre.id && distSol(this.astre, m.x, this.xFusee) <= DISTANCE_REEMPLOI_ROVER);
+      proches.sort((m, n) => distSol(this.astre, m.x, this.xFusee) - distSol(this.astre, n.x, this.xFusee));
+      r = proches[0] || null;
+      if (r) {
+        const d = distSol(this.astre, r.x, this.xFusee);
+        this.dire(`🚙 L’astromobile d’une mission précédente est là, à ${d < 1000 ? fmt(d) + ' m' : fmt(d / 1000, 1) + ' km'} du module : batterie ${fmtDuree(r.batterie)}${r.degats > 0 ? `, abîmée à ${fmt(r.degats)} %` : ''}.`);
+      }
+    }
+    if (!r) return;
+    if (vR && vR.astromobiles) vR.astromobiles = vR.astromobiles.filter((m) => m !== r && !(m.astre === r.astre && m.x === r.x));
+    this.rover.x = r.x; this.rover.dir = r.dir || 1;
+    this.degatsRover = r.degats ?? this.degatsRover;
+    this.usureBatterieRover = r.usure ?? this.usureBatterieRover;
+    this.appliquerDegatsRover();
+    this.autonomieRover = this.autonomieRoverSain; this.batterieRover = this.autonomieRover;
+    this.appliquerUsureBatterie();
+    this.batterieRover = Math.min(this.autonomieRover, r.batterie ?? this.autonomieRover);
+  }
+  laisserRover() {
+    const r = { astre: this.astre.id, x: this.rover.x, dir: this.rover.dir, batterie: this.batterieRover, degats: this.degatsRover, usure: this.usureBatterieRover };
+    this.vol.roverEtat = r;
+    const vR = etat.enVoyage && etat.voyage;
+    if (vR && this.vol.voyage) (vR.astromobiles = vR.astromobiles || []).push(r);
+  }
 
   // Monter dans le rover ou en descendre (touche V).
   basculerRover() {
@@ -891,6 +923,7 @@ class Exploration {
 
   terminer(issue, texte) {
     if (this.duo && !this.fin) this.finDuo(issue);
+    if (this.rover && !this.essai) this.laisserRover();
     if (this.rover && !this.essai) {
       this.vol.degatsRover = this.degatsRover;
       this.vol.usureBatterieRover = this.usureBatterieRover;
@@ -1847,6 +1880,9 @@ function dessinerRover(ctx, x, y, s, p, aBord, inclinaison = 0, degats = 0, niv 
 }
 
 // dessinerSpationaute : voir equipage.js (tenue, carnation, exosquelette).
+
+// Distance (m) en deçà de laquelle on retrouve une astromobile laissée lors d'une mission précédente.
+const DISTANCE_REEMPLOI_ROVER = 2000;
 
 // Bar de l'Espace : nombre de bières que le barman accepte de servir.
 const BIERES_MAX = 3;
