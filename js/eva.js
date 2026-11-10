@@ -15,7 +15,7 @@ const EVA = {
   accSafer: 0.3,           // m/s²
   poussee: 0.4,            // m/s quand on se lâche
   prepa: 100 * 60,         // préparation dans le sas (respirer de l'oxygène pur, protocole ISLE ≈ 100 min)
-  echelle: 18,             // px par mètre
+  echelle: 26,             // px par mètre
 };
 
 // Dose en sortie, autour de l'astre (Sv/jour) : orbite terrestre basse protégée par le champ magnétique ; ailleurs,
@@ -311,7 +311,12 @@ class SortieStation {
     }
     // Station et spationautes (caméra sur celui qu'on pilote)
     const c = this.c, pc = c.libre || pointContour(this.g, c.s);
-    const cx = W / 2 - pc.x * k, cy = H * 0.45 + pc.y * k;
+    // Caméra : elle ne suit le spationaute qu'au-delà d'une marge, pour qu'on le voie avancer.
+    const mx = Math.min(6, (W * 0.22) / k), my = Math.min(3, (H * 0.15) / k);
+    if (!this.cam || this.camActif !== this.actif) { this.cam = { x: pc.x, y: pc.y }; this.camActif = this.actif; }
+    this.cam.x = Math.max(pc.x - mx, Math.min(pc.x + mx, this.cam.x));
+    this.cam.y = Math.max(pc.y - my, Math.min(pc.y + my, this.cam.y));
+    const cx = W / 2 - this.cam.x * k, cy = H * 0.45 + this.cam.y * k;
     const E = (x, y) => [cx + x * k, cy - y * k];
     this.dessinerStation(ctx, E, k, lum);
     this.dessinerMission(ctx, E, k);
@@ -376,9 +381,17 @@ class SortieStation {
   // Position de la taille (où la longe est accrochée) et de la tête, en mètres.
   corpsPose(q) {
     if (q.libre) return { tx: q.libre.x, ty: q.libre.y, hx: q.libre.x, hy: q.libre.y + 1 };
-    const p = pointContour(this.g, q.s);
-    // Mains sur la main courante, corps tendu vers l'extérieur : la taille est à ≈ 1 m de la paroi.
-    return { tx: p.x + p.nx * 1.15, ty: p.y + p.ny * 1.15, hx: p.x + p.nx * 0.5, hy: p.y + p.ny * 0.5, p };
+    const p = pointContour(this.g, q.s), f = this.poseParoi(q, p);
+    return { tx: f.fx + f.ux * 0.8, ty: f.fy + f.uy * 0.8, hx: f.fx + f.ux * 1.6, hy: f.fy + f.uy * 1.6, p, f };
+  }
+  // Comme sur l'ISS : on avance main sur main, le corps presque parallèle à la coque, tête en avant dans le sens
+  // de la marche ; les pieds s'en écartent un peu (≈ 20°). f : pieds (fx, fy) et axe pieds → tête (ux, uy).
+  poseParoi(q, p) {
+    const sens = q.sens || 1, tx = p.ny * sens, ty = -p.nx * sens;   // tangente, vers l'avant
+    const a = 0.35 + Math.sin(q.pas * 4) * 0.06;
+    const ux = tx * Math.cos(a) - p.nx * Math.sin(a), uy = ty * Math.cos(a) - p.ny * Math.sin(a);
+    const mx = p.x + p.nx * 0.3 + tx * 0.2, my = p.y + p.ny * 0.3 + ty * 0.2;   // mains sur la main courante
+    return { fx: mx - ux * 2.05, fy: my - uy * 2.05, ux, uy };
   }
   dessinerCorps(ctx, E, k, q, actif, lum) {
     const g = this.g, cp = this.corpsPose(q);
@@ -405,13 +418,16 @@ class SortieStation {
       // En se hissant, la tête vers la longe ; sinon, il tourne lentement sur lui-même.
       ctx.rotate(q.libre.tire !== null && q.libre.tire !== undefined ? q.libre.tire + Math.PI + balance : q.libre.rot);
       ctx.translate(0, 0.95 * k);
-    } else {
-      const p = cp.p, [x, y] = E(p.x + p.nx * 2.15, p.y + p.ny * 2.15);
-      // Tête et mains vers la station, jambes dans le vide, penché dans le sens où l'on avance.
-      ctx.translate(x, y); ctx.rotate(Math.atan2(p.nx, p.ny) + Math.PI + 0.25 * (q.sens || 1) + balance);
+    }
+    let dir = q.sens || 1;
+    if (!q.libre) {
+      // Le long de la paroi : pieds en arrière, tête et mains vers l'avant, ventre tourné vers la coque.
+      const f = cp.f, p = cp.p, [x, y] = E(f.fx, f.fy), th = Math.atan2(f.ux, f.uy);
+      ctx.translate(x, y); ctx.rotate(th);
+      dir = Math.cos(th) * -p.nx + Math.sin(th) * p.ny >= 0 ? 1 : -1;
     }
     const tire = q.libre && q.libre.tire !== null && q.libre.tire !== undefined;
-    dessinerSpationaute(ctx, 0, 0, k, { dir: q.sens || 1, pas: 0, auSol: false, phares: lum < 0.5, pose: !q.libre || tire ? 'bras-hauts' : undefined }, false, q.eq.profil);
+    dessinerSpationaute(ctx, 0, 0, k, { dir, pas: 0, auSol: false, phares: lum < 0.5, pose: !q.libre || tire ? 'bras-hauts' : undefined }, false, q.eq.profil);
     if (actif && q.libre && this.jetSafer && this.jetSafer.t > 0) { this.jetSafer.t -= 0.016; ctx.fillStyle = 'rgba(200,230,255,0.8)'; ctx.beginPath(); ctx.arc(-this.jetSafer.ax * k * 2, -1.2 * k + this.jetSafer.ay * k * 2, k * 0.3, 0, Math.PI * 2); ctx.fill(); }
     ctx.restore();
     const [lx, ly] = E(cp.tx + (cp.p ? cp.p.nx * 1.6 : 0), cp.ty + (cp.p ? cp.p.ny * 1.6 : 1.4));
