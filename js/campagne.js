@@ -353,7 +353,7 @@ function extensionsUtiles(v, st, cle) {
   const enRoute = (v.cargos || []).filter((c) => c.dest === st.id).reduce((s, c) => s + ((c.contenu || {})[cle] || 0), 0);
   const enChantier = (st.chantiers || []).filter((c) => c.cle === cle).length;
   const prevu = (st.stock[cle] || 0) + enRoute + enChantier;
-  if (cle === 'extensionsStation') return { reste: Math.max(0, 5 - (st.niveau || 1) - (st.agrandissement ? 1 : 0) - prevu), niveau: st.niveau || 1, prevu };
+  if (cle === 'extensionsStation') return { reste: Math.max(0, 5 - (st.niveau || 1) - (st.agrandissement || st.module ? 1 : 0) - prevu), niveau: st.niveau || 1, prevu };
   const b = (v.bases || []).find((x) => x.astre === st.centre);
   const niveau = b ? b.niveau || 1 : 1;
   return { reste: Math.max(0, 5 - niveau - (b && b.descente ? 1 : 0) - prevu), niveau, prevu, base: !!b };

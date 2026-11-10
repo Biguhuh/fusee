@@ -69,7 +69,7 @@ const Commande = {
       return `<li><b>${cg.nom}</b> — ${decrireContenu(cg.contenu)} · depuis ${cg.origine ? le(cg.origine) : '?'} · ${ta ? (ta > v.t ? `arrive dans ${fmtDuree(ta - v.t)}` : 'arrive bientôt') : 'arrivée inconnue'}</li>`;
     };
     c.innerHTML = `<p>Un cargo part de la Terre (lancement payé) ou d’une station (avec ce qu’elle a en stock), sur sa propre trajectoire. Dans le Système solaire, chaque station reçoit aussi un ravitaillement courant automatique, selon ses besoins.</p>
-      ${v.stations.length ? `<div class="actions" style="justify-content:flex-start"><button id="cmd-ravito" class="principal">📦 Préparer un ravito</button>${v.stations.map((s) => `<button data-rav="${s.id}">→ ${s.nom}</button>`).join('')}</div>` : '<p class="encart">Aucune station : construisez-en une avec l’orbiteur (un kit de station) pour pouvoir la ravitailler.</p>'}
+      ${v.stations.length ? `<div class="actions" style="justify-content:flex-start"><button id="cmd-ravito" class="principal">📦 Préparer un ravito</button>${v.stations.map((s) => `<button data-rav="${s.id}">→ ${s.nom}</button>`).join('')}</div>` : `<p class="encart">Aucune station : ${stationsParModules() ? 'lancez d’abord un noyau (onglet Lancements)' : 'construisez-en une avec l’orbiteur (un kit de station)'} pour pouvoir la ravitailler.</p>`}
       <h3>En route</h3>${cargos.length ? `<ul class="sondes">${cargos.map(ligne).join('')}</ul>` : '<p class="doux">Aucun cargo en route.</p>'}
       ${htmlRavitoCourant(v)}`;
     c.querySelectorAll('[data-auto]').forEach((x) => { x.onchange = () => { const s = v.stations.find((y) => y.id === x.dataset.auto); if (s) s.ravitoAuto = x.checked; sauver(etat); this.afficher(); }; });
@@ -86,6 +86,7 @@ const Commande = {
       const chantiers = (st.chantiers || []).map((ch) => `<li>🔧 ${nomChantier(ch.cle)}, prêt le ${fmtDate(ch.fin)} (dans ${fmtDuree(ch.fin - v.t)})</li>`).join('');
       return `<article class="encart"><h3>🛰 ${st.nom} <span class="doux">— ${enOrbite(a)}, niveau ${st.niveau || 1}${st.agrandissement ? ` (agrandissement : prêt le ${fmtDate(st.agrandissement.fin, false)})` : ''}</span></h3>
         <p class="doux">${niveauStation(st).apport}.</p>
+        ${st.module ? `<p class="encart">🔌 ${nomModule(st.module.niveau)} amarré, à raccorder (niveau ${st.module.niveau}) : sortie d’assemblage à deux, orbiteur amarré à la station (bouton « Sortie »)${(v.robots || 0) + (st.stock.robots || 0) > 0 || brasStation(st) ? `, ou <button data-robot-module="${st.id}">🤖 Confier ${brasStation(st) ? 'au bras de la station' : 'au robot'}</button> (deux fois plus lent)` : ', ou un robot (aucun à bord ni à la station)'}.</p>` : ''}
         ${pannesDe(st).length ? `<p class="encart">🔧 En panne : ${texteePannes(st)}. Atelier ${fmt(100 * (1 - facteurPannes(st)))} % plus lent. À réparer en sortie extravéhiculaire (orbiteur amarré à la station).</p>` : ''}
         <dl>${Object.keys(NOMS_STOCK).filter((cle) => (k[cle] || 0) > 0).map((cle) => `<dt>${NOMS_STOCK[cle]}</dt><dd>${fmtStock(cle, k[cle])} <span class="doux">/ ${fmtStock(cle, capaciteStation(st, cle))}</span></dd>`).join('') || '<dt>Stock</dt><dd>vide</dd>'}
           <dt>Déchets</dt><dd>${fmtKg(st.dechets || 0)} <span class="doux">/ ${fmtKg(capaciteDechetsStation(st))}</span></dd></dl>
@@ -107,6 +108,7 @@ const Commande = {
       <h3>🏠 Bases</h3>${v.bases.length ? `<ul class="sondes">${v.bases.map(base).join('')}</ul>` : '<p class="doux">Aucune base.</p>'}`;
     c.querySelectorAll('[data-fab]').forEach((b) => { b.onclick = () => { const [id, cle] = b.dataset.fab.split('|'); Orbiteur.fabriquer(id, cle); this.afficher(); }; });
     c.querySelectorAll('[data-extension]').forEach((b) => { b.onclick = () => { Orbiteur.envoyerExtension(Number(b.dataset.extension)); this.afficher(); }; });
+    c.querySelectorAll('[data-robot-module]').forEach((b) => { b.onclick = () => { const st = v.stations.find((x) => x.id === b.dataset.robotModule); if (st) reparerParRobot(v, st, 'raccordement'); this.afficher(); }; });
   },
 
   onglet_rd(v, c) {
@@ -129,6 +131,16 @@ const Commande = {
       <ul class="sondes">${lanceurs}</ul>
       ${sansExpedition ? '<div class="actions" style="justify-content:flex-start"><button id="cmd-pas-de-tir" class="principal">👥 Composer l’équipage, puis le pas de tir</button></div>'
         : `<p class="encart">${v.orb ? `Une expédition est en cours (vaisseau ${nomVaisseau(v)}). Le pas de tir s’ouvrira après son retour sur Terre. D’ici là, les recrues partent avec « Envoyer des spationautes » (onglet Équipage).` : 'Pas de pas de tir ici : il n’existe que sur Terre.'}</p>`}`;
+    if (stationsParModules() && !v.fin) {
+      const liste = astresPourNoyau(v), enRoute = (v.cargos || []).filter((x) => x.noyau);
+      c.insertAdjacentHTML('beforeend', `<h3>🛰 Noyaux de station</h3>
+        <p>Une station naît d’un noyau lancé exprès (comme Zarya pour l’ISS ou Tianhe pour Tiangong), puis grandit d’un module par niveau. Autour de la Terre, Hercule le met en orbite ; ailleurs, il fait le vrai trajet.</p>
+        <div class="actions" style="justify-content:flex-start"><select id="cmd-noyau-astre">${liste.map((a) => `<option value="${a.id}">${majuscule(le(a))}</option>`).join('')}</select>
+        <button id="cmd-noyau" class="principal" ${liste.length ? '' : 'disabled'}>🚀 Lancer un noyau de station</button></div>
+        ${enRoute.length ? `<ul class="sondes">${enRoute.map((x) => `<li>${x.nom} : ${x.tArrivee ? `en orbite dans ${fmtDuree(Math.max(0, x.tArrivee - v.t))}` : 'en route'}</li>`).join('')}</ul>` : ''}`);
+      const bn = $('cmd-noyau');
+      if (bn) bn.onclick = () => ouvrirLancementNoyau(v, $('cmd-noyau-astre').value, () => this.afficher());
+    }
     const b = $('cmd-pas-de-tir');
     if (b) b.onclick = () => composerApresAccueil();
   },

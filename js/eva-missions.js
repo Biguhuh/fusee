@@ -51,7 +51,7 @@ function mettreAJourPannes(v, log) {
     if (!st.prochainePanne) { st.prochainePanne = v.t + (120 + Math.random() * 180) * JOUR; continue; }
     if (v.t < st.prochainePanne) continue;
     st.prochainePanne = v.t + (120 + Math.random() * 180) * JOUR;
-    const libres = Object.entries(PANNES_STATION).filter(([k, p]) => !pannesDe(st).some((x) => x.type === k) && (st.niveau || 1) >= (p.niveau || 1));
+    const libres = Object.entries(PANNES_STATION).filter(([k, p]) => !p.assemblage && !pannesDe(st).some((x) => x.type === k) && (st.niveau || 1) >= (p.niveau || 1));
     if (!libres.length) continue;
     const [k, p] = libres[Math.floor(Math.random() * libres.length)];
     (st.pannes = st.pannes || []).push({ type: k, t: v.t });
@@ -73,19 +73,22 @@ function lancerSortieStation(v, st) {
   const l = candidatsSortie(v, st).sort((a, b) => (b.principal ? 1 : 0) - (a.principal ? 1 : 0));
   if (l.length < 2) return Orbiteur.log('🧑‍🚀 Une sortie se fait à deux : il faut deux personnes valides, à bord ou à la station.');
   const a = ASTRES_PAR_ID[st.centre], dose = doseSortieOrbite(a), m = $('modale');
-  const robots = (v.robots || 0) + ((st.stock && st.stock.robots) || 0);
+  const robotsStock = (v.robots || 0) + ((st.stock && st.stock.robots) || 0);
+  const robotsPour = (type) => robotsStock + (type === 'raccordement' && brasStation(st) ? 1 : 0);   // le bras de la station
+  const missions = [...pannesDe(st), ...(st.module ? [{ type: 'raccordement' }] : [])];
   const dangereux = (type) => dose * ((dureeMission(type) * 1.5) / 86400) > 0.1 * DOSE_MORTELLE || dose > 0.05;
   const carte = (x) => {
-    const p = PANNES_STATION[x.type], d = dureeMission(x.type), risque = dangereux(x.type);
-    return `<article class="encart"><h3>${p.icone} ${p.nom}</h3><p class="doux">${p.effet}. ${p.ref}</p>
+    const p = PANNES_STATION[x.type], d = dureeMission(x.type), risque = dangereux(x.type), robots = robotsPour(x.type);
+    const titre = x.type === 'raccordement' ? `${p.icone} Raccorder : ${nomModule(st.module.niveau)}` : `${p.icone} ${p.nom}`;
+    return `<article class="encart"><h3>${titre}</h3><p class="doux">${p.effet}. ${p.ref}</p>
       <ol>${p.taches.map((t) => `<li>${t.nom} · ${fmtDuree(t.duree)}${t.deux ? ' · à deux' : ''}${t.outil ? ' · outils' : ''}</li>`).join('')}</ol>
       <p class="doux">Travail : ≈ ${fmtDuree(d)}, plus les déplacements. Dose prévue : ≈ ${fmtDoseTotale((dose * d * 1.5) / 86400)} chacun${risque ? ' ⚠ trop pour des humains' : ''}.</p>
-      <div class="actions" style="justify-content:flex-start">${risque ? '' : `<button data-mission="${x.type}" class="principal">🧑‍🚀 Sortir réparer</button>`}
+      <div class="actions" style="justify-content:flex-start">${risque ? '' : `<button data-mission="${x.type}" class="principal">🧑‍🚀 ${x.type === 'raccordement' ? 'Sortie d’assemblage' : 'Sortir réparer'}</button>`}
         ${risque || robots ? `<button data-robot="${x.type}" ${robots ? '' : 'disabled title="Aucun robot à bord ni à la station"'}>🤖 Confier au robot${robots ? '' : ' (aucun disponible)'}</button>` : ''}</div></article>`;
   };
   m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>🧑‍🚀 Sortie ${de(st)}</h2>
     <p>${l[0].principal ? majuscule(nomSpatio()) : l[0].nom} et ${l[1].principal ? nomSpatio() : l[1].nom} sortent par le sas. Rayonnement dehors : ${fmtDose(dose)}${dose > 0.05 ? ' : trop fort pour une longue sortie' : ''}.</p></div><button class="fermer">✕</button></header>
-    ${pannesDe(st).length ? pannesDe(st).map(carte).join('') : '<p class="doux">Aucune panne : la station tourne bien.</p>'}
+    ${missions.length ? missions.map(carte).join('') : '<p class="doux">Aucune panne : la station tourne bien.</p>'}
     <div class="actions"><button id="eva-inspection">🚶 Sortie d’inspection, sans tâche</button></div></div>`;
   m.classList.remove('cache');
   m.querySelector('.fermer').onclick = () => Infos.fermer();
@@ -105,10 +108,19 @@ function lancerSortieStation(v, st) {
 // rayonnement de plus de 1 Sv par jour, son électronique ne survit pas au travail.
 function reparerParRobot(v, st, type) {
   const p = PANNES_STATION[type], a = ASTRES_PAR_ID[st.centre], dose = doseSortieOrbite(a), duree = dureeMission(type) * 2;
+  const bras = type === 'raccordement' && brasStation(st);
   v.t += duree;
+  if (type === 'raccordement') {
+    const n = st.module ? st.module.niveau : (st.niveau || 1);
+    raccorderModule(v, st, (t) => Orbiteur.log(t));
+    Orbiteur.log(`🤖 Raccordé par ${bras ? 'le bras de la station' : 'un robot'}, piloté depuis l’intérieur, en ${fmtDuree(duree)} : deux fois plus lent qu’une sortie (${nomModule(n)}).`);
+    Orbiteur.mettreAJourLogistique(); sauver(etat);
+    if ($('nav-date')) Orbiteur.majHud(true);
+    return;
+  }
   st.pannes = pannesDe(st).filter((x) => x.type !== type);
   let perdu = '';
-  if (dose > 1) {
+  if (dose > 1 && !bras) {
     if (st.stock && st.stock.robots > 0) st.stock.robots--; else v.robots = Math.max(0, (v.robots || 0) - 1);
     perdu = ` Le rayonnement (${fmtDose(dose)}) a grillé son électronique : le robot est perdu.`;
   }
@@ -197,6 +209,11 @@ Object.assign(SortieStation.prototype, {
     m.i++;
     if (m.i >= m.taches.length) {
       m.finie = true;
+      if (m.type === 'raccordement') {
+        const n = this.st.module ? this.st.module.niveau : 0;
+        raccorderModule(this.v, this.st, (t) => Orbiteur.log(t));
+        return this.dire(`✅ ${nomModule(n)} raccordé : la station passe au niveau ${this.st.niveau}. Rentrez au sas (Échap).`);
+      }
       this.st.pannes = pannesDe(this.st).filter((x) => x.type !== m.type);
       this.dire(`✅ ${m.p.icone} ${m.p.nom} : réparé ! L’atelier ${de(this.st)} retrouve sa vitesse. Rentrez au sas (Échap).`);
     } else this.dire(`✅ ${t.nom} : fait. Ensuite : ${m.taches[m.i].nom}.`);

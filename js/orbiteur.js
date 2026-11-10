@@ -85,7 +85,7 @@ const Orbiteur = {
     v.amarre = station ? station.id : null;   // la nouvelle expédition part amarrée à la station terrestre
     Object.assign(v, {
       carburant: ORBITEUR.carburantMax, ergolsAtt: ORBITEUR.ergolsAtt, sondes: ORBITEUR.sondes,
-      kits: ORBITEUR.kits + (station ? 0 : 1), kitsBase: ORBITEUR.kitsBase, robots: ORBITEUR.robots, drones: ORBITEUR.drones,
+      kits: stationsParModules() ? 0 : ORBITEUR.kits + (station ? 0 : 1), kitsBase: ORBITEUR.kitsBase, robots: ORBITEUR.robots, drones: ORBITEUR.drones,
       atterrisseurs: ORBITEUR.atterrisseurs, echantillonsABord: {}, cible: null, manette: 0,
       vivres: vivresMax(v), eau: eauMax(v), tVivres: v.t, dechets: 0, tDechets: v.t,   // expédition neuve : vivres et eau au plein
     });
@@ -929,6 +929,7 @@ const Orbiteur = {
   // Cargo arrivé : son contenu rejoint le stock de la station.
   livrerRavito(c) {
     if (c.passagers) return arriveeTransfertEquipage(this.v, c, (t) => this.log(t));   // vaisseau de transfert (transferts.js)
+    if (c.noyau) return creerStationNoyau(this.v, c, (t) => this.log(t));   // noyau de station (modules-station.js)
     const st = this.v.stations.find((s) => s.id === c.dest);
     if (!st) return this.log(`${c.nom} : station introuvable, cargo perdu.`);
     ajouterAuStock(st, c.contenu, c.origines);
@@ -970,7 +971,7 @@ const Orbiteur = {
   // La station a-t-elle encore quelque chose à donner à l'orbiteur ?
   stockAPrendre(s) {
     const v = this.v, k = s.stock;
-    const max = { carburant: capOrbiteur(this.v, 'carburantMax'), ergols: capOrbiteur(this.v, 'ergolsAtt'), sondes: capOrbiteur(this.v, 'sondes'), kits: capOrbiteur(this.v, 'kits') + 1, kitsBase: 2, robots: capOrbiteur(this.v, 'robots'), drones: capOrbiteur(this.v, 'drones'), atterrisseurs: capOrbiteur(this.v, 'atterrisseurs'), propulseurs: 2, vivres: vivresMax(v), eau: eauMax(v) };
+    const max = { carburant: capOrbiteur(this.v, 'carburantMax'), ergols: capOrbiteur(this.v, 'ergolsAtt'), sondes: capOrbiteur(this.v, 'sondes'), kits: stationsParModules() ? 0 : capOrbiteur(this.v, 'kits') + 1, kitsBase: 2, robots: capOrbiteur(this.v, 'robots'), drones: capOrbiteur(this.v, 'drones'), atterrisseurs: capOrbiteur(this.v, 'atterrisseurs'), propulseurs: 2, vivres: vivresMax(v), eau: eauMax(v) };
     return Object.entries(max).some(([c, m]) => (k[c] || 0) > 0 && (v[CHAMP_ORBITEUR[c] || c] || 0) < m - (c === 'carburant' || c === 'ergols' ? 1 : 0));
   },
   orbiteFermee() {
@@ -980,6 +981,7 @@ const Orbiteur = {
   },
   construireStation() {
     const v = this.v, c = ASTRES_PAR_ID[v.orb.centre];
+    if (stationsParModules()) return ouvrirLancementNoyau(v, c.id, () => this.majHud(true));   // Système solaire : un noyau lancé exprès
     if (v.sansEquipage) return this.log('📡 Plus personne à bord pour assembler une station.');
     if (stationSur(v, c.id)) return this.log(`Station déjà installée ${enOrbite(c)} : une seule station par astre.`);
     if (v.kits <= 0) return this.log('Plus de kit de station à bord (la station terrestre en reçoit de la Terre).');
@@ -1034,7 +1036,7 @@ const Orbiteur = {
       }
       // Ravitaillement courant depuis la Terre : seulement dans le Système solaire.
       // Extension de station en stock : l'assemblage démarre tout seul (plus besoin de cliquer « Agrandir »).
-      if (!s.agrandissement && (s.niveau || 1) < 5 && (s.stock.extensionsStation || 0) > 0) this.agrandirStation(s.id);
+      if (!s.agrandissement && !s.module && (s.niveau || 1) < 5 && (s.stock.extensionsStation || 0) > 0) this.agrandirStation(s.id);
       if (!ressourcesIllimitees()) continue;
       if (!s.prochainCargo) s.prochainCargo = v.t + intervalleRavito(s);
       let n = 0, livre = null;
@@ -1094,7 +1096,7 @@ const Orbiteur = {
     remplir('carburant', capOrbiteur(this.v, 'carburantMax'), 'de carburant', true);
     remplir('ergolsAtt', capOrbiteur(this.v, 'ergolsAtt'), 'd’ergols', true);
     remplir('sondes', capOrbiteur(this.v, 'sondes'), 'sondes');
-    remplir('kits', capOrbiteur(this.v, 'kits'), 'kits de station');
+    if (!stationsParModules()) remplir('kits', capOrbiteur(this.v, 'kits'), 'kits de station');
     remplir('kitsBase', ORBITEUR.kitsBase, 'kits de base');
     remplir('robots', capOrbiteur(this.v, 'robots'), 'robots');
     remplir('atterrisseurs', capOrbiteur(this.v, 'atterrisseurs'), 'atterrisseurs');
@@ -1132,6 +1134,8 @@ const Orbiteur = {
     if (n >= 5) return this.log(`${Le(st)} est déjà au niveau maximal (5).`);
     if (st.agrandissement) return this.log(`${Le(st)} est déjà en cours d’agrandissement.`);
     if ((st.stock.extensionsStation || 0) <= 0) return this.log(`${Le(st)} n’a pas d’extension de station : fabriquez-en une à l’atelier ou envoyez un ravito « Extension de station ».`);
+    if (st.module) return this.log(`${Le(st)} a déjà un module à raccorder.`);
+    if (stationsParModules()) return amarrerModule(this.v, st, (t) => this.log(t));   // module amarré, à raccorder (modules-station.js)
     st.stock.extensionsStation -= 1;
     st.agrandissement = { fin: this.v.t + DUREE_AGRANDISSEMENT };
     this.log(`${st.nom} : assemblage du niveau ${n + 1} en orbite (${NIVEAUX_STATION[n + 1].apport}), terminé dans ${fmtDuree(DUREE_AGRANDISSEMENT)}.`);
@@ -1376,7 +1380,10 @@ const Orbiteur = {
     prendre('carburant', capOrbiteur(this.v, 'carburantMax'), 'de carburant', 'kg');
     prendre('ergols', capOrbiteur(this.v, 'ergolsAtt'), 'd’ergols pour l’atterrisseur', 'kg');
     prendre('sondes', capOrbiteur(this.v, 'sondes'), ['sonde', 'sondes']);
-    prendre('kits', capOrbiteur(this.v, 'kits') + 1, ['kit de station', 'kits de station']);
+    // Système solaire : les kits de station restent au stock (ils partent en noyau par cargo) ; ceux de l'orbiteur y sont déposés.
+    if (stationsParModules()) {
+      if ((v.kits || 0) > 0) { ajouterAuStock(s, { kits: v.kits }); pris.push(`${fmt(v.kits)} ${v.kits > 1 ? 'kits' : 'kit'} de station déposé${v.kits > 1 ? 's' : ''} au stock`); v.kits = 0; }
+    } else prendre('kits', capOrbiteur(this.v, 'kits') + 1, ['kit de station', 'kits de station']);
     prendre('kitsBase', 2, ['kit de base', 'kits de base']);
     prendre('robots', capOrbiteur(this.v, 'robots'), ['robot', 'robots']);
     prendre('drones', capOrbiteur(this.v, 'drones'), ['drone', 'drones']);
@@ -2516,6 +2523,8 @@ const Orbiteur = {
     }
     // Une seule station et une seule sonde par astre : bouton grisé avec la raison.
     if (st && c.type !== 'etoile' && c.type !== 'objet') d += `<button disabled title="Une seule station par astre">🏗 Station déjà installée sur cet astre</button>`;
+    else if (stationsParModules() && noyauEnRoute(v, c.id)) d += `<button disabled>🛰 Noyau de station en route</button>`;
+    else if (stationsParModules() && c.type !== 'etoile' && c.type !== 'objet') d += `<button id="nav-station" ${estOrigine(c.id) ? 'class="principal"' : ''}>🛰 Lancer un noyau de station ici</button>`;
     else if (v.kits > 0 && fermee && c.type !== 'etoile' && c.type !== 'objet') d += `<button id="nav-station" ${estOrigine(c.id) ? 'class="principal"' : ''}>🏗 Construire une station ici</button>`;
     if (v.cible && sondeVers(v, v.cible)) d += `<button disabled title="Une seule sonde par astre">🛰 Sonde déjà envoyée vers ${le(ASTRES_PAR_ID[v.cible])}</button>`;
     else if (v.cible && v.sondes > 0) d += `<button id="nav-sonde">🛰 Sonde vers ${le(ASTRES_PAR_ID[v.cible])} (repérage)</button>`;
