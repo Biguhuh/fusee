@@ -1536,11 +1536,13 @@ class Exploration {
     if (p.auSol) this.inclinaison = this.penteSous(p.x);
     if (this.delorean && this.delorean.phase === 'disparu') { /* quelque part dans le temps */ }
     else if (this.enRover) {
+      const pr = { ...p, scaphandre: this.scaphandre, phares: this.nuit, surTerre: this.terre, profil: this.equipier().profil,
+        passager: this.duo && this.duo.enRover ? this.duo.eq.profil : null };
       if (this.tonneau) {   // en tonneaux : elle tourne autour de son centre (≈ 0,8 m au-dessus des roues)
         ctx.save(); ctx.translate(sx, sy - 0.8 * echelle); ctx.rotate(this.tonneau.angle);
-        dessinerRover(ctx, 0, 0.8 * echelle, echelle, p, true, 0, this.degatsRover);
+        dessinerRover(ctx, 0, 0.8 * echelle, echelle, pr, true, 0, this.degatsRover);
         ctx.restore();
-      } else dessinerRover(ctx, sx, sy, echelle, p, true, this.inclinaison || 0, this.degatsRover);
+      } else dessinerRover(ctx, sx, sy, echelle, pr, true, this.inclinaison || 0, this.degatsRover);
       if (this.delorean) texteSurFond(ctx, `${fmt(Math.abs(p.vx) * 2.2369)} mph`, sx, sy - 3.2 * echelle, { police: '700 16px system-ui, sans-serif', couleur: Math.abs(p.vx) > 30 ? '#ff5252' : '#ffca28' });
     }
     else if (this.type === 'spationaute' && this.secours && (this.secours.phase === 'decollage' || this.dansSecours)) { /* à bord du module de secours */ }
@@ -1803,7 +1805,13 @@ function dessinerRover(ctx, x, y, s, p, aBord, inclinaison = 0, degats = 0, niv 
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(-inclinaison);
-  if (aBord) dessinerSpationaute(ctx, -0.2 * s * (p.dir || 1), -0.8 * s, s * 0.8, { dir: p.dir, pas: 0 });
+  // À bord : même tenue qu'à pied (p.scaphandre, lampes du casque la nuit avec p.phares) ;
+  // l'équipier (p.passager : son profil) assis sur le siège arrière.
+  if (aBord) {
+    const tenue = { dir: p.dir, pas: 0, scaphandre: p.scaphandre, phares: p.phares };
+    if (p.passager) dessinerSpationaute(ctx, -0.85 * s * (p.dir || 1), -0.8 * s, s * 0.8, tenue, p.surTerre, p.passager);
+    dessinerSpationaute(ctx, -0.2 * s * (p.dir || 1), -0.8 * s, s * 0.8, tenue, p.surTerre, p.profil);
+  }
   ctx.scale(p.dir || 1, 1);
   const rot = (p.pas || 0) * 2.5;
   for (const wx of [-1.1, 1.1]) {
