@@ -1473,6 +1473,7 @@ class Exploration {
     const versEcran = (x, y) => [W / 2 + ecartSol(a, x, p.x) * echelle, camY + (yCam - y) * echelle];
     dessinerFond(ctx, a, this.c, W, H, false, tempsCiel(this.vol), this.vol);
     this.nuit = LUMIERE_SOL < 0.5;   // nuit (ou ombre d'un cratère polaire) : on allume les phares du casque
+    if (this.nuit && this.type === 'spationaute' && typeof azizLumiere === 'function') azizLumiere(this);   // Le Cinquième Élément (cinquieme.js)
     if (this.terre) dessinerNuages(ctx, W, H, p.x * echelle);
     // Plan lointain : le relief des kilomètres alentour (paroi d'un canyon, flanc d'un volcan), derrière le terrain.
     if (!this.terre) dessinerPanorama(ctx, a, p.x, (x) => this.sol(x), W, camY + (yCam - this.sol(p.x)) * echelle, LUMIERE_SOL);
