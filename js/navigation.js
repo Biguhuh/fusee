@@ -24,6 +24,9 @@ const ORBITEUR = {
 function rayonOrbiteBasse(a) {
   if (a.type === 'etoile') return a.rayonKm * 5;
   if (a.type === 'gazeuse') return a.rayonKm * 1.15;
+  // Autres étoiles : leur altitude de départ (3 km au plus) n'est pas une orbite d'orbiteur ; comme ailleurs (reprise à une base,
+  // modules de station), au moins 100 km.
+  if (a.exo) return a.rayonKm + Math.max(100, altitudeOrbite(a) / 1000 + 50);
   return a.rayonKm + Math.max(altitudeOrbite(a) / 1000, 0.2);
 }
 

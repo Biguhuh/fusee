@@ -104,6 +104,7 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 - Planètes lourdes (`colonies.js`) : descente sans retour vers une base (les colons), vie et sorties depuis la base, lanceur à deux étages construit sur place, aide et fiche.
 - Missions en parallèle (`flotte.js`) : systèmes et expéditions rangés à part, départ vers une étoile sans rien effacer, choix dans « Reprendre », rattrapage du temps au retour (pilote auto ou manuel, « Oups »), plusieurs vaisseaux par système, un spationaute joué par mission, nouvelles au rythme de la lumière, retrouvailles et échange d'équipiers.
 - Spécialités et talents (`specialites.js`), Le Cinquième Élément (`cinquieme.js`), date de départ (`date-depart.js`), vraies missions et grandes étapes réelles (`vraies-missions.js`), buts dans les autres systèmes (`buts.js`), gestion des bases et colonies (`gestion.js`), activités, pannes et maintenance (`activites.js`).
+- Orbite d'arrivée dans un autre système : au moins 100 km au-dessus du sol (elle était à 3 km, l'altitude de départ des descentes).
 
 ## Plan de la nuit (16 novembre 2026), décidé par Edouard
 
@@ -131,19 +132,10 @@ Travail seul, sans validation à chaque étape. Edouard a dit ensuite « fusionn
 2. Jouer une vraie campagne : presque tout le travail de novembre n'a été testé que par appels directs, sur des copies de la sauvegarde.
 3. Rappel et tonneaux, escalade et cordée : vérifier en jouant sur d'autres astres (testés sur des terrains d'essai).
 4. Carte 6, point 8 : la date « 4 mars 2265 » de la capture d'Edouard n'est pas expliquée ; demander sa sauvegarde.
-5. (Fait la nuit du 16 novembre : buts dans les autres systèmes, voir Plan de la nuit.)
-6. (Fait la nuit du 16 novembre : easter eggs Le Cinquième Élément, voir Plan de la nuit.)
-7. (Fait la nuit du 16 novembre : date de départ, voir Plan de la nuit.)
-8. (Fait la nuit du 16 novembre : vraies missions observées, voir Plan de la nuit.)
-9. Après les planètes lourdes : une astromobile de colonie, plus avancée que dans le Système solaire : cabine pressurisée, zone de vie, matériel, recharge des batteries, soute à matériaux. Un véhicule au sol pour explorer loin de la base, sur plusieurs jours.
-10. Après les planètes lourdes : les ressources de la planète (ce qu'une colonie trouve et exploite sur place : eau, métaux, atmosphère, sol cultivable…).
-11. Après les planètes lourdes : gérer les bases et les colonies, un peu comme un jeu de gestion (plus poussé pour les colonies). Main-d'œuvre faite de robots (bases comme colonies). Actions sur place : passage de niveau, production alimentaire, minage, énergie, etc. Dans l'esprit du jeu : on vient en scientifique respectueux, pas en conquérant ; on limite l'impact sur l'environnement (voir « Décisions prises »).
-12. Après les missions en parallèle : deux expéditions sur une même base. Un petit message de retrouvailles (« Ah, on est contents de se retrouver ! »). Différencier les atterrisseurs, pour que chacun reparte vers l'expédition choisie. Un personnage peut changer d'expédition, sans problème.
-13. Plus tard : des spécialités. Chaque personnage en a 1 à 3, et chaque expédition doit en réunir certaines. S'inspirer des vrais équipages (NASA, ESA) : commandant, pilote, ingénieur de vol, médecin, infirmier, géologue, biologiste, communications, spécialiste de mission…
+5. Jouer en vrai les nouveautés de la nuit du 16 novembre (voir « Plan de la nuit ») : missions en parallèle (départ vers une étoile, retour au Système solaire, rattrapage, nouvelles en retard, spationaute par mission), spécialités, date de départ dans le passé, vraies missions, buts, gestion des bases, activités. Tout n'a été testé que par appels directs.
 
 ## Bugs connus de la bêta
 
-- Orbite d'arrivée dans un autre système à 3 km du sol (TRAPPIST-1 b : rayon 7 110 km, orbite 7 113 km) : `rayonOrbiteBasse`, `arriverDansSysteme` (interstellaire.js) : probablement une altitude en mètres prise pour des kilomètres. Trouvé la nuit du 16 novembre, pas corrigé (à demander).
 - Boutons de l'accueil sans réponse juste après une publication : non reproduit : déploiement de GitHub Pages : probablement un cache mélangé (attendre ≈ 10 min, puis Ctrl+F5).
 - Ravitaillement courant de la station terrestre : jusqu'à 150 t par passage au niveau 5, soit des milliards d'euros par mois : `ravitaillement.js` : un plein d'orbiteur gardé en réserve à chaque station, peut-être trop.
 
