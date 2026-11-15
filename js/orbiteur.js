@@ -1017,6 +1017,7 @@ const Orbiteur = {
     verifierRetrouvailles(v, (t) => this.log(t));   // deux expéditions au même endroit (flotte.js)
     mettreAJourSpecialites(v, (t) => this.log(t));   // ingénieur, talents (specialites.js)
     verifierVraiesMissions(v, (t) => this.log(t));   // vraies missions à leur date (vraies-missions.js)
+    verifierButs(v, (t) => this.log(t));   // buts dans les autres systèmes (buts.js)
     if (v.sondesInterstellaires && v.sondesInterstellaires.length) mettreAJourSondesInterstellaires(v, (t) => this.log(t));
     this.arriveesEchantillons();
     terminerRDTerre(v, (t) => this.log(t));
@@ -2494,6 +2495,7 @@ const Orbiteur = {
     if (estOrigine(c.id) && fermee) d += `<button id="nav-plein-origine">🌍 Faire le plein depuis ${SYSTEME.nomOrigine} (gratuit)</button>`;
     d += htmlBaseColons(v, c);   // colonie : réserve et sortie depuis la base (colonies.js)
     d += htmlRetrouvailles(v);   // deux expéditions au même endroit (flotte.js)
+    d += htmlButsSysteme(v);   // buts dans les autres systèmes (buts.js)
     if (this.peutDescendre()) {
       // L'atterrisseur est conçu pour l'astre : on ne descend que si l'on peut repartir.
       const conc = this.conceptionPour(c);
@@ -2598,6 +2600,7 @@ const Orbiteur = {
       : this.contexte.descendre(o.centre, site))));
     bind('nav-sortie-base', () => sortieDepuisBase(v, ASTRES_PAR_ID[o.centre]));
     bind('nav-echange', () => ouvrirEchange(v, () => this.majHud(true)));
+    bind('nav-message-terre', () => { envoyerMessageTerre(v); this.majHud(true); });
     bind('nav-chantier-lanceur', () => { lancerChantierLanceur(v, ASTRES_PAR_ID[o.centre]); this.majHud(true); });
     bind('nav-lanceur-colonie', () => decollerLanceurColonie(v, ASTRES_PAR_ID[o.centre]));
     bind('nav-colons', () => ouvrirChoixEquipage(v, ASTRES_PAR_ID[o.centre], (compo) => descendreColons(v, ASTRES_PAR_ID[o.centre], compo)));

@@ -114,7 +114,7 @@ Travail seul, sans validation à chaque étape. Edouard a dit ensuite « fusionn
 - [x] 5. Easter eggs Le Cinquième Élément (branche `cinquieme-element`) : « Aziz, lumière ! » la première fois que les lampes du casque s'allument ; épave du vaisseau mondoshawan sur Io (abattu par les Mangalores en passant près de Jupiter) : le cinquième élément n'est pas dans les débris. FAIT : branche cinquieme-element, cinquieme.js, testé (dessin vu à l écran, Aziz une seule fois).
 - [x] 6. Date de départ de la campagne (branche `date-depart`) : date libre de 1957 (Spoutnik) à 2100, aujourd'hui par défaut. FAIT : branche date-depart, date-depart.js, testé (campagne au 16 juillet 1969).
 - [x] 7. Vraies missions observées (branche `vraies-missions`) : si la partie commence dans le passé, les vraies missions (Apollo, rovers, sondes) se déroulent à leur date : journal, carte, traces laissées sur place. FAIT : branche vraies-missions, vraies-missions.js, testé (Apollo 11 au journal le 20 juillet 1969, traces, ISS, voiture rouge). Corrigé en route : astreDe de flotte.js cassait les articles.
-- [ ] 8. Buts dans les autres systèmes (branche `buts-systemes`) : eau liquide, traces de vie, colonie autonome, message vers la Terre.
+- [x] 8. Buts dans les autres systèmes (branche `buts-systemes`) : eau liquide, traces de vie, colonie autonome, message vers la Terre. FAIT : branche buts-systemes, buts.js, testé par appels directs.
 - [ ] 9. Colonies, version simple (branche `colonies-gestion`) : astromobile de colonie (cabine, zone de vie, recharge, soute), ressources de la planète, gestion des bases et colonies (robots, niveaux, vivres, minage, énergie), dans l'esprit « scientifique respectueux ».
 - [ ] 10. Activités sur toutes les infrastructures (branche `activites`), demandé par Edouard : des choses à faire sur les bases, les colonies et les stations orbitales ; pannes et actions techniques de maintenance (partir des pannes de station réparées en sortie, `mettreAJourPannes`, eva-missions.js) étendues aux bases et aux colonies ; activités de la vie sur place (expériences, entretien, culture, observation).
 
@@ -128,7 +128,7 @@ Travail seul, sans validation à chaque étape. Edouard a dit ensuite « fusionn
 2. Jouer une vraie campagne : presque tout le travail de novembre n'a été testé que par appels directs, sur des copies de la sauvegarde.
 3. Rappel et tonneaux, escalade et cordée : vérifier en jouant sur d'autres astres (testés sur des terrains d'essai).
 4. Carte 6, point 8 : la date « 4 mars 2265 » de la capture d'Edouard n'est pas expliquée ; demander sa sauvegarde.
-5. Après la carte 4 : des buts dans les autres systèmes (aujourd'hui on y explore, sans plus). Pistes : trouver de l'eau liquide, chercher des traces de vie, rendre la colonie autonome (vivres, eau, énergie), envoyer un message vers la Terre (des décennies de trajet).
+5. (Fait la nuit du 16 novembre : buts dans les autres systèmes, voir Plan de la nuit.)
 6. (Fait la nuit du 16 novembre : easter eggs Le Cinquième Élément, voir Plan de la nuit.)
 7. (Fait la nuit du 16 novembre : date de départ, voir Plan de la nuit.)
 8. (Fait la nuit du 16 novembre : vraies missions observées, voir Plan de la nuit.)
