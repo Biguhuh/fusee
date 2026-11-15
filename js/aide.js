@@ -110,6 +110,11 @@ const ONGLETS_AIDE = [
       fait: 'Elle exploite la ressource locale (glace, méthane, CO₂…) pour produire des ergols, et refait le plein de l’atterrisseur.',
       evolue: 'Cinq niveaux, chacun avec une extension de base descendue depuis la station. À partir du niveau 2, une mine produit aussi des matériaux.',
     }) +
+    ficheAide('Spécialités de l’équipage', {
+      role: 'Chaque personne a 1 à 3 spécialités : un ou deux métiers (pilote, médecin, infirmier, ingénieur de vol, physicien, géologue, biologiste, chimiste, astronome, communications, informatique) et parfois un talent (musique, échecs, foot, tricot, cuisine…).',
+      obtenir: 'Sur la page d’équipage : chaque carte montre les spécialités (🔀 pour en tirer d’autres). Pilote et médecin sont obligatoires, ingénieur et scientifique conseillés ; on peut partir sans, à ses risques.',
+      fait: 'Sans pilote, plus de manœuvres ratées. Sans médecin, les blessures guérissent deux fois plus lentement (une fois et demie avec un infirmier). Un ingénieur à bord répare les pannes de la station où l’on est amarré. Les talents égaient la vie à bord.',
+    }) +
     ficheAide('Colonies (planètes lourdes)', {
       role: 'Vivre sur une planète de la taille de la Terre, d’où aucun atterrisseur ne peut repartir (≈ 11 km/s pour remonter en orbite, comme depuis la Terre).',
       obtenir: 'Une base sur la planète (déployée depuis la station), puis, à l’orbiteur, « Descente sans retour » : un module de descente seule pose l’équipage choisi près de la base. C’est définitif.',

@@ -1016,6 +1016,7 @@ const Orbiteur = {
     mettreAJourDechets(v, (t) => this.log(t), (st) => this.estAmarre(st));
     mettreAJourVivres(v, (t) => this.log(t));
     verifierRetrouvailles(v, (t) => this.log(t));   // deux expéditions au même endroit (flotte.js)
+    mettreAJourSpecialites(v, (t) => this.log(t));   // ingénieur, talents (specialites.js)
     if (v.sondesInterstellaires && v.sondesInterstellaires.length) mettreAJourSondesInterstellaires(v, (t) => this.log(t));
     this.arriveesEchantillons();
     terminerRDTerre(v, (t) => this.log(t));

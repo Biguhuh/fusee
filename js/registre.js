@@ -227,13 +227,24 @@ function allerEquipage(v) {
     const dispo = personnesDisponibles(v, l.map((p) => p.regId)).filter((f) => !prenoms.has((f.nom || '').toLowerCase()));
     zone.innerHTML = l.map((p, i) => `<article class="carte-membre">
         <canvas width="110" height="130" data-apercu="${i}"></canvas>
-        <div><b>${p.principal ? majuscule(nomSpatio()) : p.profil.prenom || 'Recrue'}</b><br><span class="doux">${resume(p)}</span></div>
+        <div><b>${p.principal ? majuscule(nomSpatio()) : p.profil.prenom || 'Recrue'}</b><br><span class="doux">${resume(p)}</span><br><span class="specialites">${texteSpecialites(p.principal ? SPATIO : p.profil, p.principal)}</span></div>
         <div class="boutons-membre">
           <button data-modifier="${i}">✏ Prénom et apparence</button>
+          <button data-specialites="${i}">🔀 Autres spécialités</button>
           ${p.principal ? '' : `<button data-hasard="${i}">🎲 Nouvelle recrue</button>`}
           ${p.principal || !dispo.length ? '' : `<select data-veteran="${i}"><option value="">Vétéran disponible…</option>${dispo.map((f) => `<option value="${f.id}">${f.nom} (${f.expeditions.length} exp.)</option>`).join('')}</select>`}
         </div></article>`).join('');
     zone.querySelectorAll('[data-apercu]').forEach((cv) => { const p = l[Number(cv.dataset.apercu)]; apercuMembre(cv, p.principal ? SPATIO : p.profil); });
+    // Spécialités (specialites.js) : ce qui manque à l'équipage, et un nouveau tirage pour chacun.
+    let cov = $('couverture-equipage');
+    if (!cov) { cov = document.createElement('div'); cov.id = 'couverture-equipage'; zone.parentNode.insertBefore(cov, zone); }
+    cov.innerHTML = htmlCouverture(l.map((p) => ({ p: p.principal ? SPATIO : p.profil, principal: p.principal })));
+    zone.querySelectorAll('[data-specialites]').forEach((bt) => { bt.onclick = () => {
+      const p = l[Number(bt.dataset.specialites)], prof = p.principal ? SPATIO : p.profil;
+      prof.specialites = tirerSpecialites();
+      if (p.principal) sauverSpatio();
+      rendu();
+    }; });
     zone.querySelectorAll('[data-hasard]').forEach((bt) => { bt.onclick = () => {
       const i = Number(bt.dataset.hasard), np = profilAleatoire(nomsPris(l));
       l[i] = { regId: nouvelIdPersonne(), nom: np.prenom, profil: np }; rendu();
@@ -263,7 +274,10 @@ function allerEquipage(v) {
   champ.oninput = () => { v.nomVaisseauPrevu = nettoyerNomVaisseau(champ.value); };
   $('vaisseau-hasard').onclick = () => { champ.value = nomVaisseauAleatoire(v, [champ.value, nomGare].filter(Boolean)); v.nomVaisseauPrevu = champ.value; };
   // Tout premier départ : d'abord l'entraînement (essai.js), une seule fois.
-  $('equipage-continuer').onclick = () => { v.nomVaisseauPrevu = nettoyerNomVaisseau(champ.value) || nomVaisseauAleatoire(v); sauver(etat); if (doitPasserEntrainement(v)) parcoursEntrainement(); else allerLancement(); };
+  $('equipage-continuer').onclick = () => {
+    const mq = manquesEquipage(l.map((p) => ({ p: p.principal ? SPATIO : p.profil, principal: p.principal })));
+    if (mq.obligatoires.length && !confirm(`Il manque : ${mq.obligatoires.join(' et ')}. Partir quand même ? ${mq.obligatoires.includes('pilote') ? 'Sans pilote, plus de manœuvres ratées. ' : ''}${mq.obligatoires.includes('médecin') ? 'Sans médecin, les blessures guérissent plus lentement.' : ''}`)) return;
+    v.nomVaisseauPrevu = nettoyerNomVaisseau(champ.value) || nomVaisseauAleatoire(v); sauver(etat); if (doitPasserEntrainement(v)) parcoursEntrainement(); else allerLancement(); };
   montrer('equipage');
 }
 
