@@ -223,6 +223,7 @@ function animerAccueil() {
     c.fillStyle = g; c.beginPath(); c.arc(cx, cy, 22, 0, 7); c.fill();
     for (const id of ids) {
       const a = ASTRES_PAR_ID[id];
+      if (!a) continue;   // campagne dans un autre système : les planètes du Système solaire ne sont pas chargées
       const p = etatRelatif(a, t).r;
       const d = echelle(V.norm(p)), ang = Math.atan2(p[1], p[0]);
       c.strokeStyle = 'rgba(140,160,200,0.18)'; c.beginPath(); c.arc(cx, cy, echelle(a.orbite.a), 0, 7); c.stroke();
