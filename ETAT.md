@@ -99,10 +99,12 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 - Sorties depuis une station, étape 3 : eau dans le casque, combinaison trop gonflée au sas (P), débris en approche avec manœuvre et éclats (`eva-imprevus.js`).
 - Carte 4 (easter eggs John Carpenter), publiée : tourbillons de poussière de Mars selon la saison, tourbillon géant et colonie minière (`tourbillons.js`) ; The Thing sur TRAPPIST-1 g, atmosphère supposée et banquise (`thething.js`) ; They Live, rue de Los Angeles dans la promenade (`theylive.js`) ; Plissken, avis de recherche (`plissken.js`).
 - Saisons (`saisons.js`), publiées : axes réels, hauteur du Soleil selon latitude et date (nuit polaire, Soleil de minuit) ; Mars : givre, tempêtes de poussière (vraies années planétaires), ciel caramel et coucher bleu ; Terre : fleurs, fruits, arbres, givre et prairie jaunie selon le mois ; Titan : averses de méthane ; Triton : geysers réalistes (loin et près, traînées) ; Pluton : brume puis atmosphère qui regèle ; Io : panaches en ombrelle.
+- Module amarré, pas encore raccordé, visible en sortie (couvertures, câbles pendants, tâches sur lui) et en fantôme sur la carte.
+- Astromobile pliée rangée contre le flanc du module (comme le LRV d'Apollo), qui bascule au sol puis se déplie (`astromobile.js`).
 
 ## En cours
 
-- Module amarré, pas encore raccordé, dessiné en sortie et sur la carte : branche `module-amarre`, en attente de validation.
+Rien.
 
 ## À faire, dans l'ordre
 
