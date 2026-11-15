@@ -1,10 +1,10 @@
 # État du projet
 
-Dernière mise à jour : 10 novembre 2026 (fin de session)
+Dernière mise à jour : 16 novembre 2026 (fin du travail de nuit)
 
 ## En une phrase
 
-Jeu web de simulation spatiale (vol, atterrissage, exploration, campagne dans le Système solaire et au-delà), jouable en ligne, en bêta test : tout est fusionné dans `main` et publié (version 363, 10 novembre 2026), y compris les cinq points du plan `docs/plan-stations-astromobile.md` (astromobile, stations module par module, imprévus des sorties), testés par appels directs mais pas encore joués en vraie partie.
+Jeu web de simulation spatiale (vol, atterrissage, exploration, campagne dans le Système solaire et au-delà), jouable en ligne, en bêta test : tout est fusionné dans `main` et publié (version 435, 16 novembre 2026), y compris le plan de la nuit (missions en parallèle, spécialités, vraies missions, buts, gestion des bases, activités), testé par appels directs mais pas encore joué en vraie partie.
 
 ## Fait
 
@@ -102,6 +102,8 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 - Module amarré, pas encore raccordé, visible en sortie (couvertures, câbles pendants, tâches sur lui) et en fantôme sur la carte.
 - Astromobile pliée rangée contre le flanc du module (comme le LRV d'Apollo), qui bascule au sol puis se déplie (`astromobile.js`).
 - Planètes lourdes (`colonies.js`) : descente sans retour vers une base (les colons), vie et sorties depuis la base, lanceur à deux étages construit sur place, aide et fiche.
+- Missions en parallèle (`flotte.js`) : systèmes et expéditions rangés à part, départ vers une étoile sans rien effacer, choix dans « Reprendre », rattrapage du temps au retour (pilote auto ou manuel, « Oups »), plusieurs vaisseaux par système, un spationaute joué par mission, nouvelles au rythme de la lumière, retrouvailles et échange d'équipiers.
+- Spécialités et talents (`specialites.js`), Le Cinquième Élément (`cinquieme.js`), date de départ (`date-depart.js`), vraies missions et grandes étapes réelles (`vraies-missions.js`), buts dans les autres systèmes (`buts.js`), gestion des bases et colonies (`gestion.js`), activités, pannes et maintenance (`activites.js`).
 
 ## Plan de la nuit (16 novembre 2026), décidé par Edouard
 
@@ -117,11 +119,11 @@ Travail seul, sans validation à chaque étape. Edouard a dit ensuite « fusionn
 - [x] 8. Buts dans les autres systèmes (branche `buts-systemes`) : eau liquide, traces de vie, colonie autonome, message vers la Terre. FAIT : branche buts-systemes, buts.js, testé par appels directs.
 - [x] 9. Colonies, version simple (branche `colonies-gestion`) : astromobile de colonie (cabine, zone de vie, recharge, soute), ressources de la planète, gestion des bases et colonies (robots, niveaux, vivres, minage, énergie), dans l'esprit « scientifique respectueux ». FAIT : branche colonies-gestion, gestion.js, testé par appels directs (production inchangée par défaut).
 - [x] 10. Activités sur toutes les infrastructures (branche `activites`), demandé par Edouard : des choses à faire sur les bases, les colonies et les stations orbitales ; pannes et actions techniques de maintenance (partir des pannes de station réparées en sortie, `mettreAJourPannes`, eva-missions.js) étendues aux bases et aux colonies ; activités de la vie sur place (expériences, entretien, culture, observation). FAIT : branche activites, activites.js, testé par appels directs.
-- [ ] 11. Grandes étapes réelles de l'exploration spatiale (branche `jalons`, à la suite, après tout le reste), demandé par Edouard : lister celles qui manquent et les ajouter à leur vraie date dans `JALONS_SPATIAUX` (vraies-missions.js) : Laïka, Gagarine, Apollo 1 et 13, Mir, navettes (premier vol, Challenger 1986, Columbia 2003, dernier vol 2011), Saliout, Skylab, Soyouz 11, Hubble réparé, etc.
+- [x] 11. Grandes étapes réelles de l'exploration spatiale (branche `jalons`, à la suite, après tout le reste), demandé par Edouard : lister celles qui manquent et les ajouter à leur vraie date dans `JALONS_SPATIAUX` (vraies-missions.js) : Laïka, Gagarine, Apollo 1 et 13, Mir, navettes (premier vol, Challenger 1986, Columbia 2003, dernier vol 2011), Saliout, Skylab, Soyouz 11, Hubble réparé, etc. FAIT : 44 étapes ajoutées (Laïka à Artemis I), testé de 1957 à 2023.
 
 ## En cours
 
-- Missions en parallèle, branche `missions-paralleles` : pouvoir revenir au Système solaire depuis une autre étoile et y lancer d'autres missions. En 5 étapes : 1 séparer le monde de chaque système (stations, bases, cargos) des expéditions (orbiteur, équipe, chargement), avec conversion des sauvegardes ; 2 départ vers une étoile sans rien effacer, écran de choix des expéditions ; 3 les expéditions qu'on ne regarde pas avancent aussi ; 4 plusieurs expéditions dans un même système ; 5 en option, délai des communications. Étape 1 (rangement, flotte.js) faite. Étape 2 faite (départ sans rien effacer, choix dans « Reprendre », prochaine manœuvre et pilotage en absence). Étape 3 faite, à valider : en revenant dans un système, on rejoue le temps écoulé depuis qu'on l'a quitté (`executerRattrapage`, flotte.js), avec le vaisseau qu'on y avait laissé : pilote auto (manœuvres faites) ou manuel (« Oups » si trop tard), vivres, bases, cargos, pannes, capsules d'échantillons, coûts ; fenêtre « Pendant votre absence ». 341 ans se rattrapent en 0,3 s ; au-delà de 4 s de calcul, fin simplifiée. Limites : rien n'est simulé tant qu'on est ailleurs (pas d'alerte en direct), tout se rattrape au retour ; une crise dans un système absent ne peut donc pas être évitée en revenant à temps, sauf en manuel par la date affichée. Équipiers restés aux bases et stations : `equipeSurPlace`, cachés quand une expédition est à l'écran. Chaque membre garde `decalageBord` (pour l'âge). Étape 4 faite, à valider : lancer depuis la Terre avec une expédition en cours la range (pilotage auto) au lieu de l'écraser ; reprendre un vaisseau du même système le rattrape seul (`rattraperVaisseauSeul`) ; pas deux vaisseaux du même nom. Reste : étape 5 en option (délai des communications).
+- Rien de commencé. Tout le plan de la nuit est fait, fusionné dans `main` et publié (à jouer en vrai : tout a été testé par appels directs).
 
 ## À faire, dans l'ordre
 
@@ -182,6 +184,7 @@ Travail seul, sans validation à chaque étape. Edouard a dit ensuite « fusionn
 
 ## Pièges
 
+- Portée globale partagée : une fonction d'un nouveau fichier qui porte le nom d'une fonction existante la remplace sans erreur (`astreDe` de flotte.js a cassé tous les articles). Vérifier les doublons de noms avant de committer (`../doublons.py`).
 - Les chaînes du jeu contiennent des espaces insécables : une ancre d'`Edit` qui en contient échoue, et la lecture ne les montre pas. Passer par un script Python avec une recherche tolérante (chaque espace accepte aussi U+00A0 et U+202F) ou repérer la ligne par son début.
 - Commandes PowerShell vers WSL : les guillemets et `$` imbriqués font planter zsh ou PowerShell. Écrire le script dans un fichier, puis `wsl -d ubuntu -- bash fichier.sh` (ou `python3 fichier.py`).
 - Le navigateur garde l'ancien JS en cache : toujours monter `?v=` à un numéro jamais utilisé avant de recharger, et vérifier la version chargée (`document.scripts`).
@@ -220,6 +223,16 @@ Cœur :
 - `js/systemes.js`, `js/etoiles-proches.js` : systèmes stellaires.
 - `js/equipements.js` : pièces du hangar.
 - `js/francais.js` : articles et élisions devant les noms, `nombre()` pour accorder une quantité.
+
+Missions en parallèle et vie des expéditions (nuit du 16 novembre) :
+- `js/flotte.js` : systèmes rangés (`v.mondes`), expéditions rangées (`v.flotte`), `changerSysteme`, `reprendreExpedition`, rattrapage du temps (`executerRattrapage`, `rattraperVaisseauSeul`), délai de la lumière (`recevoirNouvelles`), spationaute joué par mission (`incarner`), retrouvailles.
+- `js/specialites.js` : spécialités et talents, équipage obligatoire, effets.
+- `js/cinquieme.js` : « Aziz, lumière ! » et l'épave mondoshawan (Io).
+- `js/date-depart.js` : date de départ d'une campagne (1957-2100).
+- `js/vraies-missions.js` : traces réelles à leur date, grandes étapes de l'exploration au journal, ISS et voiture rouge selon la date.
+- `js/buts.js` : buts dans les autres systèmes, message vers la Terre.
+- `js/gestion.js` : robots des bases, ressources, empreinte, astromobile de colonie.
+- `js/activites.js` : pannes des bases, activités et maintenance des bases et stations.
 
 Campagne :
 - `js/orbiteur.js` : écran de l'orbiteur (pilotage, sondes, stations, amarrage et plein, ravitos, vidange, deuil, rappel, carte, sortie depuis une station).
