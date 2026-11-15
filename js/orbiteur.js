@@ -1016,6 +1016,7 @@ const Orbiteur = {
     mettreAJourVivres(v, (t) => this.log(t));
     verifierRetrouvailles(v, (t) => this.log(t));   // deux expéditions au même endroit (flotte.js)
     mettreAJourSpecialites(v, (t) => this.log(t));   // ingénieur, talents (specialites.js)
+    verifierVraiesMissions(v, (t) => this.log(t));   // vraies missions à leur date (vraies-missions.js)
     if (v.sondesInterstellaires && v.sondesInterstellaires.length) mettreAJourSondesInterstellaires(v, (t) => this.log(t));
     this.arriveesEchantillons();
     terminerRDTerre(v, (t) => this.log(t));
@@ -2489,7 +2490,7 @@ const Orbiteur = {
     if (estOrigine(c.id) && fermee) d += `<button id="nav-rentrer" class="principal">🏠 Rentrer sur ${SYSTEME.origineSans} (capsule)</button>`;
     if (estOrigine(c.id) && fermee && Object.values(v.echantillonsABord || {}).some((n) => n > 0)) d += '<button id="nav-capsule-ech">📦 Renvoyer les échantillons seuls (capsule sans équipage)</button>';
     if (this.peutRenvoyerParSonde()) d += `<button id="nav-sonde-ech" ${v.sondes > 0 ? '' : 'disabled title="Plus de sonde à bord"'}>📦 Renvoyer les échantillons par sonde (${v.sondes} sonde${v.sondes > 1 ? 's' : ''} à bord)</button>`;
-    if (c.id === 'terre' && fermee) d += v.aIss ? '<button disabled title="Vous y êtes">📍 Amarré à la Station spatiale internationale</button>' : '<button id="nav-iss">🛰 Rendez-vous avec la Station spatiale internationale</button>';
+    if (c.id === 'terre' && fermee && issExiste(v.t)) d += v.aIss ? '<button disabled title="Vous y êtes">📍 Amarré à la Station spatiale internationale</button>' : '<button id="nav-iss">🛰 Rendez-vous avec la Station spatiale internationale</button>';
     if (estOrigine(c.id) && fermee) d += `<button id="nav-plein-origine">🌍 Faire le plein depuis ${SYSTEME.nomOrigine} (gratuit)</button>`;
     d += htmlBaseColons(v, c);   // colonie : réserve et sortie depuis la base (colonies.js)
     d += htmlRetrouvailles(v);   // deux expéditions au même endroit (flotte.js)

@@ -215,7 +215,7 @@ function prendreExpedition(id) {
 
 // Nom d'un système, et d'un astre d'un autre système que celui affiché.
 function nomSystemeDe(id) { return (SYSTEMES[id] && SYSTEMES[id].nom) || id; }
-function astreDe(sys, id) { return sys === SYSTEME.id ? ASTRES_PAR_ID[id] : ((SYSTEMES[sys] && SYSTEMES[sys].astres) || []).find((a) => a.id === id); }
+function astreDansSysteme(sys, id) { return sys === SYSTEME.id ? ASTRES_PAR_ID[id] : ((SYSTEMES[sys] && SYSTEMES[sys].astres) || []).find((a) => a.id === id); }
 
 // Choix de la fenêtre « Reprendre » : les expéditions rangées, puis les autres systèmes. [id, titre, détail]
 function choixFlotte(v) {
@@ -229,7 +229,7 @@ function choixFlotte(v) {
       detail = v.t >= i.tArrivee ? `arrivé dans le ${nomSystemeDe(i.systeme)} vers ${fmtAnnee(i.anneeDepart + i.ans)}${v.t < i.tArrivee + dl ? ` (la nouvelle arrivera ici vers ${fmtAnnee(anneeDuJeu(i.tArrivee + dl))})` : ''} : prendre la main`
         : `en route vers le ${nomSystemeDe(i.systeme)}, arrivée vers ${fmtAnnee(i.anneeDepart + i.ans)} (suivre le voyage : la date avance jusque-là)`;
     } else {
-      const a = x.orb && astreDe(x.systeme, x.orb.centre);
+      const a = x.orb && astreDansSysteme(x.systeme, x.orb.centre);
       if (x.systeme !== v.systeme && delaiLumiere(v.systeme, x.systeme) > 0) {
         const w = (v.mondes || {})[x.systeme];
         l.push(['exp:' + x.idExpedition, titre, `dans le ${nomSystemeDe(x.systeme)} · dernières nouvelles : ${fmtDate((w && w.tRange) || x.tRange, false)} (${fmtDureeAnnees(delaiLumiere(v.systeme, x.systeme) / ANNEE_S)} de trajet pour la lumière)`]);
