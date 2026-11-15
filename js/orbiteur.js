@@ -1081,6 +1081,7 @@ const Orbiteur = {
       let prod = productionBase(a) * b.niveau * (dt / JOUR);
       let mat = productionMateriaux(a, b.niveau) * (dt / JOUR);
       // Chantier d'un lanceur lourd à la base : la production va d'abord au lanceur (colonies.js).
+      ({ prod, mat } = gererProduction(v, b, a, prod, mat, dt, (t) => this.log(t)));   // robots, serres, empreinte, astromobile (gestion.js)
       if (b.chantierLanceur) ({ prod, mat } = alimenterChantierLanceur(v, b, prod, mat, (t) => this.log(t)));
       if (st && mat > 0) ajouterLocal(st, 'materiaux', mat);   // provenance : l'astre de la base
       b.materiauxTotal = (b.materiauxTotal || 0) + mat;
@@ -2496,6 +2497,7 @@ const Orbiteur = {
     d += htmlBaseColons(v, c);   // colonie : réserve et sortie depuis la base (colonies.js)
     d += htmlRetrouvailles(v);   // deux expéditions au même endroit (flotte.js)
     d += htmlButsSysteme(v);   // buts dans les autres systèmes (buts.js)
+    d += htmlGestionBase(v, c);   // gérer la base de l'astre (gestion.js)
     if (this.peutDescendre()) {
       // L'atterrisseur est conçu pour l'astre : on ne descend que si l'on peut repartir.
       const conc = this.conceptionPour(c);
@@ -2601,6 +2603,7 @@ const Orbiteur = {
     bind('nav-sortie-base', () => sortieDepuisBase(v, ASTRES_PAR_ID[o.centre]));
     bind('nav-echange', () => ouvrirEchange(v, () => this.majHud(true)));
     bind('nav-message-terre', () => { envoyerMessageTerre(v); this.majHud(true); });
+    bind('nav-gestion-base', () => ouvrirGestionBase(v, ASTRES_PAR_ID[o.centre], () => this.majHud(true)));
     bind('nav-chantier-lanceur', () => { lancerChantierLanceur(v, ASTRES_PAR_ID[o.centre]); this.majHud(true); });
     bind('nav-lanceur-colonie', () => decollerLanceurColonie(v, ASTRES_PAR_ID[o.centre]));
     bind('nav-colons', () => ouvrirChoixEquipage(v, ASTRES_PAR_ID[o.centre], (compo) => descendreColons(v, ASTRES_PAR_ID[o.centre], compo)));
