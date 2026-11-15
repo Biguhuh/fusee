@@ -110,6 +110,7 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 3. Jouer une vraie campagne : presque tout le travail de novembre n'a été testé que par appels directs, sur des copies de la sauvegarde.
 4. Rappel et tonneaux, escalade et cordée : vérifier en jouant sur d'autres astres (testés sur des terrains d'essai).
 5. Carte 6, point 8 : la date « 4 mars 2265 » de la capture d'Edouard n'est pas expliquée ; demander sa sauvegarde.
+6. Après la carte 4 : saisons sur les astres. Donner à chacun l'inclinaison de son axe, calculer la hauteur du Soleil selon la latitude et la date (aujourd'hui, seuls les tourbillons de Mars suivent la saison). D'abord Mars (givre l'hiver, tempêtes de poussière l'été austral), la Terre (fleurs et fruits de la promenade selon la saison), Titan (pluies de méthane, lacs) ; ensuite Triton (geysers) et Pluton (atmosphère qui gèle loin du Soleil).
 
 ## Bugs connus de la bêta
 
