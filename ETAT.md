@@ -130,7 +130,7 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 
 ## Décisions prises
 
-- Missions en parallèle : votre spationaute est à bord de chaque expédition, même de plusieurs à la fois. C'est le personnage du joueur, qui commande chaque mission. Décidé par Edouard.
+- Missions en parallèle : un spationaute joué par mission, et ce n'est pas le même d'une mission à l'autre (chaque expédition a son propre personnage joué, avec son nom et son apparence). Décidé par Edouard. Aujourd'hui, le jeu n'a qu'un spationaute joué (`nomSpatio()`, `SPATIO`, `ID_JOUEUR` au registre) : la même personne se retrouve dans tous les vaisseaux. À faire (étape 4 bis).
 - Temps commun à tous les systèmes, appelé « temps terrestre de référence » (la date du jeu) : pendant un voyage interstellaire de 40 ans, 40 ans passent aussi dans le Système solaire, et on y joue d'autres missions. La dilatation relativiste est gardée : le temps vécu à bord est calculé (`dureeTechnologie`, `interstellaire.js`) et doit être conservé pour chaque personnage, car on calculera plus tard l'âge des personnages (ils n'en ont pas encore). Décidé par Edouard.
 - Bases et colonies : on vient en scientifique respectueux, pas en conquérant. Impact sur l'environnement le plus faible possible (prélever peu, ne pas polluer, protéger d'éventuelles traces de vie), main-d'œuvre robotisée. Demandé par Edouard, à respecter dans tout ce qui touche aux bases, aux colonies et aux ressources.
 - Pas de framework ni de build : le jeu doit s'ouvrir avec un simple `index.html`.
