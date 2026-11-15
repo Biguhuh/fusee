@@ -70,7 +70,7 @@ function migrerVoyage(v) {
   for (const texte of fusionnerDoublons(m)) m.journal.push({ t: m.t, texte });
   // Noms des stations : « Station Lune » est devenu « Station lunaire », « Station Europe » « Station d’Europe ».
   for (const s of m.stations) if (!s.terrestre && ASTRES_PAR_ID[s.centre]) s.nom = nomStation(ASTRES_PAR_ID[s.centre]);
-  return m;
+  return migrerFlotte(m);   // missions en parallèle (flotte.js)
 }
 const canvas = $('vol');
 const ctx = canvas.getContext('2d');

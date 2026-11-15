@@ -97,6 +97,7 @@ const Orbiteur = {
     baptiserVaisseau(v, nom || nomVaisseauAleatoire(v));
     v.nomVaisseauPrevu = null;
     v.expeditions++;
+    v.numero = v.expeditions; v.idExpedition = 'x' + Date.now().toString(36);   // missions en parallèle (flotte.js)
     this.etape = null; this.auto = false; this.avance = false;
     if (gare) return this.log(`Expédition n° ${v.expeditions} : l’équipage a rejoint le vaisseau ${v.nomVaisseau}, garé ${au(station)} (${fmt(v.carburant / 1000, 1)} t de carburant, ${fmt(v.ergolsAtt / 1000, 1)} t d’ergols atterrisseur). Faites le plein à la station.`);
     this.log(`Expédition n° ${v.expeditions} en orbite terrestre : le vaisseau ${v.nomVaisseau}, son atterrisseur et le chargement sont prêts.` +

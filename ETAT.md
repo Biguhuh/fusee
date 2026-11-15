@@ -105,7 +105,7 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 
 ## En cours
 
-- Missions en parallèle, branche `missions-paralleles` : pouvoir revenir au Système solaire depuis une autre étoile et y lancer d'autres missions. En 5 étapes : 1 séparer le monde de chaque système (stations, bases, cargos) des expéditions (orbiteur, équipe, chargement), avec conversion des sauvegardes ; 2 départ vers une étoile sans rien effacer, écran de choix des expéditions ; 3 les expéditions qu'on ne regarde pas avancent aussi ; 4 plusieurs expéditions dans un même système ; 5 en option, délai des communications. Étape 1 à l'étude.
+- Missions en parallèle, branche `missions-paralleles` : pouvoir revenir au Système solaire depuis une autre étoile et y lancer d'autres missions. En 5 étapes : 1 séparer le monde de chaque système (stations, bases, cargos) des expéditions (orbiteur, équipe, chargement), avec conversion des sauvegardes ; 2 départ vers une étoile sans rien effacer, écran de choix des expéditions ; 3 les expéditions qu'on ne regarde pas avancent aussi ; 4 plusieurs expéditions dans un même système ; 5 en option, délai des communications. Étape 1 (rangement, flotte.js) faite, à valider.
 
 ## À faire, dans l'ordre
 
@@ -128,7 +128,7 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 
 ## Décisions prises
 
-- Temps commun à tous les systèmes : pendant un voyage interstellaire de 40 ans, 40 ans passent aussi dans le Système solaire, et on y joue d'autres missions. Le temps vécu à bord (dilatation relativiste) est seulement affiché : il ne compte pour personne, les personnages n'ont pas d'âge (pour l'instant). Décidé par Edouard.
+- Temps commun à tous les systèmes, appelé « temps terrestre de référence » (la date du jeu) : pendant un voyage interstellaire de 40 ans, 40 ans passent aussi dans le Système solaire, et on y joue d'autres missions. La dilatation relativiste est gardée : le temps vécu à bord est calculé (`dureeTechnologie`, `interstellaire.js`) et doit être conservé pour chaque personnage, car on calculera plus tard l'âge des personnages (ils n'en ont pas encore). Décidé par Edouard.
 - Bases et colonies : on vient en scientifique respectueux, pas en conquérant. Impact sur l'environnement le plus faible possible (prélever peu, ne pas polluer, protéger d'éventuelles traces de vie), main-d'œuvre robotisée. Demandé par Edouard, à respecter dans tout ce qui touche aux bases, aux colonies et aux ressources.
 - Pas de framework ni de build : le jeu doit s'ouvrir avec un simple `index.html`.
 - Valeurs physiques réelles, arrondies ; les exagérations sont signalées (Soleil agrandi ×3 dans le ciel, feuille A4 agrandie sur Pluton).
