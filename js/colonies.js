@@ -219,3 +219,11 @@ Object.assign(Exploration.prototype, {
     return { au: b ? 'à la base' : 'au module', du: b ? 'de la base' : 'du module', le: b ? 'la base' : 'le module', Le: b ? 'Base' : 'Module', nom: b ? 'base' : 'module' }[forme];
   },
 });
+
+// Fiche de l'astre : sur une planète lourde, dire qu'on n'en repart pas, et comment y vivre quand même.
+function ligneColonie(a) {
+  if (a.type !== 'solide' || estPetitCorps(a) || AEROSTAT[a.id] || estOrigine(a.id)) return null;
+  const c = concevoirAtterrisseur(a);
+  if (!c || c.ok || !/repartir/.test(c.raison || '')) return null;
+  return ['Repartir du sol', `impossible avec un atterrisseur (≈ ${fmt(besoinAtterrisseur(a) * 1.2 / 1000, 1)} km/s) : robot en aller simple, ou descente sans retour vers une base (colonie), puis lanceur construit sur place`];
+}

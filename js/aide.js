@@ -110,6 +110,12 @@ const ONGLETS_AIDE = [
       fait: 'Elle exploite la ressource locale (glace, méthane, CO₂…) pour produire des ergols, et refait le plein de l’atterrisseur.',
       evolue: 'Cinq niveaux, chacun avec une extension de base descendue depuis la station. À partir du niveau 2, une mine produit aussi des matériaux.',
     }) +
+    ficheAide('Colonies (planètes lourdes)', {
+      role: 'Vivre sur une planète de la taille de la Terre, d’où aucun atterrisseur ne peut repartir (≈ 11 km/s pour remonter en orbite, comme depuis la Terre).',
+      obtenir: 'Une base sur la planète (déployée depuis la station), puis, à l’orbiteur, « Descente sans retour » : un module de descente seule pose l’équipage choisi près de la base. C’est définitif.',
+      fait: 'Les colons vivent à la base, sur sa réserve de vivres et d’eau, que la navette de la station complète. Ils sortent à pied depuis la base (bouton « Sortie depuis la base »). On y vient en scientifique, en limitant l’impact sur la planète.',
+      evolue: 'Avec une base de niveau 3, ils construisent sur place un lanceur à deux étages (500 t d’ergols tirés de la glace, 60 t de matériaux de la mine, au moins un an) : il remonte jusqu’à 4 colons en orbite, une fois.',
+    }) +
     ficheAide('Cargos et ravitaillement', {
       role: 'Envoyer du matériel d’une station à une autre, ou depuis la Terre.',
       obtenir: 'Centre de commande, onglet « 📦 Ravitos » (raccourci « 📦 Ravito » à l’orbiteur), dès qu’une station existe.',

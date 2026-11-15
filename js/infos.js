@@ -106,6 +106,7 @@ const Infos = {
         return ['Rotation', `${duree}${r.heures < 0 ? ' (sens rétrograde)' : ''}${r.estimee ? ' (estimée)' : ''}`];
       })(),
       ligneSaisons(a),
+      typeof ligneColonie === 'function' ? ligneColonie(a) : null,   // planètes lourdes (colonies.js)
     ])]);
 
     if (a.atm) {
