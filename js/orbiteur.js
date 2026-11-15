@@ -52,11 +52,10 @@ const Orbiteur = {
 
   // Une campagne : ce qui dure (stations, bases, sondes, journal, échantillons rapportés).
   // L'orbiteur (orb) n'existe que pendant une expédition, lancée depuis la Terre par la méga-fusée.
-  nouveauVoyage() {
+  nouveauVoyage(debut = dateDuJour()) {   // debut : date de départ choisie (date-depart.js)
     // Nouvelle campagne : elle commence à la date du jour, sans aucune expédition ; la voiture rouge est remise en orbite.
     // (Ce qu'on remet à zéro en plus — échantillons, drapeaux, artefacts, easter eggs — se choisit dans la fenêtre.)
     if (ASTRES_PAR_ID.roadster) ASTRES_PAR_ID.roadster.cachee = false;
-    const debut = dateDuJour();
     return {
       t: debut,
       systeme: SYSTEME.id,

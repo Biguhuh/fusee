@@ -1133,16 +1133,15 @@ function ouvrirNouvelleCampagne(lancer) {
   };
 }
 $('voyage-nouveau').onclick = () => {
-  if (etat.voyage) return ouvrirNouvelleCampagne(() => {
-    etat.voyage = Orbiteur.nouveauVoyage();
+  // La date de départ se choisit d'abord (date-depart.js).
+  const commencer = (t) => {
+    etat.voyage = Orbiteur.nouveauVoyage(t);
     Orbiteur.camPlacee = false;
     sauver(etat);
     allerNavigation();
-  });
-  etat.voyage = Orbiteur.nouveauVoyage();
-  Orbiteur.camPlacee = false;
-  sauver(etat);
-  allerNavigation();
+  };
+  if (etat.voyage) return ouvrirNouvelleCampagne(() => choisirDateDepart(commencer));
+  choisirDateDepart(commencer);
 };
 $('voyage-reprendre').onclick = ouvrirReprise;
 $('promenade').onclick = promenadeSurTerre;
