@@ -111,6 +111,8 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 4. Rappel et tonneaux, escalade et cordée : vérifier en jouant sur d'autres astres (testés sur des terrains d'essai).
 5. Carte 6, point 8 : la date « 4 mars 2265 » de la capture d'Edouard n'est pas expliquée ; demander sa sauvegarde.
 6. Après la carte 4 : saisons sur les astres. Donner à chacun l'inclinaison de son axe, calculer la hauteur du Soleil selon la latitude et la date (aujourd'hui, seuls les tourbillons de Mars suivent la saison). D'abord Mars (givre l'hiver, tempêtes de poussière l'été austral), la Terre (fleurs et fruits de la promenade selon la saison), Titan (pluies de méthane, lacs) ; ensuite Triton (geysers) et Pluton (atmosphère qui gèle loin du Soleil).
+7. Après la carte 4 : planètes lourdes (taille de la Terre, ≈ 11 km/s pour remonter, ex. TRAPPIST-1 e, f, g). Permettre une descente humaine sans retour, annoncée comme définitive (l'équipage devient les colons de la base au sol), puis un lanceur lourd construit sur place par une base bien approvisionnée, sur le modèle du lanceur de retour de Vénus (`lanceurRetour`, `campagne.js`).
+8. Après la carte 4 : des buts dans les autres systèmes (aujourd'hui on y explore, sans plus). Pistes : trouver de l'eau liquide, chercher des traces de vie, rendre la colonie autonome (vivres, eau, énergie), envoyer un message vers la Terre (des décennies de trajet).
 
 ## Bugs connus de la bêta
 
