@@ -243,38 +243,42 @@ class TransitInterstellaire {
   }
 }
 
-// ---------- Arrivée : nouvelle campagne dans l'autre système ----------
-// Le vaisseau emporte le chargement de la grande station et de l'orbiteur ; à l'arrivée, une station est déployée
-// en orbite de la planète de base (avec les matériaux et les ergols) et l'orbiteur garde kits, robots et atterrisseurs.
+// ---------- Arrivée dans l'autre système ----------
+// Le vaisseau emporte le chargement de la grande station de départ (info.chargement) et celui de l'orbiteur ;
+// à l'arrivée, une station est déployée en orbite de la planète de base (ou complétée, si une expédition
+// précédente y en a déjà une) et l'orbiteur garde kits, robots et atterrisseurs.
+// Le système d'arrivée est déjà à l'écran (flotte.js, arriverExpedition) : on n'y efface rien.
 function arriverDansSysteme(v, info) {
   replique('startrek');
   if (/epseri|eridani/i.test(String(info.id || info.systeme || info.nomSysteme || ''))) replique('tribbles');
-  const st = stationDeDepart(v), k = st ? { ...st.stock } : {};
-  const ech = Object.values(v.echantillonsRapportes || {}).reduce((s, x) => s + x, 0);
-  v.historique = v.historique || [];
-  v.historique.push({ systeme: v.systeme || 'solaire', nom: SYSTEME.nom, quitte: info.tDepart, stations: v.stations.length, bases: v.bases.length, echantillons: ech });
-  v.t = info.tArrivee;
+  const k = info.chargement || {};
+  v.t = Math.max(v.t, info.tArrivee);
   v.tVivres = v.t; v.tDechets = v.t;   // traversée : écosystème fermé, rien à décompter d'un coup
   v.systeme = info.systeme;
-  v.planeteBase = info.base;
+  v.planeteBase = v.planeteBase || info.base;
   choisirSystemeCampagne(v);
   const a = ASTRES_PAR_ID[info.base];
   const r0 = rayonOrbiteBasse(a), vc = Math.sqrt(a.gm / r0);
   v.orb = { centre: a.id, r: [r0, 0], v: [0, vc], transfert: null };
   for (const cle of ['kits', 'kitsBase', 'atterrisseurs', 'robots', 'sondes']) v[cle] = (v[cle] || 0) + (k[cle] || 0);
   v.carburant = capOrbiteur(v, 'carburantMax');
-  const r1 = r0 * 1.02;
-  const station = {
-    id: 's' + Date.now(), nom: nomStation(a), centre: a.id, r: [0, r1], v: [-Math.sqrt(a.gm / r1), 0], t0: v.t, terrestre: false, niveau: 1,
-    stock: { ...STOCK_VIDE(), carburant: k.carburant || 0, ergols: k.ergols || 0, materiaux: k.materiaux || 0, lanceurRetour: k.lanceurRetour || 0, extensions: k.extensions || 0, extensionsStation: k.extensionsStation || 0 },
-    chantiers: [],
-  };
-  v.stations = [station];
-  v.bases = []; v.sondesEnVol = []; v.cargos = []; v.robotsAuto = []; v.conteneurs = [];
-  v.sites = { ...((v.systemesSondes && v.systemesSondes[info.systeme] && v.systemesSondes[info.systeme].sites) || {}) };
-  cumulerProgression(v);   // les visites du Système solaire restent dans la progression
-  v.visites = {}; v.echantillonsABord = {}; v.echantillonsRapportes = {}; v.cible = null;
-  if (v.equipe) for (const m of v.equipe) { if (m.etat === 'mission') m.etat = 'bord'; delete m.mission; }
-  v.journal.push({ t: v.t, texte: `Arrivée dans le ${SYSTEME.nom} après ${fmtDureeAnnees(info.ans)} (${fmtDureeAnnees(info.ansBord)} vécus à bord). ${Le(station)} est déployée ${enOrbite(a)}. Prochaine étape : se poser et construire la base.` });
+  const apport = { carburant: k.carburant || 0, ergols: k.ergols || 0, materiaux: k.materiaux || 0, lanceurRetour: k.lanceurRetour || 0, extensions: k.extensions || 0, extensionsStation: k.extensionsStation || 0 };
+  let station = (v.stations || []).find((s) => s.centre === a.id);
+  if (station) {
+    for (const [c, q] of Object.entries(apport)) station.stock[c] = (station.stock[c] || 0) + q;
+  } else {
+    const r1 = r0 * 1.02;
+    station = {
+      id: 's' + Date.now(), nom: nomStation(a), centre: a.id, r: [0, r1], v: [-Math.sqrt(a.gm / r1), 0], t0: v.t, terrestre: false, niveau: 1,
+      stock: { ...STOCK_VIDE(), ...apport }, chantiers: [],
+    };
+    v.stations = [...(v.stations || []), station];
+  }
+  v.sites = { ...((v.systemesSondes && v.systemesSondes[info.systeme] && v.systemesSondes[info.systeme].sites) || {}), ...(v.sites || {}) };
+  v.echantillonsABord = {}; v.cible = null;
+  // Dilatation : l'équipage a vécu moins longtemps que la Terre (on s'en servira pour l'âge des personnages).
+  const ecart = Math.max(0, (info.ans - (info.ansBord || info.ans)) * ANNEE_S);
+  if (v.equipe) for (const m of v.equipe) { if (m.etat === 'mission') m.etat = 'bord'; delete m.mission; m.decalageBord = (m.decalageBord || 0) + ecart; }
+  v.journal.push({ t: v.t, texte: `Arrivée dans le ${SYSTEME.nom} après ${fmtDureeAnnees(info.ans)} (${fmtDureeAnnees(info.ansBord)} vécus à bord). ${Le(station)} est ${station.t0 === v.t ? 'déployée' : 'complétée'} ${enOrbite(a)}. Prochaine étape : se poser et construire la base.` });
   return station;
 }

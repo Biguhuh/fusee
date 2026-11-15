@@ -194,7 +194,7 @@ const Depart = {
       const e = etoile();
       if (ch.type === 'scifi') {
         const d = DONNEES_ETOILES[ch.etoile], du = dureeTechnologie(ch.tech, d.distanceAL), base = SYSTEMES[ch.etoile].astres.find((a) => a.id === ch.base);
-        if (!base || !confirm(`Partir pour ${le(d)} et s’installer ${sur(base)} ? Le voyage dure ${fmtDureeAnnees(du.ans)}. Le ${SYSTEME.nom} reste derrière vous (aller simple).`)) return;
+        if (!base || !confirm(`Partir pour ${le(d)} et s’installer ${sur(base)} ? Le voyage dure ${fmtDureeAnnees(du.ans)}. Aller simple pour l’équipage ; le ${SYSTEME.nom} reste tel quel, vous pourrez y lancer d’autres missions.`)) return;
         fermer();
         this.contexte.partirSF({
           systeme: ch.etoile, nomSysteme: d.nom, distanceAL: d.distanceAL, tech: ch.tech, base: base.id, nomBase: base.nom,

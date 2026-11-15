@@ -913,14 +913,16 @@ function ouvrirReprise() {
   const pr = lirePointReprise(v);   // orbiteur écrasé, perte pas encore actée
   // Expédition en cours et nulle part ailleurs où reprendre : on y retourne directement.
   // Sans expédition (après un retour sur Terre), on montre toujours le choix, pas directement le pas de tir.
-  if (v.orb && !pr && !v.stations.length && !basesOk.length) return allerNavigation();
+  const ailleurs = choixFlotte(v);   // autres expéditions, autres systèmes (flotte.js)
+  if (v.orb && !pr && !v.stations.length && !basesOk.length && !ailleurs.length) return allerNavigation();
   const choix = [];
   if (pr) choix.push(['crash', '↺ Recommencer avant le crash', `${textePointReprise(pr)}, même équipage, même chargement`]);
   if (v.orb) choix.push(['ici', `▶ Là où vous étiez`, `${enOrbite(ASTRES_PAR_ID[v.orb.centre])}`]);
   for (const s of v.stations) choix.push(['station:' + s.id, `🛰 ${s.nom}`, `${enOrbite(ASTRES_PAR_ID[s.centre])}, amarré à la station`]);
   for (const b of basesOk) choix.push(['base:' + v.bases.indexOf(b), `🏠 ${nomBase(ASTRES_PAR_ID[b.astre])}, niveau ${b.niveau || 1}`, `au sol, l’atterrisseur garé à côté ; l’orbiteur attend en orbite`]);
-  if (!choix.length && !ressourcesIllimitees()) return allerNavigation();
   if (ressourcesIllimitees()) choix.push(['terre', `🚀 Depuis ${SYSTEME.nomOrigine}`, v.orb ? 'centre de lancement (l’expédition en cours reste où elle est)' : 'centre de lancement, nouvelle méga-fusée']);
+  choix.push(...ailleurs);
+  if (!choix.length && !ressourcesIllimitees()) return allerNavigation();
   const m = $('modale');
   m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>▶ Reprendre la campagne</h2><p>Choisissez d’où repartir.</p></div><button class="fermer">✕</button></header>
     <section>${choix.map(([id, nom, detail], i) => `<label class="choix-ravito"><input type="radio" name="reprise" value="${id}" ${i === 0 ? 'checked' : ''}> <b>${nom}</b><br><span class="doux">${detail}</span></label>`).join('')}</section>
@@ -938,6 +940,9 @@ function ouvrirReprise() {
 function reprendreDepuis(id) {
   const v = etat.voyage;
   if (id === 'ici') return allerNavigation();
+  // Missions en parallèle (flotte.js) : avant de laisser le vaisseau, prochaine manœuvre et pilotage en son absence.
+  if (id.startsWith('exp:')) return confirmerAbsence(v, () => prendreExpedition(id.slice(4)));
+  if (id.startsWith('sys:')) return confirmerAbsence(v, () => { changerSysteme(v, id.slice(4)); sauver(etat); ouvrirReprise(); });
   if (id === 'crash') { const p = lirePointReprise(v); return p ? reprendreAvantCrash(p) : allerNavigation(); }
   if (lirePointReprise(v)) oublierPointReprise();   // repartir d'ailleurs : la perte est actée
   if (id === 'terre') return v.orb ? allerLancement() : allerEquipage(v);   // nouvelle expédition : l'équipage d'abord
@@ -1000,16 +1005,33 @@ function terminerParDepart(info) {
   $('rejouer').classList.add('cache');
   montrer('resultat');
 }
-// Départ science-fiction : traversée animée, puis arrivée et nouvelle campagne dans l'autre système.
+// Départ science-fiction : l'expédition quitte le système, qui reste tel quel (missions en parallèle, flotte.js).
+// On peut suivre le voyage (la date avance jusqu'à l'arrivée) ou rester ici et lancer d'autres missions.
 function partirVersSysteme(info) {
   const v = etat.voyage;
   replique('force');
   depenser(v, 'interstellaire', `Vaisseau interstellaire : ${TECHNOLOGIES[info.tech].nom}`, TARIFS.interstellaire.vaisseaux[info.tech]);
   regVoyageEtoile(v, (info.ansBord || info.ans) * 365.25 * 86400);   // registre : le temps vécu à bord
   Orbiteur.log(`Départ pour ${le(info.nomSysteme)} en ${TECHNOLOGIES[info.tech].nom.toLowerCase()} : ${fmtDureeAnnees(info.ans)} de voyage, installation prévue sur ${info.nomBase}.`);
+  const x = partirVersEtoile(v, info);
   sauver(etat);
-  jouerScene(new TransitInterstellaire(info), () => {
-    const st = arriverDansSysteme(v, info);
+  const m = $('modale');
+  m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>🚀 En route vers ${le(info.nomSysteme)}</h2>
+    <p>Le vaisseau ${x.nomVaisseau || ''} a quitté le ${SYSTEME.nom} avec ${x.equipe && x.equipe.length ? nombre(x.equipe.length, 'membre d’équipage', 'membres d’équipage') : 'son chargement'}. Arrivée vers ${fmtAnnee(info.anneeDepart + info.ans)}.</p>
+    <p>Le ${SYSTEME.nom} reste tel quel : vous pouvez y lancer d’autres missions pendant le voyage, puis reprendre l’expédition (accueil → « Reprendre »). Le temps est le même partout.</p></div></header>
+    <div class="actions"><button id="dep-rester">Rester dans le ${SYSTEME.nom}</button><button id="dep-suivre" class="principal">Suivre le voyage jusqu’à l’arrivée</button></div></div>`;
+  m.classList.remove('cache');
+  $('dep-rester').onclick = () => { Infos.fermer(); allerAccueil(); };
+  $('dep-suivre').onclick = () => { Infos.fermer(); suivreVoyage(x.idExpedition); };
+}
+// Suivre une expédition en route vers une autre étoile : traversée animée (si elle n'est pas déjà arrivée), puis arrivée.
+function suivreVoyage(id) {
+  const v = etat.voyage;
+  const x = (v.flotte || []).find((e) => e.idExpedition === id);
+  if (!x || !x.transit) return allerAccueil();
+  const info = x.transit;
+  const arrivee = () => {
+    const st = arriverExpedition(v, id);
     for (const m of v.equipe || []) m.tDepart = v.t;   // le voyage est déjà compté dans le registre
     Orbiteur.charger(v);
     Orbiteur.camPlacee = false;
@@ -1017,7 +1039,7 @@ function partirVersSysteme(info) {
     const h = $('res-titre');
     h.textContent = `Arrivée dans le ${SYSTEME.nom}`;
     h.className = 'succes';
-    $('res-message').textContent = `Après ${fmtDureeAnnees(info.ans)} de voyage (${fmtDureeAnnees(info.ansBord)} vécus à bord), l’expédition est entrée dans le système par l’extérieur et s’est placée ${enOrbite(info.nomBase)}. ${Le(st)} est déployée avec le chargement. À vous de vous poser et de construire la base.`;
+    $('res-message').textContent = `Après ${fmtDureeAnnees(info.ans)} de voyage (${fmtDureeAnnees(info.ansBord)} vécus à bord), l’expédition est entrée dans le système par l’extérieur et s’est placée ${enOrbite(info.nomBase)}. ${Le(st)} est ${st.t0 === v.t ? 'déployée' : 'complétée'} avec le chargement. À vous de vous poser et de construire la base.`;
     $('res-stats').innerHTML = `
       <dt>Propulsion</dt><dd>${TECHNOLOGIES[info.tech].nom}</dd>
       <dt>Distance</dt><dd>${fmt(info.distanceAL, 2)} années-lumière</dd>
@@ -1030,7 +1052,9 @@ function partirVersSysteme(info) {
     $('vers-hangar').textContent = 'Aller à l’orbiteur';
     $('rejouer').classList.add('cache');
     montrer('resultat');
-  });
+  };
+  if (v.t >= info.tArrivee) return arrivee();
+  jouerScene(new TransitInterstellaire(info), arrivee);
 }
 // Avant de quitter le système : proposer de télécharger la partie, pour pouvoir la recharger plus tard.
 function proposerSauvegardeAvantDepart(suite) {
