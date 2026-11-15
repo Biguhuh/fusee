@@ -66,7 +66,7 @@ function restaurerExpedition(v, x) {
   if (v.rattrapageDepuis) {
     // Le système vient d'être retrouvé : l'expédition sera rattrapée avec lui (executerRattrapage).
     if (x.tRange < v.rattrapageDepuis) { const t = v.t; v.t = v.rattrapageDepuis; rattraperOrbiteur(v, x.tRange); v.t = t; }
-  } else rattraperOrbiteur(v, x.tRange);
+  } else if (x.tRange < v.t) absenceVaisseau = rattraperVaisseauSeul(v, x.tRange);
   oublierEtapeOrbiteur();
 }
 
@@ -197,14 +197,18 @@ function prendreExpedition(id) {
   const x = (v.flotte || []).find((e) => e.idExpedition === id);
   if (!x) return allerAccueil();
   if (x.transit) return suivreVoyage(id);
+  absenceVaisseau = null;
   reprendreExpedition(v, id);
-  executerRattrapage(v, () => {
-    if (v.pilotageAbsence) bilanAbsence(v, (t) => Orbiteur.log(t));   // même système : pas de rattrapage, mais le « Oups » éventuel
+  const fin = () => {
     Orbiteur.charger(v);
     Orbiteur.camPlacee = false;
     sauver(etat);
     if (v.orb) allerNavigation(); else allerAccueil();
-  });
+  };
+  const a = absenceVaisseau;
+  absenceVaisseau = null;
+  if (a) return montrerAbsence(v, `Vaisseau ${x.nomVaisseau || ''}`, v.t - a.t0, a.nouveautes, a.perte, false, fin);
+  executerRattrapage(v, fin);
 }
 
 // Nom d'un système, et d'un astre d'un autre système que celui affiché.
@@ -293,10 +297,13 @@ function executerRattrapage(v, suite) {
   }
   if (v.orb) bilanAbsence(v, (t) => O.log(t));
   const nouveautes = v.journal.slice(debut);
+  montrerAbsence(v, `Dans le ${SYSTEME.nom}${nom ? `, avec le vaisseau ${nom}` : ''}`, cible - t0, nouveautes, perte, simplifie, suite);
+}
+function montrerAbsence(v, ou, duree, nouveautes, perte, simplifie, suite) {
   if (!nouveautes.length && !perte && !simplifie) return suite();
   const m = $('modale');
   m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>⏱ Pendant votre absence</h2>
-    <p>Dans le ${SYSTEME.nom}${nom ? `, avec le vaisseau ${nom}` : ''} : ${fmtDuree(cible - t0)} écoulés. Nous sommes le ${fmtDate(v.t, false)}.</p></div><button class="fermer">✕</button></header>
+    <p>${ou} : ${fmtDuree(duree)} écoulés. Nous sommes le ${fmtDate(v.t, false)}.</p></div><button class="fermer">✕</button></header>
     ${perte ? `<p class="objectif">${perte}</p>` : ''}
     ${simplifie ? '<p class="doux">Absence très longue : la fin a été calculée plus simplement (orbites, puis un seul bilan).</p>' : ''}
     ${nouveautes.length ? `<ul class="journal">${nouveautes.slice(-15).map((j) => `<li><b>${fmtDate(j.t, false)}</b> · ${j.texte}</li>`).join('')}</ul>` : '<p class="doux">Rien de notable.</p>'}
@@ -305,6 +312,64 @@ function executerRattrapage(v, suite) {
   const fin = () => { Infos.fermer(); suite(); };
   m.querySelector('.fermer').onclick = fin;
   m.querySelector('.fermer2').onclick = fin;
+}
+
+// Vaisseau repris dans le système affiché (qui, lui, a vécu sans lui) : seul le vaisseau rattrape son temps.
+// Pilote auto : on enchaîne les étapes du trajet (prochaineEtape) ; manuel : la trajectoire suit son cours.
+// Ses vivres sont décomptés. Renvoie { t0, nouveautes, perte } pour la fenêtre « Pendant votre absence ».
+let absenceVaisseau = null;
+function rattraperVaisseauSeul(v, t0) {
+  const o = v.orb, cible = v.t, debut = v.journal.length, nom = v.nomVaisseau;
+  const log = (t, texte) => { v.journal.push({ t, texte: `${nom ? `${nom} · ` : ''}${texte}` }); if (v.journal.length > 200) v.journal.shift(); };
+  let perte = null;
+  if (o) {
+    const auto = v.pilotageAbsence !== 'manuel' && !!v.cible;
+    let t = t0;
+    // Avance sans poussée jusqu'à t2 ; s'arrête au changement de sphère d'influence (le trajet se recalcule).
+    const balistique = (t2) => {
+      for (let k = 0; k < 400 && t < t2 - 1e-3; k++) {
+        const ev = [];
+        const res = avancerVaisseau(o, t, t2 - t, ev, true);
+        t = res === 'changement' ? ev[ev.length - 1].t : ev.tFin || t2;
+        if (res === 'impact') return 'impact';
+        if (res === 'changement') return 'changement';
+      }
+      t = Math.max(t, t2);
+      return 'ok';
+    };
+    if (v.amarre && !auto) rattraperOrbiteur(v, t0);   // amarré, sans consigne : il reste à la station
+    else {
+      v.amarre = null;
+      for (let n = 0; n < 200 && t < cible - 1e-3; n++) {
+        let res;
+        const e = auto ? prochaineEtape(o, t, v.cible) : null;
+        if (!e || e.type === 'fini' || e.type === 'impossible') res = balistique(cible);
+        else if (e.attenteEvenement || !e.dv || e.tExec > t + 1) res = balistique(Math.min(cible, Math.max(e.tExec, t + 60)));
+        else {
+          const reservoir = { kg: v.carburant };
+          if (!appliquerImpulsion(o, e.dv(o, t), reservoir)) { log(t, `Carburant insuffisant pour « ${e.texte} ». Le vaisseau poursuit sur sa lancée.`); res = balistique(cible); }
+          else { v.carburant = reservoir.kg; log(t, `${e.texte} (pilote auto).`); continue; }
+        }
+        if (res === 'impact') {
+          const a = ASTRES_PAR_ID[o.centre];
+          regExpeditionPerdue(v, 'orbiteur écrasé', o.centre);
+          perte = `Le vaisseau ${nom || ''} s’est écrasé ${sur(a)} le ${fmtDate(t, false)}. L’expédition est perdue.`;
+          log(t, perte);
+          v.orb = null; v.echantillonsABord = {};
+          break;
+        }
+        if (e && e.type === 'fini') break;
+      }
+      if (v.orb && t < cible) { const tt = v.t; v.t = cible; rattraperOrbiteur(v, t); v.t = tt; }
+      if (v.orb && auto && v.orb.centre === v.cible && prochaineEtape(copieJSON(v.orb), cible, v.cible).type === 'fini') log(cible, `Arrivé ${enOrbite(ASTRES_PAR_ID[v.cible])}.`);
+    }
+  }
+  // Vivres et eau du vaisseau (sans recompter l'eau des bases, qui a vécu de son côté).
+  const bases = v.bases;
+  v.bases = [];
+  try { mettreAJourVivres(v, (texte) => log(cible, texte)); } finally { v.bases = bases; }
+  bilanAbsence(v, (texte) => log(cible, texte));
+  return { t0, nouveautes: v.journal.slice(debut), perte };
 }
 
 // L'orbiteur rangé n'a pas bougé : on le replace là où il est à la date du jour.
@@ -330,6 +395,18 @@ function rattraperOrbiteur(v, t0) {
 function oublierEtapeOrbiteur() {
   if (typeof Orbiteur === 'undefined') return;
   Orbiteur.etape = null; Orbiteur.auto = false; Orbiteur.avance = false;
+}
+
+// Avant de démarrer une nouvelle expédition : ranger celle qui est à l'écran (pilote auto, sauf choix contraire),
+// et mettre de côté les équipiers restés aux bases et aux stations (initialiserEquipe remplace l'équipe).
+function preparerNouvelleExpedition(v) {
+  if (expeditionActive(v)) {
+    if (!v.pilotageAbsence) { v.pilotageAbsence = 'auto'; v.manoeuvreAbsence = prochaineManoeuvre(v); }
+    const x = rangerExpedition(v);
+    if (x) v.journal.push({ t: v.t, texte: `Le vaisseau ${x.nomVaisseau || ''} poursuit sa mission sans vous (pilotage ${x.pilotageAbsence === 'manuel' ? 'manuel' : 'auto'}) : « Reprendre » pour y revenir.` });
+  }
+  const restes = (v.equipe || []).filter((m) => m.etat === 'base' || m.etat === 'station');
+  if (restes.length) v.equipeSurPlace = [...(v.equipeSurPlace || []), ...restes];
 }
 
 // Sauvegardes d'avant les missions en parallèle : rien de rangé.

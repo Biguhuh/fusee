@@ -945,7 +945,7 @@ function reprendreDepuis(id) {
   if (id.startsWith('sys:')) return confirmerAbsence(v, () => { changerSysteme(v, id.slice(4)); executerRattrapage(v, () => { sauver(etat); ouvrirReprise(); }); });
   if (id === 'crash') { const p = lirePointReprise(v); return p ? reprendreAvantCrash(p) : allerNavigation(); }
   if (lirePointReprise(v)) oublierPointReprise();   // repartir d'ailleurs : la perte est actée
-  if (id === 'terre') return v.orb ? allerLancement() : allerEquipage(v);   // nouvelle expédition : l'équipage d'abord
+  if (id === 'terre') return v.orb ? confirmerAbsence(v, allerLancement) : allerEquipage(v);   // une expédition en cours continuera sans nous ; sinon, l'équipage d'abord
   Orbiteur.charger(v);
   Orbiteur.auto = false;   // repartir d'une station ou d'une base : le trajet en cours s'arrête
   if (!v.orb) {

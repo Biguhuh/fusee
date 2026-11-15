@@ -75,6 +75,7 @@ const Orbiteur = {
   // reprendreGare : lanceur d'équipage Aube, l'équipage reprend l'orbiteur garé à la station terrestre.
   demarrerExpedition(reprendreGare = false) {
     const v = this.v;
+    preparerNouvelleExpedition(v);   // missions en parallèle (flotte.js) : l'expédition en cours continue sans nous
     const gare = reprendreGare && v.orbiteurGare;
     const origine = planeteOrigine();
     const r0 = origine.rayonKm + 400;
@@ -94,7 +95,9 @@ const Orbiteur = {
     // Nom du vaisseau : celui choisi sur la page d'équipage ; un nouveau vaisseau ne reprend pas le nom de celui resté garé.
     let nom = v.nomVaisseauPrevu || (gare && gare.nomVaisseau);
     if (!gare && v.orbiteurGare && nom === v.orbiteurGare.nomVaisseau) nom = null;
-    baptiserVaisseau(v, nom || nomVaisseauAleatoire(v));
+    const enService = (v.flotte || []).map((x) => x.nomVaisseau).filter(Boolean);   // missions en parallèle : pas deux vaisseaux du même nom
+    if (enService.includes(nom)) nom = null;
+    baptiserVaisseau(v, nom || nomVaisseauAleatoire(v, enService));
     v.nomVaisseauPrevu = null;
     v.expeditions++;
     v.numero = v.expeditions; v.idExpedition = 'x' + Date.now().toString(36);   // missions en parallèle (flotte.js)
