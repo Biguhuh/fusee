@@ -675,7 +675,7 @@ class Exploration {
         this.marquer(s);
         this.donneesEnAttente++;
         compterExpedition('analysesFaites', 1);
-        this.dire(`Analyse terminée : ${s.nom}. ${s.texte} (données à transmettre depuis ${this.moduleRobot ? 'le module robot' : 'le module'})`);
+        this.dire(`Analyse terminée : ${s.nom}. ${s.texte} (données à transmettre depuis ${this.moduleRobot ? 'le module robot' : this.abri('le')})`);
         this.analyse = null;
       }
     }
@@ -917,7 +917,7 @@ class Exploration {
       return;
     }
     if (this.enRover) {
-      if (this.sacRover.length >= this.caisseRover) return this.dire(`Caisse de l’astromobile pleine (${this.caisseRover}) : rentrez au module.`);
+      if (this.sacRover.length >= this.caisseRover) return this.dire(`Caisse de l’astromobile pleine (${this.caisseRover}) : rentrez ${this.abri('au')}.`);
       this.sacRover.push(site);
     } else {
       if (this.sac.length >= this.def.capacite) return this.dire('Sac plein (6) : rapportez les échantillons, ou prenez l’astromobile (20).');
@@ -1007,7 +1007,7 @@ class Exploration {
     const avant = cible.integrite;
     if (avant >= 90) return this.dire(d ? 'Les deux combinaisons sont en bon état.' : 'Combinaison en bon état : pas besoin de ruban.');
     const porteur = this.rubans > 0 ? this : d && d.rubans > 0 ? d : null;
-    if (!porteur) return this.dire(this.duo && !d && this.duo.rubans > 0 ? `Plus de ruban sur vous : ${this.duo.eq.nom} en a encore, approchez-vous.` : 'Plus de ruban adhésif : rentrez au module.');
+    if (!porteur) return this.dire(this.duo && !d && this.duo.rubans > 0 ? `Plus de ruban sur vous : ${this.duo.eq.nom} en a encore, approchez-vous.` : `Plus de ruban adhésif : rentrez ${this.abri('au')}.`);
     porteur.rubans--;
     const apres = Math.min(95, avant + (d ? 25 : 15));
     cible.integrite = apres;
@@ -1039,7 +1039,7 @@ class Exploration {
       b.choix = m.querySelector('input[name=bl-choix]:checked').value;
       Infos.fermer();
       etat.pause = avant;
-      this.dire(b.choix === 'rentrer' ? '🏠 Décidé : toute l’expédition rentrera sur Terre. Ramenez d’abord le blessé au module.' : `🚑 Décidé : ${nom} sera rapatrié${eq.acc} par capsule. Ramenez-${eq.principal ? 'vous' : 'le'} d’abord au module.`);
+      this.dire(b.choix === 'rentrer' ? `🏠 Décidé : toute l’expédition rentrera sur Terre. Ramenez d’abord le blessé ${this.abri('au')}.` : `🚑 Décidé : ${nom} sera rapatrié${eq.acc} par capsule. Ramenez-${eq.principal ? 'vous' : 'le'} d’abord ${this.abri('au')}.`);
     };
   }
   texteBlessure(b = this.blessure) { return b ? `${b.gravite === 'grave' ? 'blessure grave' : 'blessure bénigne'} (${b.partie})` : 'en forme'; }
@@ -1125,13 +1125,13 @@ class Exploration {
         pourquoiPied = r.bloque ? `l’astromobile ne passe pas (pente trop raide à ${fmt(r.bloque.distance)} m d’ici)` : 'la batterie de l’astromobile ne suffirait pas';
         r = this.estimerRetour(false);
       }
-      if (r.bloque) return this.dire(`⛔ Impossible de rentrer : une paroi de ${fmt(r.bloque.hauteur, 1)} m, à ${fmt(r.bloque.distance)} m d’ici, barre le chemin du module (trop raide, trop haute pour un saut). 🆘 Appel d’urgence : U.`);
+      if (r.bloque) return this.dire(`⛔ Impossible de rentrer : une paroi de ${fmt(r.bloque.hauteur, 1)} m, à ${fmt(r.bloque.distance)} m d’ici, barre le chemin ${this.abri('du')} (trop raide, trop haute pour un saut). 🆘 Appel d’urgence : U.`);
       if (r.temps > this.reserve) return this.dire(`⛔ Pas assez d’oxygène pour rentrer : il faut ≈ ${fmtDuree(r.temps)} de marche${r.enRover ? ' (en astromobile)' : ''}, il reste ${fmtDuree(this.reserve)}. 🆘 Appel d’urgence : U.`);
       // Le trajet prend du temps : l'oxygène (et la batterie de l'astromobile) se consomment.
       this.reserve -= r.temps;
       if (r.enRover) { this.batterieRover -= r.temps; this.rover.x = this.xFusee - 5; }
       else if (this.enRover) this.rover.x = this.p.x;   // l'astromobile reste sur place
-      this.dire(pourquoiPied && !r.enRover ? `🚶 Retour au module à pied : ${pourquoiPied}. ${fmt(r.dist)} m, ≈ ${fmtDuree(r.temps)} ; l’astromobile reste ici.` : `Retour au module : ${fmt(r.dist)} m${r.enRover ? ' en astromobile' : ' à pied'}, ≈ ${fmtDuree(r.temps)}.`);
+      this.dire(pourquoiPied && !r.enRover ? `🚶 Retour ${this.abri('au')} à pied : ${pourquoiPied}. ${fmt(r.dist)} m, ≈ ${fmtDuree(r.temps)} ; l’astromobile reste ici.` : `Retour ${this.abri('au')} : ${fmt(r.dist)} m${r.enRover ? ' en astromobile' : ' à pied'}, ≈ ${fmtDuree(r.temps)}.`);
     }
     this.p.x = this.xFusee;
     this.p.y = this.sol(this.xFusee);
@@ -1182,18 +1182,18 @@ class Exploration {
     this.retour = r;
     if (r.bloque && !this.alerteBloque) {
       this.alerteBloque = true;
-      this.dire(`⚠ Plus de chemin vers le module : une paroi de ${fmt(r.bloque.hauteur, 1)} m vous en sépare. Trouvez un autre passage, ou 🆘 appel d’urgence (U).`);
+      this.dire(`⚠ Plus de chemin vers ${this.abri('le')} : une paroi de ${fmt(r.bloque.hauteur, 1)} m vous en sépare. Trouvez un autre passage, ou 🆘 appel d’urgence (U).`);
     }
     if (!r.bloque) this.alerteBloque = false;
     const marge = this.reserve - r.temps;
     const niveau = marge < 10 * 60 ? 2 : marge < 30 * 60 ? 1 : 0;
     if (loin && niveau > (this.niveauAlerteO2 || 0)) {
-      this.dire(`⚠ Attention, réserve d’oxygène basse : ${fmtDuree(this.reserve)}. Retour au module ≈ ${fmtDuree(r.temps)}. ${niveau === 2 ? 'Rentrez maintenant !' : 'Pensez à rentrer au module.'}`);
+      this.dire(`⚠ Attention, réserve d’oxygène basse : ${fmtDuree(this.reserve)}. Retour ${this.abri('au')} ≈ ${fmtDuree(r.temps)}. ${niveau === 2 ? 'Rentrez maintenant !' : `Pensez à rentrer ${this.abri('au')}.`}`);
     }
     this.niveauAlerteO2 = niveau;
     if (this.enRover && loin) {
       const basse = this.batterieRover < r.temps * 1.2 + 15 * 60;
-      if (basse && !this.alerteRover) this.dire(`🔋 Attention, batterie de l’astromobile basse : ${fmtDuree(this.batterieRover)}. Retour au module ≈ ${fmtDuree(r.temps)}. Pensez à rentrer.`);
+      if (basse && !this.alerteRover) this.dire(`🔋 Attention, batterie de l’astromobile basse : ${fmtDuree(this.batterieRover)}. Retour ${this.abri('au')} ≈ ${fmtDuree(r.temps)}. Pensez à rentrer.`);
       this.alerteRover = basse;
     }
   }
@@ -1239,7 +1239,7 @@ class Exploration {
     this.p = q;
     const c = this.cheminVers(this.xFusee, false);
     this.p = sauve;
-    if (c.bloque) return { pourquoi: `une paroi de ${fmt(c.bloque.hauteur, 1)} m barre le chemin du module`, c };
+    if (c.bloque) return { pourquoi: `une paroi de ${fmt(c.bloque.hauteur, 1)} m barre le chemin ${this.abri('du')}`, c };
     if (c.temps + 60 > reserve) return { pourquoi: `pas assez d’oxygène pour rentrer (≈ ${fmtDuree(c.temps)} de marche)`, c };
     return { pourquoi: '', c };
   }
@@ -1679,7 +1679,7 @@ class Exploration {
       if (this.type === 'spationaute' && this.physio) l.push(['Cœur', textePhysio(this.physio).replace('❤ ', '').replace(' · SpO₂', ' · O₂ sang'), couleurSpo2(this.physio.spo2)]);
       if (this.blessure) l.push(['Santé', this.texteBlessure(), this.blessure.gravite === 'grave' ? '#ef5350' : '#ffca28']);
       l.push([this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? `${sc.analyses} (+${this.donneesEnAttente})` : `${this.sac.length}/${d.capacite}` + (this.rover ? ` · astromobile ${this.sacRover.length}/${this.caisseRover}` : ''), this.donneesEnAttente ? '#ffca28' : '#fff']);
-      l.push(['Module', fmt(distSol(this.astre, this.p.x, this.xFusee)) + ' m', '#fff']);
+      l.push([this.abri('Le'), fmt(distSol(this.astre, this.p.x, this.xFusee)) + ' m', '#fff']);
       if (this.duo) l.push([`👥 ${this.duo.eq.nom}`, `O₂ ${fmtDuree(this.duo.reserve)} · ${fmt(this.duo.integrite)} % · ${this.duo.sac.length}/${this.def.capacite}${this.duo.mode === 'attend' ? ' · attend' : ''}${this.duo.physio ? ` · ❤ ${fmt(this.duo.physio.fc)} · ${fmt(this.duo.physio.spo2)} %` : ''}`, this.duo.reserve < 900 || (this.duo.physio && this.duo.physio.spo2 < SPO2_ALERTE) ? '#ef5350' : '#b3e5fc']);
       { const tp = tracePlusProche(this.astre, this.p.x); if (tp && tp.d < 5000 && tp.d > 15) l.push(['📍 ' + tp.trace.nom, `${tp.ecart < 0 ? '◀' : '▶'} ${fmt(tp.d)} m`, '#ffe0a3']); }
       if (this.type === 'spationaute' && !this.terre && this.retour && this.retour.dist > 0) l.push(['Retour', this.retour.bloque ? 'bloqué ⛔' : '≈ ' + fmtDuree(this.retour.temps), this.retour.bloque || this.reserve < this.retour.temps * 1.3 ? '#ef5350' : '#fff']);
@@ -1729,9 +1729,9 @@ class Exploration {
     }
     ligne(this.type === 'robot' ? 'Analyses' : 'Sac', this.type === 'robot' ? `${sc.analyses} envoyées, ${this.donneesEnAttente} en mémoire` : `${this.sac.length} / ${d.capacite}` + (this.rover ? `  astromobile ${this.sacRover.length} / ${this.caisseRover}` : ''), this.donneesEnAttente ? '#ffca28' : '#fff');
     ligne('Sites étudiés ici', String(Object.keys(sc.sites || {}).length));
-    ligne('Distance module', fmt(distSol(this.astre, this.p.x, this.xFusee)) + ' m');
+    ligne(`Distance ${this.abri('nom')}`, fmt(distSol(this.astre, this.p.x, this.xFusee)) + ' m');
     if (this.duo) ligne(`👥 ${this.duo.eq.nom}`, `O₂ ${fmtDuree(this.duo.reserve)} · combi. ${fmt(this.duo.integrite)} % · sac ${this.duo.sac.length}/${this.def.capacite}${this.duo.mode === 'attend' ? ' · attend' : this.duo.enRover ? ' · à bord' : ' · suit'}${this.duo.physio ? ` · ${textePhysio(this.duo.physio)}` : ''}`, this.duo.reserve < 900 || (this.duo.physio && this.duo.physio.spo2 < SPO2_ALERTE) ? '#ef5350' : '#b3e5fc');
-    if (this.type === 'spationaute' && !this.terre && this.retour && this.retour.dist > 0) ligne('Retour au module', this.retour.bloque ? `bloqué : paroi de ${fmt(this.retour.bloque.hauteur, 1)} m` : `≈ ${fmtDuree(this.retour.temps)}${this.retour.enRover ? ' (astromobile)' : ''}`, this.retour.bloque || this.reserve < this.retour.temps * 1.3 ? '#ef5350' : '#fff');
+    if (this.type === 'spationaute' && !this.terre && this.retour && this.retour.dist > 0) ligne(`Retour ${this.abri('au')}`, this.retour.bloque ? `bloqué : paroi de ${fmt(this.retour.bloque.hauteur, 1)} m` : `≈ ${fmtDuree(this.retour.temps)}${this.retour.enRover ? ' (astromobile)' : ''}`, this.retour.bloque || this.reserve < this.retour.temps * 1.3 ? '#ef5350' : '#fff');
     if (this.rover) ligne('Batterie astromobile', fmtDuree(this.batterieRover) + (this.usureBatterieRover > 0 ? ` (capacité ${fmt(100 - this.usureBatterieRover)} %)` : ''), this.batterieRover < 30 * 60 ? '#ef5350' : this.usureBatterieRover > 30 ? '#ffca28' : '#66bb6a');
     if (this.rover && this.degatsRover > 0) ligne('État astromobile', this.degatsRover >= 100 ? 'hors d’usage' : `abîmée à ${fmt(this.degatsRover)} %, vitesse ×${fmt(1 - 0.5 * this.degatsRover / 100, 2)}`, this.degatsRover >= 50 ? '#ef5350' : '#ffca28');
     if (this.secours) ligne('🆘 Secours', this.texteSecours(), '#ffca28');
@@ -1779,7 +1779,7 @@ class Exploration {
         ...(this.saut && !this.enRover ? ['↑ / Z / Espace : sauter'] : []),
         ...(this.auBordFalaise || this.rappel ? ['↓ / S : descendre en rappel'] : []),
         ...(this.rover ? [`V : ${this.enRover ? 'descendre de' : 'monter dans'} l’astromobile`] : []),
-        `E : ${robot ? 'analyser' : 'ramasser'} (ou rentrer près du module)`,
+        `E : ${robot ? 'analyser' : 'ramasser'} (ou rentrer près ${this.abri('du')})`,
         'F : planter le drapeau',
         ...(this.type === 'spationaute' && !this.terre ? ['U : appel d’urgence'] : []),
         ...(this.duo ? ['Tab G C K O : à deux'] : []),

@@ -134,3 +134,11 @@ function sortieDepuisBase(v, a) {
 function finSortieBase(vol) {
   if (etat.voyage && vol.echantillons) Orbiteur.log(`🏠 Retour à la base ${de(vol.astre)} : ${vol.echantillons} échantillon${vol.echantillons > 1 ? 's' : ''} analysé${vol.echantillons > 1 ? 's' : ''} sur place.`);
 }
+
+// Dans les textes de la sortie : la base, quand on est sorti de la base ; sinon le module.
+Object.assign(Exploration.prototype, {
+  abri(forme) {
+    const b = !!(this.vol && this.vol.depuisBase);
+    return { au: b ? 'à la base' : 'au module', du: b ? 'de la base' : 'du module', le: b ? 'la base' : 'le module', Le: b ? 'Base' : 'Module', nom: b ? 'base' : 'module' }[forme];
+  },
+});
