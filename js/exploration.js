@@ -661,6 +661,7 @@ class Exploration {
     const p = this.p, g = this.c.g;
     this.c = this.jourNuit(conditions(this.astre, p.y));
     this.vol.t += dt;
+    if (this.majTourbillons(dt)) return;   // Mars : tourbillons de poussière ; emporté par le géant (tourbillons.js)
     // Le lanceur de retour demandé à la station continue de descendre pendant la sortie.
     if (this.vol.lanceurRetour && this.vol.lanceurRetour.etat === 'descente') this.vol.descenteLanceur(dt);
 
@@ -1472,6 +1473,7 @@ class Exploration {
     if (this.terre) dessinerNuages(ctx, W, H, p.x * echelle);
     // Plan lointain : le relief des kilomètres alentour (paroi d'un canyon, flanc d'un volcan), derrière le terrain.
     if (!this.terre) dessinerPanorama(ctx, a, p.x, (x) => this.sol(x), W, camY + (yCam - this.sol(p.x)) * echelle, LUMIERE_SOL);
+    this.dessinerTourbillonsLoin(ctx, W, camY + (yCam - this.sol(p.x)) * echelle, echelle);   // Mars : au loin
 
     // Terrain (réutilise le rendu de l'atterrissage)
     dessinerTerrain(ctx, { x: p.x, y: yCam, sol: (x) => this.sol(x), astre: a, autopilote: false }, W, H, echelle, camY);
@@ -1616,6 +1618,7 @@ class Exploration {
       dessinerRobot(ctx, sx, sy, echelle, p, this.analyse || this.brasDrapeau > 0, this.inclinaison || 0);
     }
 
+    this.dessinerTourbillonsPres(ctx, versEcran, echelle, W, H);   // Mars : sur le chemin, et la poussière
     this.dessinerDanger(ctx, W, H);   // grave danger : voile rouge au rythme du cœur (physiologie.js)
     if (this.terre) this.dessinerHudTerre(ctx, W, H);
     else this.dessinerHud(ctx, W, H);
