@@ -152,7 +152,7 @@ class Exploration {
     this.modeRover = modeRover;
     this.nivRover = nivVisuelAstromobile(modeRover);
     // Rover : garé à côté de la fusée, pour le spationaute (plus rapide, 20 échantillons).
-    this.rover = type === 'spationaute' && !this.terre && !vol.robotSeul && !this.cable ? { x: this.xFusee - 5, dir: 1, pas: 0 } : null;
+    this.rover = type === 'spationaute' && !this.terre && !vol.robotSeul && !vol.depuisBase && !this.cable ? { x: this.xFusee - 5, dir: 1, pas: 0 } : null;
     this.enRover = false;
     this.autonomieRover = AUTONOMIE_ROVER * (1 + 0.5 * nivAstromobile('batterieRover', modeRover));
     this.caisseRover = 20 + 10 * nivAstromobile('caisseRover', modeRover);
@@ -907,7 +907,7 @@ class Exploration {
         this.vol.echantillons = (this.vol.echantillons || 0) + n;
         this.recoltes = (this.recoltes || 0) + n;   // pour le registre des équipages
       }
-      return this.terminer('retour', n ? `${n} échantillon${n > 1 ? 's' : ''} rangé${n > 1 ? 's' : ''} à bord de l’atterrisseur.` : 'De retour à bord.');
+      return this.terminer('retour', n ? `${n} échantillon${n > 1 ? 's' : ''} rangé${n > 1 ? 's' : ''} à bord ${this.vol.depuisBase ? 'de la base' : 'de l’atterrisseur'}.` : `De retour à bord${this.vol.depuisBase ? ' de la base' : ''}.`);
     }
     const site = this.siteProche();
     if (!site) return this.dire(this.rover && !this.enRover ? 'Rien ici. Suivez les repères ◆, ou prenez l’astromobile (V).' : 'Rien d’intéressant ici. Suivez les repères ◆.');
@@ -1564,7 +1564,7 @@ class Exploration {
       dessinerFusee(ctx, { f: this.vol.f, angle: 0, throttle: 1, temp: this.vol.temp, integrite: this.vol.integrite, degats: this.vol.degats, taux: { pression: 0, chaleur: 0 }, enDegats: () => false }, mx, my, HAUTEUR_MODULE * echelle);
       if (alt < 12 && Math.random() < 0.6) this.fx.push({ x: this.xFusee + (Math.random() - 0.5) * 3, y: this.sol(this.xFusee), vx: (Math.random() - 0.5) * 4, vy: Math.random() * 1.5, vie: 0, max: 0.8 });
     }
-    else dessinerFusee(ctx, { f: this.vol.f, angle: this.vol.angle, throttle: 0, temp: this.vol.temp, integrite: this.vol.integrite, degats: this.vol.degats, taux: { pression: 0, chaleur: 0 }, enDegats: () => false }, fx, fy, HAUTEUR_MODULE * echelle);
+    else if (!this.vol.depuisBase) dessinerFusee(ctx, { f: this.vol.f, angle: this.vol.angle, throttle: 0, temp: this.vol.temp, integrite: this.vol.integrite, degats: this.vol.degats, taux: { pression: 0, chaleur: 0 }, enDegats: () => false }, fx, fy, HAUTEUR_MODULE * echelle);
 
     // Module de secours et sa zone d'atterrissage.
     this.dessinerZoneSecours(ctx, versEcran, echelle, W, H);

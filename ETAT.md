@@ -104,7 +104,7 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 
 ## En cours
 
-- Planètes lourdes (À faire, point 5), branche `planetes-lourdes`, en 4 étapes validées : 1 descente sans retour vers une base (colons), 2 vie à la base (vivres, sorties depuis la base), 3 lanceur lourd construit sur place, 4 textes. Étape 1 faite (`colonies.js`), en attente de validation.
+- Planètes lourdes (À faire, point 5), branche `planetes-lourdes`, en 4 étapes validées : 1 descente sans retour vers une base (colons), 2 vie à la base (vivres, sorties depuis la base), 3 lanceur lourd construit sur place, 4 textes. Étape 1 validée (`colonies.js`). Étape 2 faite (encart de la colonie, sortie depuis la base), en attente de validation.
 
 ## À faire, dans l'ordre
 

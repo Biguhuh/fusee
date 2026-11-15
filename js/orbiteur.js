@@ -2483,6 +2483,7 @@ const Orbiteur = {
     if (this.peutRenvoyerParSonde()) d += `<button id="nav-sonde-ech" ${v.sondes > 0 ? '' : 'disabled title="Plus de sonde à bord"'}>📦 Renvoyer les échantillons par sonde (${v.sondes} sonde${v.sondes > 1 ? 's' : ''} à bord)</button>`;
     if (c.id === 'terre' && fermee) d += v.aIss ? '<button disabled title="Vous y êtes">📍 Amarré à la Station spatiale internationale</button>' : '<button id="nav-iss">🛰 Rendez-vous avec la Station spatiale internationale</button>';
     if (estOrigine(c.id) && fermee) d += `<button id="nav-plein-origine">🌍 Faire le plein depuis ${SYSTEME.nomOrigine} (gratuit)</button>`;
+    d += htmlBaseColons(v, c);   // colonie : réserve et sortie depuis la base (colonies.js)
     if (this.peutDescendre()) {
       // L'atterrisseur est conçu pour l'astre : on ne descend que si l'on peut repartir.
       const conc = this.conceptionPour(c);
@@ -2585,6 +2586,7 @@ const Orbiteur = {
     bind('nav-descendre', () => ouvrirChoixLieu(ASTRES_PAR_ID[o.centre], v, (site) => (v.equipe
       ? ouvrirChoixEquipage(v, ASTRES_PAR_ID[o.centre], (compo) => this.contexte.descendre(o.centre, site, compo))
       : this.contexte.descendre(o.centre, site))));
+    bind('nav-sortie-base', () => sortieDepuisBase(v, ASTRES_PAR_ID[o.centre]));
     bind('nav-colons', () => ouvrirChoixEquipage(v, ASTRES_PAR_ID[o.centre], (compo) => descendreColons(v, ASTRES_PAR_ID[o.centre], compo)));
     bind('nav-robot', () => ouvrirChoixLieu(ASTRES_PAR_ID[o.centre], v, (site) => this.ouvrirLargageRobot(o.centre, site), 'Larguer le robot'));
     bind('nav-rentrer', () => this.contexte.rentrer());

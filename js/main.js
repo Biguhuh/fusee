@@ -1542,6 +1542,7 @@ function image(t) {
       sauver(etat);
       if (etat.vol.essai) return finEssai(etat.vol.essai);   // entraînement : retour au centre
       if (etat.vol.promenade) allerAccueil();                // fin de la promenade sur Terre
+      else if (etat.vol.depuisBase) { finSortieBase(etat.vol); allerNavigation(); }   // colons : retour à la base (colonies.js)
       else if (etat.vol.robotSeul) allerNavigation();        // le robot reste sur place, on revient à l'orbiteur
       else if (x.fin.issue === 'secouru') finSecours();             // le module de secours a ramené le spationaute
       else montrer('vol');                                   // retour à la fusée posée

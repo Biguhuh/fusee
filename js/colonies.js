@@ -92,3 +92,45 @@ function fonderColonie(v, r) {
     return [`Posé ${sur(r.astre)} : sans retour`, 'succes', `Contact à ${fmt(i ? i.vv : 0, 1)} m/s, près de la base.${r.messageColonie ? ' ' + r.messageColonie : ''} Le module de descente reste sur place : aucun ne pourrait repartir.`];
   };
 })();
+
+// ---------- La vie à la base ----------
+// Les colons mangent et boivent sur la réserve de la base, que la navette de la station complète (ravitaillement.js,
+// avec rationnement puis des morts si elle se vide). Ici : leur fiche, et les sorties à pied depuis la base.
+function colonsDe(v, b) { return (v.equipe || []).filter((m) => m.colon && m.lieu === idBase(b) && m.etat === 'base' && !(m.principal && v.equipagePerdu)); }
+function nomMembre(m) { return m.principal ? majuscule(nomSpatio()) : m.nom; }
+
+// Encart de l'orbiteur : les colons de la base, leur réserve, et le bouton de sortie.
+function htmlBaseColons(v, a) {
+  const b = baseSur(v, a.id);
+  if (!b) return '';
+  const l = colonsDe(v, b);
+  if (!l.length) return '';
+  const k = b.reserve || {}, c = consoParPersonne(v), n = l.length;
+  const jours = (cle) => (c[cle] ? `${fmt((k[cle] || 0) / (n * c[cle]))} j` : 'sans limite');
+  const valides = l.filter((m) => !(m.blessure && m.blessure.gravite === 'grave'));
+  return `<p class="encart">🏠 <b>Colonie ${de(a)}</b> : ${listeNoms(l.map(nomMembre))}. Réserve : vivres ${jours('vivres')}, eau ${jours('eau')}${stationSur(v, a.id) ? ' (la navette de la station la complète)' : ' (pas de station : seule la glace donne de l’eau)'}.</p>`
+    + (valides.length ? `<button id="nav-sortie-base">🚶 Sortie depuis la base ${de(a)}</button>` : '<p class="doux">Aucun colon en état de sortir.</p>');
+}
+
+// Sortie à pied depuis la base : un colon (et un second s'il y en a un), sans module ; on rentre à la base.
+function sortieDepuisBase(v, a) {
+  const b = baseSur(v, a.id), l = b ? colonsDe(v, b).filter((m) => !(m.blessure && m.blessure.gravite === 'grave')) : [];
+  if (!l.length) return Orbiteur.log('Aucun colon en état de sortir.');
+  const dessin = concevoirDescenteSeule(a);
+  etat.destination = a.id;
+  etat.vol = new Vol(a, dessin.ok ? dessin.fusee : assemblerFusee(etat.equipement), { depuisSol: true, voyage: true, bases: basesSur(a.id) });
+  etat.vol.x = b.x + 25; etat.vol.y = etat.vol.sol(etat.vol.x) + 0.01;   // on sort par le sas, à côté de la base
+  etat.vol.depuisBase = idBase(b);
+  etat.vol.equipier = equipierDeMembre(l[0]);
+  etat.vol.passagers = l.slice(1, 2).map((m) => m.id);
+  etat.enVoyage = true;
+  etat.explo = new Exploration(etat.vol, 'spationaute', etat.science, {});
+  etat.explo.dire(`🏠 Sortie depuis la base ${de(a)}. Retour : E près du sas de la base.`);
+  touches.clear();
+  redim();
+  montrer('explo');
+}
+// Fin de la sortie : on revient à l'orbiteur ; les échantillons sont déjà comptés pour la science.
+function finSortieBase(vol) {
+  if (etat.voyage && vol.echantillons) Orbiteur.log(`🏠 Retour à la base ${de(vol.astre)} : ${vol.echantillons} échantillon${vol.echantillons > 1 ? 's' : ''} analysé${vol.echantillons > 1 ? 's' : ''} sur place.`);
+}
