@@ -4,7 +4,8 @@
 // dose de rayonnement, temps passé dans l'espace (même des siècles), et, le cas échéant, comment elle est morte.
 // Gardé dans la sauvegarde (etat.registre), d'une campagne à l'autre.
 
-const ID_JOUEUR = 'joueur';
+// Fiche du spationaute joué. Une par mission (missions en parallèle, flotte.js) : l'identifiant change avec le vaisseau.
+let ID_JOUEUR = 'joueur';
 
 function registre() { if (typeof etat === 'undefined') return {}; etat.registre = etat.registre || {}; return etat.registre; }
 function nouvelIdPersonne() { return 'p' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36); }
@@ -208,6 +209,7 @@ function allerEquipage(v) {
       intro: `${majuscule(ancien.nom)} est mort${accAncien}${ancien.mort ? ` (${ancien.mort.cause})` : ''}. Sa fiche reste au registre des équipages. Choisissez qui prend sa place à la tête de la prochaine expédition.`,
     });
   }
+  if (typeof joueurOccupe === 'function' && joueurOccupe(v)) return choisirNouveauJoueur(v, () => allerEquipage(v));   // un spationaute joué par mission (flotte.js)
   v.equipePrevue = dedoublonnerEquipe(v.equipePrevue && v.equipePrevue.length ? v.equipePrevue : equipeProposee(v));
   const l = v.equipePrevue;
   const resume = (p) => {

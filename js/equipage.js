@@ -66,6 +66,9 @@ function chargerSpatio() {
 }
 function sauverSpatio() {
   try { localStorage.setItem(CLE_SPATIO, JSON.stringify(SPATIO)); } catch (e) { /* ignoré */ }
+  // Missions en parallèle : le spationaute joué appartient à son expédition (flotte.js).
+  const v = typeof etat !== 'undefined' && etat.voyage;
+  if (v && v.idJoueur === ID_JOUEUR) v.spatio = SPATIO;
 }
 
 // Pour les messages : le prénom, sinon une formule adaptée au genre.

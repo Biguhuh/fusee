@@ -13,7 +13,7 @@ const CHAMPS_EXPEDITION = ['orb', 'equipe', 'nomVaisseau', 'carburant', 'ergolsA
   'atterrisseurs', 'echantillonsABord', 'cible', 'manette', 'mode', 'orientation', 'vivres', 'eau', 'tVivres', 'dechets', 'tDechets',
   'amarre', 'aIss', 'rdvStation', 'equipagePerdu', 'traumatise', 'proposerRappel', 'retourAuto', 'sansEquipage', 'commandeSol',
   'pertesEquipage', 'propulseurs', 'prevision', 'voyageFinal', 'propulsionSolaire', 'vidange', 'observation', 'usureBatterieRover',
-  'degatsRover', 'alertesVivres', 'orbiteurVersSoleil', 'autopilote', 'idExpedition', 'numero', 'pilotageAbsence', 'manoeuvreAbsence'];
+  'degatsRover', 'alertesVivres', 'orbiteurVersSoleil', 'autopilote', 'idExpedition', 'numero', 'pilotageAbsence', 'manoeuvreAbsence', 'spatio', 'idJoueur'];
 
 // Valeurs d'un système vide, et d'un écran sans expédition.
 function systemeVide() {
@@ -36,6 +36,7 @@ function rangerExpedition(v) {
   if (!expeditionActive(v)) return null;
   if (!v.idExpedition) v.idExpedition = 'x' + Date.now().toString(36) + Math.floor(Math.random() * 1e4);
   if (!v.numero) v.numero = v.expeditions || 1;
+  if (!v.idJoueur) { v.idJoueur = ID_JOUEUR; v.spatio = SPATIO; }   // son spationaute joué part avec elle
   const x = { systeme: v.systeme, tRange: v.t };
   for (const c of CHAMPS_EXPEDITION) if (v[c] !== undefined) x[c] = copieJSON(v[c]);
   if (x.orb) delete x.orb.etape;
@@ -63,6 +64,7 @@ function restaurerExpedition(v, x) {
   if (v.equipe && v.equipe.length) v.equipeSurPlace = v.equipe;   // équipiers restés aux bases et stations : mis de côté
   for (const c of CHAMPS_EXPEDITION) delete v[c];
   for (const c of CHAMPS_EXPEDITION) if (x[c] !== undefined) v[c] = x[c];
+  incarner(v);
   if (v.rattrapageDepuis) {
     // Le système vient d'être retrouvé : l'expédition sera rattrapée avec lui (executerRattrapage).
     if (x.tRange < v.rattrapageDepuis) { const t = v.t; v.t = v.rattrapageDepuis; rattraperOrbiteur(v, x.tRange); v.t = t; }
@@ -409,6 +411,49 @@ function preparerNouvelleExpedition(v) {
   if (restes.length) v.equipeSurPlace = [...(v.equipeSurPlace || []), ...restes];
 }
 
+// ---------- Un spationaute joué par mission ----------
+// Chaque expédition a son personnage joué (v.spatio : prénom, genre, apparence ; v.idJoueur : sa fiche au registre).
+// SPATIO et ID_JOUEUR (globaux, lus partout) prennent ceux de l'expédition à l'écran.
+function incarner(v) {
+  if (!v || !v.idJoueur) return;
+  ID_JOUEUR = v.idJoueur;
+  if (v.spatio) SPATIO = v.spatio;
+}
+// Le spationaute joué actuel est-il déjà pris par une expédition (à l'écran ou rangée) ?
+function joueurOccupe(v) {
+  if (expeditionActive(v) && (v.idJoueur || ID_JOUEUR) === ID_JOUEUR && !v.equipagePerdu) return v.nomVaisseau || 'l’orbiteur';
+  const x = (v.flotte || []).find((e) => (e.idJoueur || 'joueur') === ID_JOUEUR && !e.equipagePerdu);
+  return x ? x.nomVaisseau || 'un autre vaisseau' : null;
+}
+// Page d'équipage : le spationaute joué est déjà en mission. Pour la nouvelle : en créer un, ou jouer un vétéran libre.
+function choisirNouveauJoueur(v, suite) {
+  const ou = joueurOccupe(v);
+  const dispo = personnesDisponibles(v);
+  const m = $('modale');
+  m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>🧑‍🚀 Qui jouez-vous dans cette mission ?</h2>
+    <p>${majuscule(nomSpatio())} est à bord du vaisseau ${ou}. Chaque mission a son spationaute : créez-en un nouveau, ou prenez un vétéran disponible.</p></div><button class="fermer">✕</button></header>
+    <section><label class="choix-ravito"><input type="radio" name="joueur" value="" checked> <b>Un nouveau spationaute</b><br><span class="doux">prénom et apparence à choisir</span></label>
+    ${dispo.map((f) => `<label class="choix-ravito"><input type="radio" name="joueur" value="${f.id}"> <b>${majuscule(f.nom)}</b><br><span class="doux">vétéran : ${nombre(f.expeditions.length, 'expédition')}</span></label>`).join('')}</section>
+    <div class="actions"><button id="joueur-annuler">Annuler</button><button id="joueur-ok" class="principal">Continuer</button></div></div>`;
+  m.classList.remove('cache');
+  m.querySelector('.fermer').onclick = () => { Infos.fermer(); allerAccueil(); };
+  $('joueur-annuler').onclick = () => { Infos.fermer(); allerAccueil(); };
+  $('joueur-ok').onclick = () => {
+    const id = m.querySelector('input[name=joueur]:checked').value;
+    Infos.fermer();
+    v.equipePrevue = null;
+    if (id) {
+      const f = registre()[id];
+      ID_JOUEUR = id;
+      SPATIO = { ...PROFIL_DEFAUT, ...(f.profil || {}), prenom: (f.profil && f.profil.prenom) || f.nom, choisi: true };
+      return suite();
+    }
+    ID_JOUEUR = 'joueur-' + nouvelIdPersonne();
+    SPATIO = { ...PROFIL_DEFAUT, choisi: false };
+    afficherCreationSpatio(suite, { titre: 'Un nouveau spationaute', intro: 'Le spationaute que vous jouerez dans cette mission : prénom, genre (pour les accords) et apparence.' });
+  };
+}
+
 // Sauvegardes d'avant les missions en parallèle : rien de rangé.
 function migrerFlotte(m) {
   m.mondes = m.mondes || {};
@@ -416,5 +461,9 @@ function migrerFlotte(m) {
   for (const x of m.flotte) if (x.orb) delete x.orb.etape;
   for (const w of Object.values(m.mondes)) for (const s of [...(w.sondesEnVol || []), ...(w.cargos || [])]) delete s.etape;
   if (expeditionActive(m) && !m.numero) m.numero = m.expeditions || 1;
+  // Un spationaute joué par mission : les expéditions d'avant gardent celui de la sauvegarde.
+  if (expeditionActive(m) && !m.idJoueur) { m.idJoueur = 'joueur'; m.spatio = SPATIO; }
+  for (const x of m.flotte) if (!x.idJoueur) { x.idJoueur = 'joueur'; x.spatio = { ...SPATIO }; }
+  incarner(m);
   return m;
 }

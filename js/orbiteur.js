@@ -92,6 +92,7 @@ const Orbiteur = {
     });
     // Orbiteur garé : on retrouve ce qu'il restait à bord (la station le complètera : « Faire le plein »).
     if (gare) { Object.assign(v, gare); v.orbiteurGare = null; }
+    v.idJoueur = ID_JOUEUR; v.spatio = SPATIO;   // la mission a son spationaute joué (flotte.js)
     // Nom du vaisseau : celui choisi sur la page d'équipage ; un nouveau vaisseau ne reprend pas le nom de celui resté garé.
     let nom = v.nomVaisseauPrevu || (gare && gare.nomVaisseau);
     if (!gare && v.orbiteurGare && nom === v.orbiteurGare.nomVaisseau) nom = null;
