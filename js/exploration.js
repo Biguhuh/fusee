@@ -243,13 +243,13 @@ class Exploration {
       proche.reste--;
       this.panier = (this.panier || 0) + 1;
       if (c) c.provisions.fruits++;
-      return this.dire(`Une ${proche.fruit} cueillie. Des fruits frais : le luxe absolu dans l’espace.`);
+      return this.dire(`${FRUITS_MASCULINS.includes(proche.fruit) ? `Un ${proche.fruit} cueilli` : `Une ${proche.fruit} cueillie`}. Des fruits frais : le luxe absolu dans l’espace.`);
     }
     if (proche.cueillie) return this.dire('Déjà cueillie.');
     proche.cueillie = true;
     this.bouquet = (this.bouquet || 0) + 1;
     if (c) c.provisions.fleurs++;
-    this.dire(`${proche.nom} cueilli${proche.nom === 'Marguerite' || proche.nom === 'Rose' || proche.nom === 'Lavande' ? 'e' : ''} pour égayer la station.`);
+    this.dire(`${proche.nom} cueilli${FLEURS_FEMININES.includes(proche.nom) ? 'e' : ''} pour égayer la station.`);
   }
 
   // Avance un point du sol le long de la surface (paroi comprise), de ds mètres, en six petits pas.

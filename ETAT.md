@@ -101,7 +101,7 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 
 ## En cours
 
-- Saisons sur les astres (À faire, point 6), branche `saisons`, en 4 étapes validées : 1 socle (axes, hauteur du Soleil selon latitude et date), 2 Mars (givre, tempêtes de poussière), 3 la Terre (fleurs et fruits de la promenade), 4 Titan, Triton, Pluton. Étape 1 validée (`saisons.js`). Étape 2 (Mars) faite, en attente de validation. Suivante : la Terre.
+- Saisons sur les astres (À faire, point 6), branche `saisons`, en 4 étapes validées : 1 socle (axes, hauteur du Soleil selon latitude et date), 2 Mars (givre, tempêtes de poussière), 3 la Terre (fleurs et fruits de la promenade), 4 Titan, Triton, Pluton. Étape 1 validée (`saisons.js`). Étape 2 (Mars, avec le ciel caramel et le coucher bleu) validée. Étape 3 (la Terre) faite, en attente de validation. Suivante : Titan, Triton, Pluton.
 
 ## À faire, dans l'ordre
 
@@ -114,6 +114,8 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 7. Après la carte 4 : planètes lourdes (taille de la Terre, ≈ 11 km/s pour remonter, ex. TRAPPIST-1 e, f, g). Permettre une descente humaine sans retour, annoncée comme définitive (l'équipage devient les colons de la base au sol), puis un lanceur lourd construit sur place par une base bien approvisionnée, sur le modèle du lanceur de retour de Vénus (`lanceurRetour`, `campagne.js`).
 8. Après la carte 4 : des buts dans les autres systèmes (aujourd'hui on y explore, sans plus). Pistes : trouver de l'eau liquide, chercher des traces de vie, rendre la colonie autonome (vivres, eau, énergie), envoyer un message vers la Terre (des décennies de trajet).
 9. Après la carte 4 : easter eggs Le Cinquième Élément. « Aziz, lumière ! » affiché la première fois que les lampes du casque (combinaison ou scaphandre) s'allument, une fois par sauvegarde. Une zone de crash du vaisseau mondoshawan (débris sur un astre à choisir), avec un texte du genre : le cinquième élément ne se trouve pas dans les débris. Comptent dans les Découvertes, avec leur référence dans la Progression.
+10. Plus tard : choisir la date de départ de la partie, y compris dans le passé (aujourd'hui, 23 octobre 2026). Le ciel, les saisons et les tempêtes de Mars suivent déjà la date.
+11. Plus tard : réfléchir au traitement des vraies missions (Apollo, rovers, sondes) : les jouer, ou les observer en direct à leur vraie date ?
 
 ## Bugs connus de la bêta
 

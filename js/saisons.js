@@ -88,8 +88,9 @@ function ligneSaisons(a) {
 // Début de sortie : la saison et la hauteur du Soleil, une fois.
 Object.assign(Exploration.prototype, {
   annoncerSaison() {
-    if (this.saisonDite || this.terre) return;
+    if (this.saisonDite) return;
     this.saisonDite = true;
+    if (this.terre) return this.annoncerTerre();   // promenade : fleurs et fruits du mois
     const a = this.astre, t = tempsCiel(this.vol);
     if (a.id === 'mars') this.annoncerMars(t);   // givre, tempête de poussière (robot compris : ses panneaux)
     if (this.type !== 'spationaute' || a.type !== 'solide' || dansLOmbre(this.vol)) return;
@@ -190,3 +191,107 @@ Object.assign(Exploration.prototype, {
     }
   },
 });
+
+// ---------- La Terre : la promenade selon la saison ----------
+// Sous nos latitudes (46° N) : fleurs du mois, arbres en fleurs au printemps, fruits à leur saison, feuilles
+// rousses à l'automne, branches nues l'hiver (l'oranger garde ses feuilles et donne ses fruits l'hiver).
+const LAT_PROMENADE = 46;
+const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+// Mois de floraison (1 à 12) et couleur.
+const FLEURS_SAISON = {
+  'Perce-neige': [[1, 3], '#f5f5f5'], 'Hellébore': [[12, 3], '#f3d6e0'], 'Crocus': [[2, 4], '#8e6bd1'], 'Jonquille': [[3, 4], '#ffd600'],
+  'Marguerite': [[4, 9], '#ffffff'], 'Coquelicot': [[5, 7], '#e53935'], 'Bleuet': [[5, 8], '#1e88e5'], 'Rose': [[5, 10], '#ec407a'],
+  'Lavande': [[6, 8], '#9575cd'], 'Tournesol': [[7, 9], '#fdd835'], 'Chrysanthème': [[9, 11], '#f9a825'], 'Bruyère': [[8, 11], '#c2185b'],
+};
+const FLEURS_FEMININES = ['Marguerite', 'Rose', 'Lavande', 'Jonquille', 'Bruyère'];
+const FRUITS_MASCULINS = ['abricot'];
+// Arbres : [floraison], [récolte], couleur des fleurs. L'oranger : toujours vert, fleurs au printemps, oranges l'hiver.
+const ARBRES_SAISON = {
+  Cerisier: [[3, 4], [6, 7], '#f8bbd0'], Abricotier: [[3, 3], [6, 8], '#fce4ec'], Prunier: [[3, 4], [7, 9], '#ffffff'],
+  Pommier: [[4, 5], [8, 10], '#fde3ea'], Oranger: [[4, 5], [12, 3], '#ffffff'],
+};
+const dansMois = (m, [a, b]) => (a <= b ? m >= a && m <= b : m >= a || m <= b);
+function moisPromenade() {
+  const t = typeof etat !== 'undefined' && etat.voyage ? etat.voyage.t : DATE_DEBUT;
+  return new Date(Date.UTC(2000, 0, 1, 12) + t * 1000).getUTCMonth() + 1;
+}
+// Aspect d'un arbre ce mois-ci : 'fleurs', 'fruits', 'vert', 'roux' ou 'nu'.
+function aspectArbre(nom, m) {
+  const d = ARBRES_SAISON[nom]; if (!d) return 'vert';
+  if (dansMois(m, d[1])) return 'fruits';
+  if (dansMois(m, d[0])) return 'fleurs';
+  if (nom === 'Oranger') return 'vert';
+  return m >= 10 && m <= 11 ? 'roux' : m === 12 || m <= 2 ? 'nu' : 'vert';
+}
+
+(function () {
+  const P = Exploration.prototype, genererTerre = P.genererTerre, agirTerre = P.agirTerre;
+  P.genererTerre = function () {
+    const m = moisPromenade(), l = genererTerre.call(this);
+    this.vol.latLieu = { astre: 'terre', x: this.vol.x || 0, lat: LAT_PROMENADE };   // le Soleil de nos latitudes
+    const fleurs = Object.keys(FLEURS_SAISON).filter((n) => dansMois(m, FLEURS_SAISON[n][0]));
+    const hiver = m === 12 || m <= 2;
+    return l.filter((s, i) => {
+      if (s.type === 'fleur') {
+        if (hiver && hash2(i, 91) < 0.6) return false;   // l'hiver, peu de fleurs
+        if (!dansMois(m, (FLEURS_SAISON[s.nom] || [[1, 12]])[0])) s.nom = fleurs[Math.floor(hash2(i, 92) * fleurs.length)];
+      }
+      if (s.type === 'arbre') { s.aspect = aspectArbre(s.nom, m); if (s.aspect !== 'fruits') s.reste = 0; }
+      return true;
+    });
+  };
+  // Un arbre hors saison : on dit quand revenir.
+  P.agirTerre = function () {
+    const p = this.p, arbre = this.sites.find((s) => s.type === 'arbre' && distSol(this.astre, s.x, p.x) < 2.5);
+    const fleur = this.sites.some((s) => s.type === 'fleur' && !s.cueillie && distSol(this.astre, s.x, p.x) < distSol(this.astre, arbre ? arbre.x : 1e9, p.x));
+    if (arbre && arbre.aspect && arbre.aspect !== 'fruits' && !fleur) {
+      const r = ARBRES_SAISON[arbre.nom][1];
+      const quoi = { fleurs: 'en fleurs', vert: 'en feuilles', roux: 'aux feuilles rousses', nu: 'aux branches nues' }[arbre.aspect];
+      return this.dire(`${arbre.nom} ${quoi} : pas de fruits en ${MOIS[moisPromenade() - 1]}. Récolte : de ${MOIS[r[0] - 1]} à ${MOIS[r[1] - 1]}.`);
+    }
+    return agirTerre.call(this);
+  };
+})();
+
+Object.assign(Exploration.prototype, {
+  annoncerTerre() {
+    const m = moisPromenade(), mur = this.sites.filter((s) => s.type === 'arbre' && s.aspect === 'fruits').map((s) => s.fruit + 's');
+    const fl = this.sites.filter((s) => s.type === 'fleur').map((s) => s.nom.toLowerCase());
+    const uniq = (x) => [...new Set(x)];
+    const fr = uniq(mur), f = uniq(fl).slice(0, 4);
+    this.dire(`🗓 Promenade en ${MOIS[m - 1]} : ${f.length ? `${f.join(', ')} en fleurs` : 'presque pas de fleurs'} ; ${fr.length ? `${fr.length > 1 ? `${fr.slice(0, -1).join(', ')} et ${fr[fr.length - 1]}` : fr[0]} à cueillir` : 'pas de fruits mûrs en cette saison'}.`);
+  },
+});
+
+// Arbre fruitier selon la saison : fleurs, feuilles, fruits mûrs, feuilles rousses, ou branches nues.
+dessinerArbre = function (ctx, x, y, s, a) {
+  const asp = a.aspect || 'fruits';
+  ctx.fillStyle = '#6d4c41'; ctx.fillRect(x - 0.25 * s, y - 3 * s, 0.5 * s, 3 * s);
+  if (asp === 'nu') {
+    ctx.strokeStyle = '#6d4c41'; ctx.lineWidth = 0.14 * s;
+    for (const [dx, dy] of [[-1.6, -5], [-0.4, -6], [0.9, -5.6], [1.8, -4.4], [-2, -3.8]]) { ctx.beginPath(); ctx.moveTo(x, y - 3 * s); ctx.lineTo(x + dx * s, y + dy * s); ctx.stroke(); }
+  } else {
+    ctx.fillStyle = asp === 'roux' ? '#d9822b' : asp === 'fleurs' && a.nom !== 'Oranger' ? '#a5c98a' : '#388e3c';
+    for (const [dx, dy, r] of [[0, -4, 2], [-1.3, -3.3, 1.4], [1.3, -3.4, 1.4]]) { ctx.beginPath(); ctx.arc(x + dx * s, y + dy * s, r * s, 0, Math.PI * 2); ctx.fill(); }
+  }
+  const pos = [[-1, -4.5], [0.8, -3.6], [-0.2, -2.9], [1.5, -4.4], [-1.6, -3.3], [0.3, -5.3], [-0.6, -3.8], [1.1, -4.9]];
+  if (asp === 'fleurs') {
+    ctx.fillStyle = ARBRES_SAISON[a.nom] ? ARBRES_SAISON[a.nom][2] : '#fff';
+    for (const [dx, dy] of pos) for (const k of [0, 1]) { ctx.beginPath(); ctx.arc(x + (dx + k * 0.35) * s, y + (dy - k * 0.25) * s, 0.2 * s, 0, Math.PI * 2); ctx.fill(); }
+  } else if (asp === 'fruits' && a.reste > 0) {
+    ctx.fillStyle = { pomme: '#e53935', cerise: '#b71c1c', orange: '#fb8c00', prune: '#6a1b9a', abricot: '#ffa726' }[a.fruit] || '#e53935';
+    for (let i = 0; i < a.reste + 2 && i < 5; i++) { ctx.beginPath(); ctx.arc(x + pos[i][0] * s, y + pos[i][1] * s, 0.22 * s, 0, Math.PI * 2); ctx.fill(); }
+  }
+  texteSurFond(ctx, a.nom, x, y - 6.4 * s, { police: '12px system-ui' });
+};
+// Fleurs de toutes les saisons (couleur de FLEURS_SAISON).
+dessinerFleur = function (ctx, x, y, s, f) {
+  const coul = (FLEURS_SAISON[f.nom] || [0, '#fff'])[1];
+  const h = (f.nom === 'Tournesol' ? 1.4 : f.nom === 'Bruyère' || f.nom === 'Crocus' || f.nom === 'Perce-neige' ? 0.3 : 0.5) * s;
+  ctx.strokeStyle = '#2e7d32'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - h); ctx.stroke();
+  ctx.fillStyle = coul;
+  for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; ctx.beginPath(); ctx.arc(x + Math.cos(a) * 0.12 * s, y - h + Math.sin(a) * 0.12 * s, 0.09 * s, 0, Math.PI * 2); ctx.fill(); }
+  ctx.fillStyle = f.nom === 'Tournesol' ? '#5d4037' : '#ffd54f';
+  ctx.beginPath(); ctx.arc(x, y - h, 0.07 * s, 0, Math.PI * 2); ctx.fill();
+};
