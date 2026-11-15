@@ -81,6 +81,7 @@ const REFERENCES_EGGS = {
   'mars-colonie': 'Ghosts of Mars (John Carpenter, 2001) : une colonie minière martienne, et ses anciens occupants qui ne sont pas tous partis.',
   'trappist-g-base': 'The Thing (John Carpenter, 1982) : une base de l’Antarctique, un chien qui n’en est peut-être pas un, et la méfiance qui gagne tout le monde.',
   'terre-lunettes': 'Invasion Los Angeles (They Live, John Carpenter, 1988) : des lunettes de soleil qui révèlent les ordres cachés dans les publicités.',
+  'plissken': 'New York 1997 (Escape from New York, John Carpenter, 1981) : Snake Plissken, ancien pilote devenu hors-la-loi, envoyé dans Manhattan devenue prison.',
   'delorean': 'Retour vers le futur (1985) : à 88 miles à l’heure, la DeLorean voyage dans le temps et laisse deux traînées de feu sur la route.',
   'mercure-asimov': 'Cercle vicieux (Isaac Asimov, 1942) : sur Mercure, un robot tourne autour d’une mare de sélénium, coincé entre deux des Trois Lois de la robotique, qui y apparaissent pour la première fois.',
   'venus-lem': 'Les Astronautes (Stanisław Lem, 1951 ; film L’Étoile du silence, 1960) : sur Vénus, les explorateurs découvrent les ruines d’une civilisation qui s’est anéantie elle-même.',
@@ -104,6 +105,7 @@ function lieuEgg(e) {
   if (e.id === 'betelgeuse') return 'dans « Se promener », en observant Bételgeuse';
   if (e.id === 'delorean') return 'à l’entraînement (sur Terre) : en astromobile, après le plot orange, pied au plancher en vous éloignant du module, longtemps';
   if (e.id === 'rama') return 'en route, en orbite autour du Soleil au-delà de 3 UA, avec l’équipage (en campagne)';
+  if (e.id === EGG_PLISSKEN.id) return 'sur l’écran de résultat, après la destruction d’une fusée ou d’un atterrisseur (rarement)';
   if (e.id === EGG_THEYLIVE.id) return 'dans la promenade sur Terre, dans la rue de Los Angeles, 200 m après le Bar de l’Espace';
   if (e.id === 'iss-wolowitz') return 'à la Station spatiale internationale, en orbite terrestre (rendez-vous et amarrage, en campagne)';
   if (e.id.startsWith('voiture-')) return 'en orbite autour du Soleil, sur la route de la voiture rouge (en campagne)';
@@ -142,7 +144,7 @@ function groupeEgg(e) {
   for (const s of Object.values(SYSTEMES)) if ((s.astres || []).some((x) => x.id === e.astre)) return majuscule(s.nom.replace(/^système (de |du |d’)/i, ''));
   return a && a.nom && e.astre !== 'astromobile' ? majuscule(a.nom) : 'Ailleurs';
 }
-function typeEgg(e) { return e.id.startsWith('voiture-') || e.id === 'delorean' || e.id === 'betelgeuse' ? 'autre' : e.orbite ? 'orbite' : 'sol'; }
+function typeEgg(e) { return e.id.startsWith('voiture-') || e.id === 'delorean' || e.id === 'betelgeuse' || e.id === 'plissken' ? 'autre' : e.orbite ? 'orbite' : 'sol'; }
 // Sans accents ni majuscules, pour chercher « venus » et trouver « Vénus ».
 function simplifier(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
 

@@ -101,7 +101,7 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 ## En cours
 
 - Carte jeu fusée 4 (`C:\Users\DELL\Downloads\carte-jeu-fusee-4.md`), easter eggs John Carpenter. Ordre validé : Mars (tourbillons réalistes, colonie près du site de Mars 3, tourbillon géant qui emporte), puis The Thing sur TRAPPIST-1 g (atmosphère supposée, décor de glace polaire), They Live (rue de Los Angeles dans la promenade, lunettes, touche L), Plissken (avis de recherche, 1 fois sur 50 après une destruction).
-- Mars validé (branche `carte4-mars`, `tourbillons.js`, avec saisons). The Thing validé (`carte4-thing`, `thething.js`). They Live validé (`carte4-thelive`, `theylive.js`, panneaux en anglais comme en VO). Point suivant : Plissken.
+- Mars validé (branche `carte4-mars`, `tourbillons.js`, avec saisons). The Thing validé (`carte4-thing`, `thething.js`). They Live validé (`carte4-thelive`, `theylive.js`, panneaux en anglais comme en VO). Plissken fait sur `carte4-plissken` (`plissken.js`), en attente de validation : c'était le dernier point de la carte 4. Branches à pousser et fusionner quand Edouard le dira : `carte4-mars` → `carte4-thing` → `carte4-thelive` → `carte4-plissken` (chacune part de la précédente).
 
 ## À faire, dans l'ordre
 

@@ -603,6 +603,7 @@ function tousLesEggs() {
     { id: 'delorean', astre: 'astromobile', texte: 'À 88 miles à l’heure, l’astromobile disparaît dans un éclair en laissant deux traînées de feu. Elle réapparaît 7 secondes plus tard, toujours lancée. Pour l’équipage, c’était instantané.' },
     { id: 'iss-wolowitz', astre: 'terre', texte: TEXTE_ISS_WOLOWITZ, orbite: true },
     { id: EGG_THEYLIVE.id, astre: 'terre', texte: EGG_THEYLIVE.texte },
+    { id: EGG_PLISSKEN.id, astre: 'terre', texte: EGG_PLISSKEN.texte },
     ...[1, 2, 3].map((n) => ({ id: 'voiture-' + n, astre: 'roadster', texte: TEXTES_VOITURE[n], orbite: true })),
   ];
 }
