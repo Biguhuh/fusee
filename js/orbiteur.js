@@ -1070,8 +1070,10 @@ const Orbiteur = {
         this.log(`${moduleExtension(a).nom} posé à ${le(nomBase(a))} : il s’est déployé et ne repartira pas. La base passe au niveau ${b.niveau}${b.niveau === 2 ? ' — la mine de matériaux démarre' : ''}.`);
       }
       // Ergols (ressource locale) et matériaux (mine), proportionnels au niveau de la base.
-      const prod = productionBase(a) * b.niveau * (dt / JOUR);
-      const mat = productionMateriaux(a, b.niveau) * (dt / JOUR);
+      let prod = productionBase(a) * b.niveau * (dt / JOUR);
+      let mat = productionMateriaux(a, b.niveau) * (dt / JOUR);
+      // Chantier d'un lanceur lourd à la base : la production va d'abord au lanceur (colonies.js).
+      if (b.chantierLanceur) ({ prod, mat } = alimenterChantierLanceur(v, b, prod, mat, (t) => this.log(t)));
       if (st && mat > 0) ajouterLocal(st, 'materiaux', mat);   // provenance : l'astre de la base
       b.materiauxTotal = (b.materiauxTotal || 0) + mat;
       // La base garde d'abord 20 t pour les atterrisseurs ; sa navette monte le surplus à la station.
@@ -2587,6 +2589,8 @@ const Orbiteur = {
       ? ouvrirChoixEquipage(v, ASTRES_PAR_ID[o.centre], (compo) => this.contexte.descendre(o.centre, site, compo))
       : this.contexte.descendre(o.centre, site))));
     bind('nav-sortie-base', () => sortieDepuisBase(v, ASTRES_PAR_ID[o.centre]));
+    bind('nav-chantier-lanceur', () => { lancerChantierLanceur(v, ASTRES_PAR_ID[o.centre]); this.majHud(true); });
+    bind('nav-lanceur-colonie', () => decollerLanceurColonie(v, ASTRES_PAR_ID[o.centre]));
     bind('nav-colons', () => ouvrirChoixEquipage(v, ASTRES_PAR_ID[o.centre], (compo) => descendreColons(v, ASTRES_PAR_ID[o.centre], compo)));
     bind('nav-robot', () => ouvrirChoixLieu(ASTRES_PAR_ID[o.centre], v, (site) => this.ouvrirLargageRobot(o.centre, site), 'Larguer le robot'));
     bind('nav-rentrer', () => this.contexte.rentrer());

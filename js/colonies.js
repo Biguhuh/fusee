@@ -109,7 +109,7 @@ function htmlBaseColons(v, a) {
   const jours = (cle) => (c[cle] ? `${fmt((k[cle] || 0) / (n * c[cle]))} j` : 'sans limite');
   const valides = l.filter((m) => !(m.blessure && m.blessure.gravite === 'grave'));
   return `<p class="encart">🏠 <b>Colonie ${de(a)}</b> : ${listeNoms(l.map(nomMembre))}. Réserve : vivres ${jours('vivres')}, eau ${jours('eau')}${stationSur(v, a.id) ? ' (la navette de la station la complète)' : ' (pas de station : seule la glace donne de l’eau)'}.</p>`
-    + (valides.length ? `<button id="nav-sortie-base">🚶 Sortie depuis la base ${de(a)}</button>` : '<p class="doux">Aucun colon en état de sortir.</p>');
+    + (valides.length ? `<button id="nav-sortie-base">🚶 Sortie depuis la base ${de(a)}</button>` : '<p class="doux">Aucun colon en état de sortir.</p>') + htmlLanceurColonie(v, a, b);
 }
 
 // Sortie à pied depuis la base : un colon (et un second s'il y en a un), sans module ; on rentre à la base.
@@ -133,6 +133,83 @@ function sortieDepuisBase(v, a) {
 // Fin de la sortie : on revient à l'orbiteur ; les échantillons sont déjà comptés pour la science.
 function finSortieBase(vol) {
   if (etat.voyage && vol.echantillons) Orbiteur.log(`🏠 Retour à la base ${de(vol.astre)} : ${vol.echantillons} échantillon${vol.echantillons > 1 ? 's' : ''} analysé${vol.echantillons > 1 ? 's' : ''} sur place.`);
+}
+
+// ---------- Lanceur lourd construit sur place ----------
+// Les colons construisent un lanceur d'équipage à deux étages (comme l'Aube qui part de la Terre) avec ce que
+// produit la base : ergols tirés de la glace (eau → hydrogène et oxygène) et matériaux de la mine. Il faut une base
+// de niveau 3 (mine, atelier) ; la production part d'abord au lanceur ; l'assemblage dure au moins un an.
+// Une fois prêt, il remonte jusqu'à 4 colons en orbite, une fois. Le décollage se pilote.
+const LANCEUR_COLONIE = { niveau: 3, ergols: 500000, materiaux: 60000, dureeMin: 365 * JOUR, places: 4 };
+
+function htmlLanceurColonie(v, a, b) {
+  const L = LANCEUR_COLONIE, c = b.chantierLanceur;
+  if (b.lanceurPret) return `<button id="nav-lanceur-colonie">🚀 Décoller avec le lanceur de la base (${Math.min(L.places, colonsDe(v, b).length)} place${Math.min(L.places, colonsDe(v, b).length) > 1 ? 's' : ''})</button>`;
+  if (c) {
+    const pctE = Math.min(100, (100 * c.ergols) / L.ergols), pctM = Math.min(100, (100 * c.materiaux) / L.materiaux);
+    return `<p class="doux">🏗 Lanceur en construction : ergols ${fmt(c.ergols / 1000)} / ${fmt(L.ergols / 1000)} t (${fmt(pctE)} %), matériaux ${fmt(c.materiaux / 1000)} / ${fmt(L.materiaux / 1000)} t (${fmt(pctM)} %) ; assemblage jusqu’au ${fmtDate(c.debut + L.dureeMin, false)} au moins.</p>`;
+  }
+  if ((b.niveau || 1) < L.niveau) return `<p class="doux">🚀 Un lanceur lourd pourra être construit sur place quand la base sera au niveau ${L.niveau} (mine et atelier) : aujourd’hui niveau ${b.niveau || 1}.</p>`;
+  if (!productionBase(a)) return `<p class="doux">🚀 Pas de lanceur sur place : la base ne tire aucun ergol du sol ${de(a)}.</p>`;
+  const jours = Math.max(L.ergols / (productionBase(a) * b.niveau), L.materiaux / Math.max(1, productionMateriaux(a, b.niveau)), L.dureeMin / JOUR);
+  return `<button id="nav-chantier-lanceur">🏗 Construire un lanceur sur place (${fmt(L.ergols / 1000)} t d’ergols, ${fmt(L.materiaux / 1000)} t de matériaux, ≈ ${(jours <= 366 ? "1 an" : fmtDureeAnnees(jours / 365.25))})</button>`;
+}
+function lancerChantierLanceur(v, a) {
+  const b = baseSur(v, a.id);
+  if (!b || b.chantierLanceur || b.lanceurPret || (b.niveau || 1) < LANCEUR_COLONIE.niveau || !colonsDe(v, b).length) return;
+  b.chantierLanceur = { debut: v.t, ergols: 0, materiaux: 0 };
+  Orbiteur.log(`🏗 Les colons ${de(a)} commencent un lanceur à deux étages. Les ergols tirés de la glace et les matériaux de la mine iront d’abord au chantier ; l’assemblage durera au moins un an.`);
+}
+// Appelé par la mise à jour des bases : prend la production pour le chantier ; renvoie ce qui reste.
+function alimenterChantierLanceur(v, b, prod, mat, log) {
+  const L = LANCEUR_COLONIE, c = b.chantierLanceur;
+  const e = Math.min(prod, Math.max(0, L.ergols - c.ergols)), m = Math.min(mat, Math.max(0, L.materiaux - c.materiaux));
+  c.ergols += e; c.materiaux += m;
+  if (c.ergols >= L.ergols && c.materiaux >= L.materiaux && v.t >= c.debut + L.dureeMin) {
+    delete b.chantierLanceur;
+    b.lanceurPret = true;
+    log(`🚀 Le lanceur de la base ${de(ASTRES_PAR_ID[b.astre])} est prêt sur son pas de tir : ${L.places} places pour remonter en orbite.`);
+  }
+  return { prod: prod - e, mat: mat - m };
+}
+// Décollage : jusqu'à 4 colons, valides, montent dans la capsule ; on pilote la montée jusqu'à l'orbite.
+function decollerLanceurColonie(v, a) {
+  const b = baseSur(v, a.id);
+  if (!b || !b.lanceurPret) return;
+  const l = colonsDe(v, b).filter((m) => !(m.blessure && m.blessure.gravite === 'grave')).slice(0, LANCEUR_COLONIE.places);
+  if (!l.length) return Orbiteur.log('Aucun colon en état de partir.');
+  if (!confirm(`Décollage du lanceur de la base ${de(a)}.\n\nÀ bord : ${listeNoms(l.map(nomMembre))}.\nIl faut atteindre l’orbite, ≈ ${fmt(besoinAtterrisseur(a) * 1.2 / 1000, 1)} km/s, puis rejoindre l’orbiteur.\n\nDécoller ?`)) return;
+  const f = megaFusee('equipage');
+  f.nomLanceur = `Lanceur de la base ${de(a)}`;
+  etat.destination = a.id;
+  lancer({ voyage: true, fusee: f, carburant: f.carburant, bases: basesSur(a.id), site: { x: b.x + 150 }, depuisSol: true, equipier: equipierDeMembre(l[0]), passagers: l.slice(1).map((m) => m.id), rover: null });
+  etat.vol.lanceurColonie = idBase(b);
+}
+// Fin du vol du lanceur : en orbite, les colons rejoignent l'orbiteur (ou la station s'il est plein) ; sinon, perdus.
+function finLanceurColonie(v, r, reussi) {
+  const vol = etat.vol, b = baseDe(v, vol.lanceurColonie), a = r.astre;
+  const ids = [vol.equipier && vol.equipier.id, ...(vol.passagers || [])].filter(Boolean);
+  const membres = ids.map((id) => v.equipe.find((m) => m.id === id)).filter(Boolean);
+  if (vol.equipier && vol.equipier.principal) membres.unshift(v.equipe.find((m) => m.principal));
+  const noms = listeNoms(membres.map(nomMembre));
+  if (r.cause === 'abandon' && !(vol.stats && vol.stats.altMax > 50)) return Orbiteur.log('Décollage annulé : le lanceur reste sur son pas de tir.');
+  if (b) { b.lanceurPret = false; b.lanceursPartis = (b.lanceursPartis || 0) + 1; }
+  if (reussi) {
+    const st = stationSur(v, a.id);
+    for (const m of membres) {
+      m.colon = false;
+      if (placesLibres(v, 'orbiteur') > 0) { m.etat = 'bord'; m.lieu = null; } else if (st) { m.etat = 'station'; m.lieu = 'st:' + st.id; }
+      else { m.etat = 'bord'; m.lieu = null; }
+    }
+    Orbiteur.log(`🚀 ${noms} ${membres.length > 1 ? 'ont quitté' : 'a quitté'} ${le(a)} à bord du lanceur construit sur place : de retour en orbite.`);
+    return;
+  }
+  for (const m of membres) {
+    if (m.principal) v.equipagePerdu = true; else m.etat = 'perdu';
+    noterPerte(v, nomMembre(m), a.id, causeVol(r.cause));
+  }
+  verifierEquipageEntierPerdu(v);
+  Orbiteur.log(`💥 Le lanceur de la base ${de(a)} est perdu, avec ${noms}.`);
 }
 
 // Dans les textes de la sortie : la base, quand on est sorti de la base ; sinon le module.

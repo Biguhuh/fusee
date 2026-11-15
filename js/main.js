@@ -376,6 +376,7 @@ function finVol(r) {
     const a = r.astre.id;
     if (!etat.vol.robotSeul && etat.vol.doseSv) regDose(piloteDuVol(v), etat.vol.doseSv);   // registre des équipages
     if (r.cause === 'colonie') fonderColonie(v, r);   // descente sans retour (colonies.js)
+    else if (etat.vol.lanceurColonie) finLanceurColonie(v, r, reussi);   // lanceur construit à la base (colonies.js)
     else if (reussi) {
       // L'atterrisseur rejoint l'orbiteur avec ses échantillons ; ses ergols restants retournent en réserve.
       v.ergolsAtt += r.carburantRestant;

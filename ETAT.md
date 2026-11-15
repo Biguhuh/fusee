@@ -104,7 +104,7 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 
 ## En cours
 
-- Planètes lourdes (À faire, point 5), branche `planetes-lourdes`, en 4 étapes validées : 1 descente sans retour vers une base (colons), 2 vie à la base (vivres, sorties depuis la base), 3 lanceur lourd construit sur place, 4 textes. Étape 1 validée (`colonies.js`). Étape 2 faite (encart de la colonie, sortie depuis la base), en attente de validation.
+- Planètes lourdes (À faire, point 5), branche `planetes-lourdes`, en 4 étapes validées : 1 descente sans retour vers une base (colons), 2 vie à la base (vivres, sorties depuis la base), 3 lanceur lourd construit sur place, 4 textes. Étape 1 validée (`colonies.js`). Étape 2 validée (encart de la colonie, sortie depuis la base, textes « base »). Étape 3 (lanceur construit sur place) faite, en attente de validation. Suivante : textes (aide, fiche, journal).
 
 ## À faire, dans l'ordre
 
@@ -117,6 +117,8 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 7. Après la carte 4 : easter eggs Le Cinquième Élément. « Aziz, lumière ! » affiché la première fois que les lampes du casque (combinaison ou scaphandre) s'allument, une fois par sauvegarde. Une zone de crash du vaisseau mondoshawan (débris sur un astre à choisir), avec un texte du genre : le cinquième élément ne se trouve pas dans les débris. Comptent dans les Découvertes, avec leur référence dans la Progression.
 8. Plus tard : choisir la date de départ de la partie, y compris dans le passé (aujourd'hui, 23 octobre 2026). Le ciel, les saisons et les tempêtes de Mars suivent déjà la date.
 9. Plus tard : réfléchir au traitement des vraies missions (Apollo, rovers, sondes) : les jouer, ou les observer en direct à leur vraie date ?
+10. Après les planètes lourdes : une astromobile de colonie, plus avancée que dans le Système solaire : cabine pressurisée, zone de vie, matériel, recharge des batteries, soute à matériaux. Un véhicule au sol pour explorer loin de la base, sur plusieurs jours.
+11. Après les planètes lourdes : les ressources de la planète (ce qu'une colonie trouve et exploite sur place : eau, métaux, atmosphère, sol cultivable…).
 
 ## Bugs connus de la bêta
 
