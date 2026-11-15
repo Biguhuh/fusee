@@ -101,10 +101,11 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 - Saisons (`saisons.js`), publiées : axes réels, hauteur du Soleil selon latitude et date (nuit polaire, Soleil de minuit) ; Mars : givre, tempêtes de poussière (vraies années planétaires), ciel caramel et coucher bleu ; Terre : fleurs, fruits, arbres, givre et prairie jaunie selon le mois ; Titan : averses de méthane ; Triton : geysers réalistes (loin et près, traînées) ; Pluton : brume puis atmosphère qui regèle ; Io : panaches en ombrelle.
 - Module amarré, pas encore raccordé, visible en sortie (couvertures, câbles pendants, tâches sur lui) et en fantôme sur la carte.
 - Astromobile pliée rangée contre le flanc du module (comme le LRV d'Apollo), qui bascule au sol puis se déplie (`astromobile.js`).
+- Planètes lourdes (`colonies.js`) : descente sans retour vers une base (les colons), vie et sorties depuis la base, lanceur à deux étages construit sur place, aide et fiche.
 
 ## En cours
 
-- Planètes lourdes (À faire, point 5), branche `planetes-lourdes`, en 4 étapes validées : 1 descente sans retour vers une base (colons), 2 vie à la base (vivres, sorties depuis la base), 3 lanceur lourd construit sur place, 4 textes. Étape 1 validée (`colonies.js`). Étape 2 validée (encart de la colonie, sortie depuis la base, textes « base »). Étape 3 (lanceur construit sur place) validée. Étape 4 (aide « Colonies », ligne « Repartir du sol » dans la fiche) faite : les 4 étapes sont faites, à valider puis fusionner.
+- Missions en parallèle, branche `missions-paralleles` : pouvoir revenir au Système solaire depuis une autre étoile et y lancer d'autres missions. En 5 étapes : 1 séparer le monde de chaque système (stations, bases, cargos) des expéditions (orbiteur, équipe, chargement), avec conversion des sauvegardes ; 2 départ vers une étoile sans rien effacer, écran de choix des expéditions ; 3 les expéditions qu'on ne regarde pas avancent aussi ; 4 plusieurs expéditions dans un même système ; 5 en option, délai des communications. Étape 1 à l'étude.
 
 ## À faire, dans l'ordre
 
@@ -112,14 +113,13 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 2. Jouer une vraie campagne : presque tout le travail de novembre n'a été testé que par appels directs, sur des copies de la sauvegarde.
 3. Rappel et tonneaux, escalade et cordée : vérifier en jouant sur d'autres astres (testés sur des terrains d'essai).
 4. Carte 6, point 8 : la date « 4 mars 2265 » de la capture d'Edouard n'est pas expliquée ; demander sa sauvegarde.
-5. Après la carte 4 : planètes lourdes (taille de la Terre, ≈ 11 km/s pour remonter, ex. TRAPPIST-1 e, f, g). Permettre une descente humaine sans retour, annoncée comme définitive (l'équipage devient les colons de la base au sol), puis un lanceur lourd construit sur place par une base bien approvisionnée, sur le modèle du lanceur de retour de Vénus (`lanceurRetour`, `campagne.js`).
-6. Après la carte 4 : des buts dans les autres systèmes (aujourd'hui on y explore, sans plus). Pistes : trouver de l'eau liquide, chercher des traces de vie, rendre la colonie autonome (vivres, eau, énergie), envoyer un message vers la Terre (des décennies de trajet).
-7. Après la carte 4 : easter eggs Le Cinquième Élément. « Aziz, lumière ! » affiché la première fois que les lampes du casque (combinaison ou scaphandre) s'allument, une fois par sauvegarde. Une zone de crash du vaisseau mondoshawan (débris sur un astre à choisir), avec un texte du genre : le cinquième élément ne se trouve pas dans les débris. Comptent dans les Découvertes, avec leur référence dans la Progression.
-8. Plus tard : choisir la date de départ de la partie, y compris dans le passé (aujourd'hui, 23 octobre 2026). Le ciel, les saisons et les tempêtes de Mars suivent déjà la date.
-9. Plus tard : réfléchir au traitement des vraies missions (Apollo, rovers, sondes) : les jouer, ou les observer en direct à leur vraie date ?
-10. Après les planètes lourdes : une astromobile de colonie, plus avancée que dans le Système solaire : cabine pressurisée, zone de vie, matériel, recharge des batteries, soute à matériaux. Un véhicule au sol pour explorer loin de la base, sur plusieurs jours.
-11. Après les planètes lourdes : les ressources de la planète (ce qu'une colonie trouve et exploite sur place : eau, métaux, atmosphère, sol cultivable…).
-12. Après les planètes lourdes : gérer les bases et les colonies, un peu comme un jeu de gestion (plus poussé pour les colonies). Main-d'œuvre faite de robots (bases comme colonies). Actions sur place : passage de niveau, production alimentaire, minage, énergie, etc. Dans l'esprit du jeu : on vient en scientifique respectueux, pas en conquérant ; on limite l'impact sur l'environnement (voir « Décisions prises »).
+5. Après la carte 4 : des buts dans les autres systèmes (aujourd'hui on y explore, sans plus). Pistes : trouver de l'eau liquide, chercher des traces de vie, rendre la colonie autonome (vivres, eau, énergie), envoyer un message vers la Terre (des décennies de trajet).
+6. Après la carte 4 : easter eggs Le Cinquième Élément. « Aziz, lumière ! » affiché la première fois que les lampes du casque (combinaison ou scaphandre) s'allument, une fois par sauvegarde. Une zone de crash du vaisseau mondoshawan (débris sur un astre à choisir), avec un texte du genre : le cinquième élément ne se trouve pas dans les débris. Comptent dans les Découvertes, avec leur référence dans la Progression.
+7. Plus tard : choisir la date de départ de la partie, y compris dans le passé (aujourd'hui, 23 octobre 2026). Le ciel, les saisons et les tempêtes de Mars suivent déjà la date.
+8. Plus tard : réfléchir au traitement des vraies missions (Apollo, rovers, sondes) : les jouer, ou les observer en direct à leur vraie date ?
+9. Après les planètes lourdes : une astromobile de colonie, plus avancée que dans le Système solaire : cabine pressurisée, zone de vie, matériel, recharge des batteries, soute à matériaux. Un véhicule au sol pour explorer loin de la base, sur plusieurs jours.
+10. Après les planètes lourdes : les ressources de la planète (ce qu'une colonie trouve et exploite sur place : eau, métaux, atmosphère, sol cultivable…).
+11. Après les planètes lourdes : gérer les bases et les colonies, un peu comme un jeu de gestion (plus poussé pour les colonies). Main-d'œuvre faite de robots (bases comme colonies). Actions sur place : passage de niveau, production alimentaire, minage, énergie, etc. Dans l'esprit du jeu : on vient en scientifique respectueux, pas en conquérant ; on limite l'impact sur l'environnement (voir « Décisions prises »).
 
 ## Bugs connus de la bêta
 
@@ -128,6 +128,7 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 
 ## Décisions prises
 
+- Temps commun à tous les systèmes : pendant un voyage interstellaire de 40 ans, 40 ans passent aussi dans le Système solaire, et on y joue d'autres missions. Le temps vécu à bord (dilatation relativiste) est seulement affiché : il ne compte pour personne, les personnages n'ont pas d'âge (pour l'instant). Décidé par Edouard.
 - Bases et colonies : on vient en scientifique respectueux, pas en conquérant. Impact sur l'environnement le plus faible possible (prélever peu, ne pas polluer, protéger d'éventuelles traces de vie), main-d'œuvre robotisée. Demandé par Edouard, à respecter dans tout ce qui touche aux bases, aux colonies et aux ressources.
 - Pas de framework ni de build : le jeu doit s'ouvrir avec un simple `index.html`.
 - Valeurs physiques réelles, arrondies ; les exagérations sont signalées (Soleil agrandi ×3 dans le ciel, feuille A4 agrandie sur Pluton).
