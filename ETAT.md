@@ -101,7 +101,7 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 ## En cours
 
 - Carte jeu fusée 4 (`C:\Users\DELL\Downloads\carte-jeu-fusee-4.md`), easter eggs John Carpenter. Ordre validé : Mars (tourbillons réalistes, colonie près du site de Mars 3, tourbillon géant qui emporte), puis The Thing sur TRAPPIST-1 g (atmosphère supposée, décor de glace polaire), They Live (rue de Los Angeles dans la promenade, lunettes, touche L), Plissken (avis de recherche, 1 fois sur 50 après une destruction).
-- Mars validé (branche `carte4-mars`, `tourbillons.js`, avec saisons). The Thing validé (`carte4-thing`, `thething.js`). They Live fait sur `carte4-thelive` (`theylive.js`), en attente de validation. Point suivant : Plissken.
+- Mars validé (branche `carte4-mars`, `tourbillons.js`, avec saisons). The Thing validé (`carte4-thing`, `thething.js`). They Live validé (`carte4-thelive`, `theylive.js`, panneaux en anglais comme en VO). Point suivant : Plissken.
 
 ## À faire, dans l'ordre
 
@@ -113,6 +113,7 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 6. Après la carte 4 : saisons sur les astres. Donner à chacun l'inclinaison de son axe, calculer la hauteur du Soleil selon la latitude et la date (aujourd'hui, seuls les tourbillons de Mars suivent la saison). D'abord Mars (givre l'hiver, tempêtes de poussière l'été austral), la Terre (fleurs et fruits de la promenade selon la saison), Titan (pluies de méthane, lacs) ; ensuite Triton (geysers) et Pluton (atmosphère qui gèle loin du Soleil).
 7. Après la carte 4 : planètes lourdes (taille de la Terre, ≈ 11 km/s pour remonter, ex. TRAPPIST-1 e, f, g). Permettre une descente humaine sans retour, annoncée comme définitive (l'équipage devient les colons de la base au sol), puis un lanceur lourd construit sur place par une base bien approvisionnée, sur le modèle du lanceur de retour de Vénus (`lanceurRetour`, `campagne.js`).
 8. Après la carte 4 : des buts dans les autres systèmes (aujourd'hui on y explore, sans plus). Pistes : trouver de l'eau liquide, chercher des traces de vie, rendre la colonie autonome (vivres, eau, énergie), envoyer un message vers la Terre (des décennies de trajet).
+9. Après la carte 4 : easter eggs Le Cinquième Élément. « Aziz, lumière ! » affiché la première fois que les lampes du casque (combinaison ou scaphandre) s'allument, une fois par sauvegarde. Une zone de crash du vaisseau mondoshawan (débris sur un astre à choisir), avec un texte du genre : le cinquième élément ne se trouve pas dans les débris. Comptent dans les Découvertes, avec leur référence dans la Progression.
 
 ## Bugs connus de la bêta
 
