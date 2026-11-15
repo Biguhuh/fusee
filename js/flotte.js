@@ -13,7 +13,7 @@ const CHAMPS_EXPEDITION = ['orb', 'equipe', 'nomVaisseau', 'carburant', 'ergolsA
   'atterrisseurs', 'echantillonsABord', 'cible', 'manette', 'mode', 'orientation', 'vivres', 'eau', 'tVivres', 'dechets', 'tDechets',
   'amarre', 'aIss', 'rdvStation', 'equipagePerdu', 'traumatise', 'proposerRappel', 'retourAuto', 'sansEquipage', 'commandeSol',
   'pertesEquipage', 'propulseurs', 'prevision', 'voyageFinal', 'propulsionSolaire', 'vidange', 'observation', 'usureBatterieRover',
-  'degatsRover', 'alertesVivres', 'orbiteurVersSoleil', 'autopilote', 'idExpedition', 'numero', 'pilotageAbsence', 'manoeuvreAbsence', 'spatio', 'idJoueur'];
+  'degatsRover', 'alertesVivres', 'orbiteurVersSoleil', 'autopilote', 'idExpedition', 'numero', 'pilotageAbsence', 'manoeuvreAbsence', 'spatio', 'idJoueur', 'retrouvailles'];
 
 // Valeurs d'un système vide, et d'un écran sans expédition.
 function systemeVide() {
@@ -462,6 +462,79 @@ function preparerNouvelleExpedition(v) {
   }
   const restes = (v.equipe || []).filter((m) => m.etat === 'base' || m.etat === 'station');
   if (restes.length) v.equipeSurPlace = [...(v.equipeSurPlace || []), ...restes];
+}
+
+// ---------- Deux expéditions au même endroit ----------
+// Vaisseaux rangés du système affiché qui sont au même astre que l'orbiteur (en orbite, ou des équipiers à une base).
+// (Un vaisseau rangé est vu là où on l'a laissé.)
+function vaisseauxIci(v) {
+  if (!v.orb) return [];
+  const c = v.orb.centre;
+  const basesIci = new Set((v.bases || []).filter((b) => b.astre === c).map((b) => idBase(b)));
+  return (v.flotte || []).filter((x) => x.systeme === v.systeme && !x.transit
+    && ((x.orb && x.orb.centre === c) || (x.equipe || []).some((m) => m.etat === 'base' && basesIci.has(m.lieu))));
+}
+// À chaque pas : les retrouvailles, une fois par rencontre.
+function verifierRetrouvailles(v, log) {
+  if (!v.orb || !(v.flotte || []).length) return;
+  const ici = vaisseauxIci(v), c = v.orb.centre;
+  v.retrouvailles = v.retrouvailles || {};
+  for (const k of Object.keys(v.retrouvailles)) if (!ici.some((x) => `${x.idExpedition}@${c}` === k)) delete v.retrouvailles[k];
+  for (const x of ici) {
+    const k = `${x.idExpedition}@${c}`;
+    if (v.retrouvailles[k]) continue;
+    v.retrouvailles[k] = true;
+    log(`🤝 Ah, on est contents de se retrouver ! Le vaisseau ${x.nomVaisseau || ''} est là aussi, ${enOrbite(ASTRES_PAR_ID[c])}. Les équipiers peuvent changer d’expédition.`);
+  }
+}
+// Encart de l'orbiteur : les vaisseaux présents, et l'échange d'équipiers.
+function htmlRetrouvailles(v) {
+  const ici = vaisseauxIci(v);
+  if (!ici.length) return '';
+  return `<p>🤝 Aussi ici : ${ici.map((x) => `vaisseau <b>${x.nomVaisseau || '?'}</b> (${nombre((x.equipe || []).filter((m) => ['bord', 'base'].includes(m.etat)).length, 'équipier')})`).join(', ')}.</p>`
+    + '<button id="nav-echange">👥 Échanger des équipiers</button>';
+}
+// Un équipier peut changer d'expédition (pas le spationaute joué : chaque mission garde le sien).
+// À bord, il change de vaisseau ; à la base, il reste au sol, mais remontera avec l'atterrisseur de sa nouvelle expédition.
+function membresEchangeables(v, equipe) {
+  const c = v.orb && v.orb.centre;
+  const basesIci = new Set((v.bases || []).filter((b) => b.astre === c).map((b) => idBase(b)));
+  return (equipe || []).filter((m) => !m.principal && (m.etat === 'bord' || (m.etat === 'base' && basesIci.has(m.lieu))));
+}
+function ouvrirEchange(v, apres) {
+  const ici = vaisseauxIci(v);
+  if (!ici.length) return;
+  const rendu = () => {
+    const ligne = (m, de, vers, nomVers) => `<li>${m.nom} <span class="doux">(${m.etat === 'bord' ? 'à bord' : 'à la base'})</span> <button data-de="${de}" data-vers="${vers}" data-m="${m.id}">→ ${nomVers}</button></li>`;
+    const bloc = (titre, de, liste, cibles) => `<h3>${titre}</h3><ul>${liste.length ? liste.map((m) => cibles.map(([id, nom]) => ligne(m, de, id, nom)).join('')).join('') : '<li class="doux">personne à échanger</li>'}</ul>`;
+    const cibleIci = ['ici', v.nomVaisseau || 'ce vaisseau'];
+    const m = $('modale');
+    m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>👥 Échanger des équipiers</h2>
+      <p>Chaque vaisseau a ses atterrisseurs : un équipier au sol remontera avec l’expédition qu’il rejoint. Le spationaute joué reste dans sa mission.</p></div><button class="fermer">✕</button></header>
+      <section>${bloc(`Vaisseau ${v.nomVaisseau || ''} (ici)`, 'ici', membresEchangeables(v, v.equipe), ici.map((x) => [x.idExpedition, x.nomVaisseau || '?']))}
+      ${ici.map((x) => bloc(`Vaisseau ${x.nomVaisseau || ''}`, x.idExpedition, membresEchangeables(v, x.equipe), [cibleIci])).join('')}</section>
+      <div class="actions"><span></span><button class="principal fermer2">Terminé</button></div></div>`;
+    m.classList.remove('cache');
+    const fin = () => { Infos.fermer(); if (apres) apres(); };
+    m.querySelector('.fermer').onclick = fin;
+    m.querySelector('.fermer2').onclick = fin;
+    m.querySelectorAll('button[data-m]').forEach((b) => { b.onclick = () => { changerExpedition(v, b.dataset.de, b.dataset.vers, b.dataset.m); rendu(); }; });
+  };
+  rendu();
+}
+function changerExpedition(v, de, vers, idMembre) {
+  const equipeDe = (id) => (id === 'ici' ? (v.equipe = v.equipe || []) : ((v.flotte || []).find((x) => x.idExpedition === id) || {}).equipe);
+  const nomDe = (id) => (id === 'ici' ? v.nomVaisseau : ((v.flotte || []).find((x) => x.idExpedition === id) || {}).nomVaisseau);
+  const src = equipeDe(de), dst = equipeDe(vers);
+  if (!src || !dst) return;
+  const i = src.findIndex((m) => m.id === idMembre);
+  if (i < 0) return;
+  const m = src[i];
+  if (m.etat === 'bord' && dst.filter((x) => x.etat === 'bord').length >= capaciteEquipe(v)) return Orbiteur.log(`Plus de place à bord du vaisseau ${nomDe(vers)}.`);
+  src.splice(i, 1);
+  m.id = 'e' + Date.now().toString(36) + Math.floor(Math.random() * 1e4);   // identifiant libre dans sa nouvelle équipe
+  dst.push(m);
+  Orbiteur.log(`👥 ${m.nom} passe du vaisseau ${nomDe(de)} au vaisseau ${nomDe(vers)}.`);
 }
 
 // ---------- Un spationaute joué par mission ----------

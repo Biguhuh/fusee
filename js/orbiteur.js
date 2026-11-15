@@ -1015,6 +1015,7 @@ const Orbiteur = {
     if (v.equipe) mettreAJourTransferts(v, (t) => this.log(t));   // navettes vers les bases, embarquement à une station
     mettreAJourDechets(v, (t) => this.log(t), (st) => this.estAmarre(st));
     mettreAJourVivres(v, (t) => this.log(t));
+    verifierRetrouvailles(v, (t) => this.log(t));   // deux expéditions au même endroit (flotte.js)
     if (v.sondesInterstellaires && v.sondesInterstellaires.length) mettreAJourSondesInterstellaires(v, (t) => this.log(t));
     this.arriveesEchantillons();
     terminerRDTerre(v, (t) => this.log(t));
@@ -2491,6 +2492,7 @@ const Orbiteur = {
     if (c.id === 'terre' && fermee) d += v.aIss ? '<button disabled title="Vous y êtes">📍 Amarré à la Station spatiale internationale</button>' : '<button id="nav-iss">🛰 Rendez-vous avec la Station spatiale internationale</button>';
     if (estOrigine(c.id) && fermee) d += `<button id="nav-plein-origine">🌍 Faire le plein depuis ${SYSTEME.nomOrigine} (gratuit)</button>`;
     d += htmlBaseColons(v, c);   // colonie : réserve et sortie depuis la base (colonies.js)
+    d += htmlRetrouvailles(v);   // deux expéditions au même endroit (flotte.js)
     if (this.peutDescendre()) {
       // L'atterrisseur est conçu pour l'astre : on ne descend que si l'on peut repartir.
       const conc = this.conceptionPour(c);
@@ -2594,6 +2596,7 @@ const Orbiteur = {
       ? ouvrirChoixEquipage(v, ASTRES_PAR_ID[o.centre], (compo) => this.contexte.descendre(o.centre, site, compo))
       : this.contexte.descendre(o.centre, site))));
     bind('nav-sortie-base', () => sortieDepuisBase(v, ASTRES_PAR_ID[o.centre]));
+    bind('nav-echange', () => ouvrirEchange(v, () => this.majHud(true)));
     bind('nav-chantier-lanceur', () => { lancerChantierLanceur(v, ASTRES_PAR_ID[o.centre]); this.majHud(true); });
     bind('nav-lanceur-colonie', () => decollerLanceurColonie(v, ASTRES_PAR_ID[o.centre]));
     bind('nav-colons', () => ouvrirChoixEquipage(v, ASTRES_PAR_ID[o.centre], (compo) => descendreColons(v, ASTRES_PAR_ID[o.centre], compo)));
