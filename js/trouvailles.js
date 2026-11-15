@@ -35,7 +35,7 @@ const APPARENCES = {
   'Galet de glace': ['galet', '#d7d2c4', 0.15],
   'triton|Glace d’azote': ['glace', '#f3d9dc', 0.25],
   'Glace d’azote': ['glace', '#f4f1ea', 0.25],
-  'Geyser d’azote': ['panache', '#4a4440', 30],
+  'Geyser d’azote': ['panache', '#4a4440', 30, true],   // option : jet de Triton (saisons.js)
   'Glace d’eau': ['glace', '#e3eef5', 0.3],
   'Tholins': ['croute', '#8e4a32', 0.3],
   'Neige des geysers': ['tas', '#fbfdff', 0.3],
@@ -158,6 +158,7 @@ function dessinerTrouvaille(ctx, ap, k, sol, e, fait, t) {
       break;
     }
     case 'panache': {
+      if (ap.option) { dessinerJetTriton(ctx, sx, sy, e, t, sol, fait); break; }   // geyser d'azote de Triton
       // Panache qui monte de l'évent (à l'échelle du terrain : les vrais montent bien plus haut).
       const H = ap.taille;
       ctx.fillStyle = '#3b3530'; ctx.beginPath(); ctx.ellipse(sx, sy, Math.max(3, 0.8 * e), Math.max(2, 0.3 * e), 0, Math.PI, 0); ctx.fill();

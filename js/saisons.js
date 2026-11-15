@@ -165,6 +165,7 @@ Object.assign(Exploration.prototype, {
   dessinerSaisonSol(ctx, versEcran, s, W) {
     if (this.terre) return this.dessinerSolTerre(ctx, versEcran, s, W);
     if (this.astre.id === 'pluton') return this.dessinerGivrePluton(ctx, versEcran, s, W);
+    if (this.astre.id === 'triton') return this.dessinerTraineesTriton(ctx, versEcran, s, W);
     const m = this.meteoMars(); if (!m || m.givre <= 0.05) return;
     const chaleur = chaleurLocale(this.astre, tempsCiel(this.vol), this.vol);
     // Le givre tient une bonne partie de la matinée (Soleil bas, l'hiver), puis se sublime.
@@ -367,7 +368,7 @@ Object.assign(Exploration.prototype, {
     if (a.id === 'triton') {
       const g = geysersTriton(t, lat);
       this.geysers = g.actifs;
-      this.dire(g.actifs ? '⛲ Sous le Soleil d’été, des geysers d’azote montent à 8 km au loin, puis le vent couche leurs panaches sombres.'
+      this.dire(g.actifs ? '⛲ Sous le Soleil d’été, des geysers d’azote montent à 8 km au loin, puis le vent couche leurs panaches sombres sur plus de 100 km. Leurs retombées tracent au sol des traînées sombres.'
         : `⛲ Les geysers d’azote sont actifs là où le Soleil est le plus haut (vers ${fmt(Math.abs(g.d))}° ${g.d < 0 ? 'S' : 'N'}), trop loin d’ici pour les voir.`);
     }
     if (a.id === 'pluton') {
@@ -383,13 +384,15 @@ Object.assign(Exploration.prototype, {
   dessinerSaisonLoin(ctx, W, yH) {
     const tt = performance.now() / 1000;
     if (this.astre.id === 'triton' && this.geysers) {
+      // Geysers lointains : à des dizaines de km, leur pied est sous l'horizon (Triton est petite : l'horizon
+      // est à 2 ou 3 km). On voit la colonne de poussière monter, puis le panache couché par le vent, très long.
+      const tour = W * 2.6;
       for (let i = 0; i < 4; i++) {
-        const x = ((((i * 0.29 + 0.11) * W * 2.3 - this.p.x * 0.6) % (W * 2.3)) + W * 2.3) % (W * 2.3) - W * 0.3, h = 110 + 50 * hash2(i, 111);
-        ctx.strokeStyle = 'rgba(175,165,160,0.7)'; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.moveTo(x, yH); ctx.lineTo(x + Math.sin(tt + i) * 1.5, yH - h); ctx.stroke();   // colonne
-        const g = ctx.createLinearGradient(x, 0, x + 260, 0);
-        g.addColorStop(0, 'rgba(175,165,160,0.55)'); g.addColorStop(1, 'rgba(175,165,160,0)');
-        ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x + 130, yH - h, 130, 7, 0, 0, Math.PI * 2); ctx.fill();   // panache couché
+        const xc = ((((i * 0.27 + 0.08) * tour - this.p.x * 0.4) % tour) + tour) % tour - W * 0.8;
+        if (xc < -W * 1.2 || xc > W + 40) continue;
+        const h = 105 + 55 * hash2(i, 111), pied = yH + 30 + 40 * hash2(i, 112);   // pied caché derrière le terrain
+        const force = 0.65 + 0.35 * Math.sin(tt * 0.15 + i * 2.1), haut = yH - h, L = h * (5 + 3 * hash2(i, 113));
+        dessinerGeyserTriton(ctx, xc, pied, haut, L, force, tt + i * 7.3);
       }
     }
     if (this.astre.id === 'pluton' && (this.brume || 0) > 0.1) {
@@ -422,4 +425,85 @@ Object.assign(Exploration.prototype, {
       ctx.fillStyle = `rgba(250,250,255,${0.6 * g})`; ctx.fillRect(sx, sy - 1.5, 3, 3 + 3 * hash2(Math.floor(x * 2), 73));
     }
   },
+
+  // Triton : traînées sombres des retombées, en éventail dans le sens du vent (vers la droite), sur la glace rose.
+  dessinerTraineesTriton(ctx, versEcran, s, W) {
+    if (!this.geysers) return;
+    const x0 = this.p.x - W / 2 / s - 60, x1 = this.p.x + W / 2 / s + 10, pas = 70;
+    for (let k = Math.floor(x0 / pas); k * pas < x1; k++) {
+      if (hash2(k, 121) > 0.45) continue;
+      const xa = k * pas + hash2(k, 122) * 30, long = 18 + 40 * hash2(k, 123), fonce = 0.22 + 0.2 * hash2(k, 124);
+      for (let u = 0; u < 1; u += 0.04) {
+        const x = xa + u * long, [sx, sy] = versEcran(x, this.sol(x));
+        if (sx < -10 || sx > W + 10) continue;
+        const e = 1.5 + 5 * u * (1 - u * 0.6);   // l'éventail s'élargit puis s'efface
+        ctx.fillStyle = `rgba(70,52,50,${fonce * (1 - u * 0.85)})`;
+        ctx.fillRect(sx, sy - 1, u * long * s * 0.04 + 3, e);
+      }
+    }
+  },
 });
+
+// Un geyser de Triton, vu de loin : colonne de grains sombres qui monte en ondulant, coude doux vers 8 km, puis
+// panache couché par le vent, très long, qui s'élargit et s'efface. Le Soleil éclaire le bord supérieur.
+// xc, pied : base (cachée sous l'horizon) ; haut : altitude du coude (écran) ; L : longueur du panache (px).
+function dessinerGeyserTriton(ctx, xc, pied, haut, L, force, t) {
+  const sombre = (a) => `rgba(128,114,110,${a})`, clair = (a) => `rgba(228,214,208,${a})`;
+  const H = pied - haut;
+  // Nuage à bords doux (dégradé radial, aplati) : pas de contour net.
+  const nuage = (x, y, rx, ry, coul, a) => {
+    if (a < 0.005) return;
+    ctx.save(); ctx.translate(x, y); ctx.scale(1, ry / rx);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+    g.addColorStop(0, coul(a)); g.addColorStop(0.55, coul(a * 0.5)); g.addColorStop(1, coul(0));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, rx, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  };
+  // Colonne : fine (≈ 1 km), elle s'élargit à peine en montant ; grains qui montent en ondulant.
+  for (let i = 0; i < 12; i++) { const u = i / 11; nuage(xc + Math.sin(u * 5 + t * 0.4) * 1.5, pied - u * H, 3 + 3 * u, 9, sombre, 0.18 * force); }
+  for (let j = 0; j < 60; j++) {
+    const u = (t * 0.06 + j / 60 + hash2(j, 131) * 0.02) % 1, y = pied - u * H;
+    const x = xc + Math.sin(u * 7 + t * 0.8 + j) * (1 + 3 * u) + (hash2(j, 132) - 0.5) * (2 + 5 * u);
+    ctx.fillStyle = sombre(0.5 * force * (0.5 + 0.5 * u)); ctx.fillRect(x, y, 1.5, 1.5);
+  }
+  // Coude arrondi, puis panache couché qui s'élargit vite, s'effiloche et pâlit sur toute sa longueur.
+  for (let k = 0; k < 40; k++) {
+    const sv = k / 39, debut = Math.min(1, sv / 0.1);
+    const x = xc + 18 * Math.sin(debut * Math.PI / 2) + sv * L;
+    const y = haut - 14 * Math.sin(debut * Math.PI / 2) + sv * sv * 22 + Math.sin(sv * 8 + t * 0.25) * 3;
+    const r = 5 + 34 * sv, a = 0.32 * force * Math.pow(1 - sv, 1.3);
+    nuage(x, y, r * 1.6, r * 0.6, sombre, a);
+    nuage(x - r * 0.2, y - r * 0.3, r * 1.2, r * 0.25, clair, a * 0.5);   // bord supérieur, éclairé par le Soleil
+  }
+  // Grains qui dérivent dans le panache
+  for (let j = 0; j < 50; j++) {
+    const sv = (t * 0.02 + j / 50) % 1, x = xc + 18 + sv * L, y = haut - 12 + sv * sv * 22 + (hash2(j, 133) - 0.5) * (6 + 34 * sv);
+    ctx.fillStyle = sombre(0.45 * force * (1 - sv)); ctx.fillRect(x, y, 2, 1.5);
+  }
+}
+
+// Geyser de Triton vu de près : évent sombre, retombées en éventail dans le sens du vent, et jet de grains fins,
+// éclairés par le Soleil, qui monte presque droit et sort de l'écran (il monte à 8 km).
+// sol(dx) : point du sol à dx mètres de l'évent ; e : pixels par mètre.
+function dessinerJetTriton(ctx, sx, sy, e, t, sol, fait) {
+  const k = fait ? 0.6 : 1;
+  for (let i = 0; i < 24; i++) {   // retombées : éventail sombre vers la droite
+    const u = i / 23, [x, y] = sol(1 + u * 40);
+    ctx.fillStyle = `rgba(70,52,50,${0.35 * (1 - u * 0.8)})`;
+    ctx.beginPath(); ctx.ellipse(x, y, (1 + 1.5 * u) * e, Math.max(1.5, (0.15 + 0.5 * u) * e * 0.3), 0, Math.PI, 0); ctx.fill();
+  }
+  ctx.fillStyle = '#2e2724'; ctx.beginPath(); ctx.ellipse(sx, sy, Math.max(3, 0.7 * e), Math.max(2, 0.25 * e), 0, Math.PI, 0); ctx.fill();   // évent
+  const haut = sy + 40;   // jusqu'en haut de l'écran et au-delà
+  // Voile du jet : étroit à l'évent, il s'évase en montant, et pâlit.
+  for (let i = 0; i < 16; i++) {
+    const u = i / 15, y = sy - u * sy, w = (0.4 + 1.6 * u) * e;
+    const g = ctx.createLinearGradient(sx - w, 0, sx + w, 0);
+    g.addColorStop(0, 'rgba(150,135,130,0)'); g.addColorStop(0.5, `rgba(150,135,130,${0.16 * k * (1 - 0.5 * u)})`); g.addColorStop(1, 'rgba(150,135,130,0)');
+    ctx.fillStyle = g; ctx.fillRect(sx - w, y - sy / 15, 2 * w, sy / 15 + 1);
+  }
+  for (let j = 0; j < 140; j++) {
+    const u = (t * 0.22 + j / 140 + hash2(j, 141) * 0.03) % 1, y = sy - u * haut * 1.2;
+    const x = sx + (hash2(j, 142) - 0.5) * (0.3 + 2.4 * u) * e + Math.sin(u * 9 + t + j) * 0.15 * e * u;
+    ctx.fillStyle = j % 3 ? `rgba(165,150,145,${0.7 * k * (1 - u * 0.6)})` : `rgba(235,222,215,${0.6 * k * (1 - u * 0.6)})`;
+    ctx.fillRect(x, y, 2, 2);
+  }
+}
