@@ -7,7 +7,7 @@
 // Le clin d'œil : près d'une colonie minière abandonnée, un tourbillon géant ne se dissipe jamais. Lui, il emporte.
 
 const TOURBILLONS = {
-  max: 6,                       // en même temps, dans les environs, au plus chaud de l'après-midi
+  max: 7,                       // en même temps, dans les environs, au plus chaud de l'après-midi, en pleine saison
   zone: 3000,                   // m autour du spationaute
   vieMin: 3 * 60, vieMax: 15 * 60,
   surLeChemin: 0.15,            // part de ceux qui passent sur le chemin (les autres sont au loin)
@@ -15,6 +15,37 @@ const TOURBILLONS = {
 const EGG_COLONIE = { id: 'mars-colonie', astre: 'mars', dx: 2000, dessin: 'colonieMiniere',
   texte: 'Une colonie minière, silencieuse. Les engins sont à l’arrêt, les portes ouvertes, pas une lumière. Les mineurs ne répondent plus, et le vent ne tombe jamais tout à fait.' };
 EASTER_EGGS.push(EGG_COLONIE);
+// Saison et lieu. Ls : longitude solaire de Mars (0° : printemps du Nord ; 251° : Mars au plus près du Soleil).
+// Les tourbillons sont surtout ceux du printemps et de l'été de chaque hémisphère, plus forts l'été austral.
+// Régions connues pour en avoir beaucoup : Gusev (Spirit en a filmé des dizaines), Hellas (air plus dense au fond).
+const REGIONS_TOURBILLONS = { spirit: [1.6, 'Gusev, où Spirit en a filmé des dizaines'], hellas: [1.3, 'Hellas, au fond duquel l’air est plus dense'] };
+function lsMars(t) {
+  const r = etatAbsolu('mars', t).r, l = (Math.atan2(r[1], r[0]) * 180) / Math.PI;
+  return (((l - 85.06) % 360) + 360) % 360;
+}
+// Lieu connu le plus proche (zone remarquable ou ancienne mission, à moins de 100 km) : { id, lat }, ou null.
+function lieuMars(a, x) {
+  let best = null;
+  const essai = (id, lat, xl) => { const d = distSol(a, x, xl); if (d < 100000 && (!best || d < best.d)) best = { id, lat, d }; };
+  for (const z of zonesSur(a.id)) essai(z.id, z.lat, xZone(a, z) + z.poser * 1000);
+  for (const t of tracesSur(a.id)) if (POSITIONS_TRACES[t.id]) essai(t.id, POSITIONS_TRACES[t.id][0], xTrace(a, t) + DISTANCE_TRACE);
+  return best;
+}
+function activiteTourbillons(a, x, t) {
+  const ls = lsMars(t), lieu = lieuMars(a, x), lat = lieu ? lieu.lat : 0;
+  const s = 0.5 + 0.5 * Math.cos(((ls - (lat >= 0 ? 120 : 280)) * Math.PI) / 180);
+  const w = Math.min(1, Math.abs(lat) / 20);   // près de l'équateur : un peu toute l'année
+  let f = (1 - w) * (0.45 + 0.25 * s) + w * (0.15 + 0.85 * s);
+  if (lat < 0) f *= 1.15;
+  const region = lieu && REGIONS_TOURBILLONS[lieu.id];
+  if (region) f *= region[0];
+  return { f: Math.min(1.3, f), ls, lat, region: region ? region[1] : '' };
+}
+function saisonMars(ls, lat) {
+  const noms = ['le printemps', 'l’été', 'l’automne', 'l’hiver'], k = Math.floor(ls / 90) % 4;
+  return lat < 0 ? `${noms[(k + 2) % 4]} austral` : `${noms[k]} boréal`;
+}
+
 const GEANT = { ecart: 260, rayon: 45, hauteur: 7000, alerte: 180, radio: 400, montee: 4 };
 const CAUSE_GEANT = 'dans le tourbillon qui ne retombe jamais, très haut au-dessus du sol';
 
@@ -29,7 +60,15 @@ Object.assign(Exploration.prototype, {
     this.msgTourb = this.msgTourb || {};
     // Naissance et vie : surtout l'après-midi, quand le sol est chaud ; aucun la nuit.
     const chaleur = chaleurLocale(a, tempsCiel(this.vol), this.vol);
-    const cible = Math.round(TOURBILLONS.max * Math.max(0, (chaleur - 0.5) / 0.5));
+    if (!this.activiteTourb || this.vol.t - this.activiteTourb.t > 86400) {
+      this.activiteTourb = { t: this.vol.t, ...activiteTourbillons(a, this.xFusee, tempsCiel(this.vol)) };
+      const A = this.activiteTourb;
+      if (!this.msgTourb.saison) {
+        this.msgTourb.saison = true;
+        this.dire(`🌪 Sur Mars, c’est ${saisonMars(A.ls, A.lat)} (Ls ${fmt(A.ls)}°) : ${A.f > 0.75 ? 'la saison des tourbillons de poussière, nombreux l’après-midi' : A.f > 0.4 ? 'quelques tourbillons de poussière l’après-midi' : 'des tourbillons de poussière rares en cette saison'}${A.region ? `, surtout ici, à ${A.region}` : ''}.`);
+      }
+    }
+    const cible = Math.round(TOURBILLONS.max * this.activiteTourb.f * Math.max(0, (chaleur - 0.5) / 0.5));
     let l = this.tourbillons;
     if (!l) { l = []; for (let i = 0; i < cible; i++) l.push(this.nouveauTourbillon(true)); }
     for (const t of l) { t.age += dt; t.x += t.vx * dt; }
