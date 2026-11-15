@@ -96,7 +96,7 @@ Object.assign(Exploration.prototype, {
     if (this.terre) return this.annoncerTerre();   // promenade : fleurs et fruits du mois
     const a = this.astre, t = tempsCiel(this.vol);
     if (a.id === 'mars') this.annoncerMars(t);   // givre, tempête de poussière (robot compris : ses panneaux)
-    if (a.id === 'titan' || a.id === 'triton' || a.id === 'pluton') this.annoncerLointain();   // pluie, geysers, brume
+    if (a.id === 'titan' || a.id === 'triton' || a.id === 'pluton' || a.id === 'io') this.annoncerLointain();   // pluie, geysers, brume
     if (this.type !== 'spationaute' || a.type !== 'solide' || dansLOmbre(this.vol)) return;
     const latDeg = latitudeLieu(a, this.vol), h = hauteursSoleil(latDeg * DEG, declinaisonSoleil(a, t));
     const s = saisonDuLieu(a, t, latDeg);
@@ -371,6 +371,7 @@ Object.assign(Exploration.prototype, {
       this.dire(g.actifs ? '⛲ Sous le Soleil d’été, des geysers d’azote montent à 8 km au loin, puis le vent couche leurs panaches sombres sur plus de 100 km. Leurs retombées tracent au sol des traînées sombres.'
         : `⛲ Les geysers d’azote sont actifs là où le Soleil est le plus haut (vers ${fmt(Math.abs(g.d))}° ${g.d < 0 ? 'S' : 'N'}), trop loin d’ici pour les voir.`);
     }
+    if (a.id === 'io') this.dire('🌋 Au-dessus de l’horizon, des panaches volcaniques en ombrelle montent à des centaines de km. Sans air pour les freiner, les grains retombent en paraboles et blanchissent le sol de givre de soufre.');
     if (a.id === 'pluton') {
       const p = atmospherePluton(t);
       this.brume = p.f;
@@ -394,6 +395,14 @@ Object.assign(Exploration.prototype, {
         const force = 0.65 + 0.35 * Math.sin(tt * 0.15 + i * 2.1), haut = yH - h, L = h * (5 + 3 * hash2(i, 113));
         dessinerGeyserTriton(ctx, xc, pied, haut, L, force, tt + i * 7.3);
       }
+    }
+    if (this.astre.id === 'io') {
+      // Panaches d'Io au loin : ombrelles (Prométhée ≈ 100 km de haut, Pelé ≈ 350 km, plus rare), pied sous l'horizon.
+      const tour = W * 2.4;
+      [[0.15, 95, 1.2], [0.55, 220, 1.6], [0.85, 120, 1.3]].forEach(([pos, h, l], i) => {
+        const xc = ((((pos * tour) - this.p.x * 0.3) % tour) + tour) % tour - W * 0.6;
+        if (xc > -h * 2 && xc < W + h * 2) dessinerOmbrelleIo(ctx, xc, yH + 25, h, h * l, tt + i * 5.1);
+      });
     }
     if (this.astre.id === 'pluton' && (this.brume || 0) > 0.1) {
       for (let k = 0; k < 6; k++) {
@@ -505,5 +514,60 @@ function dessinerJetTriton(ctx, sx, sy, e, t, sol, fait) {
     const x = sx + (hash2(j, 142) - 0.5) * (0.3 + 2.4 * u) * e + Math.sin(u * 9 + t + j) * 0.15 * e * u;
     ctx.fillStyle = j % 3 ? `rgba(165,150,145,${0.7 * k * (1 - u * 0.6)})` : `rgba(235,222,215,${0.6 * k * (1 - u * 0.6)})`;
     ctx.fillRect(x, y, 2, 2);
+  }
+}
+
+// Panache d'Io vu de loin : sans air, les grains suivent des paraboles. Ceux lancés presque droit montent le plus
+// haut et retombent près de l'axe ; les plus inclinés vont loin : une ombrelle au bord plus dense, bleutée
+// (fines particules éclairées par le Soleil, photos de Galileo). xc, pied : évent ; h : hauteur ; R : rayon.
+function dessinerOmbrelleIo(ctx, xc, pied, h, R, t) {
+  const g = ctx.createRadialGradient(xc, pied - h * 0.55, 0, xc, pied - h * 0.55, R);
+  g.addColorStop(0, 'rgba(170,190,235,0.10)'); g.addColorStop(0.7, 'rgba(170,190,235,0.06)'); g.addColorStop(1, 'rgba(170,190,235,0)');
+  ctx.fillStyle = g; ctx.save(); ctx.translate(0, pied - h * 0.55); ctx.scale(1, (h * 0.75) / R); ctx.beginPath(); ctx.arc(xc, 0, R, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  for (let j = 0; j < 260; j++) {
+    const c = (hash2(j, 151) * 2 - 1), q = Math.abs(c);   // c : inclinaison relative (−1 à 1)
+    const portee = R * c, haut = h * (1 - 0.35 * q * q);   // plus incliné : plus loin, un peu moins haut
+    const u = (t * 0.05 + hash2(j, 152)) % 1;               // avancement sur la trajectoire
+    const x = xc + portee * u, y = pied - 4 * haut * u * (1 - u);
+    const a = 0.55 * (0.4 + 0.6 * q) * (u > 0.85 ? (1 - u) / 0.15 : 1);   // plus dense au bord, s'efface au sol
+    ctx.fillStyle = `rgba(190,205,240,${a})`; ctx.fillRect(x, y, 1.6, 1.6);
+  }
+}
+
+// Volcan d'Io vu de près : anneau de retombées (givre blanc de dioxyde de soufre, soufre rouge), lave qui rougeoie
+// à l'évent (bien visible la nuit), éclats incandescents en paraboles basses, et le pied du panache, un jet
+// bleuté qui sort de l'écran (il monte à des centaines de km).
+function dessinerFontaineIo(ctx, sx, sy, e, t, sol, fait) {
+  const k = fait ? 0.6 : 1, nuit = typeof LUMIERE_SOL === 'number' ? 1 - LUMIERE_SOL : 0;
+  for (let i = -30; i <= 30; i++) {   // retombées : blanc près de l'évent, puis un anneau rouge plus loin
+    if (Math.abs(i) < 2) continue;
+    const d = Math.abs(i), [x, y] = sol(i * 1.4);
+    ctx.fillStyle = d < 14 ? `rgba(245,245,235,${0.5 * (1 - d / 16)})` : `rgba(190,60,30,${0.45 * Math.max(0, 1 - Math.abs(d - 22) / 9)})`;
+    ctx.fillRect(x - 0.7 * e, y - 1, 1.4 * e, 2 + 2 * hash2(i, 161));
+  }
+  // Évent et lave
+  const lueur = 0.6 + 0.4 * Math.sin(t * 3) * Math.sin(t * 1.7);
+  const gl = ctx.createRadialGradient(sx, sy, 0, sx, sy, (2 + 3 * nuit) * e);
+  gl.addColorStop(0, `rgba(255,170,60,${(0.55 + 0.35 * nuit) * lueur})`); gl.addColorStop(1, 'rgba(255,80,20,0)');
+  ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(sx, sy, (2 + 3 * nuit) * e, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#2a1a12'; ctx.beginPath(); ctx.ellipse(sx, sy, Math.max(3, 0.9 * e), Math.max(2, 0.3 * e), 0, Math.PI, 0); ctx.fill();
+  ctx.fillStyle = `rgba(255,120,30,${0.8 * lueur})`; ctx.fillRect(sx - 0.5 * e, sy - 2, e, 2);
+  // Pied du panache : jet bleuté qui sort de l'écran
+  for (let i = 0; i < 16; i++) {
+    const u = i / 15, y = sy - u * sy, w = (0.5 + 2.5 * u) * e;
+    const g = ctx.createLinearGradient(sx - w, 0, sx + w, 0);
+    g.addColorStop(0, 'rgba(170,190,235,0)'); g.addColorStop(0.5, `rgba(170,190,235,${0.18 * k})`); g.addColorStop(1, 'rgba(170,190,235,0)');
+    ctx.fillStyle = g; ctx.fillRect(sx - w, y - sy / 15, 2 * w, sy / 15 + 1);
+  }
+  for (let j = 0; j < 120; j++) {
+    const u = (t * 0.35 + j / 120 + hash2(j, 162) * 0.03) % 1, y = sy - u * sy * 1.1;
+    const x = sx + (hash2(j, 163) - 0.5) * (0.4 + 3 * u) * e;
+    ctx.fillStyle = `rgba(200,215,245,${0.65 * k * (1 - 0.5 * u)})`; ctx.fillRect(x, y, 2, 2);
+  }
+  // Éclats de lave incandescents : paraboles basses (sans air, rien ne les freine)
+  for (let j = 0; j < 26; j++) {
+    const c = hash2(j, 164) * 2 - 1, H = (4 + 10 * hash2(j, 165)) * e, P = c * 9 * e;
+    const u = (t * 0.4 + hash2(j, 166)) % 1, x = sx + P * u, y = sy - 4 * H * u * (1 - u);
+    ctx.fillStyle = `rgba(255,${130 + 80 * (1 - u)},40,${0.9 * (1 - u * 0.5)})`; ctx.fillRect(x, y, 2.5, 2.5);
   }
 }

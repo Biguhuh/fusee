@@ -26,7 +26,7 @@ const APPARENCES = {
   'Cratère': ['cratere', '#000000', 16],
   'Glace polaire': ['glace', '#dfeef7', 0.25],
   'Soufre': ['croute', '#f2d72a', 0.3],
-  'Évent volcanique': ['panache', '#f6e7a6', 30],
+  'Évent volcanique': ['panache', '#f6e7a6', 30, 'io'],   // fontaine en ombrelle (saisons.js)
   'Glace salée': ['glace', '#c9a98a', 0.25],
   'Fissure de la banquise': ['fissure', '#6d4c41', 14],
   'Sels marins': ['cristal', '#ffffff', 0.15],
@@ -35,7 +35,7 @@ const APPARENCES = {
   'Galet de glace': ['galet', '#d7d2c4', 0.15],
   'triton|Glace d’azote': ['glace', '#f3d9dc', 0.25],
   'Glace d’azote': ['glace', '#f4f1ea', 0.25],
-  'Geyser d’azote': ['panache', '#4a4440', 30, true],   // option : jet de Triton (saisons.js)
+  'Geyser d’azote': ['panache', '#4a4440', 30, 'triton'],   // option : jet de Triton (saisons.js)
   'Glace d’eau': ['glace', '#e3eef5', 0.3],
   'Tholins': ['croute', '#8e4a32', 0.3],
   'Neige des geysers': ['tas', '#fbfdff', 0.3],
@@ -50,7 +50,7 @@ const APPARENCES = {
 const FORMES_SITE = ['lac', 'cratere', 'coulee', 'panache', 'fissure', 'lit'];
 function apparenceTrouvaille(astreId, nom) {
   const a = APPARENCES[`${astreId}|${nom}`] || APPARENCES[nom] || ['roche', '#8a8079', 0.25];
-  return { forme: a[0], couleur: a[1], taille: a[2], option: !!a[3], site: FORMES_SITE.includes(a[0]) };
+  return { forme: a[0], couleur: a[1], taille: a[2], option: !!a[3], variante: a[3], site: FORMES_SITE.includes(a[0]) };
 }
 
 // Bruit déterministe pour les formes (même aspect à chaque image).
@@ -158,7 +158,8 @@ function dessinerTrouvaille(ctx, ap, k, sol, e, fait, t) {
       break;
     }
     case 'panache': {
-      if (ap.option) { dessinerJetTriton(ctx, sx, sy, e, t, sol, fait); break; }   // geyser d'azote de Triton
+      if (ap.variante === 'triton') { dessinerJetTriton(ctx, sx, sy, e, t, sol, fait); break; }   // geyser d'azote de Triton
+      if (ap.variante === 'io') { dessinerFontaineIo(ctx, sx, sy, e, t, sol, fait); break; }      // volcan d'Io
       // Panache qui monte de l'évent (à l'échelle du terrain : les vrais montent bien plus haut).
       const H = ap.taille;
       ctx.fillStyle = '#3b3530'; ctx.beginPath(); ctx.ellipse(sx, sy, Math.max(3, 0.8 * e), Math.max(2, 0.3 * e), 0, Math.PI, 0); ctx.fill();
