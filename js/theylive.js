@@ -5,14 +5,14 @@
 // retirer). Avec elles, tout passe en noir et blanc et les panneaux disent ce qu'ils pensent vraiment.
 
 const EGG_THEYLIVE = { id: 'terre-lunettes', astre: 'terre',
-  texte: 'Sur un banc de Los Angeles, des lunettes de soleil oubliées. Avec elles, la rue passe en noir et blanc, et les panneaux publicitaires disent enfin ce qu’ils pensent : OBEY, CONSOMMEZ, DORMEZ.' };
+  texte: 'Sur un banc de Los Angeles, des lunettes de soleil oubliées. Avec elles, la rue passe en noir et blanc, et les panneaux publicitaires disent enfin ce qu’ils pensent : OBEY, CONSUME, SLEEP.' };
 // Positions depuis le module (m) : début et fin de la rue, banc, panneaux, palmiers, immeubles [x, largeur, hauteur, couleur].
 const RUE_LA = {
   debut: 255, fin: 400, banc: 285,
   panneaux: [
     { x: 310, pub: ['MARS EN 3 JOURS', 'Agence Orbite · départs chaque semaine'], fond: '#1565c0', vrai: 'OBEY' },
-    { x: 340, pub: ['COLA COSMIQUE', 'Le goût des étoiles'], fond: '#c62828', vrai: 'CONSOMMEZ' },
-    { x: 370, pub: ['SOLDES', 'Achetez tout, tout de suite'], fond: '#f9a825', vrai: 'DORMEZ' },
+    { x: 340, pub: ['COLA COSMIQUE', 'Le goût des étoiles'], fond: '#c62828', vrai: 'CONSUME' },
+    { x: 370, pub: ['SOLDES', 'Achetez tout, tout de suite'], fond: '#f9a825', vrai: 'SLEEP' },
   ],
   palmiers: [270, 298, 326, 356, 388],
   immeubles: [[262, 16, 9, '#e8cfa6'], [280, 12, 14, '#d7a98c'], [294, 18, 7, '#f1e3c8'], [314, 14, 18, '#c9b7a2'],
@@ -48,7 +48,7 @@ Object.assign(Exploration.prototype, {
     const dx = this.p.x - this.xFusee;
     const devant = RUE_LA.panneaux.some((pn) => Math.abs(dx - pn.x) < 18);
     if (devant && !eggTrouve(EGG_THEYLIVE.id)) return decouvrir(EGG_THEYLIVE, this);
-    this.dire(devant ? '🕶 OBEY. CONSOMMEZ. DORMEZ.' : '🕶 Tout passe en noir et blanc. Drôles de lunettes.');
+    this.dire(devant ? '🕶 OBEY. CONSUME. SLEEP.' : '🕶 Tout passe en noir et blanc. Drôles de lunettes.');
   },
 
   // Rue : derrière le personnage. Appelé pendant le dessin de la promenade.
@@ -116,7 +116,7 @@ function dessinerPanneauPub(ctx, x, y, s, pn, vrai) {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   if (vrai) {
     ctx.fillStyle = '#ffffff'; ctx.fillRect(gx, gy, w * s, h * s);
-    ctx.fillStyle = '#000000'; ctx.font = `900 ${(pn.vrai.length > 5 ? 0.95 : 1.6) * s}px Impact, 'Arial Black', system-ui`;
+    ctx.fillStyle = '#000000'; ctx.font = `900 ${(pn.vrai.length > 5 ? 1.3 : 1.6) * s}px Impact, 'Arial Black', system-ui`;
     ctx.fillText(pn.vrai, x, gy + h / 2 * s);
   } else {
     ctx.fillStyle = pn.fond; ctx.fillRect(gx, gy, w * s, h * s);
