@@ -1477,6 +1477,7 @@ class Exploration {
     // Plan lointain : le relief des kilomètres alentour (paroi d'un canyon, flanc d'un volcan), derrière le terrain.
     if (!this.terre) dessinerPanorama(ctx, a, p.x, (x) => this.sol(x), W, camY + (yCam - this.sol(p.x)) * echelle, LUMIERE_SOL);
     this.dessinerTourbillonsLoin(ctx, W, camY + (yCam - this.sol(p.x)) * echelle, echelle);   // Mars : au loin
+    this.dessinerSaisonLoin(ctx, W, camY + (yCam - this.sol(p.x)) * echelle);                // geysers de Triton, brume de Pluton (saisons.js)
 
     // Terrain (réutilise le rendu de l'atterrissage)
     dessinerTerrain(ctx, { x: p.x, y: yCam, sol: (x) => this.sol(x), astre: a, autopilote: false }, W, H, echelle, camY);

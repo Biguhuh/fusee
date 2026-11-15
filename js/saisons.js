@@ -12,6 +12,9 @@
 const AXES_ASTRES = {
   mercure: [0.03, 0], venus: [2.64, 0], terre: [23.44, 180], lune: [1.54, 0], mars: [25.19, 85.06],
   jupiter: [3.13, 318], saturne: [26.73, 173.4], uranus: [97.77, 346], neptune: [28.32, 45], pluton: [119.6, 220],
+  // Triton : orbite rétrograde et inclinée, son pôle tourne autour de celui de Neptune ; vu du Soleil, l'axe
+  // penche jusqu'à ≈ 50° (Soleil au-dessus de 45° S quand Voyager 2 est passé, en 1989). Approximation.
+  triton: [50, 45],
 };
 const NOMS_SAISONS = ['le printemps', 'l’été', 'l’automne', 'l’hiver'];
 
@@ -93,6 +96,7 @@ Object.assign(Exploration.prototype, {
     if (this.terre) return this.annoncerTerre();   // promenade : fleurs et fruits du mois
     const a = this.astre, t = tempsCiel(this.vol);
     if (a.id === 'mars') this.annoncerMars(t);   // givre, tempête de poussière (robot compris : ses panneaux)
+    if (a.id === 'titan' || a.id === 'triton' || a.id === 'pluton') this.annoncerLointain();   // pluie, geysers, brume
     if (this.type !== 'spationaute' || a.type !== 'solide' || dansLOmbre(this.vol)) return;
     const latDeg = latitudeLieu(a, this.vol), h = hauteursSoleil(latDeg * DEG, declinaisonSoleil(a, t));
     const s = saisonDuLieu(a, t, latDeg);
@@ -160,6 +164,7 @@ Object.assign(Exploration.prototype, {
   // Givre : des plaques blanches à la surface (juste après le terrain, sous les personnages).
   dessinerSaisonSol(ctx, versEcran, s, W) {
     if (this.terre) return this.dessinerSolTerre(ctx, versEcran, s, W);
+    if (this.astre.id === 'pluton') return this.dessinerGivrePluton(ctx, versEcran, s, W);
     const m = this.meteoMars(); if (!m || m.givre <= 0.05) return;
     const chaleur = chaleurLocale(this.astre, tempsCiel(this.vol), this.vol);
     // Le givre tient une bonne partie de la matinée (Soleil bas, l'hiver), puis se sublime.
@@ -178,6 +183,7 @@ Object.assign(Exploration.prototype, {
 
   // Tempête : voile de poussière et grains poussés par le vent (avant l'affichage du HUD).
   dessinerSaisonAir(ctx, W, H) {
+    if (this.astre.id === 'titan') return this.dessinerPluieTitan(ctx, W, H);
     const m = this.meteoMars(); if (!m) return;
     const a = Math.min(0.78, Math.max(0, (m.poussiere.tau - 0.8) / 6));
     if (a <= 0.01) return;
@@ -324,3 +330,96 @@ dessinerFleur = function (ctx, x, y, s, f) {
   ctx.fillStyle = f.nom === 'Tournesol' ? '#5d4037' : '#ffd54f';
   ctx.beginPath(); ctx.arc(x, y - h, 0.07 * s, 0, Math.PI * 2); ctx.fill();
 };
+
+// ---------- Titan, Triton, Pluton ----------
+// Titan : pluies de méthane, par averses. Orages aux basses latitudes autour des équinoxes (vus par Cassini en
+// 2010), pluies sur les lacs du pôle en été. Gouttes d'≈ 1 cm, qui tombent à ≈ 1,6 m/s, comme des flocons.
+// Triton : geysers d'azote de 8 km sous le Soleil d'été (Voyager 2, 1989), panaches couchés par le vent.
+// Pluton : son atmosphère d'azote vient de la glace qui se sublime ; loin du Soleil, elle se raréfie et regèle.
+// Retard de quelques décennies (la glace garde la chaleur) : elle tenait encore en 2015 (New Horizons).
+const JOUR_TITAN = 15.945 * JOUR;
+function pluieTitan(t, latDeg) {
+  const ls = lsDe(ASTRES_PAR_ID.titan, t), al = Math.abs(latDeg);
+  const equinoxe = Math.max(0, Math.cos(2 * ls * DEG)) * (al < 40 ? 1 : 0);
+  const ete = Math.max(0, Math.sin(ls * DEG) * Math.sign(latDeg || 1)) * (al > 50 ? 1 : 0);
+  const f = Math.max(equinoxe, ete), episode = Math.floor(t / (JOUR_TITAN / 4));   // averses de quelques jours terrestres
+  return { f, pluie: hash2(episode, 101) < 0.12 * f, saison: equinoxe >= ete ? 'equinoxe' : 'ete' };
+}
+function geysersTriton(t, latDeg) {
+  const d = declinaisonSoleil(ASTRES_PAR_ID.triton, t) / DEG;
+  return { actifs: Math.abs(latDeg - d) < 35, d };
+}
+function atmospherePluton(t) {
+  const r = (pos) => V.norm(pos) / UA_KM;
+  const rRetard = r(etatAbsolu('pluton', t - 25 * 365.25 * JOUR).r), rNow = r(etatAbsolu('pluton', t).r);
+  return { f: Math.max(0.01, Math.min(1, (44 - rRetard) / 8)), r: rNow };
+}
+
+Object.assign(Exploration.prototype, {
+  annoncerLointain() {
+    const a = this.astre, t = tempsCiel(this.vol), lat = latitudeLieu(a, this.vol);
+    if (a.id === 'titan') {
+      const p = pluieTitan(t, lat);
+      this.pluie = p.pluie;
+      if (p.pluie) this.dire('🌧 Averse de méthane : de grosses gouttes d’un centimètre tombent lentement, à 1,6 m/s, comme des flocons. Le sol sombre est mouillé.');
+      else if (p.f > 0.5) this.dire(p.saison === 'equinoxe' ? '⛅ Saison des orages, autour de l’équinoxe : il pleut parfois du méthane ici, par averses.' : '⛅ Été polaire : les nuages de méthane arrosent les lacs du pôle, de temps en temps.');
+    }
+    if (a.id === 'triton') {
+      const g = geysersTriton(t, lat);
+      this.geysers = g.actifs;
+      this.dire(g.actifs ? '⛲ Sous le Soleil d’été, des geysers d’azote montent à 8 km au loin, puis le vent couche leurs panaches sombres.'
+        : `⛲ Les geysers d’azote sont actifs là où le Soleil est le plus haut (vers ${fmt(Math.abs(g.d))}° ${g.d < 0 ? 'S' : 'N'}), trop loin d’ici pour les voir.`);
+    }
+    if (a.id === 'pluton') {
+      const p = atmospherePluton(t);
+      this.brume = p.f;
+      this.dire(p.f > 0.5 ? `🌫 Pluton est à ${fmt(p.r, 1)} UA du Soleil : son atmosphère d’azote (≈ 10 µbar) tient encore, avec ses fines couches de brume bleue au-dessus de l’horizon. Loin du Soleil, elle se raréfiera et regèlera au sol.`
+        : p.f > 0.1 ? `🌫 Pluton est à ${fmt(p.r, 1)} UA du Soleil : son atmosphère se raréfie, l’azote regèle peu à peu. La brume bleue s’efface.`
+          : `❄ Pluton est à ${fmt(p.r, 1)} UA du Soleil : son atmosphère a regelé. Le sol est couvert de givre d’azote frais.`);
+    }
+  },
+
+  // Plan lointain (derrière le terrain) : geysers de Triton, brume de Pluton.
+  dessinerSaisonLoin(ctx, W, yH) {
+    const tt = performance.now() / 1000;
+    if (this.astre.id === 'triton' && this.geysers) {
+      for (let i = 0; i < 4; i++) {
+        const x = ((((i * 0.29 + 0.11) * W * 2.3 - this.p.x * 0.6) % (W * 2.3)) + W * 2.3) % (W * 2.3) - W * 0.3, h = 110 + 50 * hash2(i, 111);
+        ctx.strokeStyle = 'rgba(175,165,160,0.7)'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(x, yH); ctx.lineTo(x + Math.sin(tt + i) * 1.5, yH - h); ctx.stroke();   // colonne
+        const g = ctx.createLinearGradient(x, 0, x + 260, 0);
+        g.addColorStop(0, 'rgba(175,165,160,0.55)'); g.addColorStop(1, 'rgba(175,165,160,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x + 130, yH - h, 130, 7, 0, 0, Math.PI * 2); ctx.fill();   // panache couché
+      }
+    }
+    if (this.astre.id === 'pluton' && (this.brume || 0) > 0.1) {
+      for (let k = 0; k < 6; k++) {
+        ctx.fillStyle = `rgba(110,160,230,${0.13 * this.brume * (1 - k / 7)})`;
+        ctx.fillRect(0, yH - 40 - k * 26, W, 9);
+      }
+    }
+  },
+
+  // Titan : averse de méthane, grosses gouttes lentes.
+  dessinerPluieTitan(ctx, W, H) {
+    if (!this.pluie) return;
+    ctx.fillStyle = 'rgba(70,50,20,0.18)'; ctx.fillRect(0, 0, W, H);
+    const t = performance.now() / 1000;
+    ctx.strokeStyle = 'rgba(235,205,150,0.6)'; ctx.lineWidth = 2;
+    for (let i = 0; i < 140; i++) {
+      const x = ((i * 83.7 - this.p.x * 30) % W + W) % W, y = ((i * 57.1 + t * 48) % H + H) % H;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + 7); ctx.stroke();
+    }
+  },
+
+  // Pluton : givre d'azote frais quand l'atmosphère a regelé.
+  dessinerGivrePluton(ctx, versEcran, s, W) {
+    const g = 1 - (this.brume === undefined ? 1 : this.brume);
+    if (g < 0.4) return;
+    const x0 = this.p.x - W / 2 / s;
+    for (let sx = 0; sx < W; sx += 3) {
+      const x = x0 + sx / s, [, sy] = versEcran(x, this.sol(x));
+      ctx.fillStyle = `rgba(250,250,255,${0.6 * g})`; ctx.fillRect(sx, sy - 1.5, 3, 3 + 3 * hash2(Math.floor(x * 2), 73));
+    }
+  },
+});
