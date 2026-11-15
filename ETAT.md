@@ -120,6 +120,8 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 9. Après les planètes lourdes : une astromobile de colonie, plus avancée que dans le Système solaire : cabine pressurisée, zone de vie, matériel, recharge des batteries, soute à matériaux. Un véhicule au sol pour explorer loin de la base, sur plusieurs jours.
 10. Après les planètes lourdes : les ressources de la planète (ce qu'une colonie trouve et exploite sur place : eau, métaux, atmosphère, sol cultivable…).
 11. Après les planètes lourdes : gérer les bases et les colonies, un peu comme un jeu de gestion (plus poussé pour les colonies). Main-d'œuvre faite de robots (bases comme colonies). Actions sur place : passage de niveau, production alimentaire, minage, énergie, etc. Dans l'esprit du jeu : on vient en scientifique respectueux, pas en conquérant ; on limite l'impact sur l'environnement (voir « Décisions prises »).
+12. Après les missions en parallèle : deux expéditions sur une même base. Un petit message de retrouvailles (« Ah, on est contents de se retrouver ! »). Différencier les atterrisseurs, pour que chacun reparte vers l'expédition choisie. Un personnage peut changer d'expédition, sans problème.
+13. Plus tard : des spécialités. Chaque personnage en a 1 à 3, et chaque expédition doit en réunir certaines. S'inspirer des vrais équipages (NASA, ESA) : commandant, pilote, ingénieur de vol, médecin, infirmier, géologue, biologiste, communications, spécialiste de mission…
 
 ## Bugs connus de la bêta
 
