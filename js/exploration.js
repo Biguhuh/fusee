@@ -663,6 +663,7 @@ class Exploration {
     this.vol.t += dt;
     if (this.majTourbillons(dt)) return;   // Mars : tourbillons de poussière ; emporté par le géant (tourbillons.js)
     this.majThing(dt);                     // TRAPPIST-1 g : base gelée, radio, chien (thething.js)
+    this.annoncerSaison();                 // saison et hauteur du Soleil, une fois (saisons.js)
     // Le lanceur de retour demandé à la station continue de descendre pendant la sortie.
     if (this.vol.lanceurRetour && this.vol.lanceurRetour.etat === 'descente') this.vol.descenteLanceur(dt);
 

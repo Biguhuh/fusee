@@ -105,6 +105,7 @@ const Infos = {
         if (r.synchrone) return ['Rotation', `synchrone : ${duree}, toujours la même face vers ${le(ASTRES_PAR_ID[a.parent])}`];
         return ['Rotation', `${duree}${r.heures < 0 ? ' (sens rétrograde)' : ''}${r.estimee ? ' (estimée)' : ''}`];
       })(),
+      ligneSaisons(a),
     ])]);
 
     if (a.atm) {

@@ -97,11 +97,11 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 - Stations module par module (Système solaire) : noyau lancé par Hercule ou par cargo (vrai trajet), ou depuis le kit d'une station ; chaque module s'amarre puis attend une sortie d'assemblage à deux, ou le robot (bras dès le niveau 3), deux fois plus lent ; kits de l'orbiteur déposés à l'amarrage (`modules-station.js`).
 - Sorties depuis une station, corrections (v363) : corps le long de la coque, presque à plat, tête en avant ; caméra avec une marge (on voit avancer) ; image plus grande ; plus de blocage des flèches (appuis brefs jamais effacés pendant une scène).
 - Sorties depuis une station, étape 3 : eau dans le casque, combinaison trop gonflée au sas (P), débris en approche avec manœuvre et éclats (`eva-imprevus.js`).
+- Carte 4 (easter eggs John Carpenter), publiée : tourbillons de poussière de Mars selon la saison, tourbillon géant et colonie minière (`tourbillons.js`) ; The Thing sur TRAPPIST-1 g, atmosphère supposée et banquise (`thething.js`) ; They Live, rue de Los Angeles dans la promenade (`theylive.js`) ; Plissken, avis de recherche (`plissken.js`).
 
 ## En cours
 
-- Carte jeu fusée 4 (`C:\Users\DELL\Downloads\carte-jeu-fusee-4.md`), easter eggs John Carpenter. Ordre validé : Mars (tourbillons réalistes, colonie près du site de Mars 3, tourbillon géant qui emporte), puis The Thing sur TRAPPIST-1 g (atmosphère supposée, décor de glace polaire), They Live (rue de Los Angeles dans la promenade, lunettes, touche L), Plissken (avis de recherche, 1 fois sur 50 après une destruction).
-- Mars validé (branche `carte4-mars`, `tourbillons.js`, avec saisons). The Thing validé (`carte4-thing`, `thething.js`). They Live validé (`carte4-thelive`, `theylive.js`, panneaux en anglais comme en VO). Plissken fait sur `carte4-plissken` (`plissken.js`), en attente de validation : c'était le dernier point de la carte 4. Branches à pousser et fusionner quand Edouard le dira : `carte4-mars` → `carte4-thing` → `carte4-thelive` → `carte4-plissken` (chacune part de la précédente).
+- Saisons sur les astres (À faire, point 6), branche `saisons`, en 4 étapes validées : 1 socle (axes, hauteur du Soleil selon latitude et date), 2 Mars (givre, tempêtes de poussière), 3 la Terre (fleurs et fruits de la promenade), 4 Titan, Triton, Pluton. Étape 1 faite (`saisons.js`), en attente de validation.
 
 ## À faire, dans l'ordre
 

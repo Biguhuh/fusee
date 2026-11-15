@@ -1120,10 +1120,8 @@ function zenithCiel(a, t, porteur) {
 const angleDansPi = (x) => { x %= 2 * Math.PI; if (x > Math.PI) x -= 2 * Math.PI; if (x < -Math.PI) x += 2 * Math.PI; return x; };
 
 // Élévation du Soleil (radians) vue du lieu de la mission.
-function elevationSoleil(a, t, porteur) {
-  const phi = zenithCiel(a, t, porteur), pos = etatAbsolu(a.id, t).r;
-  return Math.PI / 2 - Math.abs(angleDansPi(phi - Math.atan2(-pos[1], -pos[0])));
-}
+// Selon la latitude du lieu et la saison (saisons.js).
+function elevationSoleil(a, t, porteur) { return soleilLocal(a, t, porteur).e; }
 // Jour local (0 : nuit, 1 : plein jour), sans dessiner.
 function jourLocal(a, t, porteur) {
   if (a.type === 'etoile') return 1;
@@ -1153,13 +1151,13 @@ function dessinerFond(ctx, a, c, W, H, sousLesNuages, t = DATE_DEBUT, porteur = 
   ZONES_CIEL = [];
   const vide = a.type === 'etoile';
   // Où est le Soleil ? Élévation au-dessus de l'horizon → jour, crépuscule ou nuit.
-  let phi = 0, pos = [0, 0], alphaSoleil = 0, jour = 1, kAng = W / (140 * DEG);
+  let phi = 0, pos = [0, 0], alphaSoleil = 0, elevSoleil = Math.PI / 2, jour = 1, kAng = W / (140 * DEG);
   const posCiel = (al) => ({ x: W / 2 + Math.sin(al) * W * 0.55, y: H * 0.62 - Math.cos(al) * H * 0.55, visible: Math.cos(al) > -0.08 });
   if (!vide) {
     phi = zenithCiel(a, t, porteur);
     pos = etatAbsolu(a.id, t).r;
     alphaSoleil = angleDansPi(phi - Math.atan2(-pos[1], -pos[0]));
-    const elev = Math.PI / 2 - Math.abs(alphaSoleil);
+    const elev = elevSoleil = soleilLocal(a, t, porteur).e;   // selon la latitude et la saison (saisons.js)
     const u = Math.max(0, Math.min(1, (elev + 6 * DEG) / (12 * DEG)));   // crépuscule de −6° à +6°
     jour = u * u * (3 - 2 * u);
     // Éclipse : la planète d'une lune passe devant le Soleil.
@@ -1202,7 +1200,8 @@ function dessinerFond(ctx, a, c, W, H, sousLesNuages, t = DATE_DEBUT, porteur = 
   if (vide) return 1;
 
   // Soleil, à sa vraie place et à sa taille apparente (avec un halo).
-  const pS = posCiel(alphaSoleil);
+  // Le Soleil passe d'est en ouest (angle horaire), à la hauteur du lieu et de la saison.
+  const pS = { x: W / 2 + Math.sin(alphaSoleil) * W * 0.55, y: H * 0.62 - Math.sin(elevSoleil) * H * 0.55, visible: Math.sin(elevSoleil) > -0.08 };
   if (pS.visible && !ombre && !(porteur.eclipse > 0.98)) {
     // Proportionnelle à la vraie taille apparente (agrandie ×3 pour qu'on la voie) : depuis Mercure, le Soleil paraît
     // 2,6 fois plus grand que depuis la Terre. Au moins 2 px (Pluton).
