@@ -111,6 +111,7 @@ Object.assign(Exploration.prototype, {
 // Tempêtes : la saison des poussières va de Ls 180 à 330 (Mars au plus près du Soleil, été austral). Tempêtes
 // régionales de quelques semaines ; certaines années, une tempête planétaire (1977, 2001, 2007, 2018).
 // Opacité τ : 0,5 par ciel clair, 2 dans une tempête régionale, 5 et plus dans une tempête planétaire.
+if (ASTRES_PAR_ID.mars) ASTRES_PAR_ID.mars.cielPoussiere = true;   // ciel de poussière (vol.js, dessinerFond)
 const MARS_ANNEES_GLOBALES = [12, 25, 28, 34];   // années martiennes des tempêtes planétaires observées
 const SOL_MARS = 88775;   // s
 function anneeMartienne(t) { return 1 + Math.floor((t / JOUR + 16336.5) / 686.973); }   // an 1 : 11 avril 1955

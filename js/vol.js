@@ -1176,7 +1176,10 @@ function dessinerFond(ctx, a, c, W, H, sousLesNuages, t = DATE_DEBUT, porteur = 
   LUMIERE_SOL = vide ? 1 : 0.3 + 0.7 * jour;
   // Ciel : noir dans le vide ou la nuit, couleur de l'atmosphère quand l'air s'épaissit et qu'il fait jour.
   let tCiel = 0;
-  if (a.atm && !vide) tCiel = Math.min(1, Math.sqrt(c.p / 0.3)) * jour;
+  // Mars : l'air est très fin, mais la poussière en suspension diffuse la lumière : ciel caramel le jour,
+  // plus sombre et plus brun dans une tempête (saisons.js).
+  const tauMars = a.cielPoussiere && typeof poussiereMars === 'function' ? poussiereMars(t).tau : 0;
+  if (a.atm && !vide) tCiel = a.cielPoussiere ? (0.55 + 0.45 * rendementSolaireMars(tauMars)) * jour : Math.min(1, Math.sqrt(c.p / 0.3)) * jour;
   let ciel = melanger('#02030a', a.couleurs.ciel, tCiel);
   if (sousLesNuages) {
     const prof = Math.min(1, Math.log(c.p) / Math.log(200));
@@ -1199,6 +1202,14 @@ function dessinerFond(ctx, a, c, W, H, sousLesNuages, t = DATE_DEBUT, porteur = 
   }
   if (vide) return 1;
 
+  // Mars, Soleil bas : la poussière renvoie le bleu vers l'avant, autour du Soleil (photos de Spirit et Curiosity).
+  if (a.cielPoussiere && !ombre && elevSoleil > -6 * DEG && elevSoleil < 15 * DEG) {
+    const k = Math.min(1, (elevSoleil + 6 * DEG) / (4 * DEG)) * Math.min(1, (15 * DEG - elevSoleil) / (8 * DEG));
+    const bx = W / 2 + Math.sin(alphaSoleil) * W * 0.55, by = H * 0.62 - Math.sin(elevSoleil) * H * 0.55, rb = W * 0.5;
+    const gb = ctx.createRadialGradient(bx, by, 0, bx, by, rb);
+    gb.addColorStop(0, `rgba(150,185,225,${0.75 * k})`); gb.addColorStop(0.5, `rgba(110,145,195,${0.45 * k})`); gb.addColorStop(1, 'rgba(110,145,195,0)');
+    ctx.fillStyle = gb; ctx.fillRect(bx - rb, by - rb, 2 * rb, 2 * rb);
+  }
   // Soleil, à sa vraie place et à sa taille apparente (avec un halo).
   // Le Soleil passe d'est en ouest (angle horaire), à la hauteur du lieu et de la saison.
   const pS = { x: W / 2 + Math.sin(alphaSoleil) * W * 0.55, y: H * 0.62 - Math.sin(elevSoleil) * H * 0.55, visible: Math.sin(elevSoleil) > -0.08 };
