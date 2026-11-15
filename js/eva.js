@@ -27,24 +27,31 @@ function doseSortieOrbite(a) {
 
 // Station de profil, en mètres (x vers la droite = sens de la marche sur l'orbite, y vers le haut = loin de l'astre).
 function geometrieStation(st) {
-  const n = st.niveau || 1, L = 30 + 18 * n, dessous = n >= 3;
+  // Un module amarré mais pas encore raccordé est déjà là (on marche dessus), mais inerte : il compte pour la forme.
+  const n = st.niveau || 1, cible = st.module ? st.module.niveau : n, inerte = (niv) => niv > n;
+  const L = 30 + 18 * Math.min(cible, 4) + (cible >= 5 ? 18 : 0), dessous = cible >= 3;
   const boites = [
     { x0: -L / 2, x1: L / 2, y0: -1.2, y1: 1.2, type: 'poutre' },
     { x0: -12, x1: 12, y0: 1.2, y1: 5.4, type: 'module' },
     { x0: -16, x1: -12, y0: 1.2, y1: 5.0, type: 'sas' },
   ];
-  if (dessous) boites.push({ x0: -8, x1: 8, y0: -5.4, y1: -1.2, type: 'module' });
-  if (n >= 4) boites.push({ x0: 12, x1: 18, y0: 1.2, y1: 4.6, type: 'module' });
+  if (cible >= 2) boites.push({ x0: -3, x1: 3, y0: 5.4, y1: 8.4, type: 'module', inerte: inerte(2) });   // nœud et module logistique
+  if (dessous) boites.push({ x0: -8, x1: 8, y0: -5.4, y1: -1.2, type: 'module', inerte: inerte(3) });     // laboratoire-atelier
+  if (cible >= 4) boites.push({ x0: 12, x1: 18, y0: 1.2, y1: 4.6, type: 'module', inerte: inerte(4) });  // habitat
+  if (cible >= 5 && inerte(5)) for (const sg of [-1, 1]) boites.push({ x0: sg > 0 ? L / 2 - 18 : -L / 2, x1: sg > 0 ? L / 2 : -L / 2 + 18, y0: -1.2, y1: 1.2, type: 'poutre', inerte: true });   // grande poutre
   // Contour parcouru dans le sens des aiguilles d'une montre, depuis l'écoutille du sas.
-  const c = [[-16, 3.1], [-16, 5.0], [-12, 5.0], [-12, 5.4], [12, 5.4]];
-  if (n >= 4) c.push([12, 4.6], [18, 4.6], [18, 1.2]); else c.push([12, 1.2]);
+  const c = [[-16, 3.1], [-16, 5.0], [-12, 5.0], [-12, 5.4]];
+  if (cible >= 2) c.push([-3, 5.4], [-3, 8.4], [3, 8.4], [3, 5.4]);
+  c.push([12, 5.4]);
+  if (cible >= 4) c.push([12, 4.6], [18, 4.6], [18, 1.2]); else c.push([12, 1.2]);
   c.push([L / 2, 1.2], [L / 2, -1.2]);
   if (dessous) c.push([8, -1.2], [8, -5.4], [-8, -5.4], [-8, -1.2]);
   c.push([-L / 2, -1.2], [-L / 2, 1.2], [-16, 1.2], [-16, 3.1]);
   const long = [0];
   for (let i = 1; i < c.length; i++) long.push(long[i - 1] + Math.hypot(c[i][0] - c[i - 1][0], c[i][1] - c[i - 1][1]));
   const panneaux = [L / 2 - 4, -(L / 2 - 4), ...(n >= 2 ? [L / 2 - 13, -(L / 2 - 13)] : []), ...(n >= 4 ? [L / 2 - 22, -(L / 2 - 22)] : [])];
-  return { n, L, boites, contour: c, long, perimetre: long[long.length - 1], panneaux, hPanneau: 10 + 2.5 * n };
+  const nouveau = boites.find((b) => b.inerte) || null;   // le module à raccorder (lieu des tâches)
+  return { n, L, boites, contour: c, long, perimetre: long[long.length - 1], panneaux, hPanneau: 10 + 2.5 * n, nouveau };
 }
 // Point du contour à l'abscisse s : position et normale extérieure.
 function pointContour(g, s) {
@@ -355,6 +362,7 @@ class SortieStation {
     }
     for (const b of g.boites) {
       const [x0, y0] = E(b.x0, b.y1), [x1, y1] = E(b.x1, b.y0);
+      if (b.inerte) { dessinerModuleInerte(ctx, E, k, b, col); continue; }   // amarré, pas encore raccordé
       if (b.type === 'poutre') {
         ctx.fillStyle = col('#9e9e9e'); ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
         ctx.strokeStyle = col('#616161'); ctx.lineWidth = Math.max(1, k * 0.08);

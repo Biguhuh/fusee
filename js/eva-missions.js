@@ -64,6 +64,11 @@ function texteePannes(st) { return pannesDe(st).map((x) => `${PANNES_STATION[x.t
 function lieuTache(g, lieu) {
   if (lieu[0] === 'panneau') return plusProcheContour(g, g.panneaux[0], 1.2).s;
   if (lieu[0] === 'module') return plusProcheContour(g, 12 * lieu[1], 5.4).s;
+  if (lieu[0] === 'nouveau') {   // le module amarré, à raccorder : sur sa face extérieure
+    const b = g.nouveau;
+    if (!b) return plusProcheContour(g, 12 * lieu[1], 5.4).s;
+    return plusProcheContour(g, b.x0 + (b.x1 - b.x0) * lieu[1], b.y1 > 1.3 ? b.y1 : b.y0).s;
+  }
   return plusProcheContour(g, (g.L / 2) * lieu[1], 1.2 * lieu[2]).s;
 }
 function dureeMission(type) { return PANNES_STATION[type].taches.reduce((s, t) => s + t.duree, 0); }

@@ -123,6 +123,12 @@ function dessinerOrbiteurDetail(ctx, x, y, L, vis, opts = {}) {
 // Station vue de dessus (même allure que l'ancienne icône), qui grandit avec son niveau.
 // T : demi-envergure en pixels ; angle : poutre perpendiculaire au rayon ; t : pour le pivot des panneaux.
 function dessinerStationNiveau(ctx, x, y, T, angle, st, t) {
+  // Module amarré, pas encore raccordé : la station du niveau suivant, en fantôme, sous la station actuelle.
+  if (st && st.module && !st.fantome) {
+    ctx.save(); ctx.globalAlpha *= 0.4;
+    dessinerStationNiveau(ctx, x, y, T, angle, { ...st, niveau: st.module.niveau, module: null, agrandissement: null, fantome: true }, t);
+    ctx.restore();
+  }
   const n = (st && st.niveau) || 1, terrestre = st && st.terrestre;
   ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
   // Chantier interstellaire (niveau 5) : grand cadre de construction, avec le vaisseau en cours s'il y en a un.

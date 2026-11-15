@@ -20,10 +20,10 @@ PANNES_STATION.raccordement = {
   nom: 'Module à raccorder', icone: '🔌', assemblage: true, effet: 'module amarré, inerte tant qu’il n’est pas branché',
   ref: 'ISS, décembre 1998 (STS-88) : trois sorties pour brancher Unity à Zarya, câbles d’énergie et de données, poignées.',
   taches: [
-    { nom: 'Retirer les protections de lancement (à deux)', lieu: ['module', 0.8], duree: 20 * 60, deux: true },
-    { nom: 'Brancher les câbles d’énergie et de données', lieu: ['module', 0.8], duree: 40 * 60, outil: true },
+    { nom: 'Retirer les protections de lancement (à deux)', lieu: ['nouveau', 0.5], duree: 20 * 60, deux: true },
+    { nom: 'Brancher les câbles d’énergie et de données', lieu: ['nouveau', 0.5], duree: 40 * 60, outil: true },
     { nom: 'Raccorder le refroidissement, l’ammoniac (à deux)', lieu: ['poutre', 0.3, 1], duree: 30 * 60, outil: true, deux: true },
-    { nom: 'Poser les mains courantes et ouvrir les écoutilles', lieu: ['module', 0.8], duree: 20 * 60, outil: true },
+    { nom: 'Poser les mains courantes et ouvrir les écoutilles', lieu: ['nouveau', 0.5], duree: 20 * 60, outil: true },
   ],
 };
 
@@ -143,4 +143,35 @@ function creerStationNoyau(v, c, log) {
   };
   v.stations.push(st);
   log(`🛰 Le noyau s’est mis ${a.id === SYSTEME.origine ? 'en orbite à 400 km' : enOrbite(a)} et a déployé ses panneaux : ${le(st)} existe, au niveau 1, vide.${terrestre ? ' Comme Zarya en 1998 : le premier élément d’une station qui grandira module par module.' : ''} Premier ravitaillement dans ${fmtDuree(st.prochainCargo - v.t)}.`);
+}
+
+// Module amarré, pas encore raccordé, vu de profil en sortie : couvertures de protection du lancement (blanc
+// cassé, matelassé), étiquettes rouges « à retirer », câbles pendants côté station, aucun feu. Grande poutre :
+// treillis gris plus terne, embouts jaunes et noirs. col : assombrit selon la lumière.
+function dessinerModuleInerte(ctx, E, k, b, col) {
+  const [x0, y0] = E(b.x0, b.y1), [x1, y1] = E(b.x1, b.y0), w = x1 - x0, h = y1 - y0;
+  if (b.type === 'poutre') {
+    ctx.fillStyle = col('#7d8084'); ctx.fillRect(x0, y0, w, h);
+    ctx.strokeStyle = col('#55585c'); ctx.lineWidth = Math.max(1, k * 0.08);
+    for (let x = b.x0; x < b.x1; x += 2.4) { const [a, bb] = E(x, b.y1), [c2, d] = E(x + 2.4, b.y0); ctx.beginPath(); ctx.moveTo(a, bb); ctx.lineTo(c2, d); ctx.moveTo(a, d); ctx.lineTo(c2, bb); ctx.stroke(); }
+    for (let i = 0; i < 4; i++) { ctx.fillStyle = i % 2 ? col('#212121') : col('#fbc02d'); ctx.fillRect(x0 + (b.x0 < 0 ? 0 : w - k * 0.6), y0 + (h * i) / 4, k * 0.6, h / 4); }   // embout
+  } else {
+    const gr = ctx.createLinearGradient(0, y0, 0, y1);
+    gr.addColorStop(0, col('#efe9dc')); gr.addColorStop(1, col('#b9b2a4'));
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(x0, y0, w, h, Math.min(8, k * 0.6)); ctx.fill();
+    ctx.strokeStyle = col('#a39b8c'); ctx.lineWidth = 1;   // couvertures matelassées
+    for (let x = x0 + k * 0.9; x < x1; x += k * 0.9) { ctx.beginPath(); ctx.moveTo(x, y0 + 2); ctx.lineTo(x, y1 - 2); ctx.stroke(); }
+    for (let y = y0 + k * 0.9; y < y1; y += k * 0.9) { ctx.beginPath(); ctx.moveTo(x0 + 2, y); ctx.lineTo(x1 - 2, y); ctx.stroke(); }
+    ctx.fillStyle = '#d32f2f';   // étiquettes « à retirer avant le vol »
+    for (const f of [0.25, 0.7]) ctx.fillRect(x0 + w * f, y0 + h * 0.15, Math.max(3, k * 0.25), Math.max(6, k * 0.7));
+  }
+  // Câbles pendants, côté station (vers le centre), qui ondulent : rien n'est branché
+  const t = performance.now() / 1500, versX = b.x0 + b.x1 > 0 ? x0 : x1, versY = b.y0 >= 1.2 ? y1 : b.y1 <= -1.2 ? y0 : (y0 + y1) / 2;
+  ctx.lineWidth = Math.max(1.5, k * 0.09);
+  [['#212121', 0], ['#ef6c00', 1]].forEach(([c, i]) => {
+    ctx.strokeStyle = col(c); ctx.beginPath(); ctx.moveTo(versX, versY);
+    ctx.quadraticCurveTo(versX + (i ? -1 : 1) * k * 1.2 + Math.sin(t + i) * k * 0.4, versY + k * (1.6 + i * 0.5), versX + (i ? 1 : -1) * k * 0.8, versY + k * (2.4 + 0.4 * Math.sin(t * 1.3 + i)));
+    ctx.stroke();
+  });
+  texteSurFond(ctx, '🔌 À raccorder', (x0 + x1) / 2, Math.min(y0, y1) - 8, { police: '11px system-ui', couleur: '#ffd54f' });
 }
