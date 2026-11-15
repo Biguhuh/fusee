@@ -119,6 +119,7 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 9. Plus tard : réfléchir au traitement des vraies missions (Apollo, rovers, sondes) : les jouer, ou les observer en direct à leur vraie date ?
 10. Après les planètes lourdes : une astromobile de colonie, plus avancée que dans le Système solaire : cabine pressurisée, zone de vie, matériel, recharge des batteries, soute à matériaux. Un véhicule au sol pour explorer loin de la base, sur plusieurs jours.
 11. Après les planètes lourdes : les ressources de la planète (ce qu'une colonie trouve et exploite sur place : eau, métaux, atmosphère, sol cultivable…).
+12. Après les planètes lourdes : gérer les bases et les colonies, un peu comme un jeu de gestion (plus poussé pour les colonies). Main-d'œuvre faite de robots (bases comme colonies). Actions sur place : passage de niveau, production alimentaire, minage, énergie, etc. Dans l'esprit du jeu : on vient en scientifique respectueux, pas en conquérant ; on limite l'impact sur l'environnement (voir « Décisions prises »).
 
 ## Bugs connus de la bêta
 
@@ -127,6 +128,7 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 
 ## Décisions prises
 
+- Bases et colonies : on vient en scientifique respectueux, pas en conquérant. Impact sur l'environnement le plus faible possible (prélever peu, ne pas polluer, protéger d'éventuelles traces de vie), main-d'œuvre robotisée. Demandé par Edouard, à respecter dans tout ce qui touche aux bases, aux colonies et aux ressources.
 - Pas de framework ni de build : le jeu doit s'ouvrir avec un simple `index.html`.
 - Valeurs physiques réelles, arrondies ; les exagérations sont signalées (Soleil agrandi ×3 dans le ciel, feuille A4 agrandie sur Pluton).
 - Le sol est un anneau à une dimension de périmètre 2πR : la longitude donne la position, la latitude ne sert qu'aux textes.
