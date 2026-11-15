@@ -1094,7 +1094,8 @@ let ZONES_CIEL = [];
 // Temps du jeu (s) pour le ciel : date de la campagne (ou date de départ en visite rapide) + durée du vol.
 // vol.t avance déjà du temps simulé (facteur de temps compris) : on ne le multiplie jamais une seconde fois.
 function tempsCiel(vol) {
-  const base = typeof etat !== 'undefined' && etat.enVoyage && etat.voyage ? etat.voyage.t : DATE_DEBUT;
+  const base = vol.dateCiel !== undefined ? vol.dateCiel   // promenade sur Terre : la date de la campagne
+    : typeof etat !== 'undefined' && etat.enVoyage && etat.voyage ? etat.voyage.t : DATE_DEBUT;
   return base + (vol.t || 0);
 }
 

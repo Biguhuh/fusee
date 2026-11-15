@@ -159,6 +159,7 @@ Object.assign(Exploration.prototype, {
 
   // Givre : des plaques blanches à la surface (juste après le terrain, sous les personnages).
   dessinerSaisonSol(ctx, versEcran, s, W) {
+    if (this.terre) return this.dessinerSolTerre(ctx, versEcran, s, W);
     const m = this.meteoMars(); if (!m || m.givre <= 0.05) return;
     const chaleur = chaleurLocale(this.astre, tempsCiel(this.vol), this.vol);
     // Le givre tient une bonne partie de la matinée (Soleil bas, l'hiver), puis se sublime.
@@ -229,6 +230,7 @@ function aspectArbre(nom, m) {
   P.genererTerre = function () {
     const m = moisPromenade(), l = genererTerre.call(this);
     this.vol.latLieu = { astre: 'terre', x: this.vol.x || 0, lat: LAT_PROMENADE };   // le Soleil de nos latitudes
+    this.vol.dateCiel = typeof etat !== 'undefined' && etat.voyage ? etat.voyage.t : DATE_DEBUT;   // … à la date de la campagne
     const fleurs = Object.keys(FLEURS_SAISON).filter((n) => dansMois(m, FLEURS_SAISON[n][0]));
     const hiver = m === 12 || m <= 2;
     return l.filter((s, i) => {
@@ -254,6 +256,33 @@ function aspectArbre(nom, m) {
 })();
 
 Object.assign(Exploration.prototype, {
+  // Prairie selon la saison : jaunie à la fin de l'été (manque d'eau), givrée l'hiver (le matin surtout).
+  dessinerSolTerre(ctx, versEcran, s, W) {
+    const m = moisPromenade();
+    const sec = { 7: 0.15, 8: 0.42, 9: 0.28 }[m] || 0;
+    const hiver = m === 12 || m <= 2 ? 1 : m === 11 || m === 3 ? 0.4 : 0;
+    if (!sec && !hiver) return;
+    const x0 = this.p.x - W / 2 / s, pts = [];
+    for (let sx = -6; sx <= W + 6; sx += 6) pts.push([sx, versEcran(x0 + sx / s, this.sol(x0 + sx / s))[1]]);
+    const voile = (coul) => {
+      ctx.fillStyle = coul; ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+      for (const [x, y] of pts) ctx.lineTo(x, y);
+      ctx.lineTo(W + 6, 5000); ctx.lineTo(-6, 5000); ctx.closePath(); ctx.fill();
+    };
+    if (sec) voile(`rgba(196,168,72,${sec})`);   // herbe sèche, paille
+    if (!hiver) return;
+    // Givre : plus épais au petit matin, il fond quand le Soleil monte (un peu reste à l'ombre, même à midi).
+    const chaleur = chaleurLocale(this.astre, tempsCiel(this.vol), this.vol);
+    const g = hiver * Math.max(0.5, 1 - chaleur * chaleur);
+    voile(`rgba(222,232,238,${0.5 * g})`);
+    for (let sx = 0; sx < W; sx += 3) {
+      const x = x0 + sx / s, n = hash2(Math.floor(x * 2), 72);
+      const [, sy] = versEcran(x, this.sol(x));
+      ctx.fillStyle = `rgba(240,245,250,${0.35 * g})`; ctx.fillRect(sx, sy - 1, 3, 3);
+      if (n < g * 1.2) { ctx.fillStyle = `rgba(246,249,252,${0.5 + 0.4 * g})`; ctx.fillRect(sx, sy - 1.5, 3, 2 + 4 * n); }
+    }
+  },
+
   annoncerTerre() {
     const m = moisPromenade(), mur = this.sites.filter((s) => s.type === 'arbre' && s.aspect === 'fruits').map((s) => s.fruit + 's');
     const fl = this.sites.filter((s) => s.type === 'fleur').map((s) => s.nom.toLowerCase());
