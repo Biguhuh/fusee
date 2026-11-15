@@ -124,6 +124,38 @@ function dessinerRoverReplie(ctx, x, y, s, k, dir = 1) {
   ctx.restore();
 }
 
+// Astromobile pliée, rangée contre le flanc de l'étage de descente (comme le LRV d'Apollo 15 à 17), vue de profil :
+// une galette mince, roues rabattues, tenue par des sangles. Au dépliage, elle bascule vers le sol au bout de ses
+// sangles (premier tiers), puis se déplie à côté du module. Ailleurs (laissée en route), elle reste au sol.
+// ex : l'exploration ; (rx, ry) : position de l'astromobile à l'écran ; s : pixels par mètre.
+const RANGEMENT_ROVER = { flanc: -2.05, charniere: 0.9, haut: 1.7, epaisseur: 0.4, bascule: 0.35 };
+function dessinerAstromobileRangee(ctx, versEcran, ex, rx, ry, s) {
+  const r = ex.rover, k = r.deplie || 0, R = RANGEMENT_ROVER, xm = ex.xFusee;
+  if (Math.abs(ecartSol(ex.astre, r.x, xm - 4)) > 3) return dessinerRoverReplie(ctx, rx, ry, s, k, r.dir);
+  const ym = ex.sol(xm), E = (dx, h) => versEcran(xm + dx, ym + h);
+  if (k >= R.bascule) {
+    // Couchée au sol, elle se déplie en glissant vers sa place.
+    const u = (k - R.bascule) / (1 - R.bascule), xc = R.flanc - R.haut / 2 + (r.x - xm - (R.flanc - R.haut / 2)) * Math.min(1, u * 1.5);
+    const [x, y] = versEcran(xm + xc, ex.sol(xm + xc));
+    return dessinerRoverReplie(ctx, x, y, s, 0.55 + 0.45 * u, r.dir);   // déjà à moitié ouverte en touchant le sol
+  }
+  const u = k / R.bascule, a = u * Math.PI / 2;   // 0 : debout contre le flanc ; 1 : couchée au sol
+  const [px, py] = E(R.flanc, R.charniere * (1 - u) + R.epaisseur * u);
+  // Sangles : du haut de l'étage de descente au bout de la galette
+  const bout = [px - Math.sin(a) * R.haut * s, py - Math.cos(a) * R.haut * s], [hx, hy] = E(R.flanc + 0.2, 2.6);
+  ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = Math.max(1, s * 0.04);
+  ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(bout[0], bout[1]); ctx.stroke();
+  ctx.save(); ctx.translate(px, py); ctx.rotate(-a);
+  ctx.fillStyle = '#cfd8dc'; ctx.fillRect(-R.epaisseur * s, -R.haut * s, R.epaisseur * s, R.haut * s);   // châssis plié
+  ctx.fillStyle = '#ffb300'; ctx.fillRect(-R.epaisseur * s, -R.haut * s, R.epaisseur * s, 0.15 * s);    // bout orange
+  ctx.fillStyle = '#90a4ae'; ctx.fillRect(-R.epaisseur * 0.55 * s, -R.haut * 0.75 * s, 0.08 * s, R.haut * 0.5 * s);   // sièges rabattus
+  ctx.fillStyle = '#37474f';
+  for (const h of [0.35, R.haut - 0.35]) { ctx.beginPath(); ctx.ellipse(-R.epaisseur * 0.5 * s, -h * s, 0.18 * s, 0.32 * s, 0, 0, Math.PI * 2); ctx.fill(); }   // roues rabattues
+  ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = Math.max(1, s * 0.04);
+  for (const h of [0.6, 1.2]) { ctx.beginPath(); ctx.moveTo(-R.epaisseur * s - 1, -h * s); ctx.lineTo(1, -h * s); ctx.stroke(); }   // sangles de maintien
+  ctx.restore();
+}
+
 // Atterrisseur cargo posé (pont sur quatre pieds, réservoirs, isolant doré, rampe de descente de l'astromobile).
 function dessinerCargoRover(ctx, x, y, s) {
   ctx.save();

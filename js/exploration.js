@@ -1578,7 +1578,7 @@ class Exploration {
     }
     if (this.rover && !this.enRover) {
       const [rx, ry] = versEcran(this.rover.x, this.sol(this.rover.x));
-      if (this.rover.deplie < 1) dessinerRoverReplie(ctx, rx, ry, echelle, this.rover.deplie, this.rover.dir);
+      if (this.rover.deplie < 1) dessinerAstromobileRangee(ctx, versEcran, this, rx, ry, echelle);   // contre le module, puis basculée (astromobile.js)
       else dessinerRover(ctx, rx, ry, echelle, { dir: this.rover.dir, pas: this.rover.pas }, false, this.penteSous(this.rover.x), this.degatsRover, this.nivRover);
     }
 
