@@ -942,7 +942,7 @@ function reprendreDepuis(id) {
   if (id === 'ici') return allerNavigation();
   // Missions en parallèle (flotte.js) : avant de laisser le vaisseau, prochaine manœuvre et pilotage en son absence.
   if (id.startsWith('exp:')) return confirmerAbsence(v, () => prendreExpedition(id.slice(4)));
-  if (id.startsWith('sys:')) return confirmerAbsence(v, () => { changerSysteme(v, id.slice(4)); sauver(etat); ouvrirReprise(); });
+  if (id.startsWith('sys:')) return confirmerAbsence(v, () => { changerSysteme(v, id.slice(4)); executerRattrapage(v, () => { sauver(etat); ouvrirReprise(); }); });
   if (id === 'crash') { const p = lirePointReprise(v); return p ? reprendreAvantCrash(p) : allerNavigation(); }
   if (lirePointReprise(v)) oublierPointReprise();   // repartir d'ailleurs : la perte est actée
   if (id === 'terre') return v.orb ? allerLancement() : allerEquipage(v);   // nouvelle expédition : l'équipage d'abord
@@ -1030,8 +1030,8 @@ function suivreVoyage(id) {
   const x = (v.flotte || []).find((e) => e.idExpedition === id);
   if (!x || !x.transit) return allerAccueil();
   const info = x.transit;
-  const arrivee = () => {
-    const st = arriverExpedition(v, id);
+  const arrivee = () => executerRattrapage(arriverExpedition(v, id), () => {
+    const st = finirArrivee(v, id);
     for (const m of v.equipe || []) m.tDepart = v.t;   // le voyage est déjà compté dans le registre
     Orbiteur.charger(v);
     Orbiteur.camPlacee = false;
@@ -1052,7 +1052,7 @@ function suivreVoyage(id) {
     $('vers-hangar').textContent = 'Aller à l’orbiteur';
     $('rejouer').classList.add('cache');
     montrer('resultat');
-  };
+  });
   if (v.t >= info.tArrivee) return arrivee();
   jouerScene(new TransitInterstellaire(info), arrivee);
 }

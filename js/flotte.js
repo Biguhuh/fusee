@@ -7,7 +7,7 @@
 // Ce qui appartient à un système stellaire (reste sur place quand on le quitte).
 const CHAMPS_SYSTEME = ['planeteBase', 'stations', 'bases', 'sondesEnVol', 'cargos', 'robotsAuto', 'conteneurs', 'sites', 'visites',
   'echantillonsRapportes', 'orbiteurGare', 'deranges', 'chutesObjets', 'orbitesObjets', 'objetsPerdus', 'alertesResidents', 'penuries',
-  'tResidents', 'dernierRavito'];
+  'tResidents', 'dernierRavito', 'retoursEchantillons'];
 // Ce qui appartient à une expédition (le vaisseau, son équipe et son chargement).
 const CHAMPS_EXPEDITION = ['orb', 'equipe', 'nomVaisseau', 'carburant', 'ergolsAtt', 'sondes', 'kits', 'kitsBase', 'robots', 'drones',
   'atterrisseurs', 'echantillonsABord', 'cible', 'manette', 'mode', 'orientation', 'vivres', 'eau', 'tVivres', 'dechets', 'tDechets',
@@ -43,6 +43,7 @@ function rangerExpedition(v) {
   v.flotte.push(x);
   for (const c of CHAMPS_EXPEDITION) delete v[c];
   Object.assign(v, sansExpedition());
+  if (v.equipeSurPlace) { v.equipe = v.equipeSurPlace; delete v.equipeSurPlace; }   // les équipiers du système reviennent à l'écran
   oublierEtapeOrbiteur();
   return x;
 }
@@ -53,23 +54,33 @@ function reprendreExpedition(v, id) {
   if (!x) return false;
   if (x.systeme !== v.systeme) changerSysteme(v, x.systeme);
   rangerExpedition(v);
+  restaurerExpedition(v, x);
+  return true;
+}
+// Remet à l'écran une expédition rangée du système affiché.
+function restaurerExpedition(v, x) {
   v.flotte = v.flotte.filter((e) => e !== x);
+  if (v.equipe && v.equipe.length) v.equipeSurPlace = v.equipe;   // équipiers restés aux bases et stations : mis de côté
   for (const c of CHAMPS_EXPEDITION) delete v[c];
   for (const c of CHAMPS_EXPEDITION) if (x[c] !== undefined) v[c] = x[c];
-  rattraperOrbiteur(v, x.tRange);
+  if (v.rattrapageDepuis) {
+    // Le système vient d'être retrouvé : l'expédition sera rattrapée avec lui (executerRattrapage).
+    if (x.tRange < v.rattrapageDepuis) { const t = v.t; v.t = v.rattrapageDepuis; rattraperOrbiteur(v, x.tRange); v.t = t; }
+  } else rattraperOrbiteur(v, x.tRange);
   oublierEtapeOrbiteur();
-  return true;
 }
 
 // Range le système affiché dans v.mondes et affiche un autre système (vide s'il n'a jamais été visité).
 // L'expédition affichée est rangée avec : elle reste dans son système.
 function changerSysteme(v, id) {
   if (id === v.systeme) return;
-  rangerExpedition(v);
+  const xr = rangerExpedition(v);
   const m = {};
+  m.expeditionAffichee = xr ? xr.idExpedition : null;   // elle reviendra à l'écran avec son système
   for (const c of CHAMPS_SYSTEME) if (v[c] !== undefined) m[c] = copieJSON(v[c]);
   for (const s of [...(m.sondesEnVol || []), ...(m.cargos || [])]) delete s.etape;
   if (v.equipe && v.equipe.length) m.equipeSurPlace = copieJSON(v.equipe);   // équipiers restés aux bases et stations
+  m.tRange = v.t;   // à partir d'ici, le système attend notre retour (executerRattrapage)
   v.mondes = v.mondes || {};
   v.mondes[v.systeme] = m;
   for (const c of CHAMPS_SYSTEME) delete v[c];
@@ -77,9 +88,14 @@ function changerSysteme(v, id) {
   Object.assign(v, systemeVide(), w);
   v.equipe = w.equipeSurPlace || null;
   delete v.equipeSurPlace;
+  if (w.tRange < v.t) v.rattrapageDepuis = Math.min(v.rattrapageDepuis || Infinity, w.tRange);
+  delete v.tRange;
+  delete v.expeditionAffichee;
   delete v.mondes[id];
   v.systeme = id;
   choisirSystemeCampagne(v);
+  const xa = w.expeditionAffichee && (v.flotte || []).find((e) => e.idExpedition === w.expeditionAffichee && e.systeme === id && !e.transit);
+  if (xa) restaurerExpedition(v, xa);
 }
 
 // Toutes les expéditions de la campagne, affichée comprise : { id, systeme, nom, numero, active }.
@@ -122,8 +138,13 @@ function arriverExpedition(v, id) {
   const info = x.transit;
   changerSysteme(v, x.systeme);
   v.t = Math.max(v.t, info.tArrivee);
+  return v;
+}
+// Seconde moitié de l'arrivée, après le rattrapage du système d'arrivée.
+function finirArrivee(v, id) {
+  const x = (v.flotte || []).find((e) => e.idExpedition === id);
   reprendreExpedition(v, id);
-  return arriverDansSysteme(v, info);
+  return arriverDansSysteme(v, x.transit);
 }
 
 // ---------- Laisser une expédition : prochaine manœuvre et pilotage en son absence ----------
@@ -177,11 +198,13 @@ function prendreExpedition(id) {
   if (!x) return allerAccueil();
   if (x.transit) return suivreVoyage(id);
   reprendreExpedition(v, id);
-  bilanAbsence(v, (t) => Orbiteur.log(t));
-  Orbiteur.charger(v);
-  Orbiteur.camPlacee = false;
-  sauver(etat);
-  allerNavigation();
+  executerRattrapage(v, () => {
+    if (v.pilotageAbsence) bilanAbsence(v, (t) => Orbiteur.log(t));   // même système : pas de rattrapage, mais le « Oups » éventuel
+    Orbiteur.charger(v);
+    Orbiteur.camPlacee = false;
+    sauver(etat);
+    if (v.orb) allerNavigation(); else allerAccueil();
+  });
 }
 
 // Nom d'un système, et d'un astre d'un autre système que celui affiché.
@@ -214,6 +237,74 @@ function choixFlotte(v) {
       n || b ? `${nombre(n, 'station')}, ${nombre(b, 'base')}` : (s === 'solaire' ? 'centre de lancement : nouvelle expédition depuis la Terre' : 'rien encore')]);
   }
   return l;
+}
+
+// ---------- Rattrapage : le temps passé loin d'un système ----------
+// Le temps est commun : en revenant dans un système (et à son expédition), on rejoue le temps écoulé depuis
+// qu'on l'a quitté, comme si on y était resté en accéléré. Pilote auto : les manœuvres sont faites ;
+// en manuel, elles attendent (et la trajectoire suit son cours). Vivres, bases, cargos et coûts suivent.
+// Au-delà de quelques secondes de calcul, la fin est simplifiée (orbites seules, puis un seul bilan).
+// suite() est appelée après, ou après la fenêtre « Pendant votre absence » s'il s'est passé quelque chose.
+function executerRattrapage(v, suite) {
+  const t0 = v.rattrapageDepuis;
+  delete v.rattrapageDepuis;
+  const cible = v.t;
+  if (!(t0 < cible - 1)) return suite();
+  const O = Orbiteur, ctx = O.contexte, f = financesDe(v), tF = f.t;
+  const debut = v.journal.length, nom = v.nomVaisseau;
+  let perte = null;
+  O.charger(v);
+  O.contexte = { ...ctx, finExpedition: (t) => { perte = t; } };   // une perte ne quitte pas l'écran : on la raconte après
+  O.auto = !!(v.orb && v.cible && v.pilotageAbsence !== 'manuel');
+  O.avance = false;
+  const warp = v.warp;
+  v.t = t0;
+  f.t = Math.min(f.t, t0);   // les coûts du système retrouvé courent pendant l'absence
+  const tCalc = performance.now();
+  let simplifie = false;
+  try {
+    while (v.t < cible - 1e-3) {
+      if (performance.now() - tCalc > 4000) { simplifie = true; break; }
+      const reste = cible - v.t, tAvant = v.t;
+      if (v.orb) {
+        O.avancer(Math.min(reste, Math.max(600, Math.min(86400, reste / 50))), false);
+        if (v.t <= tAvant) v.t = Math.min(cible, tAvant + 60);   // garde-fou : le temps avance toujours
+      } else {
+        const h = Math.min(reste, Math.max(3600, Math.min(10 * 86400, reste / 50)));
+        v.t += h;
+        majFinances(v);
+        O.mettreAJourSondes(h);
+        O.mettreAJourLogistique();
+      }
+    }
+    if (simplifie) {
+      const t = v.t;
+      v.t = cible;
+      rattraperOrbiteur(v, t);
+      majFinances(v);
+      O.mettreAJourLogistique();
+    }
+  } finally {
+    v.t = Math.max(v.t, cible);
+    f.t = Math.max(tF, v.t);
+    O.contexte = ctx;
+    O.auto = false; O.avance = false; O.etape = null;
+    v.warp = warp;
+  }
+  if (v.orb) bilanAbsence(v, (t) => O.log(t));
+  const nouveautes = v.journal.slice(debut);
+  if (!nouveautes.length && !perte && !simplifie) return suite();
+  const m = $('modale');
+  m.innerHTML = `<div class="fenetre"><header class="entete"><div><h2>⏱ Pendant votre absence</h2>
+    <p>Dans le ${SYSTEME.nom}${nom ? `, avec le vaisseau ${nom}` : ''} : ${fmtDuree(cible - t0)} écoulés. Nous sommes le ${fmtDate(v.t, false)}.</p></div><button class="fermer">✕</button></header>
+    ${perte ? `<p class="objectif">${perte}</p>` : ''}
+    ${simplifie ? '<p class="doux">Absence très longue : la fin a été calculée plus simplement (orbites, puis un seul bilan).</p>' : ''}
+    ${nouveautes.length ? `<ul class="journal">${nouveautes.slice(-15).map((j) => `<li><b>${fmtDate(j.t, false)}</b> · ${j.texte}</li>`).join('')}</ul>` : '<p class="doux">Rien de notable.</p>'}
+    <div class="actions"><span></span><button class="principal fermer2">Continuer</button></div></div>`;
+  m.classList.remove('cache');
+  const fin = () => { Infos.fermer(); suite(); };
+  m.querySelector('.fermer').onclick = fin;
+  m.querySelector('.fermer2').onclick = fin;
 }
 
 // L'orbiteur rangé n'a pas bougé : on le replace là où il est à la date du jour.
