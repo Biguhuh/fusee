@@ -319,6 +319,7 @@ class Vol {
     this.phase = 'au sol';
     this.manette = 0;
     this.dejaPose = true;
+    if (this.sansRetour) this.terminer('colonie');   // descente sans retour : l'équipage rejoint la base (colonies.js)
   }
 
   objectifs() {

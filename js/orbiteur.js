@@ -2494,7 +2494,7 @@ const Orbiteur = {
         d += personne ? `<button disabled title="${survivants(v).length ? 'Toute l’équipe est en mission' : 'Plus personne en vie à bord'}">⬇ Descendre ${sur(c)} (personne à bord)</button>`
           : `<button id="nav-descendre">⬇ Descendre ${sur(c)}${manque ? ' (⚠ sans retour)' : ''}</button>`;
         d += `<p class="doux">Atterrisseur conçu pour ${le(c)} : ${descriptionConception(conc)}. Ergols : ${fmt(conc.fusee.carburant / 1000, 1)} t${manque ? ' — <b style="color:var(--alerte)">réserve insuffisante, ravitaillez à une station</b>' : ''}.</p>`;
-      } else d += `<p class="encart-refus">⚠ ${conc.raison}</p>`;   // bien visible : pas de descente possible ici
+      } else d += `<p class="encart-refus">⚠ ${conc.raison}</p>` + htmlColons(v, c);   // pas de descente possible ici ; sans retour, vers une base (colonies.js)
       if (c.type === 'solide' && v.robots > 0) d += `<button id="nav-robot">${droneVolePossible(c) && v.drones > 0 ? '🤖🚁 Larguer le robot et son drone (aller simple)' : '🤖 Larguer un robot (aller simple)'}</button>`;
     }
     const st = this.stationIci();
@@ -2585,6 +2585,7 @@ const Orbiteur = {
     bind('nav-descendre', () => ouvrirChoixLieu(ASTRES_PAR_ID[o.centre], v, (site) => (v.equipe
       ? ouvrirChoixEquipage(v, ASTRES_PAR_ID[o.centre], (compo) => this.contexte.descendre(o.centre, site, compo))
       : this.contexte.descendre(o.centre, site))));
+    bind('nav-colons', () => ouvrirChoixEquipage(v, ASTRES_PAR_ID[o.centre], (compo) => descendreColons(v, ASTRES_PAR_ID[o.centre], compo)));
     bind('nav-robot', () => ouvrirChoixLieu(ASTRES_PAR_ID[o.centre], v, (site) => this.ouvrirLargageRobot(o.centre, site), 'Larguer le robot'));
     bind('nav-rentrer', () => this.contexte.rentrer());
     bind('nav-reprendre', () => this.choisirCible(v.voyageFinal));

@@ -375,7 +375,8 @@ function finVol(r) {
   } else if (etat.enVoyage) {
     const a = r.astre.id;
     if (!etat.vol.robotSeul && etat.vol.doseSv) regDose(piloteDuVol(v), etat.vol.doseSv);   // registre des équipages
-    if (reussi) {
+    if (r.cause === 'colonie') fonderColonie(v, r);   // descente sans retour (colonies.js)
+    else if (reussi) {
       // L'atterrisseur rejoint l'orbiteur avec ses échantillons ; ses ergols restants retournent en réserve.
       v.ergolsAtt += r.carburantRestant;
       if (etat.vol.echantillons) v.echantillonsABord[a] = (v.echantillonsABord[a] || 0) + etat.vol.echantillons;

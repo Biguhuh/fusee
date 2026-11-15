@@ -32,7 +32,7 @@ function compterExpedition(cle, n) {
 function pilote(v) {
   if (!v || !v.equipe) return null;
   const p = v.equipe.find((m) => m.principal);
-  if (p && !v.equipagePerdu && p.etat !== 'perdu' && p.etat !== 'rapatrie') return p;
+  if (p && !v.equipagePerdu && p.etat !== 'perdu' && p.etat !== 'rapatrie' && !p.colon) return p;   // colon : reste à sa base
   return v.equipe.find((m) => !m.principal && m.etat === 'bord') || null;
 }
 // Nom, profil et accord de la personne qui descend (hors campagne : votre spationaute).
