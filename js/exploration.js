@@ -1519,6 +1519,7 @@ class Exploration {
     if (!this.terre) dessinerSignalements(ctx, this, versEcran, echelle, W, H);   // « Viens voir ça ! »
 
     // Promenade sur Terre : fleurs, arbres fruitiers, bar
+    this.dessinerRueLA(ctx, versEcran, echelle, W);   // rue de Los Angeles (theylive.js)
     if (this.terre) {
       for (const s of this.sites) {
         const [sx, sy] = versEcran(s.x, this.sol(s.x));
@@ -1621,6 +1622,7 @@ class Exploration {
 
     this.dessinerTourbillonsPres(ctx, versEcran, echelle, W, H);   // Mars : sur le chemin, et la poussière
     this.dessinerThing(ctx, versEcran, echelle, W, H);             // banquise : chien, blizzard
+    this.dessinerLunettes(ctx, W, H);                              // lunettes de la rue de Los Angeles : noir et blanc
     this.dessinerDanger(ctx, W, H);   // grave danger : voile rouge au rythme du cœur (physiologie.js)
     if (this.terre) this.dessinerHudTerre(ctx, W, H);
     else this.dessinerHud(ctx, W, H);

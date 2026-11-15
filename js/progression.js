@@ -78,6 +78,9 @@ const REFERENCES_EGGS = {
   'trappist-insectes': 'Starship Troopers (Paul Verhoeven, 1997, d’après Robert A. Heinlein) : de jeunes recrues envoyées combattre des insectes géants sur une planète lointaine.',
   'mars-soucoupes': 'Mars Attacks! (Tim Burton, 1996) : les soucoupes martiennes, et le célèbre « Ack ack ack ! » des envahisseurs.',
   'lune-melies': 'Le Voyage dans la Lune (Georges Méliès, 1902) : l’obus des savants se plante dans l’œil de la Lune, l’une des images les plus célèbres du cinéma.',
+  'mars-colonie': 'Ghosts of Mars (John Carpenter, 2001) : une colonie minière martienne, et ses anciens occupants qui ne sont pas tous partis.',
+  'trappist-g-base': 'The Thing (John Carpenter, 1982) : une base de l’Antarctique, un chien qui n’en est peut-être pas un, et la méfiance qui gagne tout le monde.',
+  'terre-lunettes': 'Invasion Los Angeles (They Live, John Carpenter, 1988) : des lunettes de soleil qui révèlent les ordres cachés dans les publicités.',
   'delorean': 'Retour vers le futur (1985) : à 88 miles à l’heure, la DeLorean voyage dans le temps et laisse deux traînées de feu sur la route.',
   'mercure-asimov': 'Cercle vicieux (Isaac Asimov, 1942) : sur Mercure, un robot tourne autour d’une mare de sélénium, coincé entre deux des Trois Lois de la robotique, qui y apparaissent pour la première fois.',
   'venus-lem': 'Les Astronautes (Stanisław Lem, 1951 ; film L’Étoile du silence, 1960) : sur Vénus, les explorateurs découvrent les ruines d’une civilisation qui s’est anéantie elle-même.',
@@ -101,6 +104,7 @@ function lieuEgg(e) {
   if (e.id === 'betelgeuse') return 'dans « Se promener », en observant Bételgeuse';
   if (e.id === 'delorean') return 'à l’entraînement (sur Terre) : en astromobile, après le plot orange, pied au plancher en vous éloignant du module, longtemps';
   if (e.id === 'rama') return 'en route, en orbite autour du Soleil au-delà de 3 UA, avec l’équipage (en campagne)';
+  if (e.id === EGG_THEYLIVE.id) return 'dans la promenade sur Terre, dans la rue de Los Angeles, 200 m après le Bar de l’Espace';
   if (e.id === 'iss-wolowitz') return 'à la Station spatiale internationale, en orbite terrestre (rendez-vous et amarrage, en campagne)';
   if (e.id.startsWith('voiture-')) return 'en orbite autour du Soleil, sur la route de la voiture rouge (en campagne)';
   if (e.orbite) return `en orbite ${de(astrePartout(e.astre))} : l’équipage de l’orbiteur l’aperçoit après un tour complet (en campagne)`;

@@ -93,6 +93,7 @@ const Tactile = {
       if (x.type === 'spationaute' && !x.terre && x.integrite < 90) b.push({ zone: 'actions', label: '🔧', code: 'KeyK', titre: 'Ruban adhésif sur la combinaison' });
       if (x.type === 'spationaute' && !x.terre) b.push({ zone: 'actions', label: '🆘', code: 'KeyU', titre: 'Appel d’urgence : un module de secours' });
       if (!x.terre && !x.enRover) b.push({ zone: 'actions', label: '🚩', code: 'KeyF', titre: 'Planter le drapeau' });
+      if (x.terre && x.lunettes) b.push({ zone: 'actions', label: '🕶', code: 'KeyL', titre: 'Mettre ou retirer les lunettes' });
       temps('actions');
       b.push({ zone: 'actions', label: etat.pause ? '▶' : '⏸', code: 'KeyP' });
       b.push({ zone: 'actions', label: x.terre ? '🏠 Rentrer' : x.type === 'robot' ? '⏹ Arrêter' : '↩ Rentrer', code: 'Escape' });

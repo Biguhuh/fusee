@@ -1297,6 +1297,7 @@ addEventListener('keydown', (e) => {
     if (e.code === 'KeyH') deployerDrone();
     if (e.code === 'KeyU') x.appelUrgence();
     if (e.code === 'KeyF') x.planterDrapeau();
+    if (e.code === 'KeyL') x.basculerLunettes();
     if (e.code === 'Escape') {
       if (x.terre) x.terminer('retour', `Fin de la promenade : ${x.bouquet || 0} fleurs, ${x.panier || 0} fruits, ${x.bieres} bière(s).`);
       else x.agirRappel();
