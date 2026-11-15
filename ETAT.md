@@ -108,7 +108,7 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 Travail seul, sans validation à chaque étape. Commits locaux seulement : rien de poussé ni fusionné. Une branche par sujet, chaque branche part de la précédente (la première part de `missions-paralleles`). Tester chaque sujet dans le navigateur intégré (appels directs, `window.sauver` neutralisé). Cocher ici chaque sujet fini, avec sa branche et son dernier commit. Verrou : `~/code/Biguhuh/nuit.lock` (date de la dernière activité) ; mis à jour à chaque sujet.
 
 - [x] 1. Spationaute joué par mission (branche `missions-paralleles`) : chaque expédition a son propre personnage joué (prénom, genre, apparence, fiche au registre). Page d'équipage : créer un nouveau spationaute ou reprendre un vétéran libre comme personnage joué ; jamais quelqu'un déjà à bord d'un autre vaisseau. Changer de vaisseau change de personnage. Conversion des sauvegardes. FAIT : flotte.js (incarner, joueurOccupe, choisirNouveauJoueur), testé par appels directs.
-- [ ] 2. Étape 5, nouvelles en retard (même branche) : depuis un autre système, on voit l'état d'une expédition lointaine tel qu'il était il y a « distance en années-lumière » ans (dans « Reprendre ») ; ses nouvelles arrivent au journal au rythme de la lumière. Sur place, pas de délai. Les ordres ne sont pas retardés.
+- [x] 2. Étape 5, nouvelles en retard (même branche) : depuis un autre système, on voit l'état d'une expédition lointaine tel qu'il était il y a « distance en années-lumière » ans (dans « Reprendre ») ; ses nouvelles arrivent au journal au rythme de la lumière. Sur place, pas de délai. Les ordres ne sont pas retardés. FAIT : flotte.js (delaiLumiere, recevoirNouvelles), testé : équipage mort de faim en 2028 à TRAPPIST-1, appris en 2068.
 - [ ] 3. Deux expéditions sur une même base (même branche) : message « Ah, on est contents de se retrouver ! » ; atterrisseurs distincts (chacun repart vers son expédition) ; un personnage peut changer d'expédition.
 - [ ] 4. Spécialités (branche `specialites`) : 1 à 3 par personnage, inspirées des vrais équipages : commandant, pilote, ingénieur de vol, médecin, infirmier, physicien (toujours utile), géologue, biologiste, chimiste, communications, informaticien. Plus des talents pour rire : musicien, joueur d'échecs, fan de foot, tricot, cuisine, jardinage, etc. Pilote et médecin obligatoires ; ingénieur et scientifique conseillés ; départ possible sans eux, avec un risque accru (manœuvres, soins, réparations).
 - [ ] 5. Easter eggs Le Cinquième Élément (branche `cinquieme-element`) : « Aziz, lumière ! » la première fois que les lampes du casque s'allument ; épave du vaisseau mondoshawan sur Io (abattu par les Mangalores en passant près de Jupiter) : le cinquième élément n'est pas dans les débris.
@@ -116,6 +116,7 @@ Travail seul, sans validation à chaque étape. Commits locaux seulement : rien 
 - [ ] 7. Vraies missions observées (branche `vraies-missions`) : si la partie commence dans le passé, les vraies missions (Apollo, rovers, sondes) se déroulent à leur date : journal, carte, traces laissées sur place.
 - [ ] 8. Buts dans les autres systèmes (branche `buts-systemes`) : eau liquide, traces de vie, colonie autonome, message vers la Terre.
 - [ ] 9. Colonies, version simple (branche `colonies-gestion`) : astromobile de colonie (cabine, zone de vie, recharge, soute), ressources de la planète, gestion des bases et colonies (robots, niveaux, vivres, minage, énergie), dans l'esprit « scientifique respectueux ».
+- [ ] 10. Activités sur toutes les infrastructures (branche `activites`), demandé par Edouard : des choses à faire sur les bases, les colonies et les stations orbitales ; pannes et actions techniques de maintenance (partir des pannes de station réparées en sortie, `mettreAJourPannes`, eva-missions.js) étendues aux bases et aux colonies ; activités de la vie sur place (expériences, entretien, culture, observation).
 
 ## En cours
 
@@ -139,6 +140,7 @@ Travail seul, sans validation à chaque étape. Commits locaux seulement : rien 
 
 ## Bugs connus de la bêta
 
+- Orbite d'arrivée dans un autre système à 3 km du sol (TRAPPIST-1 b : rayon 7 110 km, orbite 7 113 km) : `rayonOrbiteBasse`, `arriverDansSysteme` (interstellaire.js) : probablement une altitude en mètres prise pour des kilomètres. Trouvé la nuit du 16 novembre, pas corrigé (à demander).
 - Boutons de l'accueil sans réponse juste après une publication : non reproduit : déploiement de GitHub Pages : probablement un cache mélangé (attendre ≈ 10 min, puis Ctrl+F5).
 - Ravitaillement courant de la station terrestre : jusqu'à 150 t par passage au niveau 5, soit des milliards d'euros par mois : `ravitaillement.js` : un plein d'orbiteur gardé en réserve à chaque station, peut-être trop.
 

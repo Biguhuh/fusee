@@ -225,10 +225,16 @@ function choixFlotte(v) {
     let detail;
     if (x.transit) {
       const i = x.transit;
-      detail = v.t >= i.tArrivee ? `arrivé dans le ${nomSystemeDe(i.systeme)} : prendre la main`
+      const dl = delaiLumiere(v.systeme, i.systeme);
+      detail = v.t >= i.tArrivee ? `arrivé dans le ${nomSystemeDe(i.systeme)} vers ${fmtAnnee(i.anneeDepart + i.ans)}${v.t < i.tArrivee + dl ? ` (la nouvelle arrivera ici vers ${fmtAnnee(anneeDuJeu(i.tArrivee + dl))})` : ''} : prendre la main`
         : `en route vers le ${nomSystemeDe(i.systeme)}, arrivée vers ${fmtAnnee(i.anneeDepart + i.ans)} (suivre le voyage : la date avance jusque-là)`;
     } else {
       const a = x.orb && astreDe(x.systeme, x.orb.centre);
+      if (x.systeme !== v.systeme && delaiLumiere(v.systeme, x.systeme) > 0) {
+        const w = (v.mondes || {})[x.systeme];
+        l.push(['exp:' + x.idExpedition, titre, `dans le ${nomSystemeDe(x.systeme)} · dernières nouvelles : ${fmtDate((w && w.tRange) || x.tRange, false)} (${fmtDureeAnnees(delaiLumiere(v.systeme, x.systeme) / ANNEE_S)} de trajet pour la lumière)`]);
+        continue;
+      }
       detail = `${x.systeme !== v.systeme ? `dans le ${nomSystemeDe(x.systeme)}, ` : ''}${a ? enOrbite(a) : 'en orbite'}`;
       const p = x.manoeuvreAbsence;
       if (p) detail += ` · prochaine manœuvre le ${fmtDate(p.t, false)}, pilotage ${x.pilotageAbsence === 'manuel' ? 'manuel' : 'auto'}${x.pilotageAbsence === 'manuel' && v.t > p.t ? ' ⚠ trop tard !' : ''}`;
@@ -240,7 +246,8 @@ function choixFlotte(v) {
     const w = (v.mondes || {})[s] || {};
     const n = (w.stations || []).length, b = (w.bases || []).length;
     l.push(['sys:' + s, `🌌 Aller dans le ${nomSystemeDe(s)}`,
-      n || b ? `${nombre(n, 'station')}, ${nombre(b, 'base')}` : (s === 'solaire' ? 'centre de lancement : nouvelle expédition depuis la Terre' : 'rien encore')]);
+      (n || b ? `${nombre(n, 'station')}, ${nombre(b, 'base')}` : (s === 'solaire' ? 'centre de lancement : nouvelle expédition depuis la Terre' : 'rien encore'))
+      + (w.tRange && delaiLumiere(v.systeme, s) > 0 ? ` · dernières nouvelles : ${fmtDate(w.tRange, false)}` : '')]);
   }
   return l;
 }
@@ -251,7 +258,7 @@ function choixFlotte(v) {
 // en manuel, elles attendent (et la trajectoire suit son cours). Vivres, bases, cargos et coûts suivent.
 // Au-delà de quelques secondes de calcul, la fin est simplifiée (orbites seules, puis un seul bilan).
 // suite() est appelée après, ou après la fenêtre « Pendant votre absence » s'il s'est passé quelque chose.
-function executerRattrapage(v, suite) {
+function executerRattrapage(v, suite, silencieux = false) {
   const t0 = v.rattrapageDepuis;
   delete v.rattrapageDepuis;
   const cible = v.t;
@@ -272,12 +279,15 @@ function executerRattrapage(v, suite) {
     while (v.t < cible - 1e-3) {
       if (performance.now() - tCalc > 4000) { simplifie = true; break; }
       const reste = cible - v.t, tAvant = v.t;
-      if (v.orb) {
-        O.avancer(Math.min(reste, Math.max(600, Math.min(86400, reste / 50))), false);
+      if (v.orb && (O.auto || !orbiteTranquille(v))) {
+        // En route vers une cible : pas d'une journée (manœuvres à l'heure).
+        O.avancer(Math.min(reste, Math.max(600, Math.min((O.auto ? 1 : 10) * 86400, reste / 50))), false);
         if (v.t <= tAvant) v.t = Math.min(cible, tAvant + 60);   // garde-fou : le temps avance toujours
       } else {
+        // Sans orbiteur, ou en orbite stable sans consigne : l'orbite se calcule d'un coup, par pas de dix jours.
         const h = Math.min(reste, Math.max(3600, Math.min(10 * 86400, reste / 50)));
         v.t += h;
+        if (v.orb) rattraperOrbiteur(v, v.t - h);
         majFinances(v);
         O.mettreAJourSondes(h);
         O.mettreAJourLogistique();
@@ -297,8 +307,9 @@ function executerRattrapage(v, suite) {
     O.auto = false; O.avance = false; O.etape = null;
     v.warp = warp;
   }
-  if (v.orb) bilanAbsence(v, (t) => O.log(t));
+  if (v.orb && !silencieux) bilanAbsence(v, (t) => O.log(t));   // (nouvelles lointaines : le choix de pilotage reste)
   const nouveautes = v.journal.slice(debut);
+  if (silencieux) return suite(nouveautes);
   montrerAbsence(v, `Dans le ${SYSTEME.nom}${nom ? `, avec le vaisseau ${nom}` : ''}`, cible - t0, nouveautes, perte, simplifie, suite);
 }
 function montrerAbsence(v, ou, duree, nouveautes, perte, simplifie, suite) {
@@ -372,6 +383,48 @@ function rattraperVaisseauSeul(v, t0) {
   try { mettreAJourVivres(v, (texte) => log(cible, texte)); } finally { v.bases = bases; }
   bilanAbsence(v, (texte) => log(cible, texte));
   return { t0, nouveautes: v.journal.slice(debut), perte };
+}
+
+// ---------- Nouvelles en retard (délai de la lumière) ----------
+// D'un système à l'autre, les nouvelles voyagent à la vitesse de la lumière : d'ici, on connaît un système lointain
+// tel qu'il était il y a « distance en années-lumière » ans. Quand on ouvre « Reprendre », chaque système lointain
+// avance jusqu'à cette date (rattrapage silencieux) ; ses événements arrivent au journal, datés de leur réception.
+// Sur place, pas de délai : en y allant, on rattrape le reste. Les ordres, eux, ne sont pas retardés.
+function positionSysteme(id) { return id === 'solaire' ? [0, 0, 0] : (DONNEES_ETOILES[id] && DONNEES_ETOILES[id].positionAL) || null; }
+function delaiLumiere(a, b) {
+  if (a === b) return 0;
+  const p = positionSysteme(a), q = positionSysteme(b);
+  if (!p || !q) return 0;
+  return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) * ANNEE_S;
+}
+function recevoirNouvelles(v) {
+  const ici = v.systeme, t = v.t;
+  let recu = 0;
+  for (const s of Object.keys(v.mondes || {})) {
+    const w = v.mondes[s], d = delaiLumiere(ici, s), tN = t - d;
+    if (!d || !(w.tRange < tN - JOUR)) continue;
+    changerSysteme(v, s);          // le système lointain attend depuis w.tRange
+    v.t = tN;
+    executerRattrapage(v, (nouveautes) => {
+      for (const j of nouveautes || []) { j.texte = `📡 ${majuscule(nomSystemeDe(s))}, nouvelle émise le ${fmtDate(j.t, false)} : ${j.texte}`; j.t += d; recu++; }
+    }, true);
+    changerSysteme(v, ici);        // le système lointain reste rangé à la date des nouvelles reçues
+    v.t = t;
+  }
+  if (recu) v.journal.sort((a, b) => a.t - b.t);
+  if (typeof Orbiteur !== 'undefined' && v.orb) Orbiteur.charger(v);
+  return recu;
+}
+
+// Orbite fermée, loin du sol et dans la sphère d'influence (ou amarré) : rien ne peut s'y passer d'un coup.
+function orbiteTranquille(v) {
+  const o = v.orb;
+  if (!o || o.transfert) return false;
+  if (v.amarre) return true;
+  const a = ASTRES_PAR_ID[o.centre];
+  if (!a || a.type === 'etoile') return false;
+  const el = elements(o.r, o.v, a.gm);
+  return el.e < 1 && el.rp > a.rayonKm && el.ra < (a.soi || Infinity) * 0.9;
 }
 
 // L'orbiteur rangé n'a pas bougé : on le replace là où il est à la date du jour.

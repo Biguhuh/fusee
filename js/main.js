@@ -909,6 +909,7 @@ function allerNavigation() {
 function ouvrirReprise() {
   const v = etat.voyage;
   if (v && expeditionActive(v)) incarner(v);
+  if (v && !v.fin) recevoirNouvelles(v);   // nouvelles des systèmes lointains, au rythme de la lumière (flotte.js)
   if (!v || v.fin) return allerNavigation();
   choisirSystemeCampagne(v);
   const basesOk = v.bases.filter((b) => !AEROSTAT[b.astre] && ASTRES_PAR_ID[b.astre]);
