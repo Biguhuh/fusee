@@ -889,8 +889,9 @@ class Exploration {
     // Robot de retour au module : recharge et envoi des données à l'orbiteur, puis il repart.
     if (this.moduleRobot && this.presDeLaFusee()) {
       const n = this.transmettre();
-      this.reserve = this.def.autonomie;
-      return this.dire(`Batterie rechargée par les panneaux solaires.${n ? ` ${n} analyse${n > 1 ? 's' : ''} envoyée${n > 1 ? 's' : ''} à l’orbiteur.` : ''} Échap : laisser le robot ici et revenir à l’orbiteur.`);
+      const rs = this.rendementSolaire();   // tempête de poussière : panneaux voilés
+      this.reserve = this.def.autonomie * rs;
+      return this.dire(`Batterie rechargée par les panneaux solaires${rs < 0.95 ? `, à ${fmt(rs * 100)} % seulement (poussière)` : ''}.${n ? ` ${n} analyse${n > 1 ? 's' : ''} envoyée${n > 1 ? 's' : ''} à l’orbiteur.` : ''} Échap : laisser le robot ici et revenir à l’orbiteur.`);
     }
     if (this.type === 'robot' && this.presDeLaFusee()) {
       const n = this.transmettre();
@@ -1479,6 +1480,7 @@ class Exploration {
 
     // Terrain (réutilise le rendu de l'atterrissage)
     dessinerTerrain(ctx, { x: p.x, y: yCam, sol: (x) => this.sol(x), astre: a, autopilote: false }, W, H, echelle, camY);
+    this.dessinerSaisonSol(ctx, versEcran, echelle, W);   // Mars : givre l'hiver (saisons.js)
 
     // Mers (zones.js) : le liquide entre le fond et la surface.
     if (!this.terre) dessinerLiquides(ctx, a, versEcran, (x) => this.sol(x), p.x - W / 2 / echelle - 2, p.x + W / 2 / echelle + 2);
@@ -1623,6 +1625,7 @@ class Exploration {
 
     this.dessinerTourbillonsPres(ctx, versEcran, echelle, W, H);   // Mars : sur le chemin, et la poussière
     this.dessinerThing(ctx, versEcran, echelle, W, H);             // banquise : chien, blizzard
+    this.dessinerSaisonAir(ctx, W, H);                             // Mars : tempête de poussière (saisons.js)
     this.dessinerLunettes(ctx, W, H);                              // lunettes de la rue de Los Angeles : noir et blanc
     this.dessinerDanger(ctx, W, H);   // grave danger : voile rouge au rythme du cœur (physiologie.js)
     if (this.terre) this.dessinerHudTerre(ctx, W, H);

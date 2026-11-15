@@ -101,7 +101,7 @@ Session du 6 au 10 novembre 2026, fusionnée dans `main` (version 351) :
 
 ## En cours
 
-- Saisons sur les astres (À faire, point 6), branche `saisons`, en 4 étapes validées : 1 socle (axes, hauteur du Soleil selon latitude et date), 2 Mars (givre, tempêtes de poussière), 3 la Terre (fleurs et fruits de la promenade), 4 Titan, Triton, Pluton. Étape 1 faite (`saisons.js`), en attente de validation.
+- Saisons sur les astres (À faire, point 6), branche `saisons`, en 4 étapes validées : 1 socle (axes, hauteur du Soleil selon latitude et date), 2 Mars (givre, tempêtes de poussière), 3 la Terre (fleurs et fruits de la promenade), 4 Titan, Triton, Pluton. Étape 1 validée (`saisons.js`). Étape 2 (Mars) faite, en attente de validation. Suivante : la Terre.
 
 ## À faire, dans l'ordre
 

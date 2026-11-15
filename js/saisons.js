@@ -88,10 +88,11 @@ function ligneSaisons(a) {
 // Début de sortie : la saison et la hauteur du Soleil, une fois.
 Object.assign(Exploration.prototype, {
   annoncerSaison() {
-    if (this.saisonDite || this.terre || this.type !== 'spationaute') return;
+    if (this.saisonDite || this.terre) return;
     this.saisonDite = true;
     const a = this.astre, t = tempsCiel(this.vol);
-    if (a.type !== 'solide' || dansLOmbre(this.vol)) return;
+    if (a.id === 'mars') this.annoncerMars(t);   // givre, tempête de poussière (robot compris : ses panneaux)
+    if (this.type !== 'spationaute' || a.type !== 'solide' || dansLOmbre(this.vol)) return;
     const latDeg = latitudeLieu(a, this.vol), h = hauteursSoleil(latDeg * DEG, declinaisonSoleil(a, t));
     const s = saisonDuLieu(a, t, latDeg);
     if (!s && Math.abs(latDeg) < 45) return;   // ni saisons ni haute latitude : rien à dire
@@ -101,5 +102,90 @@ Object.assign(Exploration.prototype, {
     // Mars : les tourbillons annoncent déjà la saison.
     const debut = s && a.id !== 'mars' ? `${majuscule(sur(a))}, c’est ${s}` : `Ici (${fmt(Math.abs(latDeg))}° ${latDeg >= 0 ? 'N' : 'S'})`;
     this.dire(`☀ ${debut} : ${soleil}.`);
+  },
+});
+
+// ---------- Mars : givre et tempêtes de poussière ----------
+// Givre : l'hiver, aux latitudes moyennes et hautes (Viking 2 l'a photographié à 48° N). La nuit et le matin, il
+// disparaît quand le Soleil chauffe ; au-delà de 60°, la glace de CO2 tient toute la journée.
+// Tempêtes : la saison des poussières va de Ls 180 à 330 (Mars au plus près du Soleil, été austral). Tempêtes
+// régionales de quelques semaines ; certaines années, une tempête planétaire (1977, 2001, 2007, 2018).
+// Opacité τ : 0,5 par ciel clair, 2 dans une tempête régionale, 5 et plus dans une tempête planétaire.
+const MARS_ANNEES_GLOBALES = [12, 25, 28, 34];   // années martiennes des tempêtes planétaires observées
+const SOL_MARS = 88775;   // s
+function anneeMartienne(t) { return 1 + Math.floor((t / JOUR + 16336.5) / 686.973); }   // an 1 : 11 avril 1955
+function bosse(ls, debut, pic, fin) { return ls <= debut || ls >= fin ? 0 : ls < pic ? (ls - debut) / (pic - debut) : (fin - ls) / (fin - pic); }
+function poussiereMars(t) {
+  const ls = lsDe(ASTRES_PAR_ID.mars, t), an = anneeMartienne(t), saison = bosse(ls, 150, 250, 340);
+  const globale = MARS_ANNEES_GLOBALES.includes(an) || (an > 38 && hash2(an, 81) < 0.3);
+  if (globale && ls > 190 && ls < 300) {
+    const tau = 0.9 + 5 * Math.min(1, (ls - 190) / 12) * Math.min(1, (300 - ls) / 50);
+    if (tau > 2) return { tau, type: 'globale', ls };
+  }
+  const episode = Math.floor(t / SOL_MARS / 15);   // épisodes d'une quinzaine de sols
+  if (saison > 0 && hash2(episode, 82) < 0.5 * saison) return { tau: 1.5 + hash2(episode, 83), type: 'regionale', ls };
+  return { tau: 0.5 + 0.4 * saison, type: null, ls };
+}
+// Part du Soleil qui atteint encore les panneaux (1 par ciel clair).
+function rendementSolaireMars(tau) { return Math.max(0.01, Math.min(1, Math.exp(-(tau - 0.5) * 0.45))); }
+function givreMars(t, latDeg) {
+  const ls = lsDe(ASTRES_PAR_ID.mars, t), hiver = Math.max(0, Math.cos((ls - (latDeg >= 0 ? 270 : 90)) * DEG));
+  return Math.min(1, Math.max(0, (Math.abs(latDeg) - 35) / 25)) * hiver;
+}
+
+Object.assign(Exploration.prototype, {
+  // Conditions de Mars au lieu et à l'instant : { givre (0-1), poussiere }.
+  meteoMars() {
+    if (this.astre.id !== 'mars' || this.terre) return null;
+    const t = tempsCiel(this.vol);
+    if (this.meteo && Math.abs(this.meteo.t - t) < 600) return this.meteo;
+    const lat = latitudeLieu(this.astre, this.vol);
+    return (this.meteo = { t, lat, givre: givreMars(t, lat), poussiere: poussiereMars(t) });
+  },
+  rendementSolaire() { const m = this.meteoMars(); return m ? rendementSolaireMars(m.poussiere.tau) : 1; },
+
+  annoncerMars() {
+    const m = this.meteoMars(); if (!m) return;
+    const p = m.poussiere, r = rendementSolaireMars(p.tau);
+    if (p.type) this.dire(p.type === 'globale'
+      ? `🌫 Tempête de poussière planétaire, comme en 2018 : le ciel est opaque (τ ≈ ${fmt(p.tau, 1)}), le Soleil n’est plus qu’une lueur. Panneaux solaires : ${fmt(r * 100)} % de leur puissance. Le vent, dans un air 60 fois moins dense que sur Terre, pousse à peine.`
+      : `🌫 Tempête de poussière régionale : ciel brun, horizon voilé (τ ≈ ${fmt(p.tau, 1)}). Panneaux solaires : ${fmt(r * 100)} % de leur puissance.`);
+    if (m.givre > 0.15 && this.type === 'spationaute') this.dire(Math.abs(m.lat) >= 60
+      ? '❄ Hiver polaire : une couche de glace carbonique (CO₂ gelé) couvre le sol, toute la journée.'
+      : '❄ C’est l’hiver ici : du givre couvre le sol la nuit et le matin. Il disparaît quand le Soleil chauffe.');
+  },
+
+  // Givre : des plaques blanches à la surface (juste après le terrain, sous les personnages).
+  dessinerSaisonSol(ctx, versEcran, s, W) {
+    const m = this.meteoMars(); if (!m || m.givre <= 0.05) return;
+    const chaleur = chaleurLocale(this.astre, tempsCiel(this.vol), this.vol);
+    // Le givre tient une bonne partie de la matinée (Soleil bas, l'hiver), puis se sublime.
+    const g = Math.min(1, m.givre * 1.4 * (Math.abs(m.lat) >= 60 ? 1 : Math.max(0, 1 - chaleur * chaleur * 1.2)));
+    if (g <= 0.03) return;
+    const x0 = this.p.x - W / 2 / s;
+    for (let sx = 0; sx < W; sx += 3) {
+      const x = x0 + sx / s, n = hash2(Math.floor(x * 1.5), 71);
+      const [, sy] = versEcran(x, this.sol(x));
+      ctx.fillStyle = `rgba(236,241,248,${0.3 * g})`; ctx.fillRect(sx, sy - 1, 3, 3);   // pellicule continue
+      if (n > g * 1.6) continue;
+      ctx.fillStyle = `rgba(244,247,252,${0.5 + 0.45 * g})`;   // plaques plus épaisses
+      ctx.fillRect(sx, sy - 1.5, 3, 3 + 6 * n);
+    }
+  },
+
+  // Tempête : voile de poussière et grains poussés par le vent (avant l'affichage du HUD).
+  dessinerSaisonAir(ctx, W, H) {
+    const m = this.meteoMars(); if (!m) return;
+    const a = Math.min(0.78, Math.max(0, (m.poussiere.tau - 0.8) / 6));
+    if (a <= 0.01) return;
+    ctx.fillStyle = `rgba(150,96,58,${a})`; ctx.fillRect(0, 0, W, H);
+    const t = performance.now() / 1000, n = Math.round(60 + 120 * a);
+    ctx.fillStyle = `rgba(205,150,100,${0.25 + 0.4 * a})`;
+    for (let i = 0; i < n; i++) {
+      const prof = (i % 3) + 1;
+      const x = ((((i * 97.3 - t * 90 / prof - this.p.x * 30 / prof) % (W + 20)) + W + 20) % (W + 20)) - 10;
+      const y = (((i * 41.7 + Math.sin(t * 0.8 + i) * 15) % H) + H) % H;
+      ctx.fillRect(x, y, 4 / prof, 1.5 / prof);
+    }
   },
 });
